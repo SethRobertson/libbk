@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.9 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.10 2003/06/18 03:57:31 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -100,7 +100,7 @@ static int bsl_oo_cmp(struct bk_stat_node *a, struct bk_stat_node *b);
 static int bsl_ko_cmp(struct bk_stat_node *a, struct bk_stat_node *b);
 static ht_val bsl_obj_hash(struct bk_stat_node *a);
 static ht_val bsl_key_hash(struct bk_stat_node *a);
-static struct ht_args bsl_args = { 512, 1, (ht_func)bsl_obj_hash, (ht_func)bsl_key_hash };
+static struct ht_args bsl_args = { 1024, 3, (ht_func)bsl_obj_hash, (ht_func)bsl_key_hash };
 // @}
 
 
@@ -111,7 +111,7 @@ static struct ht_args bsl_args = { 512, 1, (ht_func)bsl_obj_hash, (ht_func)bsl_k
  * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
- *	@param flags Fun for the future
+ *	@param flags BK_STATS_NO_LOCKS_NEEDED
  *	@return <i>NULL</i> on failure.<br>
  *	@return <br><i>performance list</i> on success
  */
@@ -119,6 +119,7 @@ struct bk_stat_list *bk_stat_create(bk_s B, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_stat_list *blist;
+  bk_flags bsl_flags = DICT_UNIQUE_KEYS;
 
   if (!BK_CALLOC(blist))
   {
@@ -126,7 +127,12 @@ struct bk_stat_list *bk_stat_create(bk_s B, bk_flags flags)
     BK_RETURN(B, NULL);
   }
 
-  if (!(blist->bsl_list = bsl_create((dict_function)bsl_oo_cmp, (dict_function)bsl_ko_cmp, DICT_UNIQUE_KEYS|bk_thread_safe_if_thread_ready, &bsl_args)))
+  if (BK_FLAG_ISCLEAR(flags, BK_STATS_NO_LOCKS_NEEDED))
+  {
+    bsl_flags |= bk_thread_safe_if_thread_ready;
+  }
+
+  if (!(blist->bsl_list = bsl_create((dict_function)bsl_oo_cmp, (dict_function)bsl_ko_cmp, bsl_flags, &bsl_args)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate performance list: %s\n", bsl_error_reason(NULL, NULL));
     goto error;
@@ -390,7 +396,7 @@ void bk_stat_end(bk_s B, struct bk_stat_list *blist, const char *name1, const ch
  *
  * @param B BAKA thread/global environment
  * @param bnode Node to start interval
- * @param flags Fun for the future
+ * @param flags BK_STATS_NO_LOCKS_NEEDED
  */
 void bk_stat_node_start(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
 {
@@ -410,14 +416,14 @@ void bk_stat_node_start(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
   }
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, BK_STATS_NO_LOCKS_NEEDED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
   gettimeofday(&bnode->bsn_start, NULL);
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, BK_STATS_NO_LOCKS_NEEDED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -434,7 +440,7 @@ void bk_stat_node_start(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
  *
  * @param B BAKA thread/global environment
  * @param bnode Node to end interval
- * @param flags Fun for the future
+ * @param flags BK_STATS_NO_LOCKS_NEEDED
  */
 void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
 {
@@ -457,7 +463,7 @@ void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
   gettimeofday(&end, NULL);
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, BK_STATS_NO_LOCKS_NEEDED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -485,7 +491,7 @@ void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
   bnode->bsn_start.tv_sec = 0;
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, BK_STATS_NO_LOCKS_NEEDED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -501,7 +507,7 @@ void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
  *
  * @param B BAKA thread/global environment
  * @param blist Performance list
- * @param flags BK_STAT_DUMP_HTML
+ * @param flags BK_STAT_DUMP_HTML, BK_STATS_NO_LOCKS_NEEDED
  * @param <i>NULL</i> on call failure, allocation failure
  * @param <br><i>string you must free</i> on success
  */
@@ -540,7 +546,7 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
   for (bnode = bsl_minimum(blist->bsl_list); bnode; bnode = bsl_successor(blist->bsl_list, bnode))
   {
 #ifdef BK_USING_PTHREADS
-    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
+    if (BK_FLAG_ISCLEAR(flags, BK_STATS_NO_LOCKS_NEEDED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
       abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -554,7 +560,7 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
     }
 
 #ifdef BK_USING_PTHREADS
-    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+    if (BK_FLAG_ISCLEAR(flags, BK_STATS_NO_LOCKS_NEEDED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
       abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -620,7 +626,7 @@ void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, const c
     BK_VRETURN(B);
   }
 
-  bk_stat_node_info(B, bnode, minusec, maxusec, sumutime, count, 0);
+  bk_stat_node_info(B, bnode, minusec, maxusec, sumutime, count, flags);
 
   BK_VRETURN(B);
 }
@@ -639,7 +645,7 @@ void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, const c
  * @param maxusec Copy-out for node information
  * @param sumusec Copy-out for node information
  * @param count Copy-out for node information
- * @param flags Fun for the future
+ * @param flags BK_STATS_NO_LOCKS_NEEDED
  */
 void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_quad_t *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags)
 {
@@ -652,7 +658,7 @@ void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_
   }
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, BK_STATS_NO_LOCKS_NEEDED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -669,7 +675,7 @@ void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_
     *count = bnode->bsn_count;
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, BK_STATS_NO_LOCKS_NEEDED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -688,7 +694,7 @@ void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_
  * @param name1 Primary name
  * @param name2 Secondary name
  * @param usec Units (usec usually) to add
- * @param flags Fun for the future
+ * @param flags BK_STATS_NO_LOCKS_NEEDED
  */
 void bk_stat_add(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, u_quad_t usec, bk_flags flags)
 {
@@ -708,13 +714,13 @@ void bk_stat_add(bk_s B, struct bk_stat_list *blist, const char *name1, const ch
   if (!(bnode = bsl_search(blist->bsl_list, &searchnode)))
   {
     // New node, start tracking
-    if (!(bnode = bk_stat_nodelist_create(B, blist, name1, name2, 0)))
+    if (!(bnode = bk_stat_nodelist_create(B, blist, name1, name2, flags)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not autocreate performance node %s/%s, pressing on\n",name1, name2?name2:"");
       BK_VRETURN(B);
     }
   }
-  bk_stat_node_add(B, bnode, usec, 0);
+  bk_stat_node_add(B, bnode, usec, flags);
 
   BK_VRETURN(B);
 }
@@ -730,7 +736,7 @@ void bk_stat_add(bk_s B, struct bk_stat_list *blist, const char *name1, const ch
  * @param B BAKA thread/global environment
  * @param bnode Node to end interval
  * @param usec Units (usec usually) to add
- * @param flags Fun for the future
+ * @param flags BK_STATS_NO_LOCKS_NEEDED
  */
 void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, bk_flags flags)
 {
@@ -743,7 +749,7 @@ void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, bk_flag
   }
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, BK_STATS_NO_LOCKS_NEEDED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -757,7 +763,7 @@ void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, bk_flag
   bnode->bsn_count++;
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, BK_STATS_NO_LOCKS_NEEDED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 

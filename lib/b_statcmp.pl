@@ -115,7 +115,7 @@ foreach $line (@old)
 print $header;
 foreach $name (sort { my ($ret) = $common{$b} <=> $common{$a}; if (!$ret) { $ret = $opos{$a} <=> $opos{$b}; } if (!$ret) { $ret = $npos{$a} <=> $npos{$b}; } $ret; } keys %common)
 {
-  if (!$olen{$name} || !$nlen{$name})
+  if ($olen{$name} == 0 || $nlen{$name} == 0)
   {
     $perc = "N/A";
   }

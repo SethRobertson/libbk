@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.245 2003/06/17 06:07:16 seth Exp $
+ * $Id: libbk.h,v 1.246 2003/06/18 03:57:30 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -270,7 +270,6 @@ struct bk_general
   struct bk_proctitle	*bg_proctitle;		///< Process title info
   struct bk_config	*bg_config;		///< Configuration info
   struct bk_child	*bg_child;		///< Tracked child info
-  struct bk_stat_list	*bg_funstats;		///< Function performance stats
   char			*bg_funstatfile;		///< Filename to output funperfstats
   char			*bg_program;		///< Name of program
   bk_flags		bg_flags;		///< Flags
@@ -290,7 +289,6 @@ struct bk_general
 #define BK_GENERAL_DESTROY(B)	((B)?(B)->bt_general->bg_destroy:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general destruction list
 #define BK_GENERAL_TLIST(B)	((B)?(B)->bt_general->bg_tlist:(struct bk_threadlist *)bk_nullptr) ///< Access the bk_general thread list
 #define BK_GENERAL_PROCTITLE(B) ((B)?(B)->bt_general->bg_proctitle:(struct bk_proctitle *)bk_nullptr) ///< Access the bk_general process title state
-#define BK_GENERAL_FUNSTATS(B) ((B)?(B)->bt_general->bg_funstats:(struct bk_stat_list *)bk_nullptr) ///< Access the bk_general function statistics state
 #define BK_GENERAL_FUNSTATFILE(B) ((B)?(B)->bt_general->bg_funstatfile:(char *)bk_nullptr) ///< Access the bk_general function statistics output filename
 #define BK_GENERAL_CONFIG(B)	((B)?(B)->bt_general->bg_config:(struct bk_config *)bk_nullptr) ///< Access the bk_general config info
 #define BK_GENERAL_PROGRAM(B)	((B)?(B)->bt_general->bg_program:(char *)bk_nullptr) ///< Access the bk_general program name
@@ -301,7 +299,6 @@ struct bk_general
 #define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON) ///< Is system logging on?
 #define BK_GENERAL_FLAG_ISTHREADON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADON) ///< Is threading on?
 #define BK_GENERAL_FLAG_ISTHREADREADY(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADREADY) ///< Is threading on?
-#define BK_GENERAL_ISFUNSTATSON(B) (BK_GENERAL_FUNSTATFILE(B) && BK_GENERAL_FUNSTATS(B)) ///< Is fun stats on?
 #define bk_general_thread_create(B, name, start, opaque, flags) bk_thread_create(B, BK_GENERAL_TLIST(B), name, start, opaque, flags)
 // @}
 
@@ -358,11 +355,14 @@ struct bk_general
 typedef struct __bk_thread
 {
   dict_h		bt_funstack;		///< Function stack
-  struct bk_funinfo	*bt_curfun;		///< Current function
-  const char		*bt_threadname;		///< Thread name
-  struct bk_general	*bt_general;		///< Common program state
+  struct bk_funinfo    *bt_curfun;		///< Current function
+  const char	       *bt_threadname;		///< Thread name
+  struct bk_general    *bt_general;		///< Common program state
+  struct bk_stat_list  *bt_funstats;		///< Function performance stats
   bk_flags		bt_flags;		///< Flags for the future
 } *bk_s;
+#define BK_BT_FUNSTATS(B) ((B)?(B)->bt_funstats:(struct bk_stat_list *)bk_nullptr) ///< Access the bk_general function statistics state
+#define BK_BT_ISFUNSTATSON(B) (BK_GENERAL_FUNSTATFILE(B) && BK_BT_FUNSTATS(B)) ///< Is fun stats on?
 #define BK_BT_FUNSTACK(B)	((B)->bt_funstack)   ///< Access the function stack
 #define BK_BT_CURFUN(B)		((B)->bt_curfun)     ///< Access the current function
 #define BK_BT_THREADNAME(B)	((B)->bt_threadname) ///< Access the thread name
@@ -1982,23 +1982,32 @@ extern struct bk_stat_list *bk_stat_create(bk_s B, bk_flags flags);
 extern void bk_stat_destroy(bk_s B, struct bk_stat_list *blist);
 extern struct bk_stat_node *bk_stat_nodelist_create(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, bk_flags flags);
 extern struct bk_stat_node *bk_stat_node_create(bk_s B, const char *name1, const char *name2, bk_flags flags);
+#define BK_STATS_NO_LOCKS_NEEDED		0x100
 extern void bk_stat_node_destroy(bk_s B, struct bk_stat_node *bnode);
 extern void bk_stat_start(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, bk_flags flags);
 extern void bk_stat_end(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, bk_flags flags);
 extern void bk_stat_node_start(bk_s B, struct bk_stat_node *bnode, bk_flags flags);
+//#define BK_STATS_NO_LOCKS_NEEDED		0x100
 extern void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags);
+//#define BK_STATS_NO_LOCKS_NEEDED		0x100
 extern char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags);
 #define BK_STAT_DUMP_HTML	0x1	///< Request HTML string instead of CSV
+//#define BK_STATS_NO_LOCKS_NEEDED		0x100
 extern void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, u_quad_t *minusec, u_quad_t *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags);
+//#define BK_STATS_NO_LOCKS_NEEDED		0x100
 extern void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_quad_t *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags);
+//#define BK_STATS_NO_LOCKS_NEEDED		0x100
 extern void bk_stat_add(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, u_quad_t usec, bk_flags flags);
+//#define BK_STATS_NO_LOCKS_NEEDED		0x100
 extern void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, bk_flags flags);
+//#define BK_STATS_NO_LOCKS_NEEDED		0x100
 
 /* b_thread.c */
 extern struct bk_threadlist *bk_threadlist_create(bk_s B, bk_flags flags);
 extern void bk_threadlist_destroy(bk_s B, struct bk_threadlist *tlist, bk_flags flags);
 extern struct bk_threadnode *bk_threadnode_create(bk_s B, const char *threadname, bk_flags flags);
 extern void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags);
+#define BK_THREADNODE_DESTROY_DESTROYSELF	0x1
 #ifdef BK_USING_PTHREADS
 extern pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *threadname, void *(*start)(bk_s B, void *opaque), void *opaque, bk_flags flags);
 extern void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadnode *tnode, bk_flags flags);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.45 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.46 2003/06/18 03:57:30 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -176,33 +176,6 @@ void bk_general_destroy(bk_s B)
       bk_threadlist_destroy(B, BK_GENERAL_TLIST(B), 0);
 #endif /*BK_USING_PTHREADS*/
 
-      if (BK_GENERAL_ISFUNSTATSON(B))
-      {
-	FILE *FH = fopen(BK_GENERAL_FUNSTATFILE(B),"w");
-	if (FH)
-	{
-	  char *data = bk_stat_dump(B, BK_GENERAL_FUNSTATS(B), BK_STAT_DUMP_HTML);
-	  if (data)
-	  {
-	    fwrite(data, strlen(data), 1, FH);
-	    free(data);
-	  }
-	  fclose(FH);
-	}
-      }
-
-      if (BK_GENERAL_FUNSTATS(B))
-      {
-	bk_stat_destroy(B, BK_GENERAL_FUNSTATS(B));
-	BK_GENERAL_FUNSTATS(B) = NULL;
-      }
-
-      if (BK_GENERAL_FUNSTATFILE(B))
-      {
-	free(BK_GENERAL_FUNSTATFILE(B));
-	BK_GENERAL_FUNSTATFILE(B) = NULL;
-      }
-
       if (BK_GENERAL_PROCTITLE(B))
 	bk_general_proctitle_destroy(B, BK_GENERAL_PROCTITLE(B), 0);
 
@@ -364,6 +337,15 @@ bk_s bk_general_thread_init(bk_s B, const char *name)
   if (B)
     BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADON);
 
+  if (BK_GENERAL_FUNSTATFILE(B))
+  {
+    if (!(BK_BT_FUNSTATS(B1) = bk_stat_create(B1, BK_STATS_NO_LOCKS_NEEDED)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create stats structure\n");
+      goto error;
+    }
+  }
+
 #ifdef BK_USING_PTHREADS
   if (B && pthread_mutex_unlock(&BK_GENERAL_WRMUTEX(B)) != 0)
     abort();
@@ -396,6 +378,33 @@ void bk_general_thread_destroy(bk_s B)
 {
   if (B)
   {
+    if (BK_BT_ISFUNSTATSON(B))
+    {
+      char buf[PATH_MAX+1];
+      FILE *FH;
+
+      // <TODO>What method do other pthread systems have of getting a unique per-thread identifier?</TODO>
+      snprintf(buf, PATH_MAX, BK_GENERAL_FUNSTATFILE(B), getpid());
+
+      if (FH = fopen(buf,"w"))
+      {
+	char *data = bk_stat_dump(B, BK_BT_FUNSTATS(B), BK_STAT_DUMP_HTML);
+	if (data)
+	{
+	  fwrite(data, strlen(data), 1, FH);
+	  free(data);
+	}
+	fclose(FH);
+      }
+    }
+
+    if (BK_BT_FUNSTATS(B))
+    {
+      bk_stat_destroy(B, BK_BT_FUNSTATS(B));
+      BK_BT_FUNSTATS(B) = NULL;
+    }
+
+
     if (BK_BT_FUNSTACK(B))
       bk_fun_destroy(BK_BT_FUNSTACK(B));
     if (BK_BT_THREADNAME(B))
@@ -626,7 +635,7 @@ int bk_general_funstat_init(bk_s B, char *filename, bk_flags flags)
 
   if (filename)
   {
-    if (!(BK_GENERAL_FUNSTATS(B) = bk_stat_create(B, 0)))
+    if (!(BK_BT_FUNSTATS(B) = bk_stat_create(B, BK_STATS_NO_LOCKS_NEEDED)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create stats structure\n");
       goto error;

@@ -1,3 +1,15 @@
+2003-06-17  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_thread.c (bk_threadnode_destroy): Actually start
+	destroying subsidiary B thread environment.
+
+	* lib/b_stats.c: Allow for no-locking if requested
+
+	* lib/b_general.c (bk_general_init): Transfer bk_stats to
+	per-thread thingy
+
+	* lib/b_fun.c (bk_fun_entry): Ditto
+
 2003-06-17  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_ioh.c (IOH_COMPRESS_SUPPORT): conditionalize unused compression
@@ -9,7 +21,7 @@
 
 	* lib/b_strcode.c (bk_string_str2xml, bk_encode_base64): integer
 	overflow checks
-	
+
 2003-06-16  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_fun.c (bk_fun_exit): Allow for stats tracking of functions

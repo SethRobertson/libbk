@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.22 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.23 2003/06/18 03:57:30 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -121,7 +121,7 @@ struct bk_funinfo *bk_fun_entry(bk_s B, const char *func, const char *package, c
   fh->bf_grpname = grp;
   fh->bf_debuglevel = 0;
 
-  if (BK_GENERAL_ISFUNSTATSON(B))
+  if (BK_BT_ISFUNSTATSON(B))
   {
     gettimeofday(&fh->bf_starttime, NULL);
   }
@@ -162,14 +162,14 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
     goto done;
   }
 
-  if (fh->bf_starttime.tv_sec && BK_GENERAL_ISFUNSTATSON(B))
+  if (fh->bf_starttime.tv_sec && BK_BT_ISFUNSTATSON(B))
   {
     struct timeval end, sum;
     u_quad_t thisus = 0;
     gettimeofday(&end, NULL);
     BK_TV_SUB(&sum, &end, &fh->bf_starttime);
     thisus = BK_SECSTOUSEC((u_quad_t)sum.tv_sec) + sum.tv_usec;
-    bk_stat_add(B, BK_GENERAL_FUNSTATS(B), "Function Tracing", fh->bf_funname, thisus, 0);
+    bk_stat_add(B, BK_BT_FUNSTATS(B), "Function Tracing", fh->bf_funname, thisus, BK_STATS_NO_LOCKS_NEEDED);
   }
 
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.17 2003/06/17 06:07:17 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.18 2003/06/18 03:57:31 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -386,7 +386,7 @@ struct bk_threadnode *bk_threadnode_create(bk_s B, const char *threadname, bk_fl
 
  error:
   if (tnode)
-    bk_threadnode_destroy(B, tnode, 0);
+    bk_threadnode_destroy(B, tnode, BK_THREADNODE_DESTROY_DESTROYSELF);
   BK_RETURN(B, NULL);
 }
 
@@ -399,7 +399,7 @@ struct bk_threadnode *bk_threadnode_create(bk_s B, const char *threadname, bk_fl
  *
  * @param B BAKA Thread/global state
  * @param tnode Thread node
- * @param flags Fun for the future
+ * @param flags BK_THREADNODE_DESTROY_DESTROYSELF
  */
 void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags)
 {
@@ -409,7 +409,7 @@ void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags)
   }
 
   // Don't nuke self
-  if (B == tnode->btn_B)
+  if (BK_FLAG_ISCLEAR(flags, BK_THREADNODE_DESTROY_DESTROYSELF) && B == tnode->btn_B)
     return;
 
   if (tnode->btn_threadname)
@@ -635,7 +635,8 @@ static void bk_thread_cleanup(void *opaque)
      bk_thread_tnode_done(B, tlist, tnode, 0);
   }
 
-  BK_VRETURN(B);
+
+  return;
 }
 
 
@@ -652,12 +653,10 @@ static void bk_thread_cleanup(void *opaque)
  */
 void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadnode *tnode, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-
   if (!tlist || !tnode)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
-    BK_VRETURN(B);
+    return;
   }
 
   if (pthread_mutex_lock(&tlist->btl_lock))
@@ -673,8 +672,7 @@ void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadn
   if (pthread_mutex_unlock(&tlist->btl_lock))
     abort();
 
-  bk_threadnode_destroy(B, tnode, 0);
-  BK_VRETURN(B);
+  bk_threadnode_destroy(B, tnode, BK_THREADNODE_DESTROY_DESTROYSELF);
 }
 
 
