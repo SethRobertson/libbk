@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.161 2002/08/15 01:16:14 seth Exp $
+ * $Id: libbk.h,v 1.162 2002/08/15 04:16:26 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -584,7 +584,9 @@ struct bk_addrgroup
  * @brief Normal method to let function tracing know you have entered
  * function--if function tracing is enabled
  */
-#define BK_ENTRY(B, fun, pkg, grp) struct bk_funinfo *__bk_funinfo = (B && !BK_GENERAL_FLAG_ISFUNON(B)?NULL:bk_fun_entry(B, fun, pkg, grp))
+#define BK_ENTRY(B, fun, pkg, grp) struct bk_funinfo *__bk_funinfo = (!B || !BK_GENERAL_FLAG_ISFUNON(B)?NULL:bk_fun_entry(B, fun, pkg, grp))
+#define BK_ENTRY_MAIN(B, fun, pkg, grp) struct bk_funinfo *__bk_funinfo = bk_fun_entry(B, fun, pkg, grp)
+
 
 /**
  * @brief Return a value, letting function tracing know you are exiting the
@@ -593,7 +595,7 @@ struct bk_addrgroup
 #define BK_RETURN(B, retval)			\
 do {						\
   int save_errno = errno;			\
-  if (!(B) || BK_GENERAL_FLAG_ISFUNON(B))	\
+  if ((B) && BK_GENERAL_FLAG_ISFUNON(B))	\
     bk_fun_exit((B), __bk_funinfo);		\
   errno = save_errno;				\
   return retval;				\
@@ -613,7 +615,7 @@ do {						\
 do {						\
   typeof(retval) myretval = (retval);		\
   int save_errno = errno;			\
-  if (!(B) || BK_GENERAL_FLAG_ISFUNON(B))	\
+  if ((B) && BK_GENERAL_FLAG_ISFUNON(B))	\
     bk_fun_exit((B), __bk_funinfo);		\
   errno = save_errno;				\
   return myretval;				\
@@ -628,7 +630,7 @@ do {						\
 #define BK_VRETURN(B)				\
 do {						\
   int save_errno = errno;			\
-  if (!(B) || BK_GENERAL_FLAG_ISFUNON(B))	\
+  if ((B) && BK_GENERAL_FLAG_ISFUNON(B))	\
     bk_fun_exit((B), __bk_funinfo);		\
   errno = save_errno;				\
   return;					\
