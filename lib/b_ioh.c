@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.110 2004/08/07 04:43:20 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.111 2004/08/17 03:35:07 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -407,6 +407,16 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
   curioh->ioh_extflags = flags;
   curioh->ioh_eolchar = IOH_EOLCHAR;
 
+  // this is basically a system limit, but it's just as easy to make it per-ioh
+#if defined(_SC_IOV_MAX)
+  curioh->ioh_maxiov = sysconf(_SC_IOV_MAX);
+#elif defined(UIO_MAXIOV)
+  curioh->ioh_maxiov = UIO_MAXIOV;
+#elif defined(_XOPEN_IOV_MAX)
+  curioh->ioh_maxiov = _XOPEN_IOV_MAX;
+#else
+  curioh->ioh_maxiov = 8;			// conservative guesstimate
+#endif
 
   curioh->ioh_fdin = fdin;
   if (curioh->ioh_fdin >= 0)
@@ -3822,6 +3832,11 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
   int ret, erno = 0;
 
   errno = 0;
+
+  // avoid EINVAL errors from exceeding maxiov limit (if any)
+  if (ioh->ioh_maxiov!= 0 && size > ioh->ioh_maxiov)
+    size = ioh->ioh_maxiov;
+
   if ((ret = writev(fd, buf, size)) < 0)
   {
     erno = errno;

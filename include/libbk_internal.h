@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.45 2003/06/20 22:33:20 jtt Exp $
+ * $Id: libbk_internal.h,v 1.46 2004/08/17 03:35:06 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -76,6 +76,7 @@ struct bk_ioh
   void		       *ioh_readallowedevent;	///< Event to schedule user queue drain after readallowed
   int			ioh_compress_level;	///< The level to use for compression
   int			ioh_errno;		///< Last errno for this ioh
+  size_t		ioh_maxiov;		///< Maximum # iovs / writev
   off_t			ioh_size;		///< The size of the resource (for "follow" mode).
   off_t			ioh_tell;		///< My current position in the stream.
   int			ioh_follow_pause;	///< Time to wait between fstat(2)'s in follow mode.

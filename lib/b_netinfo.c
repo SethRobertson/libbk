@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.23 2004/08/10 15:38:56 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.24 2004/08/17 03:35:07 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -829,9 +829,15 @@ bni2sin(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_
     BK_RETURN(B, -1);
   }
 
+  /*
+   * "For maximum portability, you should always zero the socket address
+   * structure before populating it..." BSD man pages
+   */
+  memset(sin4, 0, sizeof(struct sockaddr_in));
+
   sin4->sin_family = AF_INET;
 
-  BK_SET_SOCKADDR_LEN(B, sin4, bna->bna_len);
+  BK_SET_SOCKADDR_LEN(B, sin4, sizeof(struct sockaddr_in));
 
   if (!bna)
   {
@@ -847,10 +853,7 @@ bni2sin(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_
   }
   else
   {
-    /*
-     * sigh.. use bna length instead of sin length 'cause bloody linux
-     * doesn't support sockaddr length. What modern OS doesn't do this??!!?
-     */
+    // use bna length instead of sin length (latter includes non-address crap)
     memmove(&(sin4->sin_addr), &(bna->bna_inet), bna->bna_len);
   }
 
@@ -891,9 +894,15 @@ bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr
     BK_RETURN(B, -1);
   }
 
+  /*
+   * "For maximum portability, you should always zero the socket address
+   * structure before populating it..." BSD man pages
+   */
+  memset(sin6, 0, sizeof(struct sockaddr_in6));
+
   sin6->sin6_family = AF_INET6;
 
-  BK_SET_SOCKADDR_LEN(B, sin6, bna->bna_len);
+  BK_SET_SOCKADDR_LEN(B, sin6, sizeof(struct sockaddr_in6));
 
   if (!bna)
   {
@@ -949,9 +958,15 @@ bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_u
     BK_RETURN(B, -1);
   }
 
+  /*
+   * "For maximum portability, you should always zero the socket address
+   * structure before populating it..." BSD man pages
+   */
+  memset(sunix, 0, sizeof(struct sockaddr_un));
+
   sunix->sun_family = AF_LOCAL;
 
-  BK_SET_SOCKADDR_LEN(B, sunix, bna->bna_len);
+  BK_SET_SOCKADDR_LEN(B, sunix, sizeof(struct sockaddr_un));
 
   snprintf(sunix->sun_path, sizeof(sunix->sun_path), "%s", bna->bna_path);
 

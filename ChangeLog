@@ -1,3 +1,13 @@
+2004-08-16  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk_internal.h (struct bk_ioh): track max iov len here
+	
+	* lib/b_ioh.c (bk_ioh_init): compute max iov len
+	(bk_ioh_stdwrfun): don't try to exceed max iov len for writev
+
+	* lib/b_netinfo.c (bni2sin, bni2sin6, bni2un): inet4 sockaddr len is
+	16, not just the 4 bytes of IP address [similarly for IPv6/unix]
+	
 2004-08-12  James Tanis  <jtt@outpost.tanis.org>
 
 	* src/bttcp.c (connect_complete): Close out correct server handle.
