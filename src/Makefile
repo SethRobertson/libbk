@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.25 2003/12/29 20:02:15 jtt Exp $
+# $Id: Makefile,v 1.26 2003/12/30 05:41:59 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -37,7 +37,6 @@ BK_SIMPLE_PROGS=			\
 
 GROUPTOP=..
 GROUPSUBDIR=src
-
 
 # This has to go here so we get the benefit of $(TEST) which is included by one of the above.
 BK_TMP_PROG:=$(shell if [ -f tmp.c ]; then echo tmp; fi)
@@ -90,10 +89,11 @@ ifneq ($(strip $(BK_USING_SSL)),false)
 bttcp: BK_LIBS := -lbkssl $(BK_LIBS)
 endif
 
-bk_daemon timeout: BK_LIBS :=
-bk_daemon timeout: PTHREAD_LIBS :=
-bk_daemon timeout: PTHREAD_CFLAGS :=
-bk_daemon timeout: PTHREAD_CC := $(CC_CONFIG)
+# No, this doesn't fucking work either.  Fullrelease kills it
+#bk_daemon timeout: BK_LIBS :=
+#bk_daemon timeout: PTHREAD_LIBS :=
+#bk_daemon timeout: PTHREAD_CFLAGS :=
+#bk_daemon timeout: PTHREAD_CC := $(CC_CONFIG)
 
 endif # BK_WANT_LIBTOOL
 
