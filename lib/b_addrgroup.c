@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.38 2003/12/28 04:53:08 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.39 2004/06/09 02:02:28 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1827,6 +1827,34 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
 
 }
 
+
+
+/**
+ * Modify read desirability on a addressgroup_state
+ *
+ * THREADS: REENTRANT
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run bk_run structure
+ *	@param server_handle handle provided by complete routine
+ *	@param flags BK_ADDRESSGROUP_RESUME resume instead of suspend
+ *	@return <i>-1</i> on failure<br>
+ *	@return <i>0</i>on success
+ */
+int
+bk_addressgroup_suspend(bk_s B, struct bk_run *run, void *server_handle, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct addrgroup_state *as = server_handle;
+
+  if (bk_run_setpref(B, run, as->as_sock, BK_FLAG_ISSET(flags, BK_ADDRESSGROUP_RESUME)?0:BK_RUN_WANTREAD, BK_RUN_WANTREAD, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not set file descriptor preference\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_RETURN(B, 0);
+}
 
 
 

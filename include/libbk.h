@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.294 2004/06/08 22:03:00 jtt Exp $
+ * $Id: libbk.h,v 1.295 2004/06/09 02:02:27 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1951,6 +1951,8 @@ extern int bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, con
 extern int bk_addrgroup_get_server_socket(bk_s B, void *server_handle);
 extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
 extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
+extern int bk_addressgroup_suspend(bk_s B, struct bk_run *run, void *server_handle, bk_flags flags);
+#define BK_ADDRESSGROUP_RESUME	1		///< Resume addressgroup instead of suspending it
 
 /* b_time.c */
 extern size_t bk_time_iso_format(bk_s B, char *str, size_t max, const struct timespec *timep, bk_flags *out_flagsp, bk_flags flags);

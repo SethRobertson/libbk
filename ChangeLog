@@ -1,3 +1,8 @@
+2004-06-08  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_addrgroup.c (bk_addressgroup_suspend): Allow server
+	sockets to be suspended from being accepted for a time.
+
 2004-06-08  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_vptr.c (bk_vptr_append): Make RO component (source
@@ -11,8 +16,8 @@
 	for() when destroying clc's.
 
 	* lib/b_general.c (bk_general_init): Initialize malloc wrapper if
-	__INSURE__ 
-	(bk_general_destroy): Destroy malloc wrapper if __INSURE__ 
+	__INSURE__
+	(bk_general_destroy): Destroy malloc wrapper if __INSURE__
 
 2004-05-28  James Tanis  <jtt@buscemi.sysdetect.com>
 

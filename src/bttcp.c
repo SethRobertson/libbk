@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.46 2004/06/07 17:16:20 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.47 2004/06/09 02:02:30 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,9 +27,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * (Stupidities of connected UDP).
  *
  * TODO:
- *	--execute-in-pty    Execute subprogram in a pty
  *	--socks w/bind support?
  *	--proxy (http proxy support?)
+ *	--address-family for unix domain named sockets
  *	* Verify bidirectional SSL authentication, encryption w/keygen ex *
  */
 
