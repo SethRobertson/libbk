@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.8 2004/01/29 18:28:57 seth Exp $
+ * $Id: libbk_net.h,v 1.9 2004/02/10 16:47:21 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -51,6 +51,7 @@ struct baka_iphdr
   u_int16_t pkt_ip_len;                         ///< Length of packet
   u_int16_t pkt_ip_id;                          ///< Packet identification
 #define BAKA_IPHDR_OFFMASK      0x1fff          ///< Offset part of offset field
+#define	BAKA_IPHDR_EVIL		0x8000		///< Evil flag
 #define	BAKA_IPHDR_DF		0x4000		///< Don't fragment flag
 #define	BAKA_IPHDR_MF		0x2000		///< More fragments flag
 
@@ -96,7 +97,9 @@ struct baka_tcphdr
 #define BAKA_TCPHDR_FLAGPUSH 0x08               ///< PUSH flag
 #define BAKA_TCPHDR_FLAGACK  0x10               ///< ACK flag
 #define BAKA_TCPHDR_FLAGURG  0x20               ///< Urgent flag
-#define BAKA_TCPHDR_FLAGMASK    0x3f		///< Header bits (no reserved bits considered)
+#define BAKA_TCPHDR_FLAGECE  0x40               ///< Explicit Congestion Notification Echo flag
+#define BAKA_TCPHDR_FLAGCWR  0x80               ///< Congestion Window Reduce flag
+#define BAKA_TCPHDR_FLAGMASK    0xff		///< Header bits (no reserved bits considered)
   // <TODO> Do we really need the following </TODO>
 #define BAKA_TCPHDR_LENIENT_FLAGMASK    0x0fff	///< Header bits (includes some reserved)
 #define BAKA_TCPHDR_HLENSHIFT   12              ///< Header bits

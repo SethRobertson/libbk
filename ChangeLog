@@ -1,3 +1,8 @@
+2004-02-09  Seth Robertson  <seth@pearl.sysdetect.com>
+
+	* include/libbk_net.h (BAKA_TCPHDR_FLAGECE|FLAGCWR): Add "new" RFC
+	flags
+
 2004-02-05  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_string.c (bk_memdiff): #2904: use u_char comparison
