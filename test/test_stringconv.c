@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.3 2001/09/25 08:25:50 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.4 2001/11/06 22:15:50 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -72,7 +72,7 @@ main(int argc, char **argv, char **envp)
   extern int optind;
   struct program_config Pconfig, *pconfig;
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), 64, BK_ERR_ERR, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, 64, BK_ERR_ERR, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);

@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.7 2001/08/31 05:03:35 seth Exp $
+# $Id: Makefile,v 1.8 2001/11/06 22:15:50 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -14,7 +14,11 @@
 #
 # libbk Makefile
 #
-BK_SIMPLE_PROGS=test_printbuf test_stringconv test_errorstuff
+BK_SIMPLE_PROGS=			\
+		test_config		\
+		test_errorstuff		\
+		test_printbuf 		\
+		test_stringconv 	\
 
 GROUPTOP=..
 GROUPSUBDIR=test

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.36 2001/11/06 00:41:53 seth Exp $
+ * $Id: libbk.h,v 1.37 2001/11/06 22:15:50 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -80,6 +80,16 @@ struct bk_alloc_ptr
 
 
 
+/* User preferences for config file stuff */
+struct bk_config_user_pref
+{
+  char *	bcup_include_tag;		/* Include file tag */
+  char *	bcup_separator;		 	/* key/value sep. char */
+  bk_flags	bcup_flags;			/* Everyone needs flags */
+};
+
+
+
 /* b_general.c -- General libbk global information */
 struct bk_general
 {
@@ -107,6 +117,11 @@ struct bk_general
 #define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON)
 #define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON)
 
+
+#define BK_ERROR_CONFIG_FH			0x1
+#define BK_ERROR_CONFIG_HILO_PIVOT		0x2
+#define BK_ERROR_CONFIG_SYSLOGTHRESHHOLD	0x4
+#define BK_ERROR_CONFIG_QUEUELEN		0x8
 
 /* Per-thread state information */
 typedef struct __bk_thread
@@ -245,7 +260,7 @@ struct bk_funinfo
 
 
 /* b_general.c */
-extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, int error_queue_length, int log_facility, bk_flags flags);
+extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, struct bk_config_user_pref *bcup, int error_queue_length, int log_facility, bk_flags flags);
 #define BK_GENERAL_NOPROCTITLE 1
 extern void bk_general_proctitle_set(bk_s B, char *);
 extern void bk_general_reinit(bk_s B);
@@ -281,7 +296,7 @@ extern int bk_in_cksum(register struct bk_vptr **m, register int len);
 
 
 /* b_config.c */
-extern struct bk_config *bk_config_init(bk_s B, const char *filename, bk_flags flags);
+extern struct bk_config *bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, bk_flags flags);
 extern int bk_config_reinit(bk_s B, struct bk_config *config);
 extern void bk_config_destroy(bk_s B, struct bk_config *config);
 extern void bk_config_write(bk_s B, struct bk_config *config, char *outfile);
@@ -289,6 +304,7 @@ extern int bk_config_insert(bk_s B, struct bk_config *config, char *key, char *v
 extern char *bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ovalue);
 extern int bk_config_delete_key(bk_s B, struct bk_config *ibc, const char *key);
 extern int bk_config_delete_value(bk_s B, struct bk_config *ibc, const char *key, const char *value);
+extern void bk_config_print(bk_s B, struct bk_config *ibc, FILE *fp);
 
 
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.9 2001/11/06 20:31:14 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.10 2001/11/06 22:15:50 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -174,10 +174,14 @@ void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *
     return;
   }
 
-  beinfo->be_fh = fh;
-  beinfo->be_hilo_pivot = hilo_pivot;
-  beinfo->be_sysloglevel = syslogthreshhold;
-  beinfo->be_maxsize = queuelen;
+  if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_FH))
+    beinfo->be_fh = fh;
+  if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_HILO_PIVOT))
+    beinfo->be_hilo_pivot = hilo_pivot;
+  if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_SYSLOGTHRESHHOLD))
+    beinfo->be_sysloglevel = syslogthreshhold;
+  if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_QUEUELEN))
+    beinfo->be_maxsize = queuelen;
 
   return;
 }
@@ -225,6 +229,7 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf
     goto error;
   }
   snprintf(node->ben_msg, tmp, "%s/%c: %s",funname, level, buf);
+  
 
   /* Encoded information about OS LOG_* manifest constant numbering */
   if (sysloglevel <= beinfo->be_hilo_pivot && sysloglevel != BK_ERR_NONE)

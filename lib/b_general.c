@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.18 2001/11/06 20:33:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.19 2001/11/06 22:15:50 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -49,7 +49,7 @@ unsigned bk_zerouint = 0;
 /*
  * Grand creation of libbk state structure
  */
-bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, int error_queue_length, int log_facility, bk_flags flags)
+bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, struct bk_config_user_pref *bcup, int error_queue_length, int log_facility, bk_flags flags)
 {
   bk_s B;
   char *program;
@@ -77,7 +77,7 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
     goto error;
 
   // Config files should not be required, generally
-  BK_GENERAL_CONFIG(B) = bk_config_init(B, configfile, 0);
+  BK_GENERAL_CONFIG(B) = bk_config_init(B, configfile, bcup, 0);
 
   if (!(BK_GENERAL_PROCTITLE(B) = bk_general_proctitle_init(B, argc, argv, envp, &program, 0)))
     goto error;

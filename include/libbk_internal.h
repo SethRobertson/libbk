@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.15 2001/11/05 20:53:06 seth Exp $
+ * $Id: libbk_internal.h,v 1.16 2001/11/06 22:15:50 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -181,5 +181,62 @@ struct bk_run_ondemand_func
   bk_flags		brof_flags;
   dict_h		brof_backptr;
 };
+
+
+/*
+ * General configuration structure
+ */
+struct bk_config
+{
+  bk_flags			bc_flags;	/* Everyone needs flags */
+  struct bk_config_fileinfo *	bc_bcf;		/* Files of conf data */
+  dict_h			bc_kv;		/* Hash of value dlls */
+  int				bc_kv_error;	/* clc errno for bc_kv */
+  struct bk_config_user_pref 	bc_bcup;	/* User prefrences */
+};
+
+
+
+/*
+ * Information about the files parsed when creating this configuration group
+ */
+struct bk_config_fileinfo
+{
+  bk_flags	       		bcf_flags;	/* Everyone needs flags */
+  char *			bcf_filename;	/* File of data */
+  dict_h			bcf_includes;	/* Included files */
+  struct bk_config_fileinfo *	bcf_insideof;	/* What file am I inside of */
+  struct stat			bcf_stat;	/* Stat struct */
+};
+
+
+
+/*
+ * Information about a specific key found when parsing the configuration file
+ */
+struct bk_config_key
+{
+  char *			bck_key;	/* Key string */
+  bk_flags			bck_flags;	/* Everyone needs flags */
+  dict_h			bck_values;	/* dll of values of this key */
+};
+
+
+
+/*
+ * A individual value for a key.
+ *
+ * XXX - Doesn't this need a bk_config_fileinfo ptr as well, to
+ * give context to the lineno?  Or is the lineno monotomically increasing?
+ */
+struct bk_config_value
+{
+  char *			bcv_value;	/* Value string */
+  bk_flags			bcv_flags;	/* Everyone needs flags */
+  u_int				bcv_lineno;	/* Where value is in file */
+};
+
+#define BK_CONFIG_SEPARATOR	"="
+#define BK_CONFIG_INCLUDE_TAG	"#include"
 
 #endif /* _libbk_h_ */

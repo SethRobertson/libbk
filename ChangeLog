@@ -1,3 +1,14 @@
+2001-11-06  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_config.c (bk_config_init): All user to pass in preferences.
+	(bk_config_print): print config file.
+	(load_config_from_file): Support for included files.
+	(check_for_double_include): Recursive function to eliminate double
+	inclusion.
+
+	* src/proto.c (main): make sure we call debug_setconfig when
+	debugging is turned on.
+
 2001-11-05  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_ioh.c: More functions filled out.
