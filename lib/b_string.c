@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.78 2003/02/24 16:55:43 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.79 2003/03/14 21:41:41 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1737,6 +1737,7 @@ bsre_create(bk_s B, const char *str, bk_flags flags)
     bsre->bsre_str = str;
   }
 
+  bsre->bsre_flags = flags;
   bsre->bsre_ref = 0;
 
   BK_RETURN(B,bsre);  
