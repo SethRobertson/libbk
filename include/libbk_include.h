@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.32 2003/04/16 21:07:27 dupuy Exp $
+ * $Id: libbk_include.h,v 1.33 2003/05/14 22:56:47 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -70,9 +70,13 @@
  * side-effect of _GNU_SOURCE.  <TRICKY>To avoid dependency on implementation
  * of _GNU_SOURCE, we don't include <features.h> but rather <stdio.h> which
  * gets it indirectly.</TRICKY>
+ *
+ * Update: __USE_BSD no longer freaks out insight. In fact, it now fails if
+ * __USE_BSD is not set (sigh). So we no longer unset __USE_BSD, but we
+ * leave in <stdio.h> since it works and jtt doesn't want bother figuring
+ * out if it's Right or Wrong....
  */
 #include <stdio.h>
-#undef __USE_BSD
 
 #endif /* __INSURE__ */
 
