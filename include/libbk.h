@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.170 2002/09/05 21:33:16 lindauer Exp $
+ * $Id: libbk.h,v 1.171 2002/09/05 22:02:55 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1072,7 +1072,74 @@ typedef struct
 // @}
 
 
+/**
+ * @name BAKA String Registry 
+ * Maps string to a uniq identifier for purposes of quick compare and perfect hashing. 
+ */
+// @{
+/**
+ * Abstracted type of the value returned by the string registry.
+ */
+typedef u_int32_t bk_str_id_t;
 
+
+
+/**
+ * @name bk_str_registry
+ * This the container for the registry.
+ */
+struct bk_str_registry
+{
+  bk_flags		bsr_flags;		///< EVeryone needs flags. (NB Shares flags space with bk_str_registry_element
+#define BK_STR_REGISTRY_FLAG_COPY_STR	0x1	///< strdup(3) this string instead of just copying the pointer.
+#define BK_STR_REGISTRY_FLAG_WRAPPED	0x2	///< True if the string id values have wrapped.
+  dict_h		bsr_repository;		///< The repository of strings.
+};
+
+
+
+/**
+ * @name bk_str_registry_element
+ * This is the structure which maps a string to an identifier
+ */
+struct bk_str_registry_element
+{
+  bk_flags		bsre_flags;		///< Everyone needs flags. (NB Shares flag space with bk_str_registry)
+  const char *		bsre_str;		///< The saved string.
+  bk_str_id_t		bsre_id;		///< The id of this string.
+};
+
+
+
+/**
+ * @name bk_str_id
+ * This is a convience structure which allows callers to store the string
+ * identifier with the string.
+ */
+struct bk_str_id
+{
+  char *		bsi_str;		///< The string
+  bk_str_id_t		bsi_id;			///< Thd id
+};
+   
+// @}
+
+#define bsr_create(o,k,f)	dll_create((o),(k),(f))
+#define bsr_destroy(h)		dll_destroy(h)
+#define bsr_insert(h,o)		dll_insert((h),(o))
+#define bsr_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
+#define bsr_append(h,o)		dll_append((h),(o))
+#define bsr_append_uniq(h,n,o)	dll_append_uniq((h),(n),(o))
+#define bsr_search(h,k)		dll_search((h),(k))
+#define bsr_delete(h,o)		dll_delete((h),(o))
+#define bsr_minimum(h)		dll_minimum(h)
+#define bsr_maximum(h)		dll_maximum(h)
+#define bsr_successor(h,o)	dll_successor((h),(o))
+#define bsr_predecessor(h,o)	dll_predecessor((h),(o))
+#define bsr_iterate(h,d)	dll_iterate((h),(d))
+#define bsr_nextobj(h,i)	dll_nextobj((h),(i))
+#define bsr_iterate_done(h,i)	dll_iterate_done((h),(i))
+#define bsr_error_reason(h,i)	dll_error_reason((h),(i))
 
 
 /* b_general.c */
@@ -1411,6 +1478,12 @@ extern int bk_vstr_cat(bk_s B,  bk_flags flags, bk_vstr *dest, const char *src_f
 #define BK_VSTR_CAT_FLAG_STINGY_MEMORY		0x1 ///< Take more time; use less memory
 extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags);
 extern void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset);
+extern struct bk_str_registry *bk_string_registry_init(bk_s B);
+extern void bk_string_registry_destroy(bk_s B, struct bk_str_registry *bsr);
+extern bk_str_id_t bk_string_registry_insert(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags);
+extern int bk_string_registry_delete(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags);
+extern bk_str_id_t bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags);
+extern const char *bk_string_registry_strbyid(bk_s B, struct bk_str_registry *bsr, bk_str_id_t id, bk_flags flags);
 
 
 /* getbyfoo.c */

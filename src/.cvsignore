@@ -3,3 +3,6 @@ proto
 bttcp
 mmcat
 genrand
+tmp.c
+tmp
+*.LTB

@@ -31,6 +31,13 @@
 
 	* lib/b_strconv.c (bk_string_flagtoa): return 0 on success, per docs
 
+2002-09-04  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_string.c: String registry functions (maps a string to a
+	unique ID for quick comparison and perfect hashing).
+	(bk_string_registry_idbystr): Program for empty repository boundry
+	case (doh!).
+
 2002-08-31  Seth Robertson  <seth@hawking.sysdetect.com>
 
 	* lib/b_netutils.c (bk_inet_ntoa): Need to null terminate

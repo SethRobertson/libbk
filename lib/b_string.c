@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.64 2002/08/28 01:52:59 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.65 2002/09/05 22:02:55 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -44,12 +44,17 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	///< Check to see if the limit on numbers of tokens has been reached or not.  Yes, limit>1 and limit-- will always have the same truth value
 
+static ht_val bsr_oo_cmp(struct bk_str_registry_element *a, struct bk_str_registry_element *b);
+static struct bk_str_registry_element *bsre_create(bk_s B, const char *str, bk_flags flags);
+static void bsre_destroy(bk_s B, struct bk_str_registry_element *bsre);
 
 
 /**
  * Hash a string into tiny little bits two different ways.
  *
  * Not covered under the LGPL
+ *
+ * No 'B' passed in so that this can be used in CLC comparison functions.
  *	
  *	@param k The string to be hashed
  *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function, BK_HASH_V2 for better, but slower mixing
@@ -1470,4 +1475,362 @@ void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset)
   }
 
   BK_RETURN(B, ret);
+}
+
+
+
+
+/**
+ * Initialize the string registry.
+ *
+ *	@param B BAKA thread/global state.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a new @a bk_str_registry on success.
+ */
+struct bk_str_registry *
+bk_string_registry_init(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry *bsr = NULL;
+
+  if (!(BK_CALLOC(bsr)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate string registry: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (!(bsr->bsr_repository = bsr_create((int(*)(dict_obj, dict_obj))bsr_oo_cmp, NULL, DICT_ORDERED)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not creaet string registry respository: %s\n", bsr_error_reason(NULL, NULL));
+    goto error;
+  }
+  
+  BK_RETURN(B,bsr);  
+
+ error:
+  if (bsr)
+    bk_string_registry_destroy(B, bsr);
+  BK_RETURN(B,NULL);  
+}
+
+
+
+/**
+ * Destroy a string registry
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bsr The registry to fully destroy.
+ */
+void
+bk_string_registry_destroy(bk_s B, struct bk_str_registry *bsr)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry_element *bsre;
+
+  if (!bsr)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+  
+  while(bsre = bsr_minimum(bsr->bsr_repository))
+  {
+    if (bsr_delete(bsr->bsr_repository, bsre) != DICT_OK)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not delete element from string registry during destroy\n");
+      break;
+    }
+    bsre_destroy(B, bsre);
+  }
+  bsr_destroy(bsr->bsr_repository);
+  
+  free(bsr);
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Create a bsre
+ *
+ *	@param B BAKA thread/global state.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static struct bk_str_registry_element *
+bsre_create(bk_s B, const char *str, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry_element *bsre = NULL;
+
+  if (!str)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+  
+  if (!(BK_CALLOC(bsre)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate bsre: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (BK_FLAG_ISSET(flags, BK_STR_REGISTRY_FLAG_COPY_STR))
+  {
+    if (!(bsre->bsre_str = strdup(str)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup string: %s\n", strerror(errno));
+      goto error;
+    }
+  }
+  else
+  {
+    bsre->bsre_str = str;
+  }
+
+  BK_RETURN(B,bsre);  
+
+ error:
+  if (bsre)
+    bsre_destroy(B, bsre);
+  BK_RETURN(B,NULL);  
+}
+
+
+
+/**
+ * Destroy a bsre
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bsre The structure to destroy.
+ */
+static void
+bsre_destroy(bk_s B, struct bk_str_registry_element *bsre)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bsre)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+  
+  if (BK_FLAG_ISSET(bsre->bsre_flags, BK_STR_REGISTRY_FLAG_COPY_STR) && 
+      bsre->bsre_str)
+  {
+    free((void *)bsre->bsre_str);
+  }
+  
+  free(bsre);
+  BK_VRETURN(B);  
+}
+
+
+
+/**
+ * Insert a string into the registry. This function is only provided for
+ * convience (and "balance" with @name bk_string_registy_delete) . See 
+ * @a bk_string_registry_idbystr.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param str The string to insert
+ *	@param flag Flags.
+ *	@return <i>0</i> on FAILURE (!! THIS IS NOT NORMAL FOR LIBBK !!).<br>
+ *	@return <i>positive</i> on success.
+ */
+bk_str_id_t
+bk_string_registry_insert(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  BK_RETURN(B, bk_string_registry_idbystr(B, bsr, str, flags));
+}
+
+
+
+/**
+ * Delete a string from the registry
+ *
+ *	@param B BAKA thread/global state.
+ *	@param str The string to delete.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_string_registry_delete(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry_element *bsre;
+  
+  if (!bsr || !str)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  for(bsre = bsr_minimum(bsr->bsr_repository);
+      bsre;
+      bsre = bsr_successor(bsr->bsr_repository, bsre))
+  {
+    if (BK_STREQ(bsre->bsre_str, str))
+      break;
+  }
+	
+  if (!bsre)
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Could not locate string to delete in string registry\n");
+    // We call this success.
+    BK_RETURN(B,0);    
+  }
+
+  if (bsr_delete(bsr->bsr_repository, bsre) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not delete string registry element from repository\n");
+    goto error;
+  }
+
+  bsre_destroy(B, bsre);
+  BK_RETURN(B,0);  
+
+ error:
+  BK_RETURN(B,-1);  
+}
+
+
+
+/**
+ * Obtain the ID of a string which has been inserted into the
+ * registry. This is *also* the insert routine.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param str The string to search for.
+ *	@param flags Flags for future use.
+ *	@return <i>0</i> on FAILURE (!! NB THIS IS NOT NORMAL FOR LIBBK !!).<br>
+ *	@return <i>positive</i> on success.
+ */
+bk_str_id_t
+bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry_element *bsre = NULL;
+  bk_str_id_t id = 0;
+  bk_str_id_t tmp = 1;
+  int inserted = 0;
+  int list_empty = 1;
+
+  if (!bsr || !str)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, 0);
+  }
+  
+  for(bsre = bsr_minimum(bsr->bsr_repository);
+      bsre;
+      bsre = bsr_successor(bsr->bsr_repository, bsre))
+  {
+    list_empty = 0;
+
+    if (BK_STREQ(bsre->bsre_str, str))
+      break;
+
+    if (id == 0)
+    {
+      if (tmp != bsre->bsre_id)
+      {
+	// We've located the next ID (just in case this is an insert).
+	id = tmp;
+      }
+      else
+      {
+	tmp++;
+      }
+    }
+  }
+
+  if (!id && tmp)
+    id = tmp;
+
+  if (!bsre)
+  {
+    if (id == 0 && !list_empty)
+    {
+      // We've used up all the available ID's (!!) Must return error.
+      bk_error_printf(B, BK_ERR_ERR, "No more available ID's in the string registry. Insert aborted\n");
+      goto error;
+    }
+
+
+    if (!(bsre = bsre_create(B, str, flags)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create string registry element\n");
+      goto error;
+    }
+    
+    bsre->bsre_id = id;
+
+    if (bsr_append(bsr->bsr_repository, bsre) != DICT_OK)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not insert string registry element into repository: %s\n", bsr_error_reason(bsr->bsr_repository, NULL));
+      goto error;
+    }
+    inserted = 1;
+  }
+
+  BK_RETURN(B,bsre->bsre_id);  
+
+ error:
+  if (bsre)
+  {
+    // Ignore return value here, since it might very well *not* have been inserted prio
+    if (inserted && bsr_delete(bsr->bsr_repository, bsre) != DICT_OK)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not delete newly inserted string registry element from repository: %s\n", bsr_error_reason(bsr->bsr_repository, NULL));
+    }
+    bsre_destroy(B, bsre);
+  }
+  BK_RETURN(B,0);  
+}
+
+
+
+/**
+ * Obtain the string associated with a known string-ID in the str registry
+ *
+ *	@param B BAKA thread/global state.
+ *	@param id The ID to search for.
+ *	@param flags Flags for future use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>str</i> on success.
+ */
+const char *
+bk_string_registry_strbyid(bk_s B, struct bk_str_registry *bsr, bk_str_id_t id, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry_element *bsre;
+  
+  if (!bsr || id == 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  for(bsre = bsr_minimum(bsr->bsr_repository);
+      bsre;
+      bsre = bsr_successor(bsr->bsr_repository, bsre))
+  {
+    if (bsre->bsre_id == id)
+      break;
+  }
+  
+  if (!bsre)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not locate ID %d in string registry\n", id);
+    BK_RETURN(B,NULL);    
+  }
+  BK_RETURN(B,bsre->bsre_str);  
+}
+
+static ht_val bsr_oo_cmp(struct bk_str_registry_element *a, struct bk_str_registry_element *b)
+{
+  return(a->bsre_id - b->bsre_id);
 }

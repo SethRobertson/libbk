@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.10 2002/08/16 19:09:07 jtt Exp $
+# $Id: Makefile,v 1.11 2002/09/05 22:02:55 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -15,16 +15,24 @@
 # libbk Makefile
 #
 
+# This guy provides a convenient hook for instantly creating "one-off" .c files for testing things.
+# If you are writing a test program which excersizes and exemplifies a libbk feature, you should
+# probably commit that progam to ../test.
+
 BK_SIMPLE_PROGS=			\
+	bttcp				\
 	genrand				\
 	mmcat				\
 	proto				\
-	bttcp				\
+	$(BK_TMP_PROG)			\
 #line fodder eater. Do not remove.
 
 GROUPTOP=..
 GROUPSUBDIR=src
 
+
+# This has to go here so we get the benefit of $(TEST) which is included by one of the above.
+BK_TMP_PROG:=$(shell if [ -f tmp.c ]; then echo tmp; fi)
 
 ##################################################
 ## BEGIN BKSTANDARD MAKEFILE
@@ -37,4 +45,3 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 -include ./Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
-

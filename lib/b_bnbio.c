@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.10 2002/09/05 21:33:17 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.11 2002/09/05 22:02:55 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -133,7 +133,7 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, bk_flags 
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_ioh_status_e status;
   int cancelled_call = 0;
-  int ret;
+  int ret = 0;
 
   if (!bib || !datap)
   {
