@@ -1,3 +1,7 @@
+2002-04-18  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* include/libbk_net.h: Internal version of common network headers (struct ip, etc)
+
 2002-04-15  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_bits.c (bk_bitcount): New function to count numbers of
