@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.305 2004/08/10 15:38:57 jtt Exp $
+ * $Id: libbk.h,v 1.306 2004/08/11 00:41:44 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1311,6 +1311,16 @@ struct bk_relay_ioh_stats
 
 
 
+struct bk_relay_cancel
+{
+  bk_flags		brc_flags;		///< Everyone needs flags.
+  struct bk_ioh *	brc_ioh1;		///< First ioh.
+  struct bk_ioh *	brc_ioh2;		///< Second ioh.
+  void *		brc_opaque;		///< User opaque data.
+};
+
+
+
 /**
  * @name MD5 routines
  */
@@ -1969,11 +1979,11 @@ void bk_sig_ign(int signal);
 typedef void (*bk_relay_cb_f)(bk_s B, void *opaque, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags);
 
 /* b_relay.c */
-extern int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f callback, void *opaque, struct bk_relay_ioh_stats *stats, bk_flags flags);
+extern int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f callback, void *opaque, struct bk_relay_ioh_stats *stats, struct bk_relay_cancel *brc, bk_flags flags);
 #define BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE	0x1 ///< Shut down relay after only one side has closed
 #define BK_RELAY_IOH_DONTCLOSEFDS		0x2 ///< Don't actually close fds
 #define BK_RELAY_IOH_NOSHUTDOWN			0x4 ///< Don't actually shutdown fds
-
+extern int bk_relay_cancel(bk_s B, struct bk_relay_cancel *brc, bk_flags flags);
 
 /* b_fileutils.c */
 extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_e action);

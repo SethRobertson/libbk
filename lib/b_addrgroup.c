@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.46 2004/08/10 15:38:56 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.47 2004/08/11 00:41:43 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1578,7 +1578,7 @@ static void
 listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct addrgroup_state *as;
+  struct addrgroup_state *as = args;
   struct addrgroup_state *nas = NULL;
   struct sockaddr sa;
   int len = sizeof(sa);
@@ -1587,16 +1587,10 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
   int socktype;
   int swapped = 0;
 
-  if (!run || !(as = args) || !(bag = as->as_bag))
+  if (!run || !as)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
-  }
-
-  if ((socktype = bag2socktype(B, bag, 0)) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not determine scoket type of address group\n");
-    goto error;
   }
 
   if (BK_FLAG_ISSET(gottype, BK_RUN_WRITEREADY))
@@ -1630,6 +1624,17 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
     BK_VRETURN(B);
   }
 
+  if (!(bag = as->as_bag))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Missing address group in addres state\n");
+    goto error;
+  }
+
+  if ((socktype = bag2socktype(B, bag, 0)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not determine scoket type of address group\n");
+    goto error;
+  }
 
   if (socktype == SOCK_STREAM)
   {

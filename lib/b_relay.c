@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.31 2004/08/10 15:56:47 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.32 2004/08/11 00:41:43 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,6 +25,8 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
+#define jtts stderr
+
 
 
 /**
@@ -46,6 +48,7 @@ struct bk_relay
   void		       *br_opaque;		///< Opaque data for callback
   struct bk_relay_ioh_stats *br_stats;		///< Optional statistics about relay
   bk_flags		br_flags;		///< State
+  struct bk_relay_cancel *br_brc;			///< Pointer to use cancel structure.
 };
 
 
@@ -53,6 +56,7 @@ struct bk_relay
 static void bk_relay_iohhandler(bk_s B, bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags);
 
 
+#define BK_RELAY_CANCEL_FLAG_SHUTODWN	0x1	///< Relay is shutdown don't do anything.
 
 
 /**
@@ -71,12 +75,13 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr *data, void *opaque, struct bk_i
  *	@param callback Function to call on reads and shutdown
  *	@param opaque Data for function
  *	@param stats Optional statistics about I/O
+ *	@param brcp Optional copyout structure for calling bk_relay_cancel.
  *	@param flags BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE BK_RELAY_IOH_DONTCLOSEFDS
  *
  *	@return <i>-1</i> Call failure, allocation failure, other failure
  *	@return <br><i>0</i> on success
  */
-int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f callback, void *opaque, struct bk_relay_ioh_stats *stats, bk_flags flags)
+int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f callback, void *opaque, struct bk_relay_ioh_stats *stats, struct bk_relay_cancel *brc, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
   struct bk_relay *relay;
@@ -124,6 +129,15 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f
     goto error;
   if (bk_ioh_update(B, ioh2, NULL, NULL, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
     goto error;
+
+  if (brc)
+  {
+    brc->brc_flags = 0;
+    brc->brc_ioh1 = ioh1;
+    brc->brc_ioh2 = ioh2;
+    brc->brc_opaque = relay;
+    relay->br_brc = brc;
+  }
 
   // ioh_update might have destroyed ioh's, but handler will have dealt with it
 
@@ -333,6 +347,8 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr *data, void *opaque, struct bk_i
       BK_FLAG_ISSET(*state_him, BR_IOH_CLOSED))
   {
     // Both sides closed, dry up and go away
+    if (relay->br_brc)
+      BK_FLAG_SET(relay->br_brc->brc_flags, BK_RELAY_CANCEL_FLAG_SHUTODWN);
     bk_debug_printf_and(B, 1, "Both sides seem to have closed--drying up\n");
     if (relay->br_callback)
       (*relay->br_callback)(B, relay->br_opaque, ioh, ioh_other, NULL, 0);
@@ -359,4 +375,35 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr *data, void *opaque, struct bk_i
   }
 
   BK_VRETURN(B);
+}
+
+
+
+/**
+ * User cancel a relay. Simulates a normal shutdown on both ioh's.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brc The @a bk_relay_cancel structuure
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_relay_cancel(bk_s B, struct bk_relay_cancel *brc, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
+
+  if (!brc)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (BK_FLAG_ISSET(brc->brc_flags, BK_RELAY_CANCEL_FLAG_SHUTODWN))
+    BK_RETURN(B, 0);    
+  
+  bk_relay_iohhandler(B, NULL, brc->brc_opaque, brc->brc_ioh1, BkIohStatusIohReadEOF);
+  bk_relay_iohhandler(B, NULL, brc->brc_opaque, brc->brc_ioh2, BkIohStatusIohReadEOF);
+
+  BK_RETURN(B, 0);  
 }

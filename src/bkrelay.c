@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.5 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.6 2004/08/11 00:41:42 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -702,7 +702,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 
     gettimeofday(&pc->pc_start, NULL);
 
-    if (bk_relay_ioh(B, ioha, iohb, relay_finish, pc, &pc->pc_stats, BK_FLAG_ISSET(pc->pc_flags,PC_CLOSE_AFTER_ONE)?BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE:0) < 0)
+    if (bk_relay_ioh(B, ioha, iohb, relay_finish, pc, &pc->pc_stats, NULL, BK_FLAG_ISSET(pc->pc_flags,PC_CLOSE_AFTER_ONE)?BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE:0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not relay my iohs\n");
       bk_ioh_close(B, iohb, 0);

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.53 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.54 2004/08/11 00:41:42 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -37,6 +37,8 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include <libbkssl.h>
 
+#define jtts stderr
+
 
 #define ERRORQUEUE_DEPTH	32		///< Default depth
 #define DEFAULT_PROTO_STR	"tcp"		///< Default protocol
@@ -46,6 +48,8 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define ANY_PORT		"0"		///< Any port is OK
 
 
+static int cancel_relay = 0;
+
 
 /**
  * Information of international importance to everyone
@@ -53,6 +57,8 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 struct global_structure
 {
+  bk_s			gs_B;
+  struct bk_run *	gs_run;
 } Global;
 
 
@@ -93,11 +99,12 @@ struct program_config
 #define PC_RAW				0x04000 ///< Run in raw mode
 #define PC_RESTORE_TERMIN		0x08000 ///< Reset input termio mode
 #define PC_RESTORE_TERMOUT		0x10000 ///< Reset output termio mode
+#define PC_RUN_OVER			0x20000 ///< bk_run is now over
   u_int			pc_multicast_ttl;	///< Multicast ttl
   char *		pc_proto;		///< What protocol to use
   char *		pc_remoteurl;		///< Remote "url".
   char *		pc_localurl;		///< Local "url".
-  char           *const*pc_args;		///< Arguments for execution
+  char *const*		pc_args;		///< Arguments for execution
   struct bk_netinfo *	pc_local;		///< Local side info.
   struct bk_netinfo *	pc_remote;		///< Remote side info.
   struct bk_run	*	pc_run;			///< Run structure.
@@ -123,6 +130,7 @@ struct program_config
   const char *		pc_ssl_key_file;	///< Location of SSL key file
   const char *		pc_ssl_cafile;		///< Location of SSL CA file
   const char *		pc_ssl_dhparam_file;	///< Location of SSL DH params file
+  struct bk_relay_cancel pc_brc;		///< User cancel struct
 };
 
 
@@ -131,6 +139,9 @@ static int proginit(bk_s B, struct program_config *pconfig);
 static int connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state);
 static void relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags);
 static void cleanup(bk_s B, struct program_config *pc);
+static void finish(int signum);
+static int do_cancel_relay(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags);
+static int set_run_over(bk_s B, struct program_config *pc, bk_flags flags);
 
 
 
@@ -204,6 +215,8 @@ main(int argc, char **argv, char **envp)
     exit(254);
   }
   bk_fun_reentry(B);
+
+  Global.gs_B = B;
 
   pc = &Pconfig;
   memset(pc,0,sizeof(*pc));
@@ -438,7 +451,7 @@ main(int argc, char **argv, char **envp)
   {
     bk_die(B, 1, stderr, "Failure during run_run\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
-
+  
   cleanup(B, pc);
   bk_exit(B, 0);
   return(255);
@@ -474,9 +487,12 @@ proginit(bk_s B, struct program_config *pc)
     goto error;
   }
 
+  Global.gs_run = pc->pc_run;
+
   // SIGPIPE is just annoying
   bk_signal(B, SIGPIPE, SIG_IGN, BK_RUN_SIGNAL_RESTART);
   bk_signal(B, SIGCHLD, bk_reaper, BK_RUN_SIGNAL_RESTART);
+  bk_signal(B, SIGINT, finish, BK_RUN_SIGNAL_RESTART);
 
   if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
   {
@@ -809,9 +825,15 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 
   gettimeofday(&pc->pc_start, NULL);
 
-  if (bk_relay_ioh(B, std_ioh, net_ioh, relay_finish, pc, &pc->pc_stats, BK_FLAG_ISSET(pc->pc_flags,PC_CLOSE_AFTER_ONE)?BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE:0) < 0)
+  if (bk_relay_ioh(B, std_ioh, net_ioh, relay_finish, pc, &pc->pc_stats, &pc->pc_brc, BK_FLAG_ISSET(pc->pc_flags,PC_CLOSE_AFTER_ONE)?BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE:0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not relay my iohs\n");
+    goto error;
+  }
+
+  if (bk_run_on_demand_add(B, pc->pc_run, do_cancel_relay, pc, &cancel_relay, NULL, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not add relay cancel on demand function\n");
     goto error;
   }
 
@@ -821,7 +843,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
  error:
   if (std_ioh) bk_ioh_close(B, std_ioh, 0);
   if (net_ioh) bk_ioh_close(B, net_ioh, 0);
-  bk_run_set_run_over(B,pc->pc_run);
+  set_run_over(B, pc, 0);
   BK_RETURN(B, -1);
 }
 
@@ -917,7 +939,7 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
     tcsetattr(pc->pc_dupstdin, TCSANOW, &pc->pc_termioin);
   }
 
-  bk_run_set_run_over(B,pc->pc_run);
+  set_run_over(B, pc, 0);
   BK_VRETURN(B);
 }
 
@@ -956,4 +978,105 @@ cleanup(bk_s B, struct program_config *pc)
   if (pc->pc_remote) bk_netinfo_destroy(B,pc->pc_remote);
   if (pc->pc_run) bk_run_destroy(B, pc->pc_run);
   return;
+}
+
+
+
+/**
+ * Sigchild reaper signal handler
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param signal Signal number
+ */
+static void finish(int signum)
+{
+  cancel_relay = 1;
+  return;
+}
+
+
+
+/**
+ * Type for on demand functions
+ *
+ *	@param B BAKA thread/global state
+ *	@param run The @a bk_run structure to use.
+ *	@param opaque User args passed back.
+ *	@param demand The flag which when raised causes this function to run.
+ *	@param starttime The start time of the latest invocation of @a bk_run_once.
+ *	@param flags Flags for your enjoyment.
+ */
+static int 
+do_cancel_relay(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
+  struct program_config *pc = opaque;
+
+  if (!run || !pc || !demand)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!*demand)
+    BK_RETURN(B, 0);    
+
+  *demand = 0;
+
+  if (bk_relay_cancel(B, &pc->pc_brc, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not cancel relay\n");
+    goto error;
+  }
+
+  if (set_run_over(B, pc, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not stop bk_run\n");
+    goto error;
+  }
+
+  BK_RETURN(B, 0);  
+
+ error:
+  BK_RETURN(B, -1);  
+}
+
+
+
+/**
+ * Set the bk_run_set_run_over state.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param pc The program config
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static int
+set_run_over(bk_s B, struct program_config *pc, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
+
+  if (!pc || !pc->pc_run)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_RUN_OVER))
+    BK_RETURN(B, 0);    
+
+  if (bk_run_set_run_over(B, pc->pc_run) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not set run over\n");
+    goto error;
+  }
+  
+  BK_FLAG_SET(pc->pc_flags, PC_RUN_OVER);
+
+  BK_RETURN(B, 0);  
+  
+ error:
+  BK_RETURN(B, -1);  
 }
