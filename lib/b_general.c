@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.30 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.31 2002/10/18 18:22:57 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -358,7 +358,7 @@ void bk_general_proctitle_set(bk_s B, char *title)
  *	@param ... The printf-style arguments
  *	@see bk_general_vsyslog
  */
-void bk_general_syslog(bk_s B, int level, bk_flags flags, char *format, ...)
+void bk_general_syslog(bk_s B, int level, bk_flags flags, const char *format, ...)
 {
   va_list args;
 
@@ -380,7 +380,7 @@ void bk_general_syslog(bk_s B, int level, bk_flags flags, char *format, ...)
  *	@param format The printf-style format of the message
  *	@param ... The printf-style arguments
  */
-void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list args)
+void bk_general_vsyslog(bk_s B, int level, bk_flags flags, const char *format, va_list args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   const char *parentname, *errorstr;
@@ -496,6 +496,8 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_proctitle *PT;
+
+  *program = NULL;
 
   if (!BK_MALLOC(PT))
   {

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.180 2002/09/29 16:26:09 seth Exp $
+ * $Id: libbk.h,v 1.181 2002/10/18 18:22:57 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1203,8 +1203,8 @@ extern int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int),
 extern int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
 extern int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
 extern int bk_general_destroy_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
-extern void bk_general_syslog(bk_s B, int level, bk_flags flags, char *format, ...) __attribute__ ((format (printf, 4, 5)));
-extern void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list args);
+extern void bk_general_syslog(bk_s B, int level, bk_flags flags, const char *format, ...) __attribute__ ((format (printf, 4, 5)));
+extern void bk_general_vsyslog(bk_s B, int level, bk_flags flags, const char *format, va_list args);
 #define BK_SYSLOG_FLAG_NOFUN 1			///< Don't want function name included during bk_general_*syslog
 #define BK_SYSLOG_FLAG_NOLEVEL 2		///< Don't want error level included during bk_general_*syslog
 extern const char *bk_general_errorstr(bk_s B, int level);

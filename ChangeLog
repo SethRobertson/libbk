@@ -1,3 +1,11 @@
+2002-10-16  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_error.c (bk_error_iprint): Added rudimentary error
+	aggregation.
+
+	* lib/b_general.c (bk_general_syslog): Change format from char* to
+	const char*.  Fix missed initialization.
+
 2002-10-16  Seth Robertson  <seth@yeah.baka.org>
 
 	* include/libbk_oscompat.h: Define in_addr_t if needed.

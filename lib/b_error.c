@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.28 2002/09/27 19:37:15 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.29 2002/10/18 18:22:57 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -34,8 +34,22 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 /**
+ * Information about one particular error message
+ */
+struct bk_error_node
+{
+  time_t	ben_time;			///< Timestamp
+  u_int		ben_seq;			///< Sequence number
+  int		ben_level;			///< Level of message
+  char		*ben_msg;			///< Actual message
+  const char    *ben_origmsg;			///< Message without fun name
+  int		ben_repeat;			///< Number of times repeated
+};
+/**
  * Information about the general state of errors in the system
  */
+
+
 struct bk_error
 {
   FILE		*be_fh;				///< Error info file handle
@@ -49,20 +63,9 @@ struct bk_error
   u_short	be_curHiSize;			///< Current queue size
   u_short	be_curLowSize;			///< Current queue size
   u_short	be_maxsize;			///< Maximum queue size
+  struct bk_error_node be_last;			///< Last error
+  u_int32_t	be_repeat;			///< Number of times last error was repeated
   bk_flags	be_flags;			///< Flags
-};
-
-
-/**
- * Information about one particular error message
- */
-struct bk_error_node
-{
-  time_t	ben_time;			///< Timestamp
-  u_int		ben_seq;			///< Sequence number
-  int		ben_level;			///< Level of message
-  char		*ben_msg;			///< Actual message
-  const char    *ben_origmsg;			///< Message without fun name
 };
 
 
@@ -96,6 +99,7 @@ struct bk_error_node
 static struct bk_error_node *bk_error_marksearch(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_node *node, bk_flags flags);
 static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *node, bk_flags flags);
+static void bk_error_irepeater_flush(bk_s B, struct bk_error *beinfo, bk_flags flags);
 
 
 
@@ -132,6 +136,7 @@ struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogt
   beinfo->be_curHiSize = 0;
   beinfo->be_curLowSize = 0;
   beinfo->be_maxsize = queuelen;
+  BK_ZERO(&(beinfo->be_last));
   beinfo->be_flags = flags;
 
   if (!(beinfo->be_markqueue = errq_create(NULL, NULL, DICT_UNORDERED, NULL)))
@@ -181,6 +186,9 @@ void bk_error_destroy(bk_s B, struct bk_error *beinfo)
     /* <KLUDGE>invalid argument</KLUDGE> */
     return;
   }
+
+  // flush the last repeated error, if there is one
+  bk_error_irepeater_flush(B, beinfo, 0);
 
   DICT_NUKE_CONTENTS(beinfo->be_markqueue, errq, node, break, if (node->ben_msg) free(node->ben_msg); free(node));
   errq_destroy(beinfo->be_markqueue);
@@ -236,6 +244,34 @@ void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *
 
 
 /**
+ * Flush the "Last message repeated n times" message
+ *
+ *	@param B BAKA thread/global state 
+ *	@param beinfo The error state structure. 
+ *	@param flags Reserved
+ */
+static void bk_error_irepeater_flush(bk_s B, struct bk_error *beinfo, bk_flags flags)
+{
+  if (beinfo->be_last.ben_repeat > 0)
+  {
+    // <TRICKY>Presumes smaller syslog levels are higher priority</TRICKY>
+    if (beinfo->be_last.ben_level <= beinfo->be_hilo_pivot && (beinfo->be_last.ben_level != BK_ERR_NONE || beinfo->be_fh))
+    {
+      be_error_output(B, beinfo->be_fh, beinfo->be_last.ben_level, &(beinfo->be_last), beinfo->be_flags);
+    }
+      
+  }
+
+  if (beinfo->be_last.ben_msg)
+  {
+    free(beinfo->be_last.ben_msg);
+    BK_ZERO(&(beinfo->be_last));
+  }
+}
+
+
+
+/**
  * Add an error string to the error queue -- timestamp, buffer marked up with
  * function name and error level, and if necessary, output.
  *
@@ -254,6 +290,7 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
   u_short *be_cursize;
   const char fmt[]="%s/%n%s: %s";
   int len = -8;					// -(total %. chars in fmt)
+  char *msg = NULL;
   int origoffset;
   
   if (!(funname = bk_fun_funname(B, 0, 0)))
@@ -262,63 +299,88 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
     funname = "?";
   }
 
-  if (!(node = malloc(sizeof(*node))))
-  {
-    /* <KLUDGE>cannot allocate storage for error node</KLUDGE> */
-    return;
-  }
-  node->ben_time = curtime;
-  node->ben_seq = beinfo->be_seqnum++;
-  node->ben_level = sysloglevel;
-
   len += strlen(funname) + strlen(buf) + strlen(level) + sizeof(fmt);
-  if (!(node->ben_msg = malloc(len)))
+  if (!(msg = malloc(len)))
   {
     /* <KLUDGE>cannot allocate storage for error message</KLUDGE> */
     goto error;
   }
-  snprintf(node->ben_msg, len, fmt, funname, &origoffset, level, buf);
-  node->ben_origmsg = &node->ben_msg[origoffset];
+  snprintf(msg, len, fmt, funname, &origoffset, level, buf);
 
-  // <TRICKY>Presumes smaller syslog levels are higher priority</TRICKY>
-  if (sysloglevel <= beinfo->be_hilo_pivot && sysloglevel != BK_ERR_NONE)
+  if (beinfo->be_last.ben_msg && BK_STREQ(msg, beinfo->be_last.ben_msg))
   {
-    be_queue = beinfo->be_hiqueue;
-    be_cursize = &beinfo->be_curHiSize;
+    beinfo->be_last.ben_repeat++;
   }
   else
   {
-    be_queue = beinfo->be_lowqueue;
-    be_cursize = &beinfo->be_curLowSize;
-  }
+    bk_error_irepeater_flush(B, beinfo, 0);
 
-  /*
-   * Nuke stuff off the end until we have one free slot
-   * (normally only one, unless maxsize has changed)
-   */
-  while (*be_cursize > beinfo->be_maxsize)
-  {
-    struct bk_error_node *last = errq_maximum(be_queue);
-    errq_delete(be_queue, last);
-    if (last->ben_msg) free(last->ben_msg);
-    free(last);
-    (*be_cursize)--;
-  }
+    if (!(node = malloc(sizeof(*node))))
+    {
+      /* <KLUDGE>cannot allocate storage for error node</KLUDGE> */
+      return;
+    }
+    node->ben_time = curtime;
+    node->ben_seq = beinfo->be_seqnum++;
+    node->ben_level = sysloglevel;
+    node->ben_msg = msg;
+    msg = NULL;
+    node->ben_origmsg = &node->ben_msg[origoffset];
+    node->ben_repeat = 0;
 
-  if (errq_insert(be_queue, node) != DICT_OK)
-  {
-    /* <KLUDGE>CLC insert failed for some reason or another</KLUDGE> */
-    goto error;
-  }
-  (*be_cursize)++;
+    memcpy(&(beinfo->be_last), node, sizeof(struct bk_error_node));
+    beinfo->be_last.ben_msg = NULL;
+    beinfo->be_last.ben_origmsg = NULL;
+    if (beinfo->be_last.ben_msg = strdup(node->ben_msg))
+    {
+      beinfo->be_last.ben_origmsg = &beinfo->be_last.ben_msg[origoffset];
+    }
 
-  // <TRICKY>Presumes smaller syslog levels are higher priority</TRICKY>
-  if (sysloglevel <= beinfo->be_hilo_pivot && (sysloglevel != BK_ERR_NONE || beinfo->be_fh))
-    be_error_output(B, beinfo->be_fh, beinfo->be_sysloglevel, node, beinfo->be_flags);
+    // <TRICKY>Presumes smaller syslog levels are higher priority</TRICKY>
+    if (sysloglevel <= beinfo->be_hilo_pivot && sysloglevel != BK_ERR_NONE)
+    {
+      be_queue = beinfo->be_hiqueue;
+      be_cursize = &beinfo->be_curHiSize;
+    }
+    else
+    {
+      be_queue = beinfo->be_lowqueue;
+      be_cursize = &beinfo->be_curLowSize;
+    }
+
+    /*
+     * Nuke stuff off the end until we have one free slot
+     * (normally only one, unless maxsize has changed)
+     */
+    while (*be_cursize > beinfo->be_maxsize)
+    {
+      struct bk_error_node *last = errq_maximum(be_queue);
+      errq_delete(be_queue, last);
+      if (last->ben_msg) free(last->ben_msg);
+      free(last);
+      (*be_cursize)--;
+    }
+
+    if (errq_insert(be_queue, node) != DICT_OK)
+    {
+      /* <KLUDGE>CLC insert failed for some reason or another</KLUDGE> */
+      goto error;
+    }
+    (*be_cursize)++;
+
+    // <TRICKY>Presumes smaller syslog levels are higher priority</TRICKY>
+    if (sysloglevel <= beinfo->be_hilo_pivot && (sysloglevel != BK_ERR_NONE || beinfo->be_fh))
+      be_error_output(B, beinfo->be_fh, beinfo->be_sysloglevel, node, beinfo->be_flags);
+  }
 
   return;
 
  error:
+  if (msg)
+  {
+    free(msg);
+  }
+
   if (node)
   {
     if (node->ben_msg) free(node->ben_msg);
@@ -842,6 +904,8 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
   char fullprefix[40];
   const char *msg;
   int syslogflags = BK_SYSLOG_FLAG_NOFUN|BK_SYSLOG_FLAG_NOLEVEL;
+  const char *repeated_fmt = "Last message repeated %ld times\n";
+  const char *full_repeated_fmt = "%s: Last message repeated %ld times\n";
 
   if (!node)
     return;
@@ -863,23 +927,51 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
 
   fullprefix[sizeof(fullprefix)-1] = 0;		// Ensure terminating NUL
 
- if (sysloglevel != BK_ERR_NONE)
+  if (sysloglevel != BK_ERR_NONE)
   {
-    if (BK_FLAG_ISSET(flags, BK_ERROR_FLAG_SYSLOG_FULL))
-      bk_general_syslog(B, sysloglevel, syslogflags, "%s: %s",fullprefix, msg);
+    if (node->ben_repeat < 2)
+    {
+      if (BK_FLAG_ISSET(flags, BK_ERROR_FLAG_SYSLOG_FULL))
+	bk_general_syslog(B, sysloglevel, syslogflags, "%s: %s",fullprefix, msg);
+      else
+	bk_general_syslog(B, sysloglevel, syslogflags, "%s", msg);
+    }
     else
-      bk_general_syslog(B, sysloglevel, syslogflags, "%s", msg);
+    {
+      if (BK_FLAG_ISSET(flags, BK_ERROR_FLAG_SYSLOG_FULL))
+      {
+	bk_general_syslog(B, sysloglevel, syslogflags, full_repeated_fmt, fullprefix, msg);
+      }
+      else
+      {
+	bk_general_syslog(B, sysloglevel, syslogflags, repeated_fmt, node->ben_repeat);
+      }
+    }
   }
 
   if (fh)
   {
-    if (BK_FLAG_ISSET(flags, BK_ERROR_FLAG_BRIEF))
+    if (node->ben_repeat < 2)
     {
-      fprintf(fh, "%s", msg);
+      if (BK_FLAG_ISSET(flags, BK_ERROR_FLAG_BRIEF))
+      {
+	fprintf(fh, "%s", msg);
+      }
+      else
+      {
+	fprintf(fh, "%s: %s", fullprefix, msg);
+      }
     }
     else
     {
-      fprintf(fh, "%s: %s", fullprefix, msg);
+      if (BK_FLAG_ISSET(flags, BK_ERROR_FLAG_BRIEF))
+      {
+	fprintf(fh, repeated_fmt, node->ben_repeat);
+      }
+      else
+      {
+	fprintf(fh, full_repeated_fmt, fullprefix, node->ben_repeat);
+      }
     }
   }
 
