@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.15 2002/01/11 10:06:05 dupuy Exp $
+ * $Id: libbk_include.h,v 1.16 2002/01/24 08:54:43 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -55,17 +55,27 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <errno.h>
 #include <signal.h>
-#include <time.h>
+#ifdef TIME_WITH_SYS_TIME
+# include <sys/time.h>
+# include <time.h>
+#else
+# ifdef HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  include <time.h>
+# endif
+#endif
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <memory.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <libintl.h>
 #include <limits.h>
 #include <popt.h>

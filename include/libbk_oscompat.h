@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.10 2002/01/20 04:12:02 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.11 2002/01/24 08:54:43 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -15,6 +15,63 @@
 
 #ifndef _libbk_oscompat_h_
 #define _libbk_oscompat_h_
+
+
+#ifdef HAVE_CONSTRUCTOR_ATTRIBUTE
+/**
+ * Define an initialization function.
+ *
+ * This macro takes a plugin module name as an argument, and declares a
+ * function signature for an initialization function.  Simply follow this macro
+ * with ; for a declaration, or { code... } for a definition.  The resulting
+ * function takes no arguments, returns no value, and will be called at plugin
+ * load time (possibly before the program main itself).  <em>Note:</em> a
+ * definition using this macro should be preceded by the following C code:
+ *
+ * <code>
+ * #ifdef HAVE_INIT_PRAGMA
+ * #pragma init(<i>mod</i>_init)	// <i>mod</i> is arg to BK_INIT_FUN
+ * #endif
+ * </code>
+ *
+ * @param mod module name
+ */
+#define BK_INIT_FUN(mod) \
+ static void __attribute__((__constructor__)) mod ## _init (void)
+
+/**
+ * Define a finalization function.
+ *
+ * This macro takes a plugin module name as an argument, and declares a
+ * function signature for an finalization function.  Simply follow this macro
+ * with ; for a declaration, or { code... } for a definition.  The resulting
+ * function takes no arguments, returns no value, and will be called at plugin
+ * unload time. <em>Note:</em> a definition using this macro should be preceded
+ * by the following C code:
+ *
+ * <code>
+ * #ifdef HAVE_INIT_PRAGMA
+ * #pragma fini(<i>mod</i>_finish)	// <i>mod</i> is arg to BK_FINISH_FUN
+ * #endif
+ * </code>
+ *
+ * @param mod module name
+ */
+#define BK_FINISH_FUN(mod) \
+ static void __attribute__((__destructor__)) mod ## _finish (void)
+#else
+#ifdef HAVE_INIT_PRAGMA
+// better hope the developers remembered their pragmas
+#define BK_INIT_FUN(mod) static void mod ## _init (void)
+#define BK_FINISH_FUN(mod) static void mod ## _finish (void)
+#else
+// no linker support for init functions; we'll need to use libtool to get name
+#define BK_INIT_FUN(mod) void mod ## _LTX_init (void)
+#define BK_FINISH_FUN(mod) void mod ## _LTX_finish (void)
+#endif /* !HAVE_INIT_PRAGMA */
+#endif /* !HAVE_CONSTRUCTOR_ATTRIBUTE */
+
+
 
 #ifdef SOMETHING_FOR_CPLUSPLUS
 #ifdef NULL
@@ -65,17 +122,25 @@ typedef char *caddr_t;
 #define __SIZE_TYPE__ size_t
 #endif /* __SIZE_TYPE__ */
 
-/* XXX AUTOCONF THIS!!!!!!! */
-#if defined(__linux__) || !defined(HAVE_SOCKADDR_LEN)
-#	define BK_SET_SOCKADDR_LEN(B,s,l) do{}while(0)
-#	define BK_GET_SOCKADDR_LEN(B,s,l) do { (l)=bk_netutils_get_sa_len((B),((struct sockaddr *)(s))); }while(0)
+#ifdef HAVE_SOCKADDR_SA_LEN
+# define BK_SET_SOCKADDR_LEN(B,s,l) do { ((struct sockaddr *)(s))->sa_len=(l); } while(0)
+# define BK_GET_SOCKADDR_LEN(B,s,l) do { (l)=((struct sockaddr *)(s))->sa_len; } while(0)
 #else
-#	define BK_SET_SOCKADDR_LEN(B,s,l) do { ((struct sockaddr *)(s))->sa_len=(l); }while(0)
-#	define BK_GET_SOCKADDR_LEN(B,s,l) do { (l)=((struct sockaddr *)(s))->sa_len; }while(0)
-#endif 
+// never anything that needs to be set
+# define BK_SET_SOCKADDR_LEN(B,s,l) do{}while(0)
+#ifdef HAVE_SA_LEN_MACRO
+# define BK_GET_SOCKADDR_LEN(B,s,l) do { (l)=SA_LEN(((struct sockaddr *)(s))); } while(0)
+#else
+# define BK_GET_SOCKADDR_LEN(B,s,l) do { (l)=bk_netutils_get_sa_len((B),((struct sockaddr *)(s))); } while(0)
+#endif /* !HAVE_SA_LEN_MACRO */
+#endif /* !HAVE_SOCKADDR_SA_LEN */
 
 #if defined(AF_INET6) && defined(HAVE_INET_PTON)
 #define HAVE_INET6
+#endif
+
+#if !defined(AF_LOCAL) && defined(AF_UNIX)
+#define AF_LOCAL AF_UNIX
 #endif
 
 /*

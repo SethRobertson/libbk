@@ -1,3 +1,15 @@
+2002-01-24  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk_include.h: control some inclusions from autoconf
+
+	* include/libbk_oscompat.h: autoconf control for sockaddr sa_len
+	(BK_INIT_FUN): macro for load-time init
+	(AF_LOCAL): define if missing but AF_UNIX exists
+
+	* lib/b_netutils.c (bk_netutils_get_sa_len): use autoconf control
+
+	* lib/b_time.c (bk_time_iso_parse): avoid mktime if it has bugs
+
 2002-01-20  Seth Robertson  <seth@yeah.baka.org>
 
 	* lib/b_skid.c: Initial SKID implementation, or at least the

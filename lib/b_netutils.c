@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.11 2001/12/05 18:03:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.12 2002/01/24 08:54:43 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -81,35 +81,48 @@ bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa)
     BK_RETURN(B, -1);
   }
 
-#ifdef HAVE_SA_LEN
-  BK_RETURN(B,sa->sa_len);
-#else /* SA_LEN */
-
+#ifdef HAVE_SOCKADDR_SA_LEN
+  len = sa->sa_len;
+#else
+#ifdef HAVE_SA_LEN_MACRO
+  len = SA_LEN(sa);
+#else
   switch (sa->sa_family)
   {
   case AF_INET:
     len = sizeof(struct sockaddr_in);
     break;
 
+#ifdef AF_INET6
   case AF_INET6:
     len = sizeof(struct sockaddr_in6);
     break;
+#endif /* AF_INET6 */
 
+#ifdef AF_LOCAL
   case AF_LOCAL:
-    len = bk_strnlen(B, ((struct sockaddr_un *)sa)->sun_path, sizeof(struct sockaddr_un));
+    {
+#ifdef SUN_LEN					// POSIX.1g un.h defines this
+      len = SUN_LEN((struct sockaddr_un *)sa);
+#else
+      size_t off = (size_t)((struct sockaddr_un *)0)->sun_path;
+      len = off + bk_strnlen(B, ((struct sockaddr_un *)sa)->sun_path,
+			     sizeof(struct sockaddr_un) - off);
+#endif /* !SUN_LEN */
+    }
     break;
+#endif /* AF_LOCAL */
 
   default:
-    bk_error_printf(B, BK_ERR_ERR, "Address family %d is not suppored\n", sa->sa_family);
-    goto error;
+    bk_error_printf(B, BK_ERR_ERR, "Address family %d is not supported\n",
+		    sa->sa_family);
+    len = -1;
     break;
   }
+#endif /* !HAVE_SA_LEN_MACRO */
+#endif /* !HAVE_SOCKADDR_SA_LEN */
 
   BK_RETURN(B, len);
-#endif /* SA_LEN */
-
- error:
-  BK_RETURN(B,-1);
 }
 
 

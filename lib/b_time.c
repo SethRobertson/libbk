@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_time.c,v 1.2 2002/01/19 13:15:37 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_time.c,v 1.3 2002/01/24 08:54:43 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -362,13 +362,15 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
   }
   while (1);
 
-  if (utc)
-    date->tv_sec = bk_timegm(B, &t, 0);
-  else
+#ifndef MKTIME_HAS_BUGS
+  if (!utc)
   {
     t.tm_isdst = -1;				// no idea about DST
     date->tv_sec = mktime(&t);
   }
+  else						// if mktime buggy, use GMT
+#endif
+    date->tv_sec = bk_timegm(B, &t, 0);
 
   if (date->tv_sec == -1)
     BK_RETURN(B, -1);
