@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.68 2002/11/11 22:53:58 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.69 2002/12/30 19:11:30 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -42,7 +42,11 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define ADDSTATE(x)		state |= x	///< Superstate (typically variable in dquote) 
 #define SUBSTATE(x)		state &= ~(x)	///< Get rid of superstate
 
-#define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	///< Check to see if the limit on numbers of tokens has been reached or not.  Yes, limit>1 and limit-- will always have the same truth value
+/**
+ * Check to see if the limit on numbers of tokens has been reached or not.
+ * Yes, limit>1 and limit-- will always have the same truth value.  Don't ask?
+ */
+#define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))
 
 static ht_val bsr_oo_cmp(struct bk_str_registry_element *a, struct bk_str_registry_element *b);
 static struct bk_str_registry_element *bsre_create(bk_s B, const char *str, bk_flags flags);
@@ -806,8 +810,8 @@ char *bk_string_rip(bk_s B, char *string, const char *terminators, bk_flags flag
 
 
 /**
- * Quote a string, with double quotes, for printing, and subsequent split'ing, and
- * returning a newly allocated string which should be free'd by the caller.
+ * Quote a string, with double quotes, for printing, and subsequent split'ing,
+ * and returning a newly allocated string which should be free'd by the caller.
  *
  * split should get the following flags to decode
  * BK_STRING_TOKENIZE_DOUBLEQUOTE|BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT
@@ -1283,10 +1287,10 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
 
 
 /**
- * Appends the src string to the dest vstr overwriting the '\0' character at the
- * end of dest, and then adds a terminating '\0' character.  The strings may not
- * overlap, and the dest vstr needn't have enough space for the result.  Extra 
- * space will be allocated according the the chunk argument.
+ * Appends the src string to the dest vstr overwriting the '\0' character at
+ * the end of dest, and then adds a terminating '\0' character.  The strings
+ * may not overlap, and the dest vstr needn't have enough space for the result.
+ * Extra space will be allocated according the the chunk argument.
  *
  * THREADS: MT-SAFE
  *
@@ -1482,7 +1486,7 @@ bk_string_registry_init(bk_s B)
 
   if (!(bsr->bsr_repository = bsr_create((int(*)(dict_obj, dict_obj))bsr_oo_cmp, NULL, DICT_ORDERED)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not creaet string registry respository: %s\n", bsr_error_reason(NULL, NULL));
+    bk_error_printf(B, BK_ERR_ERR, "Could not create string registry repository: %s\n", bsr_error_reason(NULL, NULL));
     goto error;
   }
   
@@ -1616,7 +1620,7 @@ bsre_destroy(bk_s B, struct bk_str_registry_element *bsre)
 
 /**
  * Insert a string into the registry. This function is only provided for
- * convience (and "balance" with @name bk_string_registy_delete) . See 
+ * convenience (and "balance" with @name bk_string_registry_delete). See 
  * @a bk_string_registry_idbystr.
  *
  * THREADS: EVIL (through CLC)
@@ -1763,7 +1767,9 @@ bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str,
 
     if (bsr_append(bsr->bsr_repository, bsre) != DICT_OK)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not insert string registry element into repository: %s\n", bsr_error_reason(bsr->bsr_repository, NULL));
+      bk_error_printf(B, BK_ERR_ERR,
+		      "Could not insert string into registry: %s\n",
+		      bsr_error_reason(bsr->bsr_repository, NULL));
       goto error;
     }
     inserted = 1;
@@ -1774,10 +1780,11 @@ bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str,
  error:
   if (bsre)
   {
-    // Ignore return value here, since it might very well *not* have been inserted prio
     if (inserted && bsr_delete(bsr->bsr_repository, bsre) != DICT_OK)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not delete newly inserted string registry element from repository: %s\n", bsr_error_reason(bsr->bsr_repository, NULL));
+      bk_error_printf(B, BK_ERR_ERR,
+		      "Could not delete new string from registry: %s\n",
+		      bsr_error_reason(bsr->bsr_repository, NULL));
     }
     bsre_destroy(B, bsre);
   }

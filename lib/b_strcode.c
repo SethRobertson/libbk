@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.6 2002/10/21 06:28:54 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.7 2002/12/30 19:11:30 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -341,14 +341,18 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
   while((c = *str))
   {
     /*
-     * <TODO>Perhaps we should allow callers to be more selective as to *which*
-     * non-printables they wish to permit. NEWLINEs and TABs for instance make
-     * sense, but Ctrl-A perhaps does not.</TODO>
+     * <BUG bugid="963">Allowing space characters to be considered "printable"
+     * prevents the need for sysd_jobstep_status_update to pass in the
+     * long-winded and deadly BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT flag.
+     * This ameliorates, but does not solve, the problem, since libxml will
+     * reject files containing not only a naked ^A, but even an encoded &#x1;.
+     * (The Java dom4j parser is more tolerant of the latter).</BUG>
      */
-    if (!isprint(c) && BK_FLAG_ISCLEAR(flags, BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT))
+    if (!isprint(c) && !isspace(c) &&
+	BK_FLAG_ISCLEAR(flags, BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT))
     {
-      char scratch[100];
-      snprintf(scratch, 100,  "#x%x", c);
+      char scratch[8];
+      snprintf(scratch, sizeof(scratch), "&#x%02x;", (unsigned char) c);
       l = strlen(scratch);
       memcpy(p, scratch, l);
       len -= l;
@@ -359,21 +363,21 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
       switch (c)
       {
       case '<':
-	l = strlen(XML_LT_STR);
+	l = sizeof(XML_LT_STR) - 1;
 	memcpy(p, XML_LT_STR, l);
 	len -= l;
 	p += l;
 	break;
 	
       case '>':
-	l = strlen(XML_GT_STR);
+	l = sizeof(XML_GT_STR) - 1;
 	memcpy(p, XML_GT_STR, l);
 	len -= l;
 	p += l;
 	break;
 
       case '&':
-	l = strlen(XML_AMP_STR);
+	l = sizeof(XML_AMP_STR) - 1;
 	memcpy(p, XML_AMP_STR, l);
 	len -= l;
 	p += l;

@@ -1,3 +1,13 @@
+2002-12-30  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_strcode.c (bk_string_str2xml): partial fix for ticket #963:
+	always allow whitespace chars, implement entity-encoding correctly,
+	and use sizeof rather than strlen
+	
+2002-12-20  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_fileutils.c: note additional security flaws in this code
+
 2002-11-20  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (BK_NSECTOUSEC, BK_USECTONSEC): avoid overflow,
