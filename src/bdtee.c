@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bdtee.c,v 1.1 2003/10/16 23:11:31 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: bdtee.c,v 1.2 2003/10/20 22:56:11 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -281,7 +281,7 @@ static int proginit(bk_s B, struct program_config *pc)
     goto error;
   }
   
-  if ((fd = open(pc->pc_outfile, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0)
+  if ((fd = open(pc->pc_outfile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not open %s: %s\n", pc->pc_outfile, strerror(errno));
     goto error;
@@ -295,7 +295,7 @@ static int proginit(bk_s B, struct program_config *pc)
 
   if (!BK_STREQ(pc->pc_prog1,"-"))
   {
-    if (bk_pipe_to_cmd_tokenize(B, &prog1_in, &prog1_out, pc->pc_prog1, NULL, 0, NULL, NULL, NULL, BK_STRING_TOKENIZE_MULTISPLIT, BK_EXEC_FLAG_SEARCH_PATH) < 0)
+    if (bk_pipe_to_cmd_tokenize(B, &prog1_in, &prog1_out, pc->pc_prog1, NULL, 0, NULL, NULL, NULL, BK_STRING_TOKENIZE_MULTISPLIT, BK_EXEC_FLAG_SEARCH_PATH | BK_EXEC_FLAG_CLOSE_CHILD_DESC) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not fork first program\n");
       goto error;
@@ -310,7 +310,7 @@ static int proginit(bk_s B, struct program_config *pc)
 
   if (!BK_STREQ(pc->pc_prog2,"-"))
   {
-    if (bk_pipe_to_cmd_tokenize(B, &prog2_in, &prog2_out, pc->pc_prog2, NULL, 0, NULL, NULL, NULL, BK_STRING_TOKENIZE_MULTISPLIT, BK_EXEC_FLAG_SEARCH_PATH) < 0)
+    if (bk_pipe_to_cmd_tokenize(B, &prog2_in, &prog2_out, pc->pc_prog2, NULL, 0, NULL, NULL, NULL, BK_STRING_TOKENIZE_MULTISPLIT, BK_EXEC_FLAG_SEARCH_PATH | BK_EXEC_FLAG_CLOSE_CHILD_DESC) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not fork second program\n");
       goto error;

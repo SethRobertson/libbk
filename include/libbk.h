@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.262 2003/10/16 23:11:33 jtt Exp $
+ * $Id: libbk.h,v 1.263 2003/10/20 22:56:13 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1912,16 +1912,18 @@ extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, 
 
 /* b_exec.c */
 
-#define BK_EXEC_FLAG_SEARCH_PATH	0x1	///< Search PATH for the process
-#define BK_EXEC_FLAG_TOSS_STDOUT	0x2	///< Duplicate stdout to /dev/null.
-#define BK_EXEC_FLAG_TOSS_STDERR	0x4	///< Duplicate stderr to /dev/null.
-#define BK_EXEC_FLAG_USE_SUPPLIED_FDS	0x8	///< Use the fd's supplied as copyu in args
+#define BK_EXEC_FLAG_SEARCH_PATH		0x1 ///< Search PATH for the process
+#define BK_EXEC_FLAG_TOSS_STDOUT		0x2 ///< Duplicate stdout to /dev/null.
+#define BK_EXEC_FLAG_TOSS_STDERR		0x4 ///< Duplicate stderr to /dev/null.
+#define BK_EXEC_FLAG_USE_SUPPLIED_FDS		0x8 ///< Use the fd's supplied as copyu in args
+#define BK_EXEC_FLAG_CLOSE_CHILD_DESC		0x10 ///< Close all extraneous deciptors in child
 
 #ifdef MISSING_PTHREAD_RWLOCK_INIT
 /* lock initialization only required on platforms where rwlock_t is not a pointer (Darwin) */
 extern int bk_envlock_init(bk_s B);
 #endif /* MISSING_PTHREAD_RWLOCK_INIT */
 extern pid_t bk_pipe_to_process(bk_s B, int *fdinp, int*fdoutp, bk_flags flags);
+#define BK_PIPE_TO_PROCESS_FLAG_CLOSE_EXTRANEOUS_DESC	0x1
 extern int bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags flags);
 extern char *bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags flags);
 extern int bk_exec_cmd(bk_s B, const char *cmd, char *const *env, bk_flags flags);

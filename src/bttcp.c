@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.36 2003/10/16 23:11:31 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.37 2003/10/20 22:56:11 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -575,7 +575,7 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
   struct program_config *pc;
 
   // We only care about shutdown
-  if (!data)
+  if (data)
     BK_VRETURN(B);    
 
   if (!(pc = args))

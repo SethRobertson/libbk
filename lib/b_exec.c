@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.14 2003/07/13 01:33:16 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.15 2003/10/20 22:56:12 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -64,6 +64,7 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
   int c2p[2] = { -1, -1};
   int fdin;
   int fdout;
+  int fderr;
   pid_t pid = 0;
 
   if (fdinp)
@@ -74,6 +75,8 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
       bk_error_printf(B, BK_ERR_ERR, "Could not create child --> parent pipe: %s\n", strerror(errno));
       goto error;
     }
+
+    bk_debug_printf_and(B,2,"Creating c2p pipe: [%d, %d]\n", c2p[0], c2p[1]);
   }
 
   if (fdoutp)
@@ -84,6 +87,7 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
       bk_error_printf(B, BK_ERR_ERR, "Could not create parent --> child pipe: %s\n", strerror(errno));
       goto error;
     }
+    bk_debug_printf_and(B,2,"Creating p2c pipe: [%d, %d]\n", p2c[0], p2c[1]);
   }
 
   switch (pid = fork())
@@ -97,28 +101,60 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
     // Child
     fdin = fileno(stdin);
     fdout = fileno(stdout);
+    fderr = fileno(stderr);
+
+    bk_debug_printf_and(B,4,"Child: stdin: %d, stdout: %d\n", fdin, fdout);
+
+
+    if (BK_FLAG_ISSET(flags, BK_PIPE_TO_PROCESS_FLAG_CLOSE_EXTRANEOUS_DESC))
+    {
+      int cnt;
+      bk_debug_printf_and(B,2,"Closing fd's\n");
+      
+      for (cnt=0; cnt < getdtablesize(); cnt++)
+      {
+	if (cnt != fdin && cnt != fdout && cnt != fderr && 
+	    cnt != c2p[0] && cnt != c2p[1] && 
+	    cnt != p2c[0] && cnt != p2c[1])
+	  if (close(cnt) == 0)
+	  {
+	    bk_debug_printf_and(B,2,"Child: closing extraneous descriptor: %d\n", cnt);
+	  }
+      }
+    }
 
     if (fdoutp)
     {
       // Parent --> child (close child side write; dup child side read).
       close(p2c[1]);
+
+      bk_debug_printf_and(B,2,"Child: closing p2c write: %d\n", p2c[1]);
+
       if (dup2(p2c[0],fdin) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "dup failed: %s\n", strerror(errno));
 	goto error;
       }
       close(p2c[0]);
+
+      bk_debug_printf_and(B,2,"Child: closing p2c read (after dup to %d): %d\n", fdin, p2c[0]);
+
     }
 
     if (fdinp)
     {
       close(c2p[0]);
+
+      bk_debug_printf_and(B,2,"Child: closing c2p read: %d\n", c2p[0]);
+
       if (dup2(c2p[1],fdout) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "dup failed: %s\n", strerror(errno));
 	goto error;
       }
       close(c2p[1]);
+
+      bk_debug_printf_and(B,2,"Child: closing c2p write (after dup to %d): %d\n", fdout, c2p[1]);
     }
     break;
 
@@ -128,6 +164,8 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
     {
       // Child --> parent. Close parent side write. Return parent side read.
       close(c2p[1]);
+
+      bk_debug_printf_and(B,2,"Parent: closing c2p write: %d\n", c2p[1]);
 
       if (fdinp && *fdinp == -1)
       {
@@ -141,6 +179,8 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
 	  goto error;
 	}
 	close(c2p[0]);
+
+	bk_debug_printf_and(B,2,"Parent: closing c2p read (after dup to %d): %d\n", *fdinp, p2c[0]);
       }
     }
 
@@ -148,6 +188,9 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
     {
       // Parent --> child. Close parent side read. Return parent side write.
       close(p2c[0]);
+
+      bk_debug_printf_and(B,2,"Parent: closing p2c read: %d\n", p2c[0]);
+
       if (fdoutp && *fdoutp == -1)
       {
 	*fdoutp = p2c[1];
@@ -160,6 +203,8 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
 	  goto error;
 	}
 	close(p2c[1]);
+
+	bk_debug_printf_and(B,2,"Parent: closing p2c write (after dup to %d): %d\n", *fdoutp, p2c[1]);
       }
     }
     break;
@@ -376,7 +421,7 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
       *fdoutp = -1;
   }
 
-  pid = bk_pipe_to_process(B, fdinp, fdoutp, 0);
+  pid = bk_pipe_to_process(B, fdinp, fdoutp, BK_FLAG_ISSET(flags, BK_EXEC_FLAG_CLOSE_CHILD_DESC)?BK_PIPE_TO_PROCESS_FLAG_CLOSE_EXTRANEOUS_DESC:0);
 
   switch(pid)
   {
@@ -509,7 +554,7 @@ bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *
       *fdoutp = -1;
   }
 
-  pid = bk_pipe_to_process(B, fdinp, fdoutp, 0);
+  pid = bk_pipe_to_process(B, fdinp, fdoutp, BK_FLAG_ISSET(flags, BK_EXEC_FLAG_CLOSE_CHILD_DESC)?BK_PIPE_TO_PROCESS_FLAG_CLOSE_EXTRANEOUS_DESC:0);
 
   switch(pid)
   {

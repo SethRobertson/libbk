@@ -1,3 +1,22 @@
+2003-10-20  James Tanis  <jtt@pearl.sysdetect.com>
+
+	* src/bttcp.c (relay_finish): Only execute when the relay is
+	finsihed. 
+
+	* src/bdtee.c (proginit): Truncate tee file if it exists.
+	(proginit): Close extraneous child descriptors.
+
+	* lib/b_ioh.c (BK_IOH_SHUTDOWN): Shutdown only works on full
+	duplex descriptors, close(2) others.
+	(bk_ioh_shutdown): Shutdown correct descriptor on SHUT_WR.
+	(ioh_execute_cmds): Ditto.
+
+	* lib/b_exec.c (bk_pipe_to_process): Allow caller to close all
+	"extraneous" descriptors (ie not stdin, stdout, stderr, and pipe
+	descriptors) in child. 
+	(bk_pipe_to_exec): Close extraneous child desc's if asked.
+	(bk_pipe_to_cmd_tokenize): Ditto.
+
 2003-10-16  James Tanis  <jtt@pearl.sysdetect.com>
 
 	* lib/b_relay.c (bk_relay_iohhandler): If defined, invoke callback

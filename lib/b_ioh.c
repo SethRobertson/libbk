@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.100 2003/08/26 00:45:24 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.101 2003/10/20 22:56:12 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -55,6 +55,28 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #define IOH_COMPRESS_BLOCK_SIZE	32768	///< Basic block size to use in compression.
 
+/* 
+ * Shutdown only woks on full duplex (eg. network) descriptors. Others have to be closed.
+ */
+#define BK_IOH_SHUTDOWN(i,h)			\
+do {						\
+  if ((i)->ioh_fdin == (i)->ioh_fdout)		\
+  {						\
+    shutdown((i)->ioh_fdin, (h));		\
+  }						\
+  else						\
+  {						\
+    if ((h) == SHUT_RD || (h) == SHUT_RDWR)	\
+    {						\
+      close((i)->ioh_fdin);			\
+    }						\
+						\
+    if ((h) == SHUT_WR || (h) == SHUT_RDWR)	\
+    {						\
+      close((i)->ioh_fdout);			\
+    }						\
+  }						\
+} while (0)
 
 #ifdef BK_USING_PTHREADS
 // Call user function: precondition--ioh locked, not in user callback
@@ -803,7 +825,7 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
     BK_VRETURN(B);
   }
 
-  bk_debug_printf_and(B, 1, "Starting shutdown %d of IOH %p\n", how, ioh);
+  bk_debug_printf_and(B, 1, "Starting shutdown %d of IOH %p (in: %d, out: %d)\n", how, ioh, ioh->ioh_fdin, ioh->ioh_fdout);
 
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_CLOSING | IOH_FLAGS_SHUTDOWN_DESTROYING))
   {
@@ -850,13 +872,17 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   if (how == SHUT_RD || how == SHUT_RDWR)
   {
     ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
-    shutdown(ioh->ioh_fdin, SHUT_RD);
+    bk_debug_printf_and(B,4,"Shutting down read on descriptor: %d\n", ioh->ioh_fdin);
+    BK_IOH_SHUTDOWN(ioh, SHUT_RD);
   }
 
   if (how == SHUT_WR || how == SHUT_RDWR)
   {
     if ((ret = ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdShutdown, NULL, BK_IOH_BYPASSQUEUEFULL)) < 0)
-      shutdown(ioh->ioh_fdin, SHUT_WR);
+    {
+      bk_debug_printf_and(B,4,"Shutting down write on descriptor: %d\n", ioh->ioh_fdout);
+      BK_IOH_SHUTDOWN(ioh, SHUT_WR);
+    }
   }
 
   ret = ioh_execute_ifspecial(B, ioh, &ioh->ioh_writeq, 0); // Execute shutdown immediately if queue was empty
@@ -3664,7 +3690,8 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
       switch (idc->idc_type)
       {
       case IohDataCmdShutdown:
-	shutdown(ioh->ioh_fdin, SHUT_WR);
+	bk_debug_printf_and(B,2,"Shutingdown writes on descriptor: %d\n", ioh->ioh_fdout);
+	BK_IOH_SHUTDOWN(ioh,SHUT_WR);
 	BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT_PEND);
 	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT);
 	break;
