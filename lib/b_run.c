@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.49 2003/06/05 20:14:48 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.50 2003/06/06 03:34:51 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2904,6 +2904,7 @@ bk_run_set_run_over(bk_s B, struct bk_run *run)
 #endif /* BK_USING_PTHREADS */
 
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_RUN_OVER);
+  bk_run_select_changed(B, run, BK_RUN_GLOBAL_FLAG_ISLOCKED);
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
