@@ -1,18 +1,18 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.14 2003/06/05 20:14:48 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.15 2003/06/12 19:01:32 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
- * 
+ *
  * Copyright (c) 2003 The Authors. All rights reserved.
- * 
+ *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- * 
+ *
  * Mail <projectbaka@baka.org> for further information
- * 
+ *
  * --Copyright LIBBK--
  */
 
@@ -761,7 +761,7 @@ void bk_thread_kill_others(bk_s B, bk_flags flags)
       // not yet - wait and see
       if (pthread_cond_wait(&tlist->btl_cv, &tlist->btl_lock))
 	abort();
-      
+
     } while (1);
 
     if (pthread_mutex_unlock(&tlist->btl_lock))
@@ -791,6 +791,86 @@ static void bk_thread_unlock(void *opaque)
 {
   if (pthread_mutex_unlock(opaque))
     abort();
+}
+
+
+
+/**
+ * Monitor a (dereferenced) pointer in a very busy loop to see when it
+ * changes, then print a message.
+ *
+ * @param B Baka thread/global enviornment
+ * @param opaque Information about what we are monitoring
+ */
+void *bk_monitor_memory_thread(bk_s B, void *opaque)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  bk_vptr *monitor = opaque;
+  bk_vptr copy;
+
+  if (!monitor)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  copy.len = monitor->len;
+  BK_MALLOC_LEN(copy.ptr, copy.len);
+ again:
+  memcpy(copy.ptr, monitor->ptr, copy.len);
+  bk_error_printf(B, BK_ERR_NOTICE, "Monitoring pointer %p/%d\n", monitor->ptr, monitor->len);
+
+  while (1)
+  {
+    if (memcmp(copy.ptr, monitor->ptr, copy.len))
+    {
+      bk_error_printf(B, BK_ERR_NOTICE, "Monitored pointer %p/%d has changed value!\n", monitor->ptr, monitor->len);
+      goto again;
+    }
+    // Think about a usleep here....
+  }
+
+  // notreached
+  BK_RETURN(B, NULL);
+}
+
+
+
+/**
+ * Monitor a (dereferenced) pointer in a very busy loop to see when it
+ * changes, then print a message.
+ *
+ * @param B Baka thread/global enviornment
+ * @param opaque Information about what we are monitoring
+ */
+void *bk_monitor_int_thread(bk_s B, void *opaque)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  volatile u_int *monitor = opaque;
+  u_int save;
+
+  if (!monitor)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+ again:
+  save = *monitor;
+  bk_error_printf(B, BK_ERR_NOTICE, "Monitoring pointer %p/%d\n", monitor, *monitor);
+
+  while (1)
+  {
+    if (*monitor != save)
+    {
+      bk_error_printf(B, BK_ERR_NOTICE, "Monitored pointer %p/%d has changed value!\n", monitor, *monitor);
+      goto again;
+    }
+    // Think about a usleep here....
+  }
+
+  // notreached
+  BK_RETURN(B, NULL);
 }
 
 #endif /* BK_USING_PTHREADS */

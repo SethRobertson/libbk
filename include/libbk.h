@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.242 2003/06/05 06:54:03 seth Exp $
+ * $Id: libbk.h,v 1.243 2003/06/12 19:01:32 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2002,6 +2002,8 @@ extern void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags 
 extern pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *threadname, void *(*start)(bk_s B, void *opaque), void *opaque, bk_flags flags);
 extern void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadnode *tnode, bk_flags flags);
 extern void bk_thread_kill_others(bk_s B, bk_flags flags);
+extern void *bk_monitor_memory_thread(bk_s B, void *opaque);
+extern void *bk_monitor_int_thread(bk_s B, void *opaque);
 #endif /* BK_USING_PTHREADS */
 
 

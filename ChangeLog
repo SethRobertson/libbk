@@ -1,5 +1,9 @@
 2003-06-10  Seth Robertson  <seth@startide.sysdetect.com>
 
+	* lib/b_thread.c (bk_monitor_memory_thread): gdb can't implement
+	watchpoints in a threaded program, so do the next best thing
+	and monitor the fucker yourself.
+
 	* lib/b_getbyfoo.c (copy_hostent): Off-by-one--not copying
 	trailing NULL hostentlist termination.  And insight didn't
 	discover this why?
