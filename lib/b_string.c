@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.112 2004/07/12 15:59:29 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.113 2004/10/21 19:50:33 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,7 +25,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
-
+#define jtts stderr
 
 /**
  * @name bk_str_registry
@@ -486,6 +486,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
   u_char newchar;
   struct bk_memx *tokenx, *splitx = NULL;
   char varspace[MAXVARIABLESIZE];
+  char *envvar = NULL;
 
   if (!src)
   {
@@ -706,10 +707,30 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	  }
 	  if (!replace && variabledb)
 	  {
+	    char *default_val = NULL;
 	    char **tmpenv = environ;
+
 	    environ = (char **)variabledb;
-	    replace = bk_getenv(B, varspace);
+
+	    if (!(envvar = strdup(varspace)))
+	    {
+	      bk_error_printf(B, BK_ERR_ERR, "Could not make modifiable copy of varspace: %s\n", strerror(errno));
+	      goto error;
+	    }
+
+	    if (default_val = strstr(envvar, ":="))
+	    {
+	      // We have a variable which contains a default value.
+	      *default_val = '\0';
+	      default_val++; default_val++;
+	    }
+	    replace = bk_getenv(B, envvar);
 	    environ = tmpenv;
+
+	    if ((!replace || BK_STREQ(replace, "")) && default_val)
+	    {
+	      replace = default_val;
+	    }
 	  }
 
 	  if (!replace && BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_CONF_EXPAND))
@@ -726,6 +747,10 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	    }
 	    memcpy(token,replace,len);
 	  }
+
+	  if (envvar)
+	    free(envvar);
+	  envvar = NULL;
 	}
 	// Iff variable too big->replace with empty string
       }
@@ -745,6 +770,18 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
       {
 	// Still in variable
 	continue;
+      }
+
+      if ((*curloc == ':') && (*(curloc+1) == '='))
+      {
+	/*
+	 * We have a := "default assignment" construction within a
+	 * ${VARIABLE}. Since the value of the default assignment may
+	 * contain any characters, we simply advance until we see the next
+	 * '}' or we reach the end of our space.
+	 */
+	while((*curloc != '}') && (*curloc != '\0'))
+	  curloc++;
       }
 
       // At end of variable
@@ -942,6 +979,10 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
     bk_memx_destroy(B, tokenx, 0);
   if (splitx)
     bk_memx_destroy(B, splitx, 0);
+
+  if (envvar)
+    free(envvar);
+
   BK_RETURN(B, NULL);
 }
 

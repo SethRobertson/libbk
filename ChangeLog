@@ -1,3 +1,8 @@
+2004-10-21  James Tanis  <jtt@fry.sysdetect.com>
+
+	* lib/b_string.c (bk_string_tokenize_split): Support
+	${VAR:=default} construction when doing expansion.
+
 2004-08-26  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_pollio.c (bk_polling_io_read, bk_polling_io_write): don't
