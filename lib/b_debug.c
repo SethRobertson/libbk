@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_debug.c,v 1.4 2001/08/17 04:12:53 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_debug.c,v 1.5 2001/08/19 14:07:12 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -37,9 +37,9 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 static int debug_oo_cmp(struct bk_debugnode *a, struct bk_debugnode *b);
 static int debug_ko_cmp(char *a, struct bk_debugnode *b);
-static unsigned int debug_o_hash(struct bk_debugnode *b);
-static unsigned int debug_k_hash(char *a);
-static struct ht_args debug_args = { 127, 2, (ht_func)debug_o_hash, (ht_func)debug_k_hash };
+static unsigned int debug_obj_hash(struct bk_debugnode *b);
+static unsigned int debug_key_hash(char *a);
+static struct ht_args debug_args = { 127, 2, (ht_func)debug_obj_hash, (ht_func)debug_key_hash };
 
 
 
@@ -425,11 +425,11 @@ static int debug_ko_cmp(char *a, struct bk_debugnode *b)
 {
   return(strcmp(a,b->bd_name));
 }
-static unsigned int debug_o_hash(struct bk_debugnode *a)
+static unsigned int debug_obj_hash(struct bk_debugnode *a)
 {
   return(bk_strhash(a->bd_name, BK_STRHASH_NOMODULUS));
 }
-static unsigned int debug_k_hash(char *a)
+static unsigned int debug_key_hash(char *a)
 {
   return(bk_strhash(a, BK_STRHASH_NOMODULUS));
 }

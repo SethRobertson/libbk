@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.7 2001/08/16 21:10:48 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.8 2001/08/19 14:07:11 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -21,7 +21,15 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 #define SET_CONFIG(b,B,c) do { if (!(c)) { (b)=BK_GENERAL_CONFIG(B); } else { (b)=(c); } } while (0)
+#define LINELEN 1024
+#define CONFIG_MANAGE_FLAG_NEW_KEY	0x1
+#define CONFIG_MANAGE_FLAG_NEW_VALUE	0x2
 
+
+
+/*
+ * Information about the files parsed when creating this configuration group
+ */
 struct bk_config_fileinfo
 {
   bk_flags	       		bcf_flags;	/* Everyone needs flags */
@@ -32,6 +40,9 @@ struct bk_config_fileinfo
 
 
 
+/*
+ * Information about a specific key found when parsing the configuration file
+ */
 struct bk_config_key
 {
   char *			bck_key;	/* Key string */
@@ -41,6 +52,12 @@ struct bk_config_key
 
 
 
+/*
+ * A individual value for a key.
+ *
+ * XXX - Doesn't this need a bk_config_fileinfo ptr as well, to
+ * give context to the lineno?  Or is the lineno monotomically increasing?
+ */
 struct bk_config_value
 {
   char *			bcv_value;	/* Value string */
@@ -48,43 +65,6 @@ struct bk_config_value
   u_int				bcv_lineno;	/* Where value is in file */
 };
 
-
-static struct bk_config_fileinfo *bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf);
-static void bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf);
-
-static int kv_oo_cmp(void *bck1, void *bck2);
-static int kv_ko_cmp(void *a, void *bck2);
-static ht_val kv_obj_hash(void *bck);
-static ht_val kv_key_hash(void *a);
-static int load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *bcf);
-static struct bk_config_key *bck_create(bk_s B, const char *key, bk_flags flags);
-static void bck_destroy(bk_s B, struct bk_config_key *bck);
-static struct bk_config_value *bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags);
-static void bcv_destroy(bk_s B, struct bk_config_value *bcv);
-static int config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, const char *ovalue, u_int lineno);
-
-
-static int kv_oo_cmp(void *bck1, void *bck2)
-{
-  return(strcmp(((struct bk_config_key *)bck1)->bck_key, ((struct bk_config_key *)bck2)->bck_key));
-} 
-
-static int kv_ko_cmp(void *a, void *bck)
-{
-  return(strcmp((char *)a, ((struct bk_config_key *)bck)->bck_key));
-} 
-
-static ht_val kv_obj_hash(void *bck)
-{
-  return(bk_strhash(((struct bk_config_key *)bck)->bck_key, BK_STRHASH_NOMODULUS));
-}
-
-static ht_val kv_key_hash(void *a)
-{
-  return(bk_strhash((char *)a, BK_STRHASH_NOMODULUS));
-}
-
-static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
 
 
 #define config_kv_create(o,k,f,a)	ht_create((o),(k),(f),(a))
@@ -100,6 +80,13 @@ static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
 #define config_kv_iterate(h,d)		ht_iterate((h),(d))
 #define config_kv_nextobj(h)		ht_nextobj(h)
 #define config_kv_error_reason(h,i)	ht_error_reason((h),(i))
+
+static int kv_oo_cmp(void *bck1, void *bck2);
+static int kv_ko_cmp(void *a, void *bck2);
+static ht_val kv_obj_hash(void *bck);
+static ht_val kv_key_hash(void *a);
+static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
+
 
 #define config_values_create(o,k,f)		dll_create((o),(k),(f))
 #define config_values_destroy(h)		dll_destroy(h)
@@ -118,6 +105,17 @@ static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
 
 
 
+static struct bk_config_fileinfo *bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf);
+static void bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf);
+static int load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *bcf);
+static struct bk_config_key *bck_create(bk_s B, const char *key, bk_flags flags);
+static void bck_destroy(bk_s B, struct bk_config_key *bck);
+static struct bk_config_value *bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags);
+static void bcv_destroy(bk_s B, struct bk_config_value *bcv);
+static int config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, const char *ovalue, u_int lineno);
+
+
+
 /*
  * Initialize the config stuff
  */
@@ -128,7 +126,6 @@ bk_config_init(bk_s B, const char *filename, bk_flags flags)
   struct bk_config *bc=NULL;
   struct bk_config_fileinfo *bcf=NULL;
   int ret=0;
-  
 
   if (!filename)
   {
@@ -224,7 +221,6 @@ bk_config_destroy(bk_s B, struct bk_config *obc)
 }
 
 
-#define LINELEN 1024
 
 /*
  * Load up the indicated config file from the indicated filename
@@ -304,8 +300,6 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
 
 
 
-#define CONFIG_MANAGE_FLAG_NEW_KEY	0x1
-#define CONFIG_MANAGE_FLAG_NEW_VALUE	0x2
 /*
  * Internal management function.
  */
@@ -726,4 +720,26 @@ bcv_destroy(bk_s B, struct bk_config_value *bcv)
   free(bcv);
   
   BK_VRETURN(B);
+}
+
+
+
+/*
+ * CLC comparison routines
+ */
+static int kv_oo_cmp(void *bck1, void *bck2)
+{
+  return(strcmp(((struct bk_config_key *)bck1)->bck_key, ((struct bk_config_key *)bck2)->bck_key));
+} 
+static int kv_ko_cmp(void *a, void *bck)
+{
+  return(strcmp((char *)a, ((struct bk_config_key *)bck)->bck_key));
+} 
+static ht_val kv_obj_hash(void *bck)
+{
+  return(bk_strhash(((struct bk_config_key *)bck)->bck_key, BK_STRHASH_NOMODULUS));
+}
+static ht_val kv_key_hash(void *a)
+{
+  return(bk_strhash((char *)a, BK_STRHASH_NOMODULUS));
 }
