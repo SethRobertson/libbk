@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.7 2002/11/11 22:53:58 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.8 2003/01/24 18:13:05 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -647,7 +647,7 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
 	end = (char *) string + 1;
       }
       else if (BK_FLAG_ISSET(flags, BK_STRING_ATOF_FLAG_ALLOW_NAN)
-	       && !strncasecmp(string, "nan", 3))
+	       && !strncasecmp(string, "nan", (size_t)3))
       {
 	tmp = NAN;
 	err = 0;				// prevent error check below
