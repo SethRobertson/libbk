@@ -5,6 +5,13 @@
 	(bk_general_thread_destroy): use pthread_self() as well as getpid()
 	for funstats file format
 	
+2003-06-20  James Tanis  <jtt@wonder.sysdetect.com>
+
+	* lib/b_pollio.c (polling_io_ioh_handler): Seize the data if it's
+	allowed by the ioh.
+
+	* lib/b_ioh.c: Do not free data if it has been seized by user.
+
 2003-06-17  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_thread.c (bk_threadnode_destroy): Actually start

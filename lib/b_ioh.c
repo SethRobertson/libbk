@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.89 2003/06/17 15:43:22 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.90 2003/06/20 18:19:25 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -262,7 +262,6 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk
 #define cmd_list_iterate_done(h,i)	dll_iterate_done(h,i)
 #define cmd_list_error_reason(h,i)	dll_error_reason(h,i)
 // @}
-
 
 
 /**
@@ -2303,6 +2302,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
       int cnt = 0;
       bk_vptr *sendup;
       dict_iter iter;
+      struct bk_ioh_data *bid_cache = NULL;
 
       // Find out how many data segments we have
       iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
@@ -2332,12 +2332,37 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	  sendup[cnt].ptr = bid->bid_data+bid->bid_used;
 	  sendup[cnt].len = bid->bid_inuse;
 	  cnt++;
+	  bid_cache = bid; // Cache this bid (used when only *one* bid involved in sendup).
 	}
       }
       biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
       CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
+      // Check if the user seized the data (ie we don't have to free it)
+      if (cnt == 1)
+      {
+	/*  
+	 * This is the common case where we've sent up exactly one
+	 * buffer. We have optimized this case by caching the bid so that
+	 * we can NULL it immediatly if we need to.
+	 */
+	if (!sendup[0].ptr)
+	  bid_cache->bid_data = NULL;
+      }
+      else
+      {
+	// Otherwise we have to iterate through the whole list.
+	cnt = 0;
+	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+	while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
+	{
+	  if (bid->bid_data && !sendup[cnt++].ptr)
+	    bid->bid_data=NULL;
+	}
+	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+      }
+       
       // Nuke vector list
       free(sendup);
 
@@ -2595,6 +2620,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 
 	CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
+
 	// Nuke vector list
 	free(sendup);
 
@@ -2638,6 +2664,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
   dict_iter iter;
   u_int32_t lengthfromwire = 0;
   int cnt = 0;
+  struct bk_ioh_data *bid_cache = NULL;
 
   if (!ioh)
   {
@@ -2922,6 +2949,30 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 
       CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
+      // Check if the user seized the data (ie we don't have to free it)
+      if (cnt == 1)
+      {
+	/*  
+	 * This is the common case where we've sent up exactly one
+	 * buffer. We have optimized this case by caching the bid so that
+	 * we can NULL it immediatly if we need to.
+	 */
+	if (!sendup[0].ptr)
+	  bid_cache->bid_data = NULL;
+      }
+      else
+      {
+	// Otherwise we have to iterate through the whole list.
+	cnt = 0;
+	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+	while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
+	{
+	  if (bid->bid_data && !sendup[cnt++].ptr)
+	    bid->bid_data=NULL;
+	}
+	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+      }
+
       // Nuke vector list
       free(sendup);
 
@@ -2967,6 +3018,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
   u_int32_t needed, size = 0;
   dict_iter iter;
   int cnt = 0;
+  struct bk_ioh_data *bid_cache = NULL;
 
   if (!ioh)
   {
@@ -3072,6 +3124,30 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
       biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
       CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
+
+      // Check if the user seized the data (ie we don't have to free it)
+      if (cnt == 1)
+      {
+	/*  
+	 * This is the common case where we've sent up exactly one
+	 * buffer. We have optimized this case by caching the bid so that
+	 * we can NULL it immediatly if we need to.
+	 */
+	if (!sendup[0].ptr)
+	  bid_cache->bid_data = NULL;
+      }
+      else
+      {
+	// Otherwise we have to iterate through the whole list.
+	cnt = 0;
+	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+	while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
+	{
+	  if (bid->bid_data && !sendup[cnt++].ptr)
+	    bid->bid_data=NULL;
+	}
+	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+      }
 
       // Nuke vector list
       free(sendup);
@@ -4018,7 +4094,16 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
  * IOH coalescing routine for external users who need unified buffers
  * w/optimizations for simple cases. NB @a data is <em>not</em> freed. This
  * routine is written to the ioh read API and according to that API the ioh
- * system frees the data it has read.
+ * system frees the data it has read. 
+ *
+ * Update: this routine now supports the flag
+ * BK_IOH_COALESCE_FLAG_SEIZE_DATA (which is mutually exclussive of
+ * BK_IOH_COALESCE_FLAG_MUST_COPY) which seizes control of the data just as
+ * if it had copied it but tells the IOH layer not to free it. NB this can
+ * only happen when @a data is one buffer and curvptr is NULL (this is the
+ * most common case though). NB(2): It is the resonsiblity of the caller to
+ * verify that data seizing is permitted for this data (see
+ * BK_IOH_DATA_SEIZE_PERMITTED())
  *
  * THREADS: MT-SAFE
  *
@@ -4071,7 +4156,7 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
     bk_error_printf(B, BK_ERR_ERR, "Overflow condition!  More than 2^31 bytes in queue...\n");
     goto error;
   }
-
+ 
   if (cbuf > 1 || (curvptr && curvptr->ptr && curvptr->len > 0) ||
       BK_FLAG_ISSET(in_flags, BK_IOH_COALESCE_FLAG_MUST_COPY))
   {
@@ -4102,7 +4187,19 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
   }
   else
   {
-    new = data;
+    if (BK_FLAG_ISSET(in_flags, BK_IOH_COALESCE_FLAG_SEIZE_DATA))
+    {
+      if (!(BK_MALLOC(new)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate data vptr: %s\n", strerror(errno));
+	goto error;
+      }
+      *new = *data;
+      data->ptr = NULL;
+    }
+    else
+      new = data;
+
     if (out_flagsp)
       BK_FLAG_SET(*out_flagsp, BK_IOH_COALESCE_OUT_FLAG_NO_COPY);
   }
@@ -4110,9 +4207,9 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
   BK_RETURN(B, new);
 
  error:
-  if (new)
+  if (new && new != data)
   {
-    if (new->ptr)
+    if (new->ptr && BK_FLAG_ISCLEAR(in_flags, BK_IOH_COALESCE_FLAG_SEIZE_DATA))
       free(new->ptr);
     free(new);
   }
@@ -4676,4 +4773,31 @@ recheck_follow(bk_s B, struct bk_run *run, void *opaque, const struct timeval *s
 #endif /* BK_USING_PTHREADS */
 
   BK_VRETURN(B);
+}
+
+
+
+
+/**
+ * Check whether data seizing (typically to avoid read side copies by the
+ * consumer) is allowed on this ioh.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ioh. The @a bk_ioh to check
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success and data may not be seized.
+ *	@return <i>1</i> on success and data may be seized.
+ */
+int
+bk_ioh_data_seize_permitted(bk_s B, struct bk_ioh *ioh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  BK_RETURN(B,BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW | BK_IOH_VECTORED | BK_IOH_LINE));  
 }

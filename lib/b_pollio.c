@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.41 2003/06/17 15:43:22 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.42 2003/06/20 18:19:25 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -488,11 +488,14 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
   {
   case BkIohStatusReadComplete:
   case BkIohStatusIncompleteRead:
-    // Coalesce into one buffer for output
-    if (!(pid->pid_data  = bk_ioh_coalesce(B, data, NULL, BK_IOH_COALESCE_FLAG_MUST_COPY, NULL)))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
-      goto error;
+    // Coalesce into one buffer for output
+      bk_flags flags=(bk_ioh_data_seize_permitted(B,ioh,0)?BK_IOH_COALESCE_FLAG_SEIZE_DATA:BK_IOH_COALESCE_FLAG_MUST_COPY);
+      if (!(pid->pid_data  = bk_ioh_coalesce(B, data, NULL, flags, NULL)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
+	goto error;
+      }
     }
 
     break;

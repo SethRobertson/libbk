@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.246 2003/06/18 03:57:30 seth Exp $
+ * $Id: libbk.h,v 1.247 2003/06/20 18:19:24 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1579,6 +1579,7 @@ extern bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flag
 // In flags
 #define		BK_IOH_COALESCE_FLAG_MUST_COPY		0x1 ///< Coalesce code *must* copy.
 #define		BK_IOH_COALESCE_FLAG_TRAILING_NULL	0x2 ///< Ensure trailing null (implies must-copy)
+#define		BK_IOH_COALESCE_FLAG_SEIZE_DATA		0x4 ///< The caller wants to take the data to avoid the copy
 // Out flags
 #define	BK_IOH_COALESCE_OUT_FLAG_NO_COPY	0x1 ///< Data not copied.
 extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str);
@@ -1589,6 +1590,7 @@ extern int bk_ioh_cancel_unregister(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern int bk_ioh_is_canceled(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern int bk_ioh_cancel(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern int bk_ioh_last_error(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+extern int bk_ioh_data_seize_permitted(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 
 /* b_pollio.c */
 extern struct bk_polling_io *bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags);
