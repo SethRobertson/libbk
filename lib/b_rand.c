@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_rand.c,v 1.2 2002/05/16 16:59:21 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_rand.c,v 1.3 2002/05/16 17:07:52 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -243,7 +243,7 @@ static int bk_rand_addentropy(bk_s B, struct bk_randinfo *R, bk_flags flags)
   // Fill our pool chock full of entropy
   while (R->br_cur < sizeof(R->br_pool) * 8)
   {
-    int cntr;
+    int cntr = 0;
 
     gettimeofday(&end,NULL);
     end.tv_usec += BK_TRUERAND_TIME;
