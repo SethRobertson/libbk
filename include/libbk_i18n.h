@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_i18n.h,v 1.6 2003/06/17 06:07:16 seth Exp $
+ * $Id: libbk_i18n.h,v 1.7 2005/01/06 19:27:22 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -22,9 +22,12 @@
  #define N_(String) gettext_noop(String)
  #define gettext_noop(String) (String)
 
+// It appearst that this is no longer needed
+#if 0
 #if defined(__INSURE__)
 #define LC_ALL 6				// XXX - evil, naughty code
 #endif /* __INSURE__ */
+#endif
 
 #else /* BK_I18N_DISABLE */
  #define _(String) (String)
