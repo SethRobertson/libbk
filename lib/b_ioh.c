@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.90 2003/06/20 18:19:25 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.91 2003/06/20 20:42:09 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2575,6 +2575,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
     {						// Determine if we have msg or are over limit
       int cnt = 0;
       bk_vptr *sendup;
+      struct bk_ioh_data *bid_cache = NULL;
 
       if (ioh->ioh_readq.biq_queuelen >= ioh->ioh_inbuf_hint)
       {						// We have enough data--get ready to send up
@@ -2620,6 +2621,29 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 
 	CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
+	// Check if the user seized the data (ie we don't have to free it)
+	if (cnt == 1)
+	{
+	  /*  
+	   * This is the common case where we've sent up exactly one
+	   * buffer. We have optimized this case by caching the bid so that
+	   * we can NULL it immediatly if we need to.
+	   */
+	  if (!sendup[0].ptr)
+	    bid_cache->bid_data = NULL;
+	}
+	else
+	{
+	  // Otherwise we have to iterate through the whole list.
+	  cnt = 0;
+	  iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+	  while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
+	  {
+	    if (bid->bid_data && !sendup[cnt++].ptr)
+	      bid->bid_data=NULL;
+	  }
+	  biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+	}
 
 	// Nuke vector list
 	free(sendup);
@@ -3018,7 +3042,6 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
   u_int32_t needed, size = 0;
   dict_iter iter;
   int cnt = 0;
-  struct bk_ioh_data *bid_cache = NULL;
 
   if (!ioh)
   {
@@ -3124,30 +3147,6 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
       biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
       CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
-
-      // Check if the user seized the data (ie we don't have to free it)
-      if (cnt == 1)
-      {
-	/*  
-	 * This is the common case where we've sent up exactly one
-	 * buffer. We have optimized this case by caching the bid so that
-	 * we can NULL it immediatly if we need to.
-	 */
-	if (!sendup[0].ptr)
-	  bid_cache->bid_data = NULL;
-      }
-      else
-      {
-	// Otherwise we have to iterate through the whole list.
-	cnt = 0;
-	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-	while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
-	{
-	  if (bid->bid_data && !sendup[cnt++].ptr)
-	    bid->bid_data=NULL;
-	}
-	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
-      }
 
       // Nuke vector list
       free(sendup);
@@ -4799,5 +4798,5 @@ bk_ioh_data_seize_permitted(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW | BK_IOH_VECTORED | BK_IOH_LINE));  
+  BK_RETURN(B,BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW | BK_IOH_VECTORED | BK_IOH_BLOCKED));  
 }
