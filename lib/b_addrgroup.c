@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.30 2002/10/09 23:39:59 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.31 2002/10/15 22:22:19 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1295,10 +1295,13 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
    */
   if (connect(fd, &sa, sizeof(sa))<0 && errno != EISCONN)
   {
+    // calls to bk_error_printf() can result in errno changing. Sigh...
+    int connect_errno = errno;
+
     bk_error_printf(B, BK_ERR_ERR, "Connect to %s failed: %s\n", bag->bag_remote->bni_pretty, strerror(errno)); 
     net_close(B,as);
 
-    if (errno == BK_SECOND_REFUSED_CONNECT_ERRNO)
+    if (connect_errno == BK_SECOND_REFUSED_CONNECT_ERRNO)
       as->as_state = BkAddrGroupStateRemoteError;
     else
       as->as_state = bk_net_init_sys_error(B,errno);
