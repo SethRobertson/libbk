@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.80 2003/05/16 21:53:30 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.81 2003/06/03 17:47:37 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -174,6 +174,7 @@ static void idc_destroy(bk_s B, struct ioh_data_cmd *idc);
 static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
 static void check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 static void recheck_follow(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
+static int compress_write(bk_s B, struct bk_ioh *ioh, bk_iowfunc_f writefun, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags);
 
 
 
@@ -281,6 +282,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
   int tmp;
   bk_iorfunc_f readfun = bk_ioh_stdrdfun;
   bk_iowfunc_f writefun = bk_ioh_stdwrfun;
+  bk_iocfunc_f closefun = bk_ioh_stdclosefun;
   struct stat st;
 
   if ((fdin < 0 && fdout < 0) || !run)
@@ -360,6 +362,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
 
   curioh->ioh_readfun = readfun;
   curioh->ioh_writefun = writefun;
+  curioh->ioh_closefun = closefun;
   curioh->ioh_handler = handler;
   curioh->ioh_opaque = opaque;
   curioh->ioh_inbuf_hint = inbufhint?inbufhint:IOH_DEFAULT_DATA_SIZE;
@@ -373,10 +376,13 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
   curioh->ioh_fdin = fdin;
   if (curioh->ioh_fdin >= 0)
   {
-    if (bk_run_handle(B, curioh->ioh_run, curioh->ioh_fdin, ioh_runhandler, curioh, BK_RUN_WANTREAD, 0) < 0)
+    if (BK_FLAG_ISCLEAR(flags, BK_IOH_DONT_ACTIVATE))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not put this new read ioh into the bk_run environment\n");
-      goto error;
+      if (bk_run_handle(B, curioh->ioh_run, curioh->ioh_fdin, ioh_runhandler, curioh, BK_RUN_WANTREAD, 0) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not put this new read ioh into the bk_run environment\n");
+	goto error;
+      }
     }
 
     bk_ioh_fdctl(B, curioh->ioh_fdin, &curioh->ioh_fdin_savestate, IOH_FDCTL_SET);
@@ -391,10 +397,13 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
   {
     if (curioh->ioh_fdin != curioh->ioh_fdout)
     {
-      if (bk_run_handle(B, curioh->ioh_run, curioh->ioh_fdout, ioh_runhandler, curioh, 0, 0) < 0)
+      if (BK_FLAG_ISCLEAR(flags, BK_IOH_DONT_ACTIVATE))
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not put this new write ioh into the bk_run environment\n");
-	goto error;
+	if (bk_run_handle(B, curioh->ioh_run, curioh->ioh_fdout, ioh_runhandler, curioh, 0, 0) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not put this new write ioh into the bk_run environment\n");
+	  goto error;
+	}
       }
 
       // Examine file descriptor for proper file and socket options
@@ -467,6 +476,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
  *	@param ioh The IOH environment to update
  *	@param readfun The function to use to read data.
  *	@param writefun The function to use to write data
+ *	@param closefun The function to use to close fds
  *	@param iofunopaque The opaque data for the I/O functions
  *	@param handler The user callback to notify on complete I/O or other events
  *	@param opaque The opaque data for the user callback.
@@ -479,9 +489,10 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
  *	@return <i>-1<i> on call failure.
  *	@return <br><i>0</i> on success.
  */
-int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f writefun, void *iofunopaque, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags)
+int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f writefun, bk_iocfunc_f closefun, void *iofunopaque, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  bk_flags old_extflags = 0;
 
   if (!ioh)
   {
@@ -490,6 +501,8 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
   }
 
   bk_debug_printf_and(B, 1, "Updating IOH parameters %p\n",ioh);
+
+  old_extflags = ioh->ioh_extflags;
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
@@ -509,6 +522,8 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
     ioh->ioh_readfun = readfun;
   if (BK_FLAG_ISSET(updateflags, BK_IOH_UPDATE_WRITEFUN))
     ioh->ioh_writefun = writefun;
+  if (BK_FLAG_ISSET(updateflags, BK_IOH_UPDATE_CLOSEFUN))
+    ioh->ioh_closefun = closefun;
   if (BK_FLAG_ISSET(updateflags, BK_IOH_UPDATE_IOFUNOPAQUE))
     ioh->ioh_iofunopaque = iofunopaque;
   if (BK_FLAG_ISSET(updateflags, BK_IOH_UPDATE_HANDLER))
@@ -531,6 +546,41 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
     abort();
 #endif /* BK_USING_PTHREADS */
 
+  if (BK_FLAG_ISSET(old_extflags, BK_IOH_DONT_ACTIVATE) && BK_FLAG_ISCLEAR(flags, BK_IOH_DONT_ACTIVATE))
+  {
+    // Want activation
+    if (ioh->ioh_fdin >= 0)
+    {
+      if (bk_run_handle(B, ioh->ioh_run, ioh->ioh_fdin, ioh_runhandler, ioh, BK_RUN_WANTREAD, 0) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not put this new read ioh into the bk_run environment\n");
+	goto error;
+      }
+    }
+
+    if ((ioh->ioh_fdout >= 0) && (ioh->ioh_fdout != ioh->ioh_fdin))
+    {
+      if (bk_run_handle(B, ioh->ioh_run, ioh->ioh_fdout, ioh_runhandler, ioh, 0, 0) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not put this new write ioh into the bk_run environment\n");
+	goto error;
+      }
+    }
+  }
+  else if (BK_FLAG_ISCLEAR(old_extflags, BK_IOH_DONT_ACTIVATE) && BK_FLAG_ISSET(flags, BK_IOH_DONT_ACTIVATE))
+  {
+    // Want deactivation
+    if (ioh->ioh_fdin >= 0)
+    {
+      bk_run_close(B, ioh->ioh_run, ioh->ioh_fdin, 0);
+    }
+
+    if ((ioh->ioh_fdout >= 0) && (ioh->ioh_fdout != ioh->ioh_fdin))
+    {
+      bk_run_close(B, ioh->ioh_run, ioh->ioh_fdout, 0);
+    }
+  }
+
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
   {
     BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
@@ -538,6 +588,9 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
   }
 
   BK_RETURN(B, 0);
+
+ error:
+  BK_RETURN(B, -1);
 }
 
 
@@ -554,6 +607,7 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
  *	@param fdout The file descriptor to write to.  -1 if no output is desired.
  *	@param readfun The function to use to read data.
  *	@param writefun The function to use to write data.
+ *	@param closefun The function to use to close fds.
  *	@param iofunopaque The I/O functions opaque data
  *	@param handler The user callback to notify on complete I/O or other events
  *	@param opaque The opaque data for the user callback.
@@ -565,7 +619,7 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
  *	@return <i>-1</i> on call failure.
  *	@return <br><i>0</i> on success.
  */
-int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc_f *readfun, bk_iowfunc_f *writefun, void **iofunopaque, bk_iohhandler_f *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags)
+int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc_f *readfun, bk_iowfunc_f *writefun, bk_iocfunc_f *closefun, void **iofunopaque, bk_iohhandler_f *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -586,6 +640,7 @@ int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc_f *
   if (fdout) *fdout = ioh->ioh_fdout;
   if (readfun) *readfun = ioh->ioh_readfun;
   if (writefun) *writefun = ioh->ioh_writefun;
+  if (closefun) *closefun = ioh->ioh_closefun;
   if (iofunopaque) *iofunopaque = ioh->ioh_iofunopaque;
   if (handler) *handler = ioh->ioh_handler;
   if (opaque) *opaque = ioh->ioh_opaque;
@@ -1184,6 +1239,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
  *
  *	@param B BAKA thread/global state
  *	@param ioh The IOH environment to update
+ *	@param flags See above
  */
 static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
 {
@@ -1234,11 +1290,7 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
 
   if (BK_FLAG_ISCLEAR(ioh->ioh_intflags, IOH_FLAGS_DONTCLOSEFDS))
   {						// Close FDs if we can
-    if (ioh->ioh_fdin >= 0)
-      close(ioh->ioh_fdin);
-
-    if (ioh->ioh_fdout >= 0 && ioh->ioh_fdout != ioh->ioh_fdin)
-      close(ioh->ioh_fdout);
+    (*ioh->ioh_closefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdin, ioh->ioh_fdout, 0);
   }
   else
   {						// Reset FDs to origin states if we cannot
@@ -1256,7 +1308,7 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
   ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, IOH_FLUSH_DESTROY);
 
   // Notify user
-  CALL_BACK(B, ioh, NULL, BkIohStatusIohClosing);
+  CALL_BACK(B, ioh, ioh->ioh_iofunopaque, BkIohStatusIohClosing);
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -2121,7 +2173,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	}
 #endif /* BK_USING_PTHREADS */
 
-	cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, &iov, 1, 0);
+	cnt = compress_write(B, ioh, ioh->ioh_writefun, ioh->ioh_iofunopaque, ioh->ioh_fdout, &iov, 1, 0);
 
 #ifdef BK_USING_PTHREADS
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -2365,7 +2417,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	}
 #endif /* BK_USING_PTHREADS */
 
-      cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
+	cnt = compress_write(B, ioh, ioh->ioh_writefun, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
 
 #ifdef BK_USING_PTHREADS
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -2617,7 +2669,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	}
 #endif /* BK_USING_PTHREADS */
 
-	cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
+	cnt = compress_write(B, ioh, ioh->ioh_writefun, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
 
 #ifdef BK_USING_PTHREADS
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -3547,6 +3599,84 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
   int ret, erno;
 
   errno = 0;
+  ret = writev(fd, buf, size);
+  erno = errno;
+
+  bk_debug_printf_and(B, 1, "System writev returns %d with errno %d\n",ret,errno);
+
+  if (bk_debug_and(B, 0x20) && ret > 0)
+  {
+    bk_vptr dbuf;
+
+    dbuf.ptr = buf[0].iov_base;
+    dbuf.len = MIN(MIN((u_int)buf[0].iov_len, 32U), (u_int)ret);
+
+    bk_debug_printbuf_and(B, 0x20, "Buffer just wrote:", "\t", &dbuf);
+  }
+
+  errno = erno;
+  BK_RETURN(B, ret);
+}
+
+
+
+/**
+ * Standard close() functionality in IOH API
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA Thread/global state
+ *	@param ioh The ioh to use (may be NULL for those not including libbk_internal.h)
+ *	@param opaque Common opaque data for read and write funs
+ *	@param fdin File descriptor
+ *	@param fdout File descriptor
+ *	@param flags Fun for the future
+ *	@return Standard @a writev() return codes
+ */
+void bk_ioh_stdclosefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int fdout, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (fdin >= 0)
+  {
+    close(fdin);
+  }
+
+  if ((fdout >= 0) && (fdout != fdin))
+  {
+    close(ioh->ioh_fdout);
+  }
+
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Compress data (if compression enabled) and call write function for this ioh.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param ioh The ioh to use (may be NULL for those not including libbk_internal.h)
+ *	@param writefun Underlying write function to use
+ *	@param opaque Common opaque data for read and write funs
+ *	@param fd File descriptor
+ *	@param iovec Data to write
+ *	@param size Number of iovec buffers
+ *	@param flags Fun for the future
+ *	@return Standard @a writev() return codes
+ *
+ *	@return <i>the number of bytes written</i> on success
+ *	@return <i>-1</i> on error
+ */
+static int 
+compress_write(bk_s B, struct bk_ioh *ioh, bk_iowfunc_f writefun, void *opaque, int fd, 
+	       struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret;
+
+  errno = 0;
+
   if (ioh && ioh->ioh_compress_level)
   {
     char *src = NULL;
@@ -3555,6 +3685,7 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
     char *q;
     int len = 0;
     int new_len;
+    struct iovec vector;			// singleton vector for simple writes
 
     ret =-1;					// Assume failure
     for (cnt = 0; cnt < size; cnt++)
@@ -3588,7 +3719,9 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
 	else
 	{
 	  // Sigh I think we need to loop here until we write out everything or get -1.
-	  ret = write(fd, dst, new_len);
+	  vector.iov_base = dst;
+	  vector.iov_len = new_len;
+	  ret = (*writefun)(B, ioh, opaque, fd, &vector, 1, 0);
 	}
       }
       free(src);
@@ -3598,23 +3731,9 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
   }
   else
   {
-    ret = writev(fd, buf, size);
-  }
-  erno = errno;
-
-  bk_debug_printf_and(B, 1, "System writev returns %d with errno %d\n",ret,errno);
-
-  if (bk_debug_and(B, 0x20) && ret > 0)
-  {
-    bk_vptr dbuf;
-
-    dbuf.ptr = buf[0].iov_base;
-    dbuf.len = MIN(MIN((u_int)buf[0].iov_len, 32U), (u_int)ret);
-
-    bk_debug_printbuf_and(B, 0x20, "Buffer just wrote:", "\t", &dbuf);
+    ret = (*writefun)(B, ioh, opaque, fd, buf, size, 0);
   }
 
-  errno = erno;
   BK_RETURN(B, ret);
 }
 

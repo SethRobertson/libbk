@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.33 2003/04/13 00:24:39 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.34 2003/06/03 17:47:37 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -110,7 +110,8 @@ static struct addrgroup_state *as_server_copy(bk_s B, struct addrgroup_state *oa
 
 
 /**
- * Create an @a bk_addrgroup structure
+ * Create an @a bk_addrgroup structure.  Caller does not
+ * need to call bk_addrgroup_ref().
  *
  * THREADS: MT-SAFE
  *
@@ -130,6 +131,8 @@ bag_create(bk_s B)
     goto error;
   }
 
+  bag->bag_refcount = 1;
+
   BK_RETURN(B, bag);
 
  error:
@@ -140,7 +143,8 @@ bag_create(bk_s B)
 
 
 /**
- * Destroy a @a bk_addrgroup
+ * Decrement reference count and destroy 
+ * a @a bk_addrgroup if the count is zero.
  *
  * THREADS: MT-SAFE (assuming different bag)
  * THREADS: REENTRANT (otherwise)
@@ -159,10 +163,65 @@ bag_destroy(bk_s B, struct bk_addrgroup *bag)
     BK_VRETURN(B);
   }
 
-  if (bag->bag_local) bk_netinfo_destroy(B, bag->bag_local);
-  if (bag->bag_remote) bk_netinfo_destroy(B, bag->bag_remote);
+  bag->bag_refcount--;
+  if (!bag->bag_refcount)
+  {
+    if (bag->bag_local) bk_netinfo_destroy(B, bag->bag_local);
+    if (bag->bag_remote) bk_netinfo_destroy(B, bag->bag_remote);
 
-  free(bag);
+    free(bag);
+  }
+
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Increment the reference count on a bag.
+ *
+ * @param B BAKA Thread/global state
+ * @param bag bag to reference
+ */
+void
+bk_addrgroup_ref(bk_s B, struct bk_addrgroup *bag)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bag)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments.\n");
+    BK_VRETURN(B);
+  }
+
+  bag->bag_refcount++;
+
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Decrement the reference count on a bag.  You probably want 
+ * to call destroy() instead of unref() unless you know what
+ * you're doing.
+ *
+ * @param B BAKA Thread/global state
+ * @param bag bag to reference
+ */
+void
+bk_addrgroup_unref(bk_s B, struct bk_addrgroup *bag)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bag)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments.\n");
+    BK_VRETURN(B);
+  }
+
+  bag->bag_refcount--;
+
   BK_VRETURN(B);
 }
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.20 2003/05/15 19:46:53 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.21 2003/06/03 17:47:37 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -101,9 +101,9 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
   //<TODO> Alter interface to permit caller to specify hints (though they can specify them in the IOH up front) </TODO>
   //<TODO> Allow the caller to specify a callback which gets called in each read/write (why?) </TODO>
 
-  if (bk_ioh_update(B, ioh1, NULL, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
+  if (bk_ioh_update(B, ioh1, NULL, NULL, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
     goto error;
-  if (bk_ioh_update(B, ioh2, NULL, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
+  if (bk_ioh_update(B, ioh2, NULL, NULL, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
     goto error;
 
   BK_RETURN(B, 0);

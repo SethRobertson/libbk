@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.40 2003/05/14 06:20:46 seth Exp $
+ * $Id: libbk_internal.h,v 1.41 2003/06/03 17:47:37 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -62,6 +62,7 @@ struct bk_ioh
   u_int32_t		ioh_fdout_savestate;	///< Information about fdout which we changed
   bk_iorfunc_f 		ioh_readfun;		///< Function to read data
   bk_iowfunc_f		ioh_writefun;		///< Function to write data
+  bk_iocfunc_f		ioh_closefun;		///< Function to close fds
   void		       *ioh_iofunopaque;	///< Opaque data for iofuns
   bk_iohhandler_f	ioh_handler;		///< Callback function for event handling
   void		       *ioh_opaque;		///< Opaque data for handler

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.32 2003/05/16 23:51:11 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.33 2003/06/03 17:47:37 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -184,7 +184,7 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   if (BK_FLAG_ISSET(flags, BK_POLLING_THREADED))
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_THREADED);
 
-  if (bk_ioh_update(B, ioh, NULL, NULL, NULL, polling_io_ioh_handler, bpi, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER | BK_IOH_UPDATE_OPAQUE) < 0)
+  if (bk_ioh_update(B, ioh, NULL, NULL, NULL, NULL, polling_io_ioh_handler, bpi, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER | BK_IOH_UPDATE_OPAQUE) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not update ioh with blocking handler.\n");
     goto error;

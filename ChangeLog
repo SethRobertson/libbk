@@ -1,3 +1,30 @@
+2003-06-03  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* ssl/b_ssl.c (bk_ssl_create_context): Support authentication.
+
+2003-06-02  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* ssl/b_ssl.c (ssl_newsock): Support certificate-less servers.
+
+2003-05-30  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* ssl/b_ssl.c (bk_ssl_make_conn_verbose): SSL client support.
+
+	* src/bttcp.c (main): ssl-enable bttcp.
+
+	* lib/b_ioh.c (bk_ioh_init): Added callback for closefun (in style
+	of readfun and writefun).
+
+2003-05-28  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_ioh.c (compress_write): Excerpted compression code from
+	stdwrfun.
+	(bk_ioh_init): Added BK_IOH_DONT_ACTIVATE for deferred addition to
+	the run loop.
+
+	* lib/b_addrgroup.c (bk_addrgroup_ref): Do reference counting on
+	bags to keep them around a little longer than originally intended.
+
 2003-05-16  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_strcode.c (bk_string_str2xml): not resetting all ptrs on

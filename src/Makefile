@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.14 2003/05/31 01:36:27 dupuy Exp $
+# $Id: Makefile,v 1.15 2003/06/03 17:47:37 lindauer Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -34,6 +34,8 @@ BK_SIMPLE_PROGS=			\
 
 GROUPTOP=..
 GROUPSUBDIR=src
+
+LOCAL_LIBS=-lbkssl
 
 
 # This has to go here so we get the benefit of $(TEST) which is included by one of the above.

@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.6 2003/03/19 00:03:04 seth Exp $
+# $Id: Makefile,v 1.7 2003/06/03 17:47:36 lindauer Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -15,7 +15,12 @@
 # libbk group Makefile 
 #
 BK_INCLUDE_DIRS=include
-BK_SUBDIR=lib xml src man test
+BK_SUBDIR=lib xml 
+ifneq ($(strip $(HAVE_LIBSSL)),false)
+BK_SUBDIR+=ssl # This must come *after* lib in list
+endif # HAVE_LIBSSL
+BK_SUBDIR+=src man test
+
 
 GROUPTOP=.
 GROUPSUBDIR=.

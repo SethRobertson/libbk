@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.237 2003/05/16 05:11:24 dupuy Exp $
+ * $Id: libbk.h,v 1.238 2003/06/03 17:47:37 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -672,6 +672,8 @@ struct bk_addrgroup
   struct bk_netinfo *	bag_remote;		///< Remote side information */
   int			bag_proto;		///< Cached proto */
   bk_netaddr_type_e	bag_type;		///< Cached address family */
+  struct bk_ssl	    *	bag_ssl;		///< SSL state for connection
+  int32_t		bag_refcount;		///< Don't free until this refcount is zero.
 };
 
 
@@ -681,6 +683,7 @@ struct bk_addrgroup
 #define BK_ADDRGROUP_LOCAL_NETINFO(bag) ((bag)->bag_local)
 #define BK_ADDRGROUP_REMOTE_NETINFO(bag) ((bag)->bag_remote)
 #define BK_ADDRGROUP_CALLBACK(bag) ((bag)->bag_callback)
+#define BK_ADDRGROUP_SSL(bag) ((bag)->bag_ssl)
 #define BK_ADDRGROUP_ARGS(bag) ((bag)->bag_args)
 
 
@@ -1515,15 +1518,17 @@ extern int bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 /* b_ioh.c */
 typedef int (*bk_iorfunc_f)(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags); ///< read style I/O function for bk_ioh (flags for specialized datagram handling, like peek)
 typedef int (*bk_iowfunc_f)(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iovec *iov, __SIZE_TYPE__ size, bk_flags flags); ///< writev style I/O function for bk_ioh
+typedef void (*bk_iocfunc_f)(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int fdout, bk_flags flags); ///< close function for bk_ioh
 typedef void (*bk_iohhandler_f)(bk_s B, bk_vptr *data, void *opaque, struct bk_ioh *ioh, bk_ioh_status_e state_flags);  ///< User callback for bk_ioh w/zero terminated array of data ptrs free'd after handler returns
 extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
-#define BK_IOH_STREAM		0x01		///< Stream (instead of datagram) oriented protocol, for bk_ioh
-#define BK_IOH_RAW		0x02		///< Any data is suitable, no special message blocking, for bk_ioh
-#define BK_IOH_BLOCKED		0x04		///< Must I/O in hint blocks: block size is required, for bk_ioh
-#define BK_IOH_VECTORED		0x08		///< Size of data sent before data: datagramish semantics, for bk_ioh
-#define BK_IOH_LINE		0x10		///< Line oriented reads, for bk_ioh
-#define BK_IOH_WRITE_ALL	0x20		///< Write all available data when doing a write, for bk_ioh
-#define BK_IOH_FOLLOW		0x40		///< Put the ioh in "follow" mode (read past EOF).
+#define BK_IOH_STREAM		0x001		///< Stream (instead of datagram) oriented protocol, for bk_ioh
+#define BK_IOH_RAW		0x002		///< Any data is suitable, no special message blocking, for bk_ioh
+#define BK_IOH_BLOCKED		0x004		///< Must I/O in hint blocks: block size is required, for bk_ioh
+#define BK_IOH_VECTORED		0x008		///< Size of data sent before data: datagramish semantics, for bk_ioh
+#define BK_IOH_LINE		0x010		///< Line oriented reads, for bk_ioh
+#define BK_IOH_WRITE_ALL	0x020		///< Write all available data when doing a write, for bk_ioh
+#define BK_IOH_FOLLOW		0x040		///< Put the ioh in "follow" mode (read past EOF).
+#define BK_IOH_DONT_ACTIVATE	0x080		///< Don't add handler to run loop
 #define BK_IOH_NO_HANDLER	0x8000		///< Suppress stupid warning
 
 #if 0
@@ -1539,7 +1544,7 @@ extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f h
 #define BK_IOH_STATUS_IOHREADEOF	10	///< bk_ioh notifying user handler of a received EOF
 #endif
 
-extern int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f writefun, void *iofunopaque, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags);
+extern int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f writefun, bk_iocfunc_f closefun, void *iofunopaque, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags);
 #define BK_IOH_UPDATE_READFUN		0x001	///< Update the read function
 #define BK_IOH_UPDATE_WRITEFUN		0x002	///< Update the write function
 #define BK_IOH_UPDATE_HANDLER		0x004	///< Update the handler
@@ -1549,8 +1554,9 @@ extern int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_io
 #define BK_IOH_UPDATE_OUTBUFMAX		0x040	///< Update the outbufmax
 #define BK_IOH_UPDATE_FLAGS		0x080	///< Update the external flags
 #define BK_IOH_UPDATE_IOFUNOPAQUE	0x100	///< Update the i/o function opaque data
+#define BK_IOH_UPDATE_CLOSEFUN		0x200	///< Update the write function
 
-extern int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc_f *readfun, bk_iowfunc_f *writefun, void **iofunopaque, bk_iohhandler_f *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags);
+extern int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc_f *readfun, bk_iowfunc_f *writefun, bk_iocfunc_f *closefun, void **iofunopaque, bk_iohhandler_f *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags);
 extern int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
 #define BK_IOH_BYPASSQUEUEFULL	0x01		///< Bypass bk_ioh_write normal check for output queue full
 extern void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags);
@@ -1562,6 +1568,7 @@ extern void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 #define BK_IOH_DONTCLOSEFDS	0x04		///< During bk_ioh_close: Don't close the file descriptors during close */
 extern int bk_ioh_stdrdfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags);		///< read() when implemented in ioh style
 extern int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags);	///< write() when implemented in ioh style
+void bk_ioh_stdclosefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int fdout, bk_flags flags);	///< close() implemented in ioh style
 extern int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *outqueue, bk_flags flags);
 extern void bk_ioh_flush_read(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern void bk_ioh_flush_write(bk_s B, struct bk_ioh *ioh, bk_flags flags);
@@ -1826,6 +1833,8 @@ extern bk_vptr *bk_slurp(bk_s B, FILE *FH, int fd, const char *filename, int max
 
 /* b_addrgroup.c */
 extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_f callback, void *args, int backlog);
+extern void bk_addrgroup_ref(bk_s B, struct bk_addrgroup *bag);
+extern void bk_addrgroup_unref(bk_s B, struct bk_addrgroup *bag);
 void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
 extern int bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags);
 extern int bk_addrgroup_get_server_socket(bk_s B, void *server_handle);
