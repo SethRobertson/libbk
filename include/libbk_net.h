@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.14 2004/12/22 18:28:40 seth Exp $
+ * $Id: libbk_net.h,v 1.15 2004/12/27 23:59:34 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -20,6 +20,14 @@
 
 #ifndef _libbk_net_h_
 #define _libbk_net_h_
+
+// get OS-dependent versions of headers, plus common defines, etc.
+
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <netinet/ip_icmp.h>
+#include <net/route.h>
 
 
 #define BK_INET_NET_MATCH(addr1, addr2, mask) (((ntohl(((struct in_addr *)(addr1))->s_addr)) & (ntohl(((struct in_addr *)(mask))->s_addr))) == ((ntohl(((struct in_addr *)(addr2))->s_addr)) & (ntohl(((struct in_addr *)(mask))->s_addr))))
