@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_string.c,v 1.4 2002/07/24 04:23:59 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: test_string.c,v 1.5 2002/07/24 04:41:56 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -180,12 +180,12 @@ void progrun(bk_s B, struct program_config *pconfig)
 
   // check full symbolic
   TEST((bk_string_flagtoa(B, 5, buf, 22, twobits, 0),
-	strcmp(buf, "<onebit,threebit> 0x5")), 0);
+	strcmp(buf, "<onebit,threebit>0x5")), 0);
 
   TEST((bk_string_atoflag(B, buf, &flags, onebit, 0),flags), 5);
 
   TEST((bk_string_flagtoa(B, 5, buf, 256, twobits, 0),
-	strcmp(buf, "<onebit,threebit> 0x5")), 0);
+	strcmp(buf, "<onebit,threebit>0x5")), 0);
 
   TEST((bk_string_atoflag(B, buf, &flags, twobits, 0),flags), 5);
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.50 2002/07/24 04:23:58 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.51 2002/07/24 04:41:55 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -54,15 +54,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	///< Check to see if the limit on numbers of tokens has been reached or not.  Yes, limit>1 and limit-- will always have the same truth value
 
-/*
- * <TRICKY>FLAG_EQUAL must be a whitespace char; we rely on bk_string_atou to
- * skip over that character when ignoring initial whitespace.</TRICKY>
- * FLAG_SEP could also be ' ' instead of ',' 
- */
 #define FLAG_BEGIN  '<'
 #define FLAG_END    '>'
 #define FLAG_APPROX '~'
-#define FLAG_EQUAL  ' '
 #define FLAG_SEP    ','
 
 
@@ -1244,8 +1238,8 @@ int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *n
     if (anybits)
     {
       OUT(FLAG_END);
-      // use approx if non-symbolic bits still left in 'in'
-      OUT(in ? FLAG_APPROX : FLAG_EQUAL);
+      if (in != 0)				// non-symbolic bits left over
+	OUT(FLAG_APPROX);
     }
 
     in = src;
