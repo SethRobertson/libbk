@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.54 2003/06/09 21:47:09 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.55 2003/06/09 22:09:58 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1962,7 +1962,7 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wa
 
   if (oldtype != origtype)
   {
-    bk_debug_printf_and(B, 64, "Modified select set for fd %d, now %ld/%ld/%ld\n", fd, FD_ISSET(fd, &run->br_readset), FD_ISSET(fd, &run->br_writeset), FD_ISSET(fd, &run->br_xcptset));
+    bk_debug_printf_and(B, 64, "Modified select set for fd %d, now %ld/%ld/%ld\n", fd, (long)FD_ISSET(fd, &run->br_readset), (long)FD_ISSET(fd, &run->br_writeset), (long)FD_ISSET(fd, &run->br_xcptset));
 
     if (run->br_selectcount)
     {
