@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_rtinfo.c,v 1.1 2004/07/12 17:23:35 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_rtinfo.c,v 1.2 2004/07/12 18:10:57 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -488,13 +488,27 @@ static int
 obtain_route_table(bk_s B, dict_h bri_list, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_route_info *bri = NULL;
 
-  if (!bri)
+  if (!bri_list)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
+  if (!(bri = bri_create(B, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create route information\n");
+    goto error;
+  }
+
+  if (rtinfo_list_insert(bri_list, bri) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert route info struct in list: %s\n", rtinfo_list_error_reason(bri_list, NULL));
+    goto error;
+  }
+
+ error:  
   BK_RETURN(B, -1);  
 }
 

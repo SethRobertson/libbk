@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: test_rt.c,v 1.1 2004/07/12 17:47:58 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: test_rt.c,v 1.2 2004/07/12 18:10:58 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -314,8 +314,10 @@ static void progrun(bk_s B, struct program_config *pc)
       if (bri->bri_flags & RTF_GATEWAY)
 	*p++ = 'G';
     
+#ifdef RTF_REINSTATE
       if (bri->bri_flags & RTF_REINSTATE)
 	*p++ = 'R';
+#endif
     
       if (bri->bri_flags & RTF_DYNAMIC)
 	*p++ = 'D';
@@ -323,14 +325,80 @@ static void progrun(bk_s B, struct program_config *pc)
       if (bri->bri_flags & RTF_MODIFIED)
 	*p++ = 'M';
     
+#ifdef RTF_ADDRCONF
       if (bri->bri_flags & RTF_ADDRCONF)
 	*p++ = 'A';
+#endif
     
+#ifdef RTF_CACHE
       if (bri->bri_flags & RTF_CACHE)
 	*p++ = 'C';
+#endif
     
       if (bri->bri_flags & RTF_REJECT)
+#ifdef RTF_REINSTATE
 	*p++ = '!';
+#else
+	*p++ = 'R';
+#endif
+    
+#ifdef RTF_DONE
+      if (bri->bri_flags & RTF_DONE)
+	*p++ = 'd';
+#endif
+    
+#if RTF_CLONING
+      if (bri->bri_flags & RTF_CLONING)
+	*p++ = 'C';
+#endif
+    
+#ifdef RTF_XRESOLVE
+      if (bri->bri_flags & RTF_XRESOLVE)
+	*p++ = 'X';
+#endif
+    
+#ifdef RTF_LLINFO
+      if (bri->bri_flags & RTF_LLINFO)
+	*p++ = 'L';
+#endif
+    
+      if (bri->bri_flags & RTF_STATIC)
+	*p++ = 'S';
+    
+#ifdef RTF_PROTO1
+      if (bri->bri_flags & RTF_PROTO1)
+	*p++ = '1';
+#endif
+    
+#ifdef RTF_PROTO2
+      if (bri->bri_flags & RTF_PROTO2)
+	*p++ = '2';
+#endif
+    
+#ifdef RTF_PROTO3
+      if (bri->bri_flags & RTF_PROTO3)
+	*p++ = '3';
+#endif
+    
+#ifdef RTF_WASCLONED
+      if (bri->bri_flags & RTF_WASCLONED)
+	*p++ = 'W';
+#endif
+    
+#ifdef RTF_PRCLONING
+      if (bri->bri_flags & RTF_PRCLONING)
+	*p++ = 'c';
+#endif
+    
+#ifdef RTF_BLACKHOLE
+      if (bri->bri_flags & RTF_BLACKHOLE)
+	*p++ = 'b';
+#endif
+    
+#ifdef RTF_BROADCAST
+      if (bri->bri_flags & RTF_BROADCAST)
+	*p++ = 'B';
+#endif
     
       printf("%-15s%-15s\n", flags_str, bri->bri_if_name);
     }
