@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.13 2004/12/21 01:05:45 seth Exp $
+ * $Id: libbk_net.h,v 1.14 2004/12/22 18:28:40 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -206,6 +206,13 @@ struct baka_arphdr
   u_int8_t  pkt_arp_hard_size;			///< hardware size
   u_int8_t  pkt_arp_proto_size;			///< protocol size
   u_int16_t pkt_arp_opcode;                     ///< operation
+#define BAKA_ARP_OPCODE_REQUEST		1	///< ARP request
+#define BAKA_ARP_OPCODE_REPLY		2	///< ARP reply
+#define BAKA_ARP_OPCODE_RREQUEST	3	///< RARP request
+#define BAKA_ARP_OPCODE_RREPLY		4	///< RARP reply
+#define BAKA_ARP_OPCODE_InREQUEST	8	///< InARP request
+#define BAKA_ARP_OPCODE_InREPLY		9	///< InARP reply
+#define BAKA_ARP_OPCODE_NAK		10	///< (ATM)ARP NAK
   u_char    pkt_arp_payload[0];                 ///< Four dynamically sized arrays
 };
 
