@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.2 2002/11/11 22:53:58 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.3 2003/02/05 23:58:51 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -104,5 +104,43 @@ int bk_atomic_addition(bk_s B, struct bk_atomic_cntr *bac, int delta, int *resul
     *result = myresult;
 
   BK_RETURN(B, 0);
+}
+
+
+
+/**
+ * Blocking-non-blocking method to acquire pthread mutex lock.
+ *
+ * @param B BAKA Thread/global state
+ * @return <i>0</i> on success
+ * @return <i>negative</i> on error
+ */
+int bk_pthread_mutex_lock(bk_s B, struct bk_run *run, pthread_mutex_t *mutex, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!run || !mutex)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  while (pthread_mutex_trylock(mutex) != 0)
+  {
+    if (errno == EBUSY)
+    {
+      bk_run_once(B, run, BK_RUN_ONCE_FLAG_DONT_BLOCK);
+    }
+    else
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Mutex lock acquisition failed: %s.\n", strerror(errno));
+      goto error;
+    }
+  }
+
+  BK_RETURN(B, 0);
+
+ error:
+  BK_RETURN(B, -1);
 }
 #endif /* BK_USING_PTHREADS */

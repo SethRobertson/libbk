@@ -1,3 +1,7 @@
+2003-02-05  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* include/libbk.h: Added bk_bitfield and bk_timespec.
+
 2003-02-02  James Tanis  <jtt@hawking.sysdetect.com>
 
 	* lib/b_listnum.c (bk_listnum_next): Remove pointer from CLC

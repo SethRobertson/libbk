@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.205 2003/02/03 23:53:06 seth Exp $
+ * $Id: libbk.h,v 1.206 2003/02/05 23:58:51 lindauer Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -102,6 +102,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_STREQN(a,b,n) ((a) && (b) && ((int)n>=0) && !strncmp(a,b,n)) ///< Are two strings equal for the first n characters?
 #define BK_STREQCASE(a,b) ((a) && (b) && !strcasecmp((a),(b))) ///< Are two strings equal (ignoring case)
 #define BK_STREQNCASE(a,b,n) ((a) && (b) && ((int)n>=0) && !strncasecmp(a,b,n)) ///< Are two strings equal (ignoring case) for the first n characters?
+#define BK_STRDUP(a) ((a) ? strdup((a)) : NULL) ///< Dup a string if it's not NULL
 
 #define BK_CALLOC(p) BK_CALLOC_LEN(p,sizeof(*(p))) ///< Structure allocation calloc with assignment and type cast
 #define BK_CALLOC_LEN(p,l) ((p) = (typeof(p))calloc(1,(l)))	///< Calloc with assignment and type cast
@@ -513,6 +514,32 @@ struct bk_name_value_map
   int			bnvm_val;		///< The value of the pair
 };
 
+
+
+/**
+ * Bitfield
+ */
+struct bk_bitfield
+{
+  /*
+   * <TODO> using a 32-bit int for the bits is handy, but introduces endian
+   * problems when you use sfv_raw_vptr to access it; also, we can't have a
+   * bitstring of > 32 bits.  This should be fixed eventually.</TODO>
+   */
+  u_int32_t		bf_bits;		///< Bitfield value
+  u_int8_t	        bf_bitlen;		///< Bitfield bit length
+};
+
+
+
+/**
+ * Time
+ */
+struct bk_timespec
+{
+  u_int32_t		bt_secs;		///< Seconds since epoch
+  u_int32_t		bt_nsecs;		///< Nanoseconds since second
+};
 
 
 
@@ -1851,6 +1878,7 @@ extern void bk_child_isigfun(bk_s B, struct bk_run *run, int signum, void *opaqu
 #ifdef BK_USING_PTHREADS
 extern int bk_atomic_addition(bk_s B, struct bk_atomic_cntr *bac, int delta, int *result, bk_flags flags);
 extern int bk_atomic_add_init(bk_s B, struct bk_atomic_cntr *bac, int start, bk_flags flags);
+extern int bk_pthread_mutex_lock(bk_s B, struct bk_run *run, pthread_mutex_t *mutex, bk_flags flags);
 #endif /* BK_USING_PTHREADS */
 
 
