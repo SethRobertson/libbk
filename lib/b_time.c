@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.7 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_time.c,v 1.8 2002/09/05 23:31:06 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -44,6 +44,10 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * pointed to by @a timep, and places it in in the character array @a str
  * of size @max.
  *
+ * Passing the BK_TIME_FORMAT_FLAG_NO_TZ flag will leave off the 'T' and 'Z'
+ * in the ISO format leaving something of the form 
+ * '2002-06-22 18:46:12.012345'.
+ *
  * Note that on some systems, use of gmtime() can make this unsafe to call
  * from signal handlers, so don't do that unless HAVE_GMTIME_R is defined.
  *
@@ -51,7 +55,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  *	@param str buffer to use on output
  *	@param max size of buffer (including space for NUL)
  *	@param timep struct timespec pointer to use.
- *	@param flags Flags for the future.
+ *	@param flags Flags (see above)
  *	@return <i>0</i> on failure.<br>
  *	@return number of bytes (not including terminating NUL) on success.
  */
@@ -60,12 +64,16 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   // the size of the array is that of base output "YYYY-mm-ddTHH:MM:SSZ\0"
-  static const char format[21] = "%Y-%m-%dT%H:%M:%S";
+  static const char format_with_T[21] = "%Y-%m-%dT%H:%M:%S";
+  static const char format_no_T[21] = "%Y-%m-%d %H:%M:%S";
+  const char *format = BK_FLAG_ISCLEAR(flags, BK_TIME_FORMAT_FLAG_NO_TZ) ? format_with_T : format_no_T;
+  const char *Z = BK_FLAG_ISCLEAR(flags, BK_TIME_FORMAT_FLAG_NO_TZ) ? "Z" : "";
   int precision;
   unsigned fraction = 0;
   struct tm *tp;
   struct tm t;
   size_t len;
+
 
   if (!timep || !str)
   {
@@ -110,7 +118,7 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
     }
   }
 
-  if (sizeof(format) + precision > max)		// check space in advance
+  if (sizeof(format_with_T) + precision > max)		// check space in advance
     BK_RETURN(B, 0);
 
   tp = gmtime_r(&timep->tv_sec, &t);
@@ -119,12 +127,13 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
     BK_RETURN(B, 0);
 
   if (precision)
-    len += snprintf(&str[len], max - len, ".%0*uZ", precision, fraction);
+    len += snprintf(&str[len], max - len, ".%0*u%s", precision, fraction, Z);
   else
   {
     strcat(&str[len], "Z");
     len++;
   }
+
   BK_RETURN(B, len);
 }
 
@@ -273,6 +282,9 @@ extern char *strptime (const char *s, const char *fmt, struct tm *tp);
  * 
  * e.g: "yyyy-mm-ddThh:mm:ss[.SSS][Z]" with optional fractional secs and/or Z
  *
+ * Use BK_TIME_FORMAT_FLAG_NO_TZ to parse a string that uses a space instead
+ * of a 'T'.
+ *
  * <TODO>Add support for timezone +/- offsets from GMT. Also support any ISO
  * variants that strptime can handle, using a similar approach to the Java
  * IsoDateFormat class; essentially, to scan for tokens and build up an
@@ -294,6 +306,9 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct tm t;
+  const char *format_with_T = "%4u-%2u-%2uT%2u:%2u:%2u%n";
+  const char *format_no_T = "%4u-%2u-%2u %2u:%2u:%2u%n";
+  const char *format = BK_FLAG_ISCLEAR(flags, BK_TIME_FORMAT_FLAG_NO_TZ) ? format_with_T : format_no_T;
   const char *fraction = NULL;
   size_t precision = 0;
   unsigned long decimal = 0;
@@ -314,7 +329,7 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
   {
     int len = 0;
 
-    if (sscanf(string, "%4u-%2u-%2uT%2u:%2u:%2u%n", (u_int *) &t.tm_year,
+    if (sscanf(string, format, (u_int *) &t.tm_year,
 	       (u_int *) &t.tm_mon, (u_int *) &t.tm_mday, (u_int *) &t.tm_hour,
 	       (u_int *) &t.tm_min, (u_int *) &t.tm_sec, &len) < 6)
       BK_RETURN(B, -1);

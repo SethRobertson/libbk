@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.171 2002/09/05 22:02:55 jtt Exp $
+ * $Id: libbk.h,v 1.172 2002/09/05 23:31:05 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1587,6 +1587,7 @@ extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
 
 /* b_time.c */
 extern size_t bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags flags);
+#define BK_TIME_FORMAT_FLAG_NO_TZ	0x1	///< Leave of the 'T' and 'Z' in the iso format
 extern int bk_time_iso_parse(bk_s B, const char *src, struct timespec *dst, bk_flags flags);
 extern time_t bk_timegm(bk_s B, struct tm *timeptr, bk_flags flags);
 #define BK_TIMEGM_FLAG_NORMALIZE	0x1	///< Normalize struct tm fields

@@ -1,5 +1,7 @@
 2002-09-05  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
+	* lib/b_time.c (bk_time_iso_format): Added BK_TIME_FORMAT_FLAG_NO_TZ.
+
 	* lib/b_run.c (bk_run_register_bnbio): 
 	(bk_run_unregister_bnbio): 
 	(bk_run_bnbio_cancel): Functions for managing blocking

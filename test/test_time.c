@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_time.c,v 1.6 2002/08/15 04:16:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_time.c,v 1.7 2002/09/05 23:31:07 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -44,6 +44,7 @@ struct global_structure
 struct program_config
 {
   int z;
+  int pc_format_flags;
 };
 
 
@@ -76,6 +77,7 @@ main(int argc, char **argv, char **envp)
   const struct poptOption optionsTable[] = 
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
+    {"notz", 0, POPT_ARG_NONE, NULL, 1, "Don't print T or Z in iso format", NULL},
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -104,6 +106,9 @@ main(int argc, char **argv, char **envp)
       bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, BK_ERR_DEBUG, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
       bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);					// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
+      break;
+    case 0x1:
+      pconfig->pc_format_flags |= BK_TIME_FORMAT_FLAG_NO_TZ;
       break;
     default:
       getopterr++;
@@ -200,7 +205,7 @@ void progrun(bk_s B, struct program_config *pconfig)
 		(long) t.tv_sec, (long) t.tv_nsec);
       else
 	fprintf(stdout, "formatted = \"%s\"\n", scratch);
-      if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, 0)))
+      if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, pconfig->pc_format_flags)))
 	fprintf(stderr,"Could not format converted time: %ld.%ld\n",
 		(long) t.tv_sec, (long) t.tv_nsec);
       else
@@ -208,7 +213,7 @@ void progrun(bk_s B, struct program_config *pconfig)
     }
   }
 
-  if (!(bk_time_iso_format(B, inputline, sizeof(inputline), &t, 0)))
+  if (!(bk_time_iso_format(B, inputline, sizeof(inputline), &t, pconfig->pc_format_flags)))
     fprintf(stderr,"Could not iso format current time: %ld.%ld\n",
 	    (long) t.tv_sec, (long) t.tv_nsec);
   else
@@ -246,14 +251,14 @@ void progrun(bk_s B, struct program_config *pconfig)
 
       case 0:
 	fprintf(stdout, "input = \"%s\"\n", inputline);
-	if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, 0)))
+	if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, pconfig->pc_format_flags)))
 	  fprintf(stderr,"Could not format converted time: %ld.%ld\n",
 		  (long) t.tv_sec, (long) t.tv_nsec);
 	else
 	  fprintf(stdout, "formatted = \"%s\"\n", scratch);
       }
     else
-      switch (bk_time_iso_parse(B, inputline, &t, 0))
+      switch (bk_time_iso_parse(B, inputline, &t, pconfig->pc_format_flags))
       {
       case -1:
 	fprintf(stderr,"Could not convert time: %s\n", inputline);
@@ -265,7 +270,7 @@ void progrun(bk_s B, struct program_config *pconfig)
 
       case 0:
 	fprintf(stdout, "input = \"%s\"\n", inputline);
-	if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, 0)))
+	if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, pconfig->pc_format_flags)))
 	  fprintf(stderr,"Could not format converted time: %ld.%ld\n",
 		  (long) t.tv_sec, (long) t.tv_nsec);
 	else
