@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.10 2001/07/05 15:19:11 seth Exp $
+ * $Id: libbk.h,v 1.11 2001/07/06 00:57:30 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -155,7 +155,7 @@ struct bk_funinfo
 
 
 /* b_general.c */
-extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, bk_flags flags);
+extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, int syslogthreshhold, bk_flags flags);
 #define BK_GENERAL_NOPROCTITLE 1
 extern void bk_general_proctitle_set(bk_s B, char *);
 extern void bk_general_reinit(bk_s B);

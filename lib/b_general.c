@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.5 2001/07/05 15:19:11 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.6 2001/07/06 00:57:30 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -31,7 +31,7 @@ static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_fl
 /*
  * Grand creation of libbk state structure
  */
-extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, int syslogthreshhold, bk_flags flags)
+bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, int syslogthreshhold, bk_flags flags)
 {
   bk_s B;
 
