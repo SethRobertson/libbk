@@ -1,3 +1,10 @@
+2004-01-28  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_string.c (bk_string_expand): Look for expansions in
+	bk_conf too.
+	(bk_string_tokenize_split): Look for expansions in bk_conf if
+	caller asks.
+
 2004-01-27  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_run.c (bk_run_once): We were running the polling function
