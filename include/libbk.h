@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.233 2003/05/14 06:20:46 seth Exp $
+ * $Id: libbk.h,v 1.234 2003/05/14 21:05:27 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1584,7 +1584,6 @@ extern struct bk_polling_io *bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk
 extern void bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
 //#define BK_POLLING_LINGER		0x1	///< This is a linger close
 #define BK_POLLING_DONT_LINGER		0x2	///< This is a non-lingering close
-extern void bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi);
 extern void  bk_polling_io_data_destroy(bk_s B, bk_vptr *data);
 extern int bk_polling_io_throttle(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
 extern int bk_polling_io_unthrottle(bk_s B, struct bk_polling_io *bpi, bk_flags flags);

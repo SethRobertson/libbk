@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.19 2003/05/14 06:20:46 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.20 2003/05/14 21:05:28 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -21,9 +21,6 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  *
  * Association of file descriptor/handle to callback.  Queue data for
  * output, translate input stream into messages.
- *
- * XXX - TOIMPLEMENT LINGER
- *
  *
  */
 
@@ -58,6 +55,7 @@ struct bk_polling_io
 #define BPI_FLAG_IOH_DEAD		0x20	///< Bpi not destroyed, ioh was
 #define BPI_FLAG_THREADED		0x40	///< Don't worry about recursively calling bk_run
 #define BPI_FLAG_SYNC			0x80	///< Synchronous write
+#define BPI_FLAG_LINGER			0x100	///< Synchronous write
   u_int			bpi_size;		///< Amount of data I'm buffering.
   dict_h		bpi_data;		///< Queue of data vptrs.
   struct bk_ioh *	bpi_ioh;		///< Ioh structure.
@@ -112,6 +110,7 @@ static void polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_
 static int polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags );
 static void bpi_rdtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *stattime, bk_flags flags);
 static void bpi_wrtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *stattime, bk_flags flags);
+static void bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi);
 
 
 
@@ -173,7 +172,9 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_SYNC);
 
   if (BK_FLAG_ISSET(flags, BK_POLLING_LINGER))
-    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
+    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_LINGER);
+
+  BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
 
   if (BK_FLAG_ISSET(flags, BK_POLLING_THREADED))
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_THREADED);
@@ -212,6 +213,7 @@ void
 bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct polling_io_data *pid;
 
   if (!bpi)
   {
@@ -225,24 +227,37 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 #endif /* BK_USING_PTHREADS */
 
   BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_CLOSING);
+  BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
   if (BK_FLAG_ISSET(flags, BK_POLLING_LINGER))
   {
-    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
+    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_LINGER);
   }
 
   if (BK_FLAG_ISSET(flags, BK_POLLING_DONT_LINGER))
   {
-    BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
+    BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_LINGER);
   }
 
-  // XXX - implement LINGER correctly here (disard until EOF, wait until output drained, then destroy)
+  // Nuke everything from the cached read list
+  while (pid = pidlist_minimum(bpi->bpi_data))
+  {
+    pid_destroy(B, pid);
+  }
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
-  bk_ioh_close(B, bpi->bpi_ioh, 0);
+  if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_IOH_DEAD))
+  {
+    bk_polling_io_destroy(B, bpi);
+  }
+  else
+  {
+    bk_ioh_shutdown(B, bpi->bpi_ioh, SHUT_RD, 0);
+    bk_ioh_close(B, bpi->bpi_ioh, (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_LINGER)?0:BK_IOH_ABORT));
+  }
 
   BK_VRETURN(B);
 }
@@ -257,7 +272,7 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
  *	@param B BAKA thread/global state.
  *	@param bpi. The context info to destroy.
  */
-void
+static void
 bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -315,6 +330,12 @@ bk_polling_io_seek(bk_s B, struct bk_polling_io *bpi, off_t offset, int whence, 
   if (!bpi)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_CLOSING|BPI_FLAG_READ_DEAD))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Polling has been closed (perhaps for reading only), cannot seek.\n");
     BK_RETURN(B, -1);
   }
 
@@ -392,6 +413,12 @@ bk_polling_io_tell(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
+  if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_CLOSING|BPI_FLAG_READ_DEAD))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Polling has been closed (perhaps for reading only), cannot seek.\n");
+    BK_RETURN(B, -1);
+  }
+
   BK_RETURN(B, bpi->bpi_tell);
 }
 
@@ -449,21 +476,6 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
     break;
 
   case BkIohStatusIohClosing:
-
-#ifdef BK_USING_PTHREADS			// Lock to prevent race between user and I/O system
-    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
-      abort();
-#endif /* BK_USING_PTHREADS */
-    if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_CLOSING))
-    {
-      bk_error_printf(B, BK_ERR_WARN, "Polling io underlying IOH was nuked before bpi closed. Not Good (probably not fatal).\n");
-      // Forge on.
-    }
-#ifdef BK_USING_PTHREADS
-    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
-      abort();
-#endif /* BK_USING_PTHREADS */
-
     if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY))
     {
       // <BUG>There would appear to be a problem here since io_destroy does not notify user, so user will think he can use the bpi</BUG>
@@ -797,7 +809,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
 
 
   // If ioh is dead, go away..
-  if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_WRITE_DEAD))
+  if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_WRITE_DEAD) || BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_IOH_DEAD))
   {
     bk_error_printf(B, BK_ERR_ERR, "Writing to dead channel\n");
     BK_RETURN(B, -1);
@@ -835,7 +847,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
 
   while ((ret = bk_ioh_write(B, bpi->bpi_ioh, data, 0)) > 0 && !timedout)
   {
-    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) || bk_polling_io_is_canceled(B, bpi, 0))
+    if (bk_polling_io_is_canceled(B, bpi, 0))
     {
       ret = -1;
       goto unlockexit;
