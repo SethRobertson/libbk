@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.137 2002/04/26 00:47:48 lindauer Exp $
+ * $Id: libbk.h,v 1.138 2002/04/26 08:12:03 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1384,6 +1384,7 @@ extern int bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags);
 
 /* b_relay.c */
 extern int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb)(bk_s B, void *opaque, u_int state), void *opaque, bk_flags flags);
+#define BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE	0x1 ///< Shut down relay after only one side has closed
 
 /* b_fileutils.c */
 extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_e action);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.22 2001/12/12 00:57:34 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.23 2002/04/26 08:12:05 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -62,8 +62,15 @@ struct program_config
 {
   bttcp_role_e		pc_role;		///< What role do I play?
   bk_flags		pc_flags;		///< Everyone needs flags.
-#define PC_VERBOSE	0x02			///< Verbose output
 #define BTTCP_FLAG_SHUTTING_DOWN_SERVER	0x01	///< We're shutting down a server
+#define PC_VERBOSE			0x02	///< Verbose output
+#define PC_MULTICAST			0x04	///< Multicast allowed
+#define PC_BROADCAST			0x08	///< Broadcast allowed
+#define PC_MULTICAST_LOOP		0x10	///< Multicast loopback
+#define PC_MULTICAST_NOMEMBERSHIP	0x20	///< Multicast w/o membership
+#define PC_CLOSE_AFTER_ONE		0x40	///< Close relay after one side closed
+  u_int			pc_multicast_ttl;	///< Multicast ttl
+  char *		pc_proto;		///< What protocol to use
   char *		pc_remoteurl;		///< Remote "url".
   char *		pc_localurl;		///< Local "url".
   struct bk_netinfo *	pc_local;		///< Local side info.
@@ -72,6 +79,8 @@ struct program_config
   int			pc_af;			///< Address family.
   long			pc_timeout;		///< Connection timeout
   void *		pc_server;		///< Server handle
+  int			pc_buffer;		///< Buffer sizes
+  int			pc_len;			///< Input size hints
 };
 
 
@@ -112,6 +121,15 @@ main(int argc, char **argv, char **envp)
     {"receive", 'r', POPT_ARG_NONE, NULL, 'r', "Receive", NULL },
     {"local-name", 'l', POPT_ARG_STRING, NULL, 'l', "Local address to bind", "localaddr" },
     {"address-family", 0, POPT_ARG_INT, NULL, 1, "Set the address family", "address_family" },
+    {"udp", 'u', POPT_ARG_NONE, NULL, 2, "Use UDP", NULL },
+    {"multicast", 0, POPT_ARG_NONE, NULL, 3, "Multicast UDP packets", NULL },
+    {"broadcast", 0, POPT_ARG_NONE, NULL, 4, "Broadcast UDP packets", NULL },
+    {"multicast_loop", 0, POPT_ARG_NONE, NULL, 5, "Loop multicast packets to local machine", NULL },
+    {"multicast_ttl", 0, POPT_ARG_INT, NULL, 6, "Set nondefault multicast ttl", "ttl" },
+    {"multicast_nomembership", 0, POPT_ARG_NONE, NULL, 7, "Don't want multicast membership management", NULL },
+    {"buffersize", 0, POPT_ARG_INT, NULL, 8, "Size of I/O queues", "buffer size" },
+    {"I/O default length", 'l', POPT_ARG_INT, NULL, 9, "Default I/O chunk size", "default length" },
+    {"close_after_one", 'c', POPT_ARG_NONE, NULL, 10, "Shut down relay after only one side closes", NULL },
     {"timeout", 'T', POPT_ARG_INT, NULL, 'T', "Set the connection timeout", "timeout" },
     POPT_AUTOHELP
     POPT_TABLEEND
@@ -126,8 +144,9 @@ main(int argc, char **argv, char **envp)
 
   pc = &Pconfig;
   memset(pc,0,sizeof(*pc));
-
+  pc->pc_multicast_ttl = 1;			// Default local net multicast
   pc->pc_timeout=BK_SECS_TO_EVENT(30);
+  pc->pc_proto=DEFAULT_PROTO_STR;
 
   if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0)))
   {
@@ -188,6 +207,41 @@ main(int argc, char **argv, char **envp)
 
     case 1:					// address-family
       pc->pc_af=atoi(poptGetOptArg(optCon));
+      break;
+
+    case 2:					// protocol
+      pc->pc_proto="UDP";
+      break;
+
+    case 3:					// multicast
+      BK_FLAG_SET(pc->pc_flags, PC_MULTICAST);
+      break;
+
+    case 4:					// broadcast
+      BK_FLAG_SET(pc->pc_flags, PC_BROADCAST);
+      break;
+
+    case 5:					// Want multicast looping
+      BK_FLAG_SET(pc->pc_flags, PC_MULTICAST_LOOP);
+
+    case 6:					// Want non-1 multicast ttl
+      pc->pc_multicast_ttl = atoi(poptGetOptArg(optCon));
+      break;
+
+    case 7:					// Don't want multicast membership
+      BK_FLAG_SET(pc->pc_flags, PC_MULTICAST_NOMEMBERSHIP);
+      break;
+
+    case 8:					// Buffer size
+      pc->pc_buffer = atoi(poptGetOptArg(optCon));
+      break;
+
+    case 9:					// Default I/O chunks
+      pc->pc_len = atoi(poptGetOptArg(optCon));
+      break;
+
+    case 10:					// Close after one
+      BK_FLAG_SET(pc->pc_flags, PC_CLOSE_AFTER_ONE);
       break;
     }
   }
@@ -250,12 +304,12 @@ proginit(bk_s B, struct program_config *pc)
   switch (pc->pc_role)
   {
   case BttcpRoleReceive:
-    if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, DEFAULT_PROTO_STR, NULL, connect_complete, pc, 0, 0))
+    if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto, NULL, connect_complete, pc, 0, 0))
       bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     break;
 
   case BttcpRoleTransmit:
-    if (bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, DEFAULT_PROTO_STR, pc->pc_timeout, connect_complete, pc, 0) < 0)
+    if (bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, pc->pc_proto, pc->pc_timeout, connect_complete, pc, 0) < 0)
       bk_die(B, 1, stderr, "Could not start transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     break;
 
@@ -330,8 +384,6 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 	pc->pc_server == server_handle)
     {
       pc->pc_server = NULL;			/* Very important */
-      // <TODO> Remove this </TODO>
-      fprintf(stderr,"Clean server close\n");
       BK_FLAG_CLEAR(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
       goto done;
     }
@@ -344,27 +396,25 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     break;
   }
 
-  if (bag)
+  if (bag && bk_debug_and(B, 1))
   {
-    fprintf(stderr, "%s ==> %s\n", bk_netinfo_info(B,bag->bag_local), bk_netinfo_info(B,bag->bag_remote));
+    bk_debug_printf(B, "%s ==> %s\n", bk_netinfo_info(B,bag->bag_local), bk_netinfo_info(B,bag->bag_remote));
   }
 
   /* If we need to hold on to bag save it here */
 
-  // <TODO> Add options to set inbufhints, max, and outbufmax </TODO>
-  if (!(std_ioh = bk_ioh_init(B, fileno(stdin), fileno(stdout), NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+  if (!(std_ioh = bk_ioh_init(B, fileno(stdin), fileno(stdout), NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on stdin/stdout\n");
     goto error;
   }
-  // <TODO> Add options to set inbufhints, max, and outbufmax </TODO>
-  if (!(net_ioh = bk_ioh_init(B, sock, sock, NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+  if (!(net_ioh = bk_ioh_init(B, sock, sock, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh network\n");
     goto error;
   }
 
-  if (bk_relay_ioh(B, std_ioh, net_ioh, relay_finish, pc, 0) < 0)
+  if (bk_relay_ioh(B, std_ioh, net_ioh, relay_finish, pc, BK_FLAG_ISSET(pc->pc_flags,PC_CLOSE_AFTER_ONE)?BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE:0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not relay my iohs\n");
     goto error;

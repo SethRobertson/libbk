@@ -1,3 +1,12 @@
+2002-04-26    <seth@luggage>
+
+	* src/bttcp.c (main): Add UDP option, add -c close-after-one
+	option, start adding multicsat options, but still need backend
+	support
+
+	* lib/b_addrgroup.c: Sanify as destruction--multiple frees allowed.
+	Add UDP transmit support (receive support is a bit more tricky)
+
 2002-04-25 Brian Lindauer <lindauer@sysd.com>
 
 	* lib/b_error.c: added bk_error_istrdump to dump errors to string

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.20 2002/03/05 22:00:59 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.21 2002/04/26 08:12:04 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -94,6 +94,7 @@ static int do_net_init_af_inet(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_local(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as);
+static int do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as);
 static int tcp_connect_start(bk_s B, struct addrgroup_state *as);
@@ -375,11 +376,13 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
     bk_error_printf(B, BK_ERR_ERR, "Unknown netinfo type: %d\n", bag->bag_type);
     goto error;
   }
-  BK_RETURN(B,ret);
+
+  if (ret >= 0)
+    BK_RETURN(B, ret);
 
  error:
   net_init_abort(B, as);
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 }
 
 
@@ -389,7 +392,7 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
  *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state.
- *	@return <i>-1</i> on failure.<br>
+ *	@return <i>-1</i> on failure<br>
  *	@return new socket on success.
  */
 static int
@@ -422,10 +425,11 @@ do_net_init_af_inet(bk_s B, struct addrgroup_state *as)
     goto error;
   }
 
-  BK_RETURN(B,ret);
+  BK_RETURN(B, ret);
 
  error:
-  BK_RETURN(B,-1);
+  net_close(B, as);
+  BK_RETURN(B, -1);
 }
 
 
@@ -487,6 +491,7 @@ do_net_init_af_local(bk_s B, struct addrgroup_state *as)
     BK_RETURN(B, -1);
   }
   
+  bk_error_printf(B, BK_ERR_ERR, "Do not support local domain sockets quite yet...\n");
   ret = -1;					// Not quite ready yet
 
   BK_RETURN(B,ret);
@@ -507,6 +512,7 @@ static int
 do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_addrgroup *bag;
   int ret = 0;
 
   if (!as)
@@ -515,9 +521,146 @@ do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
     BK_RETURN(B, -1);
   }
   
-  ret = -1;					// Not quite ready yet
+  bag = as->as_bag;
 
-  BK_RETURN(B,ret);
+  if (bag->bag_remote)
+  {
+    ret = do_net_init_af_inet_udp_connect(B,as);
+  }
+  else
+  {
+    /*
+     * <TODO> XXX - how do we handle UDP listeners?
+     * well, the question is really how do we handle UDP listeners in the
+     * automagic way which users of libbk might expect?  What might they expect?
+     * One example might be emulation of TCP behavior.  When a message comes in
+     * from a previously unknown host, somehow create a bound socket for that
+     * peer and go through normal accept procedure and let user create an IOH
+     * for that peer.  Of course, by that time the message has already appeared
+     * on the "wrong" (nee server) pcb input queue.  Insisting that all UDP
+     * applications send a throwaway startup packet seems unlikely at this
+     * late date...
+     *
+     * One way might be to simply only allow one UDP peer at a time.  When a message
+     * is received, connect to that peer, and game over.  Maybe send message to
+     * user to let them recreate the server socket.  Potential race condition.
+     * Too bad we cannot dup the server and connect one of the new sockets.  We
+     * cannot do that, right?
+     *
+     * Another option might be to somehow create pseudo IOHs which contain the real
+     * IOH and the address of the peer.  When messages are received, the list of
+     * pseudo IOHs is searched (and a new one created if necessary) and the user's
+     * handler is passed the pseudo IOH as if everything normal was happening.
+     * Of course, we have this new list we must support, and there must be some
+     * kind of type or union in the ioh structure now.  Sigh.</TODO>
+     */
+    bk_error_printf(B, BK_ERR_ERR, "Do not support UDP listening mode yet--it is HARD!\n");
+    ret = -1;
+  }
+
+  BK_RETURN(B, ret);
+}
+
+
+
+/**
+ * Start a udp connection
+ *
+ *	@param B BAKA thread/global state.
+ *	@param as @a addrgroup_state info.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return a new socket on success.
+ */
+static int
+do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int s = -1;
+  struct bk_addrgroup *bag;
+  struct bk_netinfo *local, *remote;
+  struct bk_netaddr *bna;
+  struct sockaddr sa;
+  int af;
+
+  if (!as)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  bag = as->as_bag;
+  local = bag->bag_local;
+  remote = bag->bag_remote;
+
+  if (!(bna = bk_netinfo_advance_primary_address(B,remote)))
+  {
+    /* 
+     * <WARNING>
+     * If there are *no* addresses at all, do we return a useful error?
+     * We probably return SysError which is about as good as we can do so
+     * this is probably OK
+     * </WARNING>
+     */
+    net_init_end(B, as);
+    /* 
+     * You might be tempted to return as->as_sock here since this
+     * function may return or be called from things which may return
+     * socket names. Do *not* be deceived! At this point in the code
+     * (where we are looking for successor and therefore have already
+     * made at least *one* attempt to connect) we are running "off the
+     * select loop" as it were and return values are pretty meaningless
+     * (certainly returning the socket number is meaningless). But much
+     * more important than this is is the fact we *know* we're on the
+     * connecting side of a tcp association here and thus when tcp_end()
+     * returns 'as' HAS BEEN DESTROYED. Now you *could* save as->as_sock
+     * before calling tcp_end(), but why bother?
+     */
+    BK_RETURN(B, 0);
+  }
+
+  if (bk_netinfo_to_sockaddr(B, remote, bna, as->as_bag->bag_type, &sa, 0)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not remote local sockaddr\n");
+    goto error;
+  }
+    
+  /* af can be either AF_INET of AF_INET6 */
+  af = bk_netaddr_nat2af(B,bag->bag_type); 
+
+  /* We *know* this is udp so we can assume SOCK_DGRAM */
+  if ((s = socket(af, SOCK_DGRAM, bag->bag_proto)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
+    goto error;
+  }
+
+  as->as_sock = s;
+  
+  if (local)
+  {
+    // Bind to local address
+    if (open_inet_local(B, as) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not open the local side of the connection\n");
+      goto error;
+    }
+  }
+
+  // Active connection -- UDP always succeeds immediately
+  if (connect(as->as_sock, &sa, sizeof(sa)) < 0 && errno != EINPROGRESS)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not connect: %s\n", strerror(errno));
+    goto error;
+  }
+
+  as->as_state = BkAddrGroupStateConnected;
+  tcp_end(B, as);
+
+  BK_RETURN(B, s);
+  
+ error:
+  net_close(B, as);
+  BK_RETURN(B, -1);
 }
 
 
@@ -589,7 +732,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
     net_init_end(B, as);
     /* 
      * You might be tempted to return as->as_sock here since this
-     * function may return or be called from thins which may return
+     * function may return or be called from things which may return
      * socket names. Do *not* be deceived! At this point in the code
      * (where we are looking for successor and therefore have already
      * made at least *one* attempt to connect) we are running "off the
@@ -669,7 +812,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
   BK_RETURN(B,s);
   
  error:
-  net_init_abort(B, as);
+  net_close(B, as);
   BK_RETURN(B,-1);
 }
 
@@ -680,7 +823,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
  *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
- *	@return <i>-1</i> on failure.<br>
+ *	@return <i>-1</i> on failure<br>
  *	@return <i>0</i> on success.
  */
 static int
@@ -718,7 +861,7 @@ open_inet_local(bk_s B, struct addrgroup_state *as)
   BK_RETURN(B,0);
 
  error:
-  net_init_abort(B, as);
+  net_close(B, as);
   BK_RETURN(B,-1);
 }
 
@@ -1068,7 +1211,7 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
   BK_VRETURN(B);
 
  error:
-  net_init_abort(B, as);
+  net_init_abort(B, as);			// <WARNING>We can probably abort since this should be running off the bk_run loop</WARNING>
   BK_VRETURN(B);
 }
 
@@ -1268,7 +1411,7 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
   BK_VRETURN(B);
 
  error:
-  net_init_abort(B, as);
+  net_init_abort(B, as);			// <WARNING>We can probably abort since this should be running off the bk_run loop</WARNING>
   BK_VRETURN(B);
 }
 
@@ -1302,6 +1445,7 @@ net_close(bk_s B, struct addrgroup_state *as)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not withdraw socket from run\n");
   }
+  close(as->as_sock);				// Actually close the socket
   as->as_sock = -1;
 
   BK_VRETURN(B);

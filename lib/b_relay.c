@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_relay.c,v 1.15 2002/02/19 00:38:37 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_relay.c,v 1.16 2002/04/26 08:12:04 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -63,7 +63,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
  *	@param ioh2 Other side of the IOH relay
  *	@param donecb Function to call when relay has termianted
  *	@param opaque Data for function
- *	@param flags Fun for the future
+ *	@param flags BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE
  *
  *	@return <i>-1</i> Call failure, allocation failure, other failure
  *	@return <br><i>0</i> on success
@@ -90,6 +90,7 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
   relay->br_ioh2 = ioh2;
   relay->br_donecb = donecb;
   relay->br_opaque = opaque;
+  relay->br_flags = flags;
 
   // Ensure that reading is allowed
   bk_ioh_readallowed(B, ioh1, 1, 0);
@@ -242,6 +243,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
 
   if (BK_FLAG_ISSET(*state_me, BR_IOH_CLOSED) &&
       BK_FLAG_ISSET(*state_him, BR_IOH_CLOSED))
+						  
   {
     // Both sides closed, dry up and go away
     bk_debug_printf_and(B, 1, "Both sides seem to have closed--drying up\n");
@@ -251,10 +253,15 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   }
 
   // Check if both sides have read shut down, but neither has closed (e.g. we are not already in close-wait)
-  if (BK_FLAG_ISSET(*state_me, BR_IOH_READCLOSE) &&
-      BK_FLAG_ISSET(*state_him, BR_IOH_READCLOSE) &&
-      BK_FLAG_ISCLEAR(*state_me, BR_IOH_CLOSED) &&
-      BK_FLAG_ISCLEAR(*state_him, BR_IOH_CLOSED))
+  if ((BK_FLAG_ISSET(*state_me, BR_IOH_READCLOSE) &&
+       BK_FLAG_ISSET(*state_him, BR_IOH_READCLOSE) &&
+       BK_FLAG_ISCLEAR(*state_me, BR_IOH_CLOSED) &&
+       BK_FLAG_ISCLEAR(*state_him, BR_IOH_CLOSED)) ||
+      (BK_FLAG_ISSET(relay->br_flags, BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE) &&
+       ((BK_FLAG_ISSET(*state_me, BR_IOH_READCLOSE) &&
+	 BK_FLAG_ISCLEAR(*state_me, BR_IOH_CLOSED)) ||
+       ((BK_FLAG_ISSET(*state_him, BR_IOH_READCLOSE) &&
+	 BK_FLAG_ISCLEAR(*state_him, BR_IOH_CLOSED))))))
   {
     // Both sides have read gone--start cleanup process
     bk_debug_printf_and(B, 1, "Both sides seem to have read issues--closing\n");
