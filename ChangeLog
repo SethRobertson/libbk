@@ -1,3 +1,8 @@
+2002-09-06  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_strcode.c (bk_string_str2xml): Allow non-printable
+	characters in xml string (well it's really more of an xml-like string).
+
 2002-09-05  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_time.c (bk_time_iso_format): Added BK_TIME_FORMAT_FLAG_NO_TZ.
