@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.13 2003/06/04 16:25:01 jtt Exp $
+# $Id: Makefile,v 1.14 2003/06/09 21:19:17 lindauer Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -25,9 +25,9 @@ BK_PUBLIC_INC=				\
 		libbkxml.h		\
 # Line fodder. Don not remove.
 
-ifneq ($(strip $(HAVE_LIBSSL)),false)
+ifneq ($(strip $(BK_USING_SSL)),false)
 BK_PUBLIC_INC+=libbkssl.h
-endif # HAVE_LIBSSL
+endif # BK_USING_SSL
 
 GROUPTOP=..
 GROUPSUBDIR=include
