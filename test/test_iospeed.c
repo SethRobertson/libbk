@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: test_iospeed.c,v 1.6 2004/07/08 04:40:19 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: test_iospeed.c,v 1.7 2004/12/23 16:38:41 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -233,7 +233,7 @@ proginit(bk_s B, struct program_config *pc)
     goto error;
   }
 
-  if (bk_relay_ioh(B, stdin_ioh, stdout_ioh, relay_finish, pc, NULL, BK_RELAY_IOH_DONTCLOSEFDS|BK_RELAY_IOH_NOSHUTDOWN) < 0)
+  if (bk_relay_ioh(B, stdin_ioh, stdout_ioh, relay_finish, pc, NULL, NULL, BK_RELAY_IOH_DONTCLOSEFDS|BK_RELAY_IOH_NOSHUTDOWN) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not relay my iohs\n");
     goto error;
