@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.86 2001/12/14 20:03:00 jtt Exp $
+ * $Id: libbk.h,v 1.87 2001/12/19 01:12:13 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -31,12 +31,12 @@ struct bk_run;
 struct bk_addrgroup;
 struct bk_server_info;
 struct bk_netinfo;
-struct bk_on_demand_io;
+struct bk_polling_io;
 
 
 
 typedef u_int32_t bk_flags;			///< Normal bitfield type
-
+						// 
 
 
 /* Error levels & their syslog equivalents */
@@ -250,6 +250,19 @@ struct bk_url
 
 
 /**
+ * Type for on demand functions
+ * 
+ *	@param B BAKA thread/global state 
+ *	@param run The @a bk_run structure to use.
+ *	@param opaque User args passed back.
+ *	@param demand The flag which when raised causes this function to run.
+ *	@param starttime The start time of the latest invokcation of @a bk_run_once.
+ *	@param flags Flags for your enjoyment.
+ */
+typedef int (*bk_run_on_demand_f)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags);
+
+
+/**
  * Possible states of gethostbyfoo callback
  */
 typedef enum
@@ -273,6 +286,8 @@ typedef enum
   BkIohStatusIohClosing,			///< bk_ioh notifying user handler of IOH in process of close() -- all data flushed/drained at this point
   BkIohStatusIohReadError,			///< bk_ioh notifying user handler of a received IOH error on read
   BkIohStatusIohWriteError,			///< bk_ioh notifying user handler of a received IOH error on write--and here is the buffer
+  BkIohStatusIohSeekSuccess,			///< bk_ioh notifying user handler seek has succeeded
+  BkIohStatusIohSeekFailed,			///< bk_ioh notifying user handler seek has failed.
 } bk_ioh_status_e;
 
 /**
@@ -810,36 +825,37 @@ extern int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags
 extern struct bk_run *bk_run_init(bk_s B, bk_flags flags);
 extern void bk_run_destroy(bk_s B, struct bk_run *run);
 extern int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B, struct bk_run *run, int signum, void *opaque), void *opaque, bk_flags flags);
-#define BK_RUN_SIGNAL_CLEARPENDING		0x01	///< Clear pending signal count for this signum for @a bk_run_signal
-#define BK_RUN_SIGNAL_INTR			0x02	///< Interrupt system calls for @a bk_run_signal
-#define BK_RUN_SIGNAL_RESTART			0x04	///< Restart system calls for @a bk_run_signal
+#define BK_RUN_SIGNAL_CLEARPENDING		0x01 ///< Clear pending signal count for this signum for @a bk_run_signal
+#define BK_RUN_SIGNAL_INTR			0x02 ///< Interrupt system calls for @a bk_run_signal
+#define BK_RUN_SIGNAL_RESTART			0x04 ///< Restart system calls for @a bk_run_signal
 extern int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
 extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
 extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
 extern int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags);
-#define BK_RUN_DEQUEUE_EVENT			0x01	///< Normal event to dequeue for @a bk_run_dequeue
-#define BK_RUN_DEQUEUE_CRON			0x02	///< Cron event to dequeue for @a bk_run_dequeue
+#define BK_RUN_DEQUEUE_EVENT			0x01 ///< Normal event to dequeue for @a bk_run_dequeue
+#define BK_RUN_DEQUEUE_CRON			0x02 ///< Cron event to dequeue for @a bk_run_dequeue
 extern int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags);
 extern int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags);
+#define BK_RUN_ONCE_FLAG_DONT_BLOCK		0x1 ///<  Execute run once without blocking in select(2).
 extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, void *opaque, u_int wanttypes, bk_flags flags);
-#define BK_RUN_READREADY			0x01	///< user handler is notified by bk_run that data is ready for reading
-#define BK_RUN_WRITEREADY			0x02	///< user handler is notified by bk_run that data is ready for writing
-#define BK_RUN_XCPTREADY			0x04	///< user handler is notified by bk_run that exception data is ready
-#define BK_RUN_CLOSE				0x08	///< user handler is notified by bk_run that bk_run is in process of closing this fd
-#define BK_RUN_DESTROY				0x10	///< user handler is notified by bk_run that bk_run is in process of destroying
-#define BK_RUN_BAD_FD				0x20	///< Select(2) returned EBADFD for this fd.
+#define BK_RUN_READREADY			0x01 ///< user handler is notified by bk_run that data is ready for reading
+#define BK_RUN_WRITEREADY			0x02 ///< user handler is notified by bk_run that data is ready for writing
+#define BK_RUN_XCPTREADY			0x04 ///< user handler is notified by bk_run that exception data is ready
+#define BK_RUN_CLOSE				0x08 ///< user handler is notified by bk_run that bk_run is in process of closing this fd
+#define BK_RUN_DESTROY				0x10 ///< user handler is notified by bk_run that bk_run is in process of destroying
+#define BK_RUN_BAD_FD				0x20 ///< Select(2) returned EBADFD for this fd.
 extern int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wantmask, bk_flags flags);
-#define BK_RUN_WANTREAD				0x01	///< Specify to bk_run_setpref that we want read notification for this fd
-#define BK_RUN_WANTWRITE			0x02	///< Specify to bk_run_setpref that we want write notification for this fd
-#define BK_RUN_WANTXCPT				0x04	///< Specify to bk_run_setpref that we want exceptional notification for this fd
+#define BK_RUN_WANTREAD				0x01 ///< Specify to bk_run_setpref that we want read notification for this fd
+#define BK_RUN_WANTWRITE			0x02 ///< Specify to bk_run_setpref that we want write notification for this fd
+#define BK_RUN_WANTXCPT				0x04 ///< Specify to bk_run_setpref that we want exceptional notification for this fd
 #define BK_RUN_WANTALL				(BK_RUN_WANTREAD|BK_RUN_WANTWRITE|BK_RUN_WANTXCPT|) ///< Specify to bk_run_setpref that we want *all* notifcations.
 extern int bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
 extern int bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
 extern int bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle);
-extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags), void *opaque, volatile int *demand, void **handle);
+extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *opaque, volatile int *demand, void **handle);
 extern int bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
 
@@ -891,17 +907,33 @@ extern void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern int bk_ioh_stdrdfun(bk_s B, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags);		///< read() when implemented in ioh style
 extern int bk_ioh_stdwrfun(bk_s B, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags);	///< write() when implemented in ioh style
 extern int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *outqueue, bk_flags flags);
-extern struct bk_on_demand_io *bk_ioh_on_demand_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags );
-extern void bk_ioh_on_demand_io_destroy(bk_s B, struct bk_on_demand_io *odi);
-extern void bk_ioh_on_demand_io_data_destroy(bk_s B, bk_vptr *data);
-extern int bk_ioh_on_demand_io_read(bk_s B, struct bk_on_demand_io *odi, bk_vptr **datap, bk_ioh_status_e *status);
-extern void bk_ioh_on_demand_io_close(bk_s B, struct bk_on_demand_io *odi, bk_flags);
-extern int bk_ioh_on_demand_io_throttle(bk_s B, struct bk_on_demand_io *odi, bk_flags flags);
-int bk_ioh_on_demand_io_unthrottle(bk_s B, struct bk_on_demand_io *odi, bk_flags flags);
-extern void bk_ioh_on_demand_io_flush(bk_s B, struct bk_on_demand_io *odi, bk_flags flags);
 extern void bk_ioh_flush_read(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern void bk_ioh_flush_write(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+extern int bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence);
 
+
+/* b_pollio.c */
+extern struct bk_polling_io *bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+extern void bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
+extern void bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi);
+extern void  bk_polling_io_data_destroy(bk_s B, bk_vptr *data);
+extern int bk_polling_io_throttle(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
+extern int bk_polling_io_unthrottle(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
+extern void bk_polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
+extern int bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_status_e *status, bk_flags flags);
+extern int bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, bk_flags flags);
+extern int bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_status_e *status, bk_flags flags);
+
+
+
+/* b_bnbio.c */
+extern struct bk_iohh_bnbio *bk_iohh_bnbio_create(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+extern void bk_iohh_bnbio_destroy(bk_s B, struct bk_iohh_bnbio *bib);
+extern int bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, bk_flags flags);
+extern int bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags flags);
+extern int bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, bk_flags flags);
+extern quad_t bk_iohh_bnbio_tell(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
+extern void bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 
 
 /* b_stdfun.c */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_relay.c,v 1.9 2001/12/14 20:03:00 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_relay.c,v 1.10 2001/12/19 01:12:14 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -238,6 +238,11 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
     }
     bk_debug_printf_and(B, 1, "Received ioh close notification.  My state %x, his state %x\n",*state_me,*state_him);
     break;
+
+  case BkIohStatusIohSeekSuccess:
+  case BkIohStatusIohSeekFailed:
+    bk_error_printf(B, BK_ERR_ERR, "I got seek notification. How could this happen\n");
+    BK_VRETURN(B);
 
     // No default here so that compiler can catch missed state
   }

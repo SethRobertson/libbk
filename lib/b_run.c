@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.17 2001/12/14 20:03:00 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.18 2001/12/19 01:12:14 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -124,7 +124,7 @@ struct bk_run_func
 struct bk_run_ondemand_func
 {
   void *		brof_key;
-  int			(*brof_fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags);
+  bk_run_on_demand_f	brof_fun;
   void *		brof_opaque;
   bk_flags		brof_flags;
   dict_h		brof_backptr;
@@ -673,6 +673,7 @@ int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags)
 
 
 
+//<TODO> add DON'T_BLOCK flag (treat much like RUN_OVER </TODO>
 /**
  * Run through all events once. Don't call from a callback or beware.
  *
@@ -861,7 +862,8 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
    * the run), we don't block forever owing to lack of descriptors in the
    * select set.
    */
-  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_RUN_OVER))
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_RUN_OVER) || 
+      BK_FLAG_ISSET(flags, BK_RUN_ONCE_FLAG_DONT_BLOCK))
   {
     selectarg = &zero; 
   }
@@ -1611,7 +1613,7 @@ brfn_destroy(bk_s B, struct bk_run_func *brfn)
  * 	@return <br><i>0</i> on success
  */
 int
-bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags), void *opaque, volatile int *demand, void **handle)
+bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *opaque, volatile int *demand, void **handle)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_run_ondemand_func *brof=NULL;

@@ -1,3 +1,8 @@
+2001-12-14  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_ioh.c: Convert messages to use structures and dll's
+	instead of an OR'ed integer.
+
 2001-12-13  James Tanis  <jtt@saint.sysdetect.com>
 
 	* include/libbk.h (enum): BkIohStatusIohAbort removed owing to non-use.

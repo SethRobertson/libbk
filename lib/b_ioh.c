@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.32 2001/12/14 20:03:00 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.33 2001/12/19 01:12:13 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -57,6 +57,45 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define IOH_EOLCHAR		'\n'		///< End of line character (for line oriented mode--change to m
 
 
+/**
+ * Seek info
+ */
+struct ioh_seek_args
+{
+  off_t		isa_offset;			///< Seek offset ala lseek(2)
+  int		isa_whence;			///< Whence ala lseek(2)
+};
+
+
+
+/**
+ * @name Ioh Data Information
+ */
+// @{
+/**
+ * Data command types
+ */
+typedef enum
+{
+  IohDataCmdNone=0,				///< Convenience value for ignore cmds.
+  IohDataCmdShutdown,				///< When mark arrives, shut everything down
+  IohDataCmdClose,				///< When mark arrives, close everything down
+  IohDataCmdSeek,				///< When mark arrives, seek.
+} ioh_data_cmd_type_e;
+
+
+
+/**
+ * Command information stored in bid
+ */
+struct ioh_data_cmd
+{
+  bk_flags		idc_flags;		///< Everyone needs flags
+  ioh_data_cmd_type_e	idc_type;		///< Command type
+  void *		idc_args;		///< Command args
+};
+
+
 
 /**
  * Information about a chunk of user data in use by the ioh subsystem
@@ -69,71 +108,11 @@ struct bk_ioh_data
   u_int32_t		bid_used;		///< Amount virtually consumed (written or sent to user)
   bk_vptr	       *bid_vptr;		///< Stored vptr to return in callback
   bk_flags		bid_flags;		///< Additional information about this dataa
-#define BID_FLAG_SHUTDOWN	0x01		///< When this mark is reached, shut everything down
-#define BID_FLAG_CLOSE		0x02		///< When this mark is reached, close everything down
-#define BID_FLAG_MESSAGE	0x04		///< This is a message boundry
+#define BID_FLAG_MESSAGE	0x01		///< This is a message boundry
+  struct ioh_data_cmd	bid_idc;		///< Command info.
 };
 
-
-
-/**
- * Information about a queue of data pending for I/O
- */
-struct bk_ioh_queue
-{
-  u_int32_t		biq_queuelen;		///< Amount of non-consumed data current in queue
-  u_int32_t		biq_queuemax;		///< Maximum of non-consumed data storable queue
-  dict_h		biq_queue;		///< Queued data
-  union
-  {
-    struct
-    {
-      u_int32_t 	remaining;		///< Number of bytes in previous complete block remaining
-      bk_flags		flags;			///< Private flags
-    }			block;			///< Block message types
-    /* Space for future private info of additional message types */
-  }			biq;			///< Private data for message types
-};
-
-
-
-/**
- * Information about a specific ioh.
- */
-struct bk_ioh
-{
-  int			ioh_fdin;		///< Input file descriptor
-  u_int32_t		ioh_fdin_savestate;	///< Information about fdin which we changed
-#define IOH_ADDED_NONBLOCK	0x01		///< O_NONBLOCK was added to the fd
-#define IOH_ADDED_OOBINLINE	0x02		///< SO_OOBINLINE was added to the fd
-#define IOH_NUKED_LINGER	0x04		///< SO_LINGER was deleted from the fd
-  int			ioh_fdout;		///< Output file descriptor
-  u_int32_t		ioh_fdout_savestate;	///< Information about fdout which we changed
-  bk_iorfunc 		ioh_readfun;		///< Function to read data
-  bk_iowfunc		ioh_writefun;		///< Function to write data
-  void		       *ioh_iofunopaque;	///< Opaque data for iofuns
-  bk_iohhandler_f	ioh_handler;		///< Callback function for event handling
-  void		       *ioh_opaque;		///< Opaque data for handler
-  u_int32_t		ioh_inbuf_hint;		///< Hint for input buffer sizes
-  struct bk_run	       *ioh_run;		///< BK_RUN environment
-  struct bk_ioh_queue	ioh_readq;		///< Data queued for reading
-  struct bk_ioh_queue	ioh_writeq;		///< Data queued for writing
-  char			ioh_eolchar;		///< End of line character
-  bk_flags		ioh_deferredclosearg;	///< Flags argument to deferred close
-  bk_flags		ioh_extflags;		///< Flags--see libbk.h
-  bk_flags		ioh_intflags;		///< Flags
-#define IOH_FLAGS_SHUTDOWN_INPUT	0x01	///< Input shut down
-#define IOH_FLAGS_SHUTDOWN_OUTPUT	0x02	///< Output shut down
-#define IOH_FLAGS_SHUTDOWN_OUTPUT_PEND	0x04	///< Output shut down is deferred
-#define IOH_FLAGS_SHUTDOWN_CLOSING	0x08	///< Attempting to close
-#define IOH_FLAGS_SHUTDOWN_DESTROYING	0x10	///< Attempting to destroy
-#define IOH_FLAGS_DONTCLOSEFDS		0x40	///< Don't close FDs on death
-#define IOH_FLAGS_ERROR_INPUT		0x80	///< Input had I/O error or EOF
-#define IOH_FLAGS_ERROR_OUTPUT		0x100	///< Output had I/O error
-#define IOH_FLAGS_CLOSE_PENDING		0x200	///< We want to close, but are in a user callback
-#define IOH_FLAGS_IN_CALLBACK		0x400	///< We are in a user callback
-};
-
+// @}
 
 
 static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *iohq, u_int32_t bytes, bk_flags flags);
@@ -143,18 +122,17 @@ static int ioh_getlastbuf(bk_s B, struct bk_ioh_queue *queue, u_int32_t *size, c
 static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, size_t len, bk_flags flags);
 static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, bk_flags flags);
 static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, bk_flags flags);
-static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, u_int32_t cmds, bk_flags flags);
-static void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, u_int32_t *cmd, bk_flags flags);
+static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags flags);
+static void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, dict_h *cmd, bk_flags flags);
 #define IOH_FLUSH_DESTROY	1		///< Notify that queue is being destroyed
-static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t allocated, u_int32_t inuse, u_int32_t used, bk_vptr *vptr, bk_flags msgflags, bk_flags flags);
+static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t allocated, u_int32_t inuse, u_int32_t used, bk_vptr *vptr, bk_flags msgflags, ioh_data_cmd_type_e cmd, void *cmd_args, bk_flags flags);
 static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, const struct timeval *starttime);
 static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags);
 #define IOH_FDCTL_SET		1		///< Set the fd set to the ioh normal version
 #define IOH_FDCTL_RESET		1		///< Set the fd set to the original defaults
 static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
-static void on_demand_io_ioh_handler(bk_s B, bk_vptr data[], void *args, struct bk_ioh *ioh, bk_ioh_status_e status);
-static struct bk_on_demand_data *odd_create(bk_s B);
-static void odd_destroy(bk_s B, struct bk_on_demand_data *odd);
+static struct ioh_data_cmd *idc_create(bk_s B);
+static void idc_destroy(bk_s B, struct ioh_data_cmd *idc);
 
 
 
@@ -210,6 +188,29 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk
 #define biq_nextobj(h,i)		dll_nextobj(h,i)
 #define biq_iterate_done(h,i)		dll_iterate_done(h,i)
 #define biq_error_reason(h,i)		dll_error_reason(h,i)
+// @}
+
+/**
+ * @name Defines: IOH Data Commands List clc
+ * Abstracts the list of commands to run from various queus.
+ */
+// @{
+#define cmd_list_create(o,k,f)		dll_create(o,k,f)
+#define cmd_list_destroy(h)		dll_destroy(h)
+#define cmd_list_insert(h,o)		dll_insert(h,o)
+#define cmd_list_insert_uniq(h,n,o)	dll_insert_uniq(h,n,o)
+#define cmd_list_append(h,o)		dll_append(h,o)
+#define cmd_list_append_uniq(h,n,o)	dll_append_uniq(h,n,o)
+#define cmd_list_search(h,k)		dll_search(h,k)
+#define cmd_list_delete(h,o)		dll_delete(h,o)
+#define cmd_list_minimum(h)		dll_minimum(h)
+#define cmd_list_maximum(h)		dll_maximum(h)
+#define cmd_list_successor(h,o)		dll_successor(h,o)
+#define cmd_list_predecessor(h,o)	dll_predecessor(h,o)
+#define cmd_list_iterate(h,d)		dll_iterate(h,d)
+#define cmd_list_nextobj(h,i)		dll_nextobj(h,i)
+#define cmd_list_iterate_done(h,i)	dll_iterate_done(h,i)
+#define cmd_list_error_reason(h,i)	dll_error_reason(h,i)
 // @}
 
 
@@ -598,7 +599,7 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 
   if (how == SHUT_WR || how == SHUT_RDWR)
   {
-    if ((ret = ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, BID_FLAG_SHUTDOWN, 0)) < 0)
+    if ((ret = ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdShutdown, NULL, 0)) < 0)
       shutdown(ioh->ioh_fdin, SHUT_WR);
   }
 
@@ -631,7 +632,11 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   }
 
   if (ioh->ioh_fdin >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
-    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read
+  {
+    // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read
+    bk_ioh_readallowed(B, ioh, 0, 0);
+  }
+
   if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
     bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0); // Clear write
 
@@ -662,7 +667,7 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int cmds = 0;
+  dict_h cmds = NULL;
  
   if (!ioh || (how != SHUT_RD && how != SHUT_WR && how != SHUT_RDWR))
   {
@@ -700,6 +705,10 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
  *
  * Note there may be incomplete data on the input queue which will remain pending.
  *
+ * Note too that, by keeping count, we allow multiple people to throttle
+ * reads and restart them without clobbering each other. Keep in mind that
+ * we never permit throttle_cnt to dip below zero.
+ *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  *	@param isallowed Zero if no reads desired, non-zero if reads allowed
@@ -711,14 +720,13 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int old_state;
+  int new_state;
  
   if (!ioh)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B,-1);
   }
-
-  bk_debug_printf_and(B, 1, "Setting read state to %d of IOH %p\n", isallowed, ioh);
 
   if (ioh->ioh_fdin < 0 || BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT | IOH_FLAGS_ERROR_INPUT | IOH_FLAGS_SHUTDOWN_DESTROYING))
   {
@@ -729,8 +737,38 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
   old_state=bk_run_getpref(B, ioh->ioh_run, ioh->ioh_fdin, 0);
   old_state &= BK_RUN_WANTREAD;
 
+  if (!isallowed)
+  {
+    // Any throttle should turn off reads.
+    new_state = 0;
+    ioh->ioh_throttle_cnt++;
+  }
+  else
+  {
+    if (ioh->ioh_throttle_cnt > 1)
+    {
+      // If we're still waiting for people to release keep being throttled.
+      new_state = 0;
+    }
+    else
+    {
+      // If we're the last to throttle turn on reads.
+      new_state = 1;
+    }
+    
+    ioh->ioh_throttle_cnt--;
+    
+    if (ioh->ioh_throttle_cnt < 0)
+    {
+      bk_error_printf(B, BK_ERR_WARN, "Throttle cnt dipped below zero. Resetting\n");
+      ioh->ioh_throttle_cnt = 0;
+    }
+  }
+
+  bk_debug_printf_and(B, 1, "Setting read state to %d of IOH %p\n", new_state, ioh);
+
   // Set new preference
-  if (bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, isallowed?BK_RUN_WANTREAD:0, BK_RUN_WANTREAD, 0) < 0)
+  if (bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, new_state?BK_RUN_WANTREAD:0, BK_RUN_WANTREAD, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Cannot set I/O preferences\n");
     BK_RETURN(B,-1);
@@ -761,7 +799,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret = -1;
-  int cmds = 0;
+  dict_h cmds = NULL;
  
   if (!ioh)
   {
@@ -806,10 +844,29 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_SHUTDOWN_OUTPUT_PEND);
 
   // Queue up a close command after any pending data commands
-  if (ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, BID_FLAG_CLOSE, 0) < 0)
+  if (ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdClose, NULL, 0) < 0)
   {
     ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
-    cmds = BID_FLAG_CLOSE;
+    
+    // sigh.. Sometimes using a clc makes things eaisier sometimes it *really* doesn't...
+    if ((cmds = cmd_list_create(NULL, NULL, 0)))
+    {
+      struct ioh_data_cmd *idc;
+      if (!(idc = idc_create(B)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not create idc. Command lost\n");
+	cmd_list_destroy(cmds);
+	cmds = NULL;
+      }
+      idc->idc_type = IohDataCmdClose;
+      if (cmd_list_append(cmds, idc) != DICT_OK)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not insert cmd in list (cmd lost): %s\n", cmd_list_error_reason(cmds,NULL));
+	idc_destroy(B,idc);
+	cmd_list_destroy(cmds);
+	cmds = NULL;
+      }
+    }
   }
 
   // Execute close if it is the only thing on the output queue
@@ -826,7 +883,10 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
   // Propagate close to RUN level
   if (ioh->ioh_fdin >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
-    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read
+  {
+    // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read
+    bk_ioh_readallowed(B, ioh, 0, 0);
+  }
   if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
     bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0); // Clear write
 
@@ -1370,7 +1430,7 @@ static int ioh_dequeue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *iohq, st
  *	@return <BR><i>0</i> on success
  *	@return <BR><i>1</i> on queue-too-full
  */
-static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t allocated, u_int32_t inuse, u_int32_t used, bk_vptr *vptr, bk_flags msgflags, bk_flags flags)
+static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t allocated, u_int32_t inuse, u_int32_t used, bk_vptr *vptr, bk_flags msgflags, ioh_data_cmd_type_e cmd, void *cmd_args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh_data *bid;
@@ -1405,6 +1465,9 @@ static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t al
   bid->bid_used = used;
   bid->bid_vptr = vptr;
   bid->bid_flags = msgflags;
+  bid->bid_idc.idc_type = cmd;
+  bid->bid_idc.idc_args = cmd_args;
+
 
   // Put data on queue
   if (biq_append(iohq->biq_queue, bid) != DICT_OK)
@@ -1453,7 +1516,7 @@ static int ioht_raw_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags fl
 
   bk_debug_printf_and(B, 1, "Raw enqueuing data %p/%d for IOH %p\n", data->ptr, data->len, ioh);
 
-  if ((ret = ioh_queue(B, &ioh->ioh_writeq, data->ptr, data->len, data->len, 0, data, BID_FLAG_MESSAGE, flags)) == 0)
+  if ((ret = ioh_queue(B, &ioh->ioh_writeq, data->ptr, data->len, data->len, 0, data, BID_FLAG_MESSAGE, IohDataCmdNone, NULL, flags)) == 0)
   {
     bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, BK_RUN_WANTWRITE, BK_RUN_WANTWRITE, 0);
   }
@@ -1487,7 +1550,7 @@ static int ioht_block_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags 
 
   bk_debug_printf_and(B, 1, "Block enqueuing data %p/%d for IOH %p\n", data->ptr, data->len, ioh);
 
-  if ((ret = ioh_queue(B, &ioh->ioh_writeq, data->ptr, data->len, data->len, 0, data, BID_FLAG_MESSAGE, flags)) == 0)
+  if ((ret = ioh_queue(B, &ioh->ioh_writeq, data->ptr, data->len, data->len, 0, data, BID_FLAG_MESSAGE, IohDataCmdNone, NULL, flags)) == 0)
   {
     /*
      * Yes, there may be blocks already partially sent, but if this condition
@@ -1545,13 +1608,13 @@ static int ioht_vector_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags
     goto error;
   }
   *netdatalen = htonl(data->len);
-  if (ioh_queue(B, &ioh->ioh_writeq, (char *)netdatalen, sizeof(*netdatalen), sizeof(*netdatalen), 0, NULL, 0, BK_IOH_BYPASSQUEUEFULL) < 0)
+  if (ioh_queue(B, &ioh->ioh_writeq, (char *)netdatalen, sizeof(*netdatalen), sizeof(*netdatalen), 0, NULL, 0, IohDataCmdNone, NULL, BK_IOH_BYPASSQUEUEFULL) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not insert vector length onto output stack\n");
     goto error;
   }
 
-  if (ioh_queue(B, &ioh->ioh_writeq, data->ptr, data->len, data->len, 0, data, BID_FLAG_MESSAGE, BK_IOH_BYPASSQUEUEFULL) < 0)
+  if (ioh_queue(B, &ioh->ioh_writeq, data->ptr, data->len, data->len, 0, data, BID_FLAG_MESSAGE, IohDataCmdNone, NULL, BK_IOH_BYPASSQUEUEFULL) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not insert post-vector data onto output stack--now we are in trouble\n");
     goto error;
@@ -1694,7 +1757,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	  BK_RETURN(B, -1);
 	}
 
-	if (ioh_queue(B, &ioh->ioh_readq, data, size, 0, 0, NULL, BID_FLAG_MESSAGE, BK_IOH_BYPASSQUEUEFULL) < 0)
+	if (ioh_queue(B, &ioh->ioh_readq, data, size, 0, 0, NULL, BID_FLAG_MESSAGE, IohDataCmdNone, NULL, BK_IOH_BYPASSQUEUEFULL) < 0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not insert input buffer for ioh %p input queue: %s\n",ioh,biq_error_reason(ioh->ioh_writeq.biq_queue, NULL));
 	  free(data);
@@ -1919,7 +1982,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	  BK_RETURN(B, -1);
 	}
 
-	if (ioh_queue(B, &ioh->ioh_readq, data, size, 0, 0, NULL, BID_FLAG_MESSAGE, BK_IOH_BYPASSQUEUEFULL) < 0)
+	if (ioh_queue(B, &ioh->ioh_readq, data, size, 0, 0, NULL, BID_FLAG_MESSAGE, IohDataCmdNone, NULL, BK_IOH_BYPASSQUEUEFULL) < 0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not insert input buffer for ioh %p input queue: %s\n",ioh,biq_error_reason(ioh->ioh_writeq.biq_queue, NULL));
 	  free(data);
@@ -2139,7 +2202,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	    BK_RETURN(B, -1);
 	  }
 
-	  if (ioh_queue(B, &ioh->ioh_readq, data, sizeof(lengthfromwire) - size, 0, 0, NULL, 0, BK_IOH_BYPASSQUEUEFULL) < 0)
+	  if (ioh_queue(B, &ioh->ioh_readq, data, sizeof(lengthfromwire) - size, 0, 0, NULL, 0, IohDataCmdNone, NULL, BK_IOH_BYPASSQUEUEFULL) < 0)
 	  {
 	    bk_error_printf(B, BK_ERR_ERR, "Could not insert input buffer for ioh %p input queue: %s\n",ioh,biq_error_reason(ioh->ioh_writeq.biq_queue, NULL));
 	    free(data);
@@ -2193,7 +2256,8 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	  ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, 0);
 	  CALLBACK(B, ioh, NULL, BkIohStatusIohReadError);
 	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_INPUT);
-	  bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTREAD, 0);
+	  // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTREAD, 0);
+	  bk_ioh_readallowed(B, ioh, 0, 0);
 	  BK_RETURN(B, 0);
 	}
 	
@@ -2204,7 +2268,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	  BK_RETURN(B, -1);
 	}
 
-	if (ioh_queue(B, &ioh->ioh_readq, data, room, 0, 0, NULL, BID_FLAG_MESSAGE, BK_IOH_BYPASSQUEUEFULL) < 0)
+	if (ioh_queue(B, &ioh->ioh_readq, data, room, 0, 0, NULL, BID_FLAG_MESSAGE, IohDataCmdNone, NULL, BK_IOH_BYPASSQUEUEFULL) < 0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not insert input buffer for ioh %p input queue: %s\n",ioh,biq_error_reason(ioh->ioh_writeq.biq_queue, NULL));
 	  free(data);
@@ -2463,10 +2527,12 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
  *	@param cmd Copy-out pending commands on this queue
  *	@param flags Flags
  */
-void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, u_int32_t *cmd, bk_flags flags)
+void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, dict_h *cmdsp, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh_data *data;
+  dict_h cmds = NULL;
+  struct ioh_data_cmd *idc;
 
   if (!ioh || !queue)
   {
@@ -2476,14 +2542,43 @@ void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, u_i
 
   bk_debug_printf_and(B, 1, "Internal flush of IOH %p queue %p\n", ioh, queue);
 
-  if (cmd) *cmd = 0;
+  if (cmdsp) *cmdsp = NULL;
 
   while (data = biq_minimum(queue->biq_queue))
   {
-    if (data->bid_flags)
+    if (data->bid_idc.idc_type != IohDataCmdNone && cmdsp)
     {
-      if (cmd)
-	*cmd |= data->bid_flags;
+      // Copy command and insert it cmds list (creating same if required
+      if (!cmds)
+      {
+	if (!(cmds = cmd_list_create(NULL, NULL, 0)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "could not create command list: %s\n", cmd_list_error_reason(cmds,NULL));
+	}
+	*cmdsp = cmds;
+      }
+      else
+      {
+	if (!(idc = idc_create(B)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate idc (cmd lost)\n");
+	  /*
+	   * Do *not* destroy cmds. There might be other commands and if
+	   * not, the empty list will be passed to execute_commands where
+	   * it will be harmless processed and destroyed
+	   */
+	}
+	else
+	{
+	  // <WARNING> Structure copy!! If idc changes substantially this might need fixing </WARNING>
+	  *idc = data->bid_idc;
+	  if (cmd_list_append(cmds, idc) != DICT_OK)
+	  {
+	    bk_error_printf(B, BK_ERR_ERR, "Could not insert idc in list: %s\n", cmd_list_error_reason(cmds, NULL));
+	    idc_destroy(B,idc);
+	  }
+	}
+      }
     }
 
     ioh_dequeue(B, NULL, queue, data, IOH_DEQUEUE_ABORT);
@@ -2702,8 +2797,9 @@ static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh_data *bid;
-  u_int cmd = 0;
   int ret = 0;
+  dict_h cmds = NULL;
+  struct ioh_data_cmd *idc;
 
   if (!ioh || !queue)
   {
@@ -2719,14 +2815,43 @@ static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue
     if (bid->bid_data)
       break;
 
-    cmd |= bid->bid_flags;
+    if (bid->bid_idc.idc_type != IohDataCmdNone)
+    {
+      // Copy command and insert it cmds list (creating same if required
+      if (!cmds && !(cmds = cmd_list_create(NULL, NULL, 0)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "could not create command list: %s\n", cmd_list_error_reason(cmds,NULL));
+	}
+      else
+      {
+	if (!(idc = idc_create(B)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate idc (cmd lost)\n");
+	  /*
+	   * Do *not* destroy cmd. There might be other commands and if
+	   * not, the empty list will be passed to execute_commands where
+	   * it will be harmless processed and destroyed
+	   */
+	}
+	else
+	{
+	  // <WARNING> Structure copy!! If idc changes substantially this might need fixing </WARNING>
+	  *idc = bid->bid_idc;
+	  if (cmd_list_append(cmds, idc) != DICT_OK)
+	  {
+	    bk_error_printf(B, BK_ERR_ERR, "Could not insert idc in list: %s\n", cmd_list_error_reason(cmds, NULL));
+	    idc_destroy(B,idc);
+	  }
+	}
+      }
+    }
 
     ioh_dequeue(B, NULL, queue, bid, 0);
   }
 
-  if (cmd)
+  if (cmds)
   {
-    if ((ret = ioh_execute_cmds(B, ioh, cmd, 0)) < 0)
+    if ((ret = ioh_execute_cmds(B, ioh, cmds, 0)) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not execute commands stored at front of list\n");
       BK_RETURN(B,-1);
@@ -2754,9 +2879,12 @@ static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue
  *	@return <br><i>0</i> on success
  *	@return <br><i>2</i> destroyed IOH
  */
-static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, u_int32_t cmds, bk_flags flags)
+static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct ioh_data_cmd *idc;
+  int ret;
+  struct ioh_seek_args *isa = NULL;
 
   if (!ioh)
   {
@@ -2764,20 +2892,63 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, u_int32_t cmds, bk_flags
     BK_RETURN(B,-1);
   }
 
-  bk_debug_printf_and(B, 1, "Execute cmds %x for IOH %p\n", cmds, ioh);
-
-  if (BK_FLAG_ISSET(cmds, BID_FLAG_SHUTDOWN))
+  while(idc = cmd_list_minimum(cmds))
   {
-    shutdown(ioh->ioh_fdin, SHUT_WR);
-    BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT_PEND);
-    BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT);
-  }
+    bk_debug_printf_and(B, 1, "Execute cmds %d for IOH %p\n", idc->idc_type, ioh);
 
-  if (BK_FLAG_ISSET(cmds, BID_FLAG_CLOSE))
-  {
-    bk_ioh_destroy(B, ioh);
-    BK_RETURN(B,2);
+    switch (idc->idc_type)
+    {
+    case IohDataCmdShutdown:
+      shutdown(ioh->ioh_fdin, SHUT_WR);
+      BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT_PEND);
+      BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT);
+      break;
+
+    case IohDataCmdClose:
+      bk_ioh_destroy(B, ioh);
+      BK_RETURN(B,2);
+      break;
+
+    case IohDataCmdSeek:
+      ret = 0;
+      if (!idc->idc_args)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Seek command contained no args! Seek failed\n");
+	ret = -1;
+      }
+      else 
+      {
+	isa = idc->idc_args;
+	if (lseek(ioh->ioh_fdin, isa->isa_offset, isa->isa_whence) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could lseek: %s\n", strerror(errno));
+	}
+	else
+	{
+	  ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, 0);
+	}
+      }
+
+      bk_ioh_readallowed(B, ioh, 1, 0);
+      free(isa);
+
+      CALLBACK(B, ioh, NULL, ret==0?BkIohStatusIohSeekSuccess:BkIohStatusIohSeekFailed);
+
+      break;
+    
+    default: 
+      bk_error_printf(B, BK_ERR_ERR, "Unkown bid command: %d\n", idc->idc_type);
+      break;
+    }
+
+    if (cmd_list_delete(cmds, idc) != DICT_OK)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "could not delete idc from cmds list: %s\n", cmd_list_error_reason(cmds, NULL));
+      break;
+    }
+    idc_destroy(B, idc);
   }
+  cmd_list_destroy(cmds);
 
   BK_RETURN(B,0);
 }
@@ -2859,507 +3030,6 @@ int bk_ioh_stdwrfun(bk_s B, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE
 }
 
 
-/**
- * All the state which the on demand I/O  subsytem requires.
- */
-struct bk_on_demand_io
-{
-  bk_flags		odi_flags;		///< Everyone needs flags.
-#define ODI_FLAG_CLOSING		0x1	///< We are closing down odi
-  dict_h		odi_data;		///< Queue of data vptrs.
-  struct bk_ioh *	odi_ioh;		///< Ioh structure.
-  u_int			odi_size;		///< Amount of data I'm buffering.
-  u_int			odi_throttle_cnt;	///< Count the number of people who want to throttle me.
-};
-
-
-
-
-/**
- * The ioh data (buffers and status) held pending user read.
- */
-struct bk_on_demand_data
-{
-  bk_flags		odd_flags;		///< Everyone needs flags.
-  bk_vptr *		odd_data;		///< The actuall data.
-  bk_ioh_status_e	odd_status;		///< The status which was returned.
-  u_int			odd_size;		///< Amount of data in this array of vptrs.
-};
-
-
-
-/**
- * Create the context for on demand operation.
- *
- *	@param B BAKA thread/global state.
- *	@param ioh The BAKA ioh structure to use.
- *	@param flags Flags for future use.
- *	@return <i>NULL</i> on failure.<br>
- *	@return a new @a bk_on_demand_io on success.
- */
-struct bk_on_demand_io *
-bk_ioh_on_demand_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_on_demand_io *odi = NULL;
-
-  if (!ioh)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_RETURN(B, NULL);
-  }
-
-  if (!(BK_MALLOC(odi)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate odi: %s\n", strerror(errno));
-    goto error;
-  }
-
-  /*
-   * <TODO> 
-   * hide this clc, but *only for readability. We want a queue and only a
-   * queue so this will always be a dll
-   * </TODO>
-   */
-  if (!(odi->odi_data = dll_create(NULL, NULL, DICT_UNORDERED)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create data dll\n");
-  }
-
-  odi->odi_ioh = ioh;
-
-  if (bk_ioh_update(B, ioh, NULL, NULL, NULL, on_demand_io_ioh_handler, odi, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER | BK_IOH_UPDATE_OPAQUE) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not update ioh with blocking handler.\n");
-    goto error;
-  }
- 
-  BK_RETURN(B,odi);
- error:
-  if (odi) bk_ioh_on_demand_io_destroy(B, odi);
-  BK_RETURN(B,NULL);
-}
-
-
-
-/**
- * Close up on demand I/O
- *	@param B BAKA thread/global state.
- *	@param odi The on demand state to close.
- *	@param flags Flags for the future.
- */
-void
-bk_ioh_on_demand_io_close(bk_s B, struct bk_on_demand_io *odi, bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-
-  if (!odi)
-  {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_VRETURN(B);
-  }
-
-  BK_FLAG_SET(odi->odi_flags, ODI_FLAG_CLOSING);
-  BK_VRETURN(B);
-}
-
-
-
-/**
- * Destroy the blocking I/O context.
- *
- *	@param B BAKA thread/global state.
- *	@param odi. The context info to destroy.
- */
-void
-bk_ioh_on_demand_io_destroy(bk_s B, struct bk_on_demand_io *odi)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_on_demand_data *odd;
-
-  if (!odi)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_VRETURN(B);
-  }
-
-  while((odd=dll_minimum(odi->odi_data)))
-  {
-    if (dll_delete(odi->odi_data, odd) != DICT_OK)
-      break;
-    odd_destroy(B, odd);
-  }
-  dll_destroy(odi->odi_data);
-
-  free(odi);
-  BK_VRETURN(B);
-}
-
-
-
-
-/**
- * The on demand I/O subsytem's ioh handler. Remember this handles both
- * reads and writes.
- *
- *	@param B BAKA thread/global state.
- *	@param opaque My local data.
- *	@param ioh ioh over which the data arrived.
- *	@param state What's going on in the world.
- */
-static void
-on_demand_io_ioh_handler(bk_s B, bk_vptr data[], void *args, struct bk_ioh *ioh, bk_ioh_status_e status)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_on_demand_io *odi = args;
-  struct bk_on_demand_data *odd = NULL;
-  u_int data_cnt = 0;
-  u_int cnt;
-  u_int size = 0;
-  bk_vptr *ndata = NULL;
-  char *p;
-
-  if (!odi || !ioh)
-  {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_VRETURN(B);
-  }
-
-  if (!(odd = odd_create(B)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate odd: %s\n", strerror(errno));
-    goto error;
-  }
-
-  switch (status)
-  {
-  case BkIohStatusReadComplete:
-  case BkIohStatusIncompleteRead:
-    // Copy the data. Sigh....
-    for(data_cnt = 0; data[data_cnt].ptr; data_cnt++)
-    {
-      size += data[data_cnt].len;
-    }
-
-    if (!(BK_CALLOC(ndata)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not allocate copy vptr: %s\n", strerror(errno));
-      goto error;
-    }
-
-    if (!(BK_CALLOC_LEN(ndata->ptr, size)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not allocate copy data pointer: %s\n", strerror(errno));
-      goto error;
-    }
-    
-    p = ndata->ptr;
-    for(data_cnt=0; data[data_cnt].ptr; data_cnt++)
-    {
-      memmove(p, data[data_cnt].ptr, data[data_cnt].len);
-      p += data[data_cnt].len;
-    }
-    odd->odd_data = ndata;
-    break;
-
-  case BkIohStatusIohClosing:
-    if (BK_FLAG_ISCLEAR(odi->odi_flags, ODI_FLAG_CLOSING))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "On demand io underlying IOH was nuked before odi closed. Not Good (probably not fatal).\n");
-      // Forge on.
-    }
-    bk_ioh_on_demand_io_destroy(B,odi);
-    BK_VRETURN(B);
-    
-  case BkIohStatusIohReadError:
-  case BkIohStatusIohWriteError:
-  case BkIohStatusIohReadEOF:
-    break;
-
-  case BkIohStatusWriteComplete:
-  case BkIohStatusWriteAborted:
-    free(data[0].ptr);
-    free(data);
-    data = NULL;
-    break;
-
-    // No default so gcc can catch missing cases.
-  }
-
-
-  if (dll_append(odi->odi_data, odd) != DICT_OK)
-  {
-    // <TODO> add clc error reason </TODO>
-    bk_error_printf(B, BK_ERR_ERR, "Could not append data to data list\n");
-    goto error;
-  }
-
-  odd->odd_status = status;
-  odd->odd_size += size;
-
-  // <TODO> if file open for only writing mark the case so we don't do this </TODO>
-  /* Pause reading if buffer is full */
-  if (odi->odi_size >= ioh->ioh_readq.biq_queuemax)
-  {
-    bk_ioh_on_demand_io_throttle(B, odi, 0);
-  }
-
-  BK_VRETURN(B);
-
- error:
-  if (ndata) bk_ioh_on_demand_io_data_destroy(B, data);
-  if (odd) odd_destroy(B, odd);
-  
-  BK_VRETURN(B);
-}
-
-
-
-/**
- * Destroy a NULL terminated vptr list. The user <em>must</em> call this on
- * data read from the subsystem or the underlying memory will never be
- * freed.
- *
- *	@param B BAKA thread/global state.
- *	@param data The list of vptr's to nuke.
- */
-void 
-bk_ioh_on_demand_io_data_destroy(bk_s B, bk_vptr *data)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  bk_vptr *d;
-
-  if (!data)
-  {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_VRETURN(B);
-  }
-
-  /*
-   * Free up all the data.
-   */
-  for(d = data; d->ptr; d++)
-  {
-    free(d->ptr);
-  }
-  free(data);
-
-  BK_VRETURN(B);
-}
-
-
-
-/**
- * Do one on demand read. If we have some data, dequeue it and
- * return. Othewise call bk_run_once() one time.
- *
- *	@param B BAKA thread/global state.
- *	@param odi The on demand state to use.
- *	@param datap Data to pass up to the user (copyout).
- *	@param statusp Status to pass up to the user (copyout).
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success (with data).
- *	@return <i>>0</i> on no progress.
- */
-int
-bk_ioh_on_demand_io_read(bk_s B, struct bk_on_demand_io *odi, bk_vptr **datap, bk_ioh_status_e *status)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_on_demand_data *odd;
-  
-  if (!odi || !datap || !status)
-  {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_RETURN(B, -1);
-  }
-
-  *datap = NULL;
-
-  if (!(odd = dll_minimum(odi->odi_data)))
-  {
-    if (bk_run_once(B, odi->odi_ioh->ioh_run, 0) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "On demand bk_run_once failed severly\n");
-      goto error;
-    }
-    odd = dll_minimum(odi->odi_data);
-  }
-
-  // Now that we either have data or might
-  if (!odd)
-  {
-    BK_RETURN(B,1);
-  }
-  
-  *datap = odd->odd_data;
-  odd->odd_data = NULL;			// Passed off. We're not responsible anymore.
-  *status = odd->odd_status;
-  
-  odi->odi_size -= odd->odd_size;
-  // <TODO> if file open for only writing mark the case so we don't do this </TODO>
-  /* Enable reading if buffer is not full */
-  if (odi->odi_size < odi->odi_ioh->ioh_readq.biq_queuemax)
-  {
-    bk_ioh_on_demand_io_unthrottle(B, odi, 0);
-  }
-  dll_delete(odi->odi_data, odd);
-  odd_destroy(B, odd);
-
-  BK_RETURN(B,0);
-
- error:
-  BK_RETURN(B,-1);
-}
-
-
-
-/**
- * Create an on_demand_data structure.
- *	@param B BAKA thread/global state.
- *	@return <i>NULL</i> on failure.<br>
- *	@return a new @a bk_on_demand_data on success.
- */
-static struct bk_on_demand_data *
-odd_create(bk_s B)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_on_demand_data *odd;
-
-  if (!(BK_CALLOC(odd)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate odd: %s\n", strerror(errno));
-    BK_RETURN(B,NULL);
-  }
-  BK_RETURN(B,odd);
-}
-
-
-
-/**
- * Destroy an odd. 
- *	@param B BAKA thread/global state.
- *	@param odd The @a bk_on_demand_data to destroy.
- */
-static void
-odd_destroy(bk_s B, struct bk_on_demand_data *odd)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  if (!odd)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_VRETURN(B);
-  }
-  
-  if (odd->odd_data) bk_ioh_on_demand_io_data_destroy(B, odd->odd_data);
-  free(odd);
-  BK_VRETURN(B);
-}
-
-
-
-/**
- * Throttle an on demand I/O stream.
- *
- *	@param B BAKA thread/global state.
- *	@param odi The @a bk_on_demand_io to throttle.
- *	@param flags Flag for the future.
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
- */
-int
-bk_ioh_on_demand_io_throttle(bk_s B, struct bk_on_demand_io *odi, bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-
-  if (!odi)
-  {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_RETURN(B, -1);
-  }
-
-  if (odi->odi_throttle_cnt == 0)
-  {
-    bk_ioh_readallowed(B, odi->odi_ioh, 0, 0);
-  }
-
-  odi->odi_throttle_cnt++;
-
-  BK_RETURN(B,0);
-}
-
-
-
-/**
- * Unthrottle an on demand I/O stream.
- *
- *	@param B BAKA thread/global state.
- *	@param odi The @a bk_on_demand_io to unthrottle.
- *	@param flags Flag for the future.
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
- */
-int
-bk_ioh_on_demand_io_unthrottle(bk_s B, struct bk_on_demand_io *odi, bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-
-  if (!odi)
-  {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_RETURN(B, -1);
-  }
-
-  odi->odi_throttle_cnt--;
-
-  if (odi->odi_throttle_cnt == 0)
-  {
-    bk_ioh_readallowed(B, odi->odi_ioh, 1, 0);
-  }
-
-  BK_RETURN(B,0);
-}
-
-
-
-
-/**
- * Flush all data associated with on demand stuff. 
- *
- *	@param B BAKA thread/global state.
- *	@param odi @a bk_on_demand_io to flush.
- *	@param flags Flags for the future.
- */
-void
-bk_ioh_on_demand_io_flush(bk_s B, struct bk_on_demand_io *odi, bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_on_demand_data *odd, *nodd;
-
-  if (!odi)
-  {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_VRETURN(B);
-  }
-  
-  // <TODO> Some non-data thingys *do* get nuked </TODO>
-  odd = dll_minimum(odi->odi_data);
-  while(odd)
-  {
-    nodd = dll_successor(odi->odi_data, odd);
-    // Only nuke data vbufs.
-    if (odd->odd_data->ptr)
-    {
-      dll_delete(odi->odi_data, odd);
-      // Failure here will not kill the loop since we've already grabbed successesor
-      odd_destroy(B, odd);
-    }
-    odd = nodd;
-  }
-    
-  BK_VRETURN(B);
-}
-
-
 
 /**
  * Flush an ioh read queue.
@@ -3405,4 +3075,114 @@ bk_ioh_flush_write(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   
   ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, flags);
   BK_VRETURN(B);
+}
+
+
+
+
+/**
+ * Create an @a ioh_data_cmd.
+ *	@param B BAKA thread/global state.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a new @a ioh_data_cmd on success.
+ */
+static struct ioh_data_cmd *
+idc_create(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct ioh_data_cmd *idc;
+
+  if (!(BK_CALLOC(idc)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "could not allocate idc: %s\n", strerror(errno));
+    BK_RETURN(B,NULL);
+  }
+  BK_RETURN(B,idc);
+}
+
+
+
+/**
+ * Destroy a idc.
+ *	@param B BAKA thread/global state.
+ *	@param idc The @a ioh_cmd_data to destroy.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static void
+idc_destroy(bk_s B, struct ioh_data_cmd *idc)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!idc)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  free(idc);
+  BK_VRETURN(B);
+}
+
+
+
+
+/**
+ * Seek on an ioh. This is trickier then it sounds. We have to pause reads,
+ * place a cmd on the write queue and wait for that to flush, *then* run
+ * the seek. If the seek succeeds we then have to flush the current input
+ * queue and then notify the user. If the seek fails we have to notifiy the
+ * user, but we don't flush the input queue. The rest of the function is in
+ * ioh_execut_cmds()
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ioh The @a bk_ioh to use. 
+ *	@param offset As described in @a lseek(2)
+ *	@param whence As described in @a lseek(2)
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ *	@return <i>2</i> if ioh destroyed.
+ */
+int
+bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct ioh_seek_args *isa = NULL;
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  bk_ioh_readallowed(B, ioh, 0, 0);
+  if (!(BK_CALLOC(isa)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate isa: %s\n", strerror(errno));
+    goto error;
+  }
+
+  isa->isa_offset = offset;
+  isa->isa_whence = whence;
+
+  // <TOOD> remove descriptor from read set.
+
+  if (ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdSeek, isa, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not enqueue message\n");
+    goto error;
+  }
+
+  // While this appears to do nothing, it someone adds code later, it guards against double free.
+  isa = NULL;
+
+  // Execute seek immediately if queue was empty
+  if (ioh_execute_ifspecial(B, ioh, &ioh->ioh_writeq, 0) == 2)
+    BK_RETURN(B,2);				// IOH was destroyed
+
+  BK_RETURN(B,0);
+
+ error:
+  if (isa) free(isa);
+  BK_RETURN(B,-1);
 }
