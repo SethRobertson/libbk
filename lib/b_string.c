@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.69 2002/12/30 19:11:30 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.70 2003/01/09 08:03:02 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1217,10 +1217,40 @@ char *
 bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  va_list ap;
+  char *ret = NULL;
+
+  va_start(ap, fmt);
+  ret = bk_string_alloc_vsprintf(B, chunk, flags, fmt, ap);
+  va_end(ap);
+
+  BK_RETURN(B, ret);
+}
+
+
+
+/**
+ * Allocate a string based on a vprintf like format. This algorithm does
+ * waste some space. Worst case (size-1), expected case ((size-1)/2) (or
+ * something like that. User must free space with free(3).
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state.
+ *	@param chunk Chunk size to use (0 means user the default)
+ *	@param flags Flags.
+ * 		BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY
+ *	@param fmt The format string to use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a malloc'ed <i>string</i> on success.
+ */
+char *
+bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, va_list ap)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int n, size = 2048;
   char *p = NULL;
   char *tmpp = NULL;
-  va_list ap;
 
   if (!fmt)
   {
@@ -1231,7 +1261,6 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
   if (chunk)
     size = chunk;
 
-
   if (!(p = malloc(size)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not alloc string: %s\n", strerror(errno));
@@ -1241,9 +1270,7 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
   while (1) 
   {
     /* Try to print in the allocated space. */
-    va_start(ap, fmt);
     n = vsnprintf(p, size, fmt, ap);
-    va_end(ap);
 
     /* If that worked, return the string. */
     if (n > -1 && n < size)
@@ -1281,7 +1308,7 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
   if (p)
     free(p);
 
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }
 
 

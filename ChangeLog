@@ -1,3 +1,12 @@
+2003-01-09  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_md5.c (bk_MD5Update): Changed inBuf parameter from char *
+	to const char *.
+
+	* lib/b_string.c (bk_string_alloc_vsprintf): Added
+	bk_string_alloc_vsprintf and changed the implementation of
+	bk_string_alloc_sprintf accordingly.
+
 2002-12-30  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_strcode.c (bk_string_str2xml): partial fix for ticket #963:

@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_md5.c,v 1.7 2002/11/11 22:53:58 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_md5.c,v 1.8 2003/01/09 08:03:02 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -173,7 +173,7 @@ void bk_MD5Init (bk_s B, bk_MD5_CTX *mdContext)
  *	@param inBuf The data to be incorporated into the digest
  *	@param inLen The length of the data to be incorporated
  */
-void bk_MD5Update(bk_s B, bk_MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen)
+void bk_MD5Update(bk_s B, bk_MD5_CTX *mdContext, const unsigned char *inBuf, unsigned int inLen)
 {
   u_int32_t in[16];
   int mdi;

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.194 2003/01/08 19:24:19 brian Exp $
+ * $Id: libbk.h,v 1.195 2003/01/09 08:03:01 lindauer Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1595,6 +1595,8 @@ extern void *bk_memrchr(bk_s B, const void *buffer, int character, size_t len);
 extern int bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2);
 extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #define BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY	0x1 ///< Take more time to return use as little memory as possible.
+char *
+bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, va_list ap);
 extern int bk_vstr_cat(bk_s B,  bk_flags flags, bk_vstr *dest, const char *src_fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #define BK_VSTR_CAT_FLAG_STINGY_MEMORY		0x1 ///< Take more time; use less memory
 extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags);
@@ -1785,7 +1787,7 @@ extern struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *m
 
 /* b_md5.c */
 extern void bk_MD5Init (bk_s B, bk_MD5_CTX *mdContext);
-extern void bk_MD5Update (bk_s B, bk_MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen);
+extern void bk_MD5Update (bk_s B, bk_MD5_CTX *mdContext, const unsigned char *inBuf, unsigned int inLen);
 extern void bk_MD5Final (bk_s B, bk_MD5_CTX *mdContext);
 extern int bk_MD5_extract_printable(bk_s B, char *str, bk_MD5_CTX *ctx, bk_flags flags);
 
