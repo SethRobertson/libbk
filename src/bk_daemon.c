@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.4 2004/04/26 19:20:36 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.5 2004/04/26 19:34:42 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -322,22 +322,27 @@ static int child(int argc, char **argv, int optint)
   if (want_dev_null_stdio)
   {
     int dev_null_fd;
+    long fd_flags;
 
-    if ((dev_null_fd = open(_PATH_DEVNULL, O_RDONLY)) < 0)
-    {
-      fprintf(stderr, "Could not open %s: %s\n", _PATH_DEVNULL, strerror(errno));
-      exit(2);
-    }
-    
     fd = fileno(stdin);
 
-    if (dup2(dev_null_fd, fd) < 0)
+    if ((fcntl(fd, F_GETFL, &fd_flags) < 0) && (errno == EBADF))
     {
-      perror("dup2 of stdin");
-      exit(2);
-    }
+      if ((dev_null_fd = open(_PATH_DEVNULL, O_RDONLY)) < 0)
+      {
+	fprintf(stderr, "Could not open %s: %s\n", _PATH_DEVNULL, strerror(errno));
+	exit(2);
+      }
     
-    close(dev_null_fd);
+
+      if (dup2(dev_null_fd, fd) < 0)
+      {
+	perror("dup2 of stdin");
+	exit(2);
+      }
+    
+      close(dev_null_fd);
+    }
 
     if ((dev_null_fd = open(_PATH_DEVNULL, O_WRONLY)) < 0)
     {
@@ -347,19 +352,26 @@ static int child(int argc, char **argv, int optint)
     
     fd = fileno(stdout);
 
-    if (dup2(dev_null_fd, fd) < 0)
+    if ((fcntl(fd, F_GETFL, &fd_flags) < 0) && (errno == EBADF))
     {
-      perror("dup2 of stdout");
-      exit(2);
+      if (dup2(dev_null_fd, fd) < 0)
+      {
+	perror("dup2 of stdout");
+	exit(2);
+      }
     }
     
     fd = fileno(stderr);
 
-    if (dup2(dev_null_fd, fd) < 0)
+    if ((fcntl(fd, F_GETFL, &fd_flags) < 0) && (errno == EBADF))
     {
-      perror("dup2 of stderr");
-      exit(2);
+      if (dup2(dev_null_fd, fd) < 0)
+      {
+	perror("dup2 of stderr");
+	exit(2);
+      }
     }
+
     close(fd);
   }
 
