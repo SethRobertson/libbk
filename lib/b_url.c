@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.14 2002/01/14 18:54:07 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.15 2002/01/16 08:56:10 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -501,7 +501,6 @@ bk_url_destroy(bk_s B, struct bk_url *bu)
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_url on success.
  */
-
 char *
 bk_url_unescape(bk_s B, const char *component)
 {
@@ -543,4 +542,137 @@ bk_url_unescape(bk_s B, const char *component)
 
   *copy = '\0';					// finish expanded
   BK_RETURN(B, expanded);
+}
+
+
+
+/**
+ * Parse semicolon delimited parameters of URL.
+ *
+ * This function, whose interface and implementation are brazenly stolen from
+ * getsubopt(), parses URL parameters from a path component which has been
+ * extracted from a URL by @a bk_url_parse.
+ *
+ * These parameters must be separated by semicolons and may consist of either a
+ * single token, or a token-value pair separated by an equal sign.  Because
+ * semicolons delimit parameters in the path, they are not allowed to be part
+ * of the parameter name or the value of a parameter (semicolons can be escaped
+ * as %3B).  Similarly, because the equal sign separates a parameter name from
+ * its value, a parameter name must not contain an equal sign (equals signs can
+ * be escaped as %3D).  For correct parsing when escaped semicolon or equals
+ * are present, the supplied path string should <em>not</em> be unescaped.
+ *
+ * This function takes the address of a pointer to the path string, an array of
+ * possible tokens, and the address of a value string pointer.  If the path
+ * string at @a *pathp contains only one parameter, this function updates @a
+ * *pathp to point to the null at the end of the string.  Otherwise, it
+ * isolates the parameter by replacing the semicolon separator with a null, and
+ * updates @a *pathp to point to the start of the next parameter.  If the
+ * parameter has an associated value, this function updates @a *valuep to point
+ * to the value's first character.  Otherwise it sets @a *valuep to a null
+ * pointer.
+ *
+ * The token array is organised as a series of pointers to strings.  The end
+ * of the token array is identified by a null pointer.
+ *
+ * On a successful return, if @a *valuep is not a null pointer then the
+ * parameter processed included a value.  The calling program may use this
+ * information to determine if the presence or lack of a value for this
+ * parameter is an error.  Note that the value string should be passed to @a
+ * bk_url_unescape to expand any embedded % escapes.
+ *
+ * If the parameter does not match any tokens in the tokens array, this
+ * function updates @a *valuep to point to the unknown parameter (including
+ * value, if any).  The calling program should decide if this is an error, or
+ * if the unrecognised option should be passed on to another program.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param pathp pointer to path component (passed by reference).
+ *	@param tokens array of recognized parameter names, terminated by NULL.
+ *	@param valuep pointer to value of parameter (passed by reference).
+ *	@return <i>-1</i> on failure (bad arguments, unrecognized token) or<br>
+ *	@return index of the matched token string.
+ *
+ * @see getsubopt(3)
+ *
+ * Note that the returning a pointer to the bad parameter in *valuep is a GNU C
+ * library or Linux extension to the X/Open @a getsubopt standard.
+ */
+int
+bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *param;
+  char *p;
+  int cnt;
+
+  if (!valuep)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  param = *valuep = NULL;
+
+  if (!pathp || !*pathp)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  /* skip leading white-space, semicolons */
+  for (p = *pathp; *p && (*p == ';' || *p == ' ' || *p == '\t'); ++p);
+
+  if (!*p) {
+    *pathp = p;
+    BK_RETURN(B, -1);
+  }
+
+  /* save the start of the token, and skip the rest of the token */
+  for (param = p;
+       *++p && *p != ';' && *p != '=' && *p != ' ' && *p != '\t';);
+
+  if (*p) {
+    /*
+     * If there's an equals sign, set the value pointer, and
+     * skip over the value part of the token.  Terminate the
+     * token.
+     */
+    if (*p == '=') {
+      *p = '\0';
+      for (*valuep = ++p;
+	   *p && *p != ';' && *p != ' ' && *p != '\t'; ++p);
+      if (*p) 
+	*p++ = '\0';
+    } else
+      *p++ = '\0';
+    /* Skip any whitespace or semicolons after this token. */
+    for (; *p && (*p == ';' || *p == ' ' || *p == '\t'); ++p);
+  }
+
+  /* set pathp for next round */
+  *pathp = p;
+
+  for (cnt = 0; *tokens; ++tokens, ++cnt)
+    if (!strcmp(param, *tokens))
+      BK_RETURN(B, cnt);
+
+  /* if parameter unrecognized, try unescaping and rescan if different */
+
+  if ((p = bk_url_unescape(B, param)) && strcmp(p, param))
+    for (cnt = 0; *tokens; ++tokens, ++cnt)
+      if (!strcmp(param, *tokens))
+      {
+	free(p);
+	BK_RETURN(B, cnt);
+      }
+
+  if (p)
+    free(p);
+
+  /* on unrecognized param, restore '=' (if any), set *valuep to bad param */
+  if (*valuep)
+    (*valuep)[-1] = '=';
+  *valuep = param;
+  BK_RETURN(B, -1);
 }

@@ -1,3 +1,9 @@
+2002-01-16  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h: declare bk_url_getparam
+
+	* lib/b_url.c (bk_url_getparam): parse semicolon-delimited parameters
+
 2002-01-15  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_exec.c: Routines in support of executing processes.
