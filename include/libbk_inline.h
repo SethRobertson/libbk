@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_inline.h,v 1.12 2003/07/09 22:44:03 jtt Exp $
+ * $Id: libbk_inline.h,v 1.13 2003/07/10 20:43:31 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -423,15 +423,15 @@ bk_dll_delete(dict_h handle, dict_obj obj)
 
   if (gde->gde_next)
     gde->gde_next->gde_prev = gde->gde_prev;
- 
+  else 
+    gdh->gdh_tail = gde->gde_prev;
+   
   if (gde->gde_prev)
     gde->gde_prev->gde_next = gde->gde_next;
-
-  if (gdh->gdh_tail == gde)
-    gdh->gdh_tail = gde->gde_prev;
-
-  if (gdh->gdh_head == gde)
+  else
     gdh->gdh_head = gde->gde_next;
+
+  gde->gde_next = gde->gde_prev = NULL;
 
   return(DICT_OK);
 }
