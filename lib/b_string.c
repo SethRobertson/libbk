@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.105 2004/03/27 08:49:36 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.106 2004/04/27 20:05:24 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1102,16 +1102,26 @@ char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags f
 /**
  * Bounded strlen. Return the length the of a string but go no further than
  * the bound. NB: This function returns a @a ssize_t not a @a size_t as per
- * @a strlen(3). This is so we can return <i>-1</i>.`
+ * @a strlen(3).
+ *
+ * This is so it can return <i>-1</i> when there is no NUL, even at s[max].
+ *
+ * That's right, if s is not at least max+1 characters long, this function may
+ * return indeterminate results, possibly -1, possibly max, possibly (if you
+ * are very very very unlucky) SIGSEGV.  If your string is not at least max+1
+ * characters long, use GNU glibc strnlen() which has reasonable semantics, and
+ * doesn't feel that a function that never returns an error code is somehow
+ * inferior to one that sometimes does.
  *
  * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state.
  *	@param s The string to check.
- *	@param max The maximum string size to check.
+ *	@param max (One less than) the maximum string size to check.
  *	@returns The <i>length</i> of the string on success.
  *	@returns <i>-1</i> on failure (including string too long).
  *	@bugs Does not return the same type as @a strlen(3). See description.
+ *	@bugs May return indeterminate result if sizeof(s) == max
  */
 ssize_t /* this is not an error. See description */
 bk_strnlen(bk_s B, const char *s, size_t max)

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.26 2003/12/06 00:14:10 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.27 2004/04/27 20:05:24 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -106,8 +106,8 @@ bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa)
       len = SUN_LEN((struct sockaddr_un *)sa);
 #else
       size_t off = (size_t)((struct sockaddr_un *)0)->sun_path;
-      len = off + bk_strnlen(B, ((struct sockaddr_un *)sa)->sun_path,
-			     sizeof(struct sockaddr_un) - off);
+      len = off + strnlen(((struct sockaddr_un *)sa)->sun_path,
+			  sizeof(struct sockaddr_un) - off);
 #endif /* !SUN_LEN */
     }
     break;
