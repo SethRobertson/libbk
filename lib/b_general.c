@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.39 2003/05/15 19:38:26 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.40 2003/05/15 19:45:29 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -176,19 +176,19 @@ void bk_general_destroy(bk_s B)
 
 #ifdef BK_USING_PTHREADS
       /*
-       * <TODO bugid="1281">We should cancel all child threads and perhaps
-       * verify that they are dead.  Depending on pthread_kill_other_threads_np
-       * only works on Linux and prevents proper execution of cancellation
-       * functions in other threads.</TODO>
+       * <TODO bugid="1281">We should cancel all child threads and
+       * perhaps verify that they are dead.  Depending on
+       * pthread_kill_other_threads_np only works on Linux and
+       * prevents proper execution of cancellation functions in other
+       * threads, however is absolutely required for
+       * correctness.</TODO>
        */
-      if (B->bt_general->bg_tlist)
-      {
-	bk_threadlist_destroy(B, B->bt_general->bg_tlist, 0);
-      }
 
 #ifdef __linux__
       pthread_kill_other_threads_np();
 #endif
+
+      bk_threadlist_destroy(B, B->bt_general->bg_tlist, 0);
 #endif /*BK_USING_PTHREADS*/
 
       if (BK_GENERAL_ISFUNSTATSON(B))
