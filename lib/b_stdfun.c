@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.7 2001/11/28 18:24:09 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.8 2001/12/06 16:53:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -120,4 +120,6 @@ void bk_exit(bk_s B, u_char retcode)
 
   bk_general_destroy(B);
   exit(retcode);
+  /* NOTREACHED */
+  BK_VRETURN(B);				/* Stupid insight */
 }

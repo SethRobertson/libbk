@@ -26,4 +26,5 @@ int main(int argc, char **argv, char **envp)
     printf("\n");
   }
   exit(0);
+  return(255);					/* Insight is stupid */
 }

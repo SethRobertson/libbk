@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.17 2001/12/05 00:29:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.18 2001/12/06 16:53:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1160,14 +1160,13 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
   {
     struct bk_addrgroup *nbag = NULL;
 
-    if (BK_FLAG_ISSET(as->as_user_flags, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP))
+    if (!(nbag = bag_create(B)))
     {
-      if (!(nbag = bag_create(B)))
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not allocate bk_addrgroup\n");
-	goto error;
-      }
-
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate bk_addrgroup\n");
+      // This is kind of an error, but we must make callback so no goto
+    }
+    else
+    {
       /* The proto and type have to be the same as the cached. */
       nbag->bag_proto = as->as_bag->bag_proto;
       nbag->bag_type = as->as_bag->bag_type;
@@ -1175,12 +1174,17 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
       if (!(nbag->bag_local = bk_netinfo_from_socket(B, as->as_sock, nbag->bag_proto, BkSocketSideLocal)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not generate local side netinfo\n");
-	goto error;
+	// This is kind of an error, but we must make callback so no goto
       }
-      bk_netinfo_set_primary_address(B,nbag->bag_local,NULL);
+      else
+      {
+	bk_netinfo_set_primary_address(B,nbag->bag_local,NULL);
+      }
     }
 
     (*(as->as_callback))(B, as->as_args, s, nbag, as->as_server, as->as_state);
+
+    if (nbag) bk_addrgroup_destroy(B, nbag);
   }
   
   BK_RETURN(B,s);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.20 2001/12/05 00:29:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.21 2001/12/06 16:53:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -250,12 +250,12 @@ proginit(bk_s B, struct program_config *pc)
   switch (pc->pc_role)
   {
   case BttcpRoleReceive:
-    if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, DEFAULT_PROTO_STR, NULL, connect_complete, pc, 0, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP))
+    if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, DEFAULT_PROTO_STR, NULL, connect_complete, pc, 0, 0))
       bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     break;
 
   case BttcpRoleTransmit:
-    if (bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, DEFAULT_PROTO_STR, pc->pc_timeout, connect_complete, pc, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP) < 0)
+    if (bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, DEFAULT_PROTO_STR, pc->pc_timeout, connect_complete, pc, 0) < 0)
       bk_die(B, 1, stderr, "Could not start transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     break;
 

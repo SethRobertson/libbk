@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.77 2001/12/05 00:29:55 jtt Exp $
+ * $Id: libbk.h,v 1.78 2001/12/06 16:53:23 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -316,9 +316,6 @@ struct bk_addrgroup
 
 
 #define BK_ADDRGROUP_FLAG_DIVIDE_TIMEOUT	0x1 ///< Timeout should be divided among all addresses
-//XXXX Always give addrgroup. User may clone if he wishes to hang on to it 
-#define BK_ADDRGROUP_FLAG_WANT_ADDRGROUP	0x2 ///< I want a filled out addrgroup on my callback. If you take this you want it on both newconnection and server ready. You must destroy with bk_addrgroup_destroy()
-
 
 // @}
 

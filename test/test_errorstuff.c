@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_errorstuff.c,v 1.4 2001/11/29 17:29:23 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_errorstuff.c,v 1.5 2001/12/06 16:53:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -87,6 +87,7 @@ main(int argc, char **argv, char **envp)
   progrun(B, pconfig);
   bk_exit(B,0);
   abort();
+  BK_RETURN(B,255);				/* Insight is stupid */
 }
 
 

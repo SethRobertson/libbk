@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.29 2001/12/06 00:17:47 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.30 2001/12/06 16:53:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -659,7 +659,6 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int cmds = 0;
-  int ret = 0;
  
   if (!ioh || (how != SHUT_RD && how != SHUT_WR && how != SHUT_RDWR))
   {
@@ -685,7 +684,7 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   }
 
   if (cmds)
-    ret = ioh_execute_cmds(B, ioh, cmds, 0);
+    ioh_execute_cmds(B, ioh, cmds, 0);
 
   BK_VRETURN(B);
 }
@@ -1197,7 +1196,7 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
       // We need to save the linger value--some OSs overload this information.
       // Bound it to 2^16-1, store in upper 16 bits of savestate;
       if (linger > 65535) linger = 65535;
-      *savestate |= linger<<16;;
+      *savestate |= linger<<16;
       linger = 0;
       *savestate |= IOH_NUKED_LINGER;
     }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.11 2001/12/04 19:51:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.12 2001/12/06 16:53:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -132,6 +132,7 @@ main(int argc, char **argv, char **envp)
   progrun(B);
   bk_exit(B,0);
   abort();
+  BK_RETURN(B,255);				/* Insight is stupid */
 }
 
 
@@ -154,7 +155,6 @@ int proginit(bk_s B)
 void progrun(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
-  const char *person = "World";
   struct protoent *p=NULL;
   struct servent *s=NULL;
   char **s1;
@@ -217,7 +217,7 @@ void progrun(bk_s B)
     if (BK_FLAG_ISCLEAR(Global.gs_flags, TESTGETBYFOO_FLAG_NO_COPYOUT))
     {
       printf("Name: %s\n", s->s_name);
-      printf("Number: %u\n", ntohs(s->s_port));
+      printf("Number: %d\n", ntohs(s->s_port));
       printf("Protocol: %s\n", s->s_proto);
       printf("Aliases: ");
       if (s->s_aliases)
@@ -238,7 +238,7 @@ void progrun(bk_s B)
     else
     { 
       printf("Name: %s\n", bni->bni_bsi->bsi_servstr);
-      printf("Number: %u\n", ntohs(bni->bni_bsi->bsi_port));
+      printf("Number: %d\n", ntohs(bni->bni_bsi->bsi_port));
       printf("Protocol: tcp\n");
       printf("Aliases: N/A\n");
     }

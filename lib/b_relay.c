@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_relay.c,v 1.7 2001/11/29 21:12:42 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_relay.c,v 1.8 2001/12/06 16:53:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -72,10 +72,6 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
   struct bk_relay *relay;
-  bk_iorfunc readfun;
-  bk_iowfunc writefun;
-  u_int32_t inbufhint, inbufmax, outbufmax;
-  bk_flags saveflags;
 
   if (!ioh1 || !ioh2)
   {
@@ -99,6 +95,7 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
   bk_ioh_readallowed(B, ioh1, 1, 0);
   bk_ioh_readallowed(B, ioh2, 1, 0);
 
+  //<TODO> Alter interface to permit caller to specify hints </TODO>
   //<TODO> Allow the caller to specify a callback which gets called in each read/write 
 
   if (bk_ioh_update(B, ioh1, NULL, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)

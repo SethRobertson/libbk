@@ -1,3 +1,10 @@
+2001-12-06  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* libbk: many other dumb insight related cleanup.
+
+	* lib/b_addrgroup.c (do_net_init_af_inet_tcp_listen): Prevent
+	memory leack in accept state.
+
 2001-12-05  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_memx.c (bk_memx_get): Return current used, not current allocated

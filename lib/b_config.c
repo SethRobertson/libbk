@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.25 2001/12/05 20:33:34 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.26 2001/12/06 16:53:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -354,7 +354,10 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
     goto done;
   }
     
-  /* XXX This isn't quite the correct use of the API, but what the hell */
+  /* <WARNING> 
+   * This isn't quite the correct use of the API, but what the hell 
+   * </WARNING>
+   */
   if (check_for_double_include(B,bc,bc->bc_bcf,bcf) != 1)
   {
     bk_error_printf(B, BK_ERR_WARN, "Double include detected (quashed)\n");
@@ -399,7 +402,7 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
     }
     
     *value='\0'; 
-    value += strlen (bc->bc_bcup.bcup_separator); /* XXX Should we cache this strlen? */
+    value += strlen (bc->bc_bcup.bcup_separator); /* <TODO> Should we cache this strlen? </TODO>*/
 
     /* "line" now points at the key and "value" at the value */
     if (BK_STREQ(line, bc->bc_bcup.bcup_include_tag))
@@ -905,9 +908,7 @@ bck_destroy(bk_s B, struct bk_config_key *bck)
   /* This CLC header can be NULL if there was an error during bck creation */
   if (bck->bck_values)
   {
-
-    // XXX = should have break w/o trailing semi after bk_error_printf
-    DICT_NUKE_CONTENTS(bck->bck_values, config_values, bcv, bk_error_printf(B, BK_ERR_ERR, "Could not nuke a value from a key: %s\n", config_values_error_reason(bck->bck_values, NULL));, bcv_destroy(B, bcv));
+    DICT_NUKE_CONTENTS(bck->bck_values, config_values, bcv, bk_error_printf(B, BK_ERR_ERR, "Could not nuke a value from a key: %s\n", config_values_error_reason(bck->bck_values, NULL)); break, bcv_destroy(B, bcv));
     config_values_destroy(bck->bck_values);
   }
 
