@@ -27,3 +27,13 @@ tcp://[1:2:3:4:5:6:7:8]/foobar
 tcp://[1:2:3:4:5:6:7:8]:23/foobar
 tcp://[1:2:3:4:5:6]:23/bad/address
 tcp://[1:2:3:4::6]:23/special/address
+
+paramparse:path;zero
+paramparse:path;zer%6f=zer%6f
+paramparse:path;one=two;ZERO=MOSTEL
+paramparse:path;ONE=TWO;zero=;
+
+
+queryparse:stuff?a&b
+queryparse:stuff?a&b&C
+queryparse:stuff?a&b&c

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_url.c,v 1.10 2002/01/14 18:54:07 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_url.c,v 1.11 2002/03/14 21:55:30 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -209,9 +209,33 @@ void progrun(bk_s B, struct program_config *pconfig)
   char inputline[1024];
   struct bk_url *bu;
   u_int nextstart;
+  char *params;
+  char *parampath;
+  char *paramquery;
+  static char *numbers[] =
+    {
+      "zero",
+      "",
+      "one",
+      "two",
+      "three",
+      "baz",
+      NULL
+    };
+  static char *letters[] =
+    {
+      "\0&",
+      "a",
+      "b",
+      "C",
+      "baz",
+      NULL
+    };
   
   while(fgets(inputline, 1024, stdin))
   {
+    char *value;
+
     bk_string_rip(B, inputline, NULL, 0);
 
     if (BK_STREQ(inputline,"quit") || BK_STREQ(inputline,"exit"))
@@ -238,8 +262,49 @@ void progrun(bk_s B, struct program_config *pconfig)
     printf("\t\tServ: %s\n", scratch);
     PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_path);
     printf("\tPath: %s\n", scratch);
+    parampath = BK_URL_PATH_DATA(bu);
+    if (parampath && (params = strchr(parampath, ';')))
+    {
+      *params++ = '\0';				// break path and params
+      while (*params != '\0')
+      {
+	int param;
+
+	switch (param = bk_url_getparam(B, &params, numbers, &value))
+	{
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	  printf("\t\t%d = %s\n", param, value ? value : "");
+	  break;
+	case -1:
+	  fprintf(stderr, "unrecognized param: %s\n", value ? value : "\"\"");
+	}
+      }
+    }
     PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_query);
     printf("\tQuery: %s\n", scratch);
+    params = BK_URL_QUERY_DATA(bu);
+    if (params)
+    {
+      while (*params != '\0')
+      {
+	int param;
+
+	switch (param = bk_url_getparam(B, &params, letters, &value))
+	{
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	  printf("\t\t%c = %s\n", '@' + param, value ? value : "");
+	  break;
+	case -1:
+	  fprintf(stderr, "unrecognized param: %s\n", value ? value : "\"\"");
+	}
+      }
+    }
     PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_fragment);
     printf("\tFragment: %s\n", scratch);
     

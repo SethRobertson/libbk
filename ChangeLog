@@ -1,3 +1,9 @@
+2002-03-14  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_url.c (bk_url_unescape): define in terms of bk_url_unescape_len
+	(bk_url_unescape_len): this is the more fundamental variant
+	(bk_url_getparam): allow alternate delimiters, case-independent tokens
+
 2002-03-14  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_url.c (bk_url_unescape_len): Same as bk_url_unescape(),

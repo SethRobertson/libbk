@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.19 2002/03/14 17:51:16 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.20 2002/03/14 21:55:30 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,6 +23,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
+
+#define PARAM_DELIM ';'
 
 
 #define STORE_URL_ELEMENT(B, mode, element, start, end)			  \
@@ -68,6 +70,7 @@ do {									  \
 } while(0)
 
 
+
 #define FREE_URL_ELEMENT(bu, element)		\
 {						\
   if (!BK_URL_IS_VPTR(bu))			\
@@ -76,7 +79,6 @@ do {									  \
   }						\
   memset(&(element), 0, sizeof(element));	\
 }
-
 
 
 
@@ -489,7 +491,7 @@ bk_url_destroy(bk_s B, struct bk_url *bu)
  * For security reasons, % escapes that encode control characters (i.e. %00
  * through %1F, and %7F) are <em>not</em> expanded.  Illegal % escapes
  * (e.g. %GB, %%) are not altered (the string "%%20" is expanded as "% ", as
- * the first % is not a legal escape, but the second one is).
+ * the first % is not a legal escape, but second one is).
  *
  * <TODO>This should be integrated with bk_url_parse and enabled/disabled with
  * a flag, but it is incompatible with the BkUrlParseVptr mode, since a copy of
@@ -499,10 +501,38 @@ bk_url_destroy(bk_s B, struct bk_url *bu)
  *	@param B BAKA thread/global state.
  *	@param component The url component string (may be NULL)
  *	@return <i>NULL</i> on failure<br>
- *	@return a new @a bk_url on success.
+ *	@return unescaped, NUL-terminated, string on success
  */
 char *
 bk_url_unescape(bk_s B, const char *component)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!component)				// handle this gracefully
+    BK_RETURN(B, calloc(1,1));
+
+  BK_RETURN(B, bk_url_unescape_len(B, component, strlen(component)));
+}
+
+
+
+/**
+ * Expand % escapes in a component of URL.
+ *
+ * This function creates a length-bounded copy of a string with rfc2396 %
+ * escapes expanded.  For security reasons, % escapes that encode control
+ * characters (i.e. %00 through %1F, and %7F) are <em>not</em> expanded.
+ * Illegal % escapes (e.g. %GB, %%) are not altered (the string "%%20" is
+ * expanded as "% ", as the first % is not a legal escape, but second one is).
+ *
+ *	@param B BAKA thread/global state.
+ *	@param component The url component string (may be NULL)
+ *	@param len Length of url component string
+ *	@return <i>NULL</i> on failure<br>
+ *	@return unescaped, NUL-terminated, string on success
+ */
+char *
+bk_url_unescape_len(bk_s B, const char *component, size_t len)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *expanded;
@@ -511,13 +541,13 @@ bk_url_unescape(bk_s B, const char *component)
   if (!component)				// handle this gracefully
     BK_RETURN(B, calloc(1,1));
 
-  if (!(expanded = malloc(strlen(component) + 1))) // may be a bit too big, ok
+  if (!(expanded = malloc(len + 1))) // may be a bit too big, ok
   {
     bk_error_printf(B, BK_ERR_ERR, "could not allocate unescaped URL component\n");
     BK_RETURN(B, NULL);
   }
 
-  for (copy = expanded; *component; copy++, component++)
+  for (copy = expanded; *component && len--; copy++, component++)
   {
     if (*component == '%' && isxdigit(component[1]) && isxdigit(component[2]))
     {
@@ -526,6 +556,7 @@ bk_url_unescape(bk_s B, const char *component)
       convert[0] = component[1];
       convert[1] = component[2];
       convert[2] = '\0';
+      // escaped control characters are silently omitted
       if (!iscntrl((val = strtoul(convert, NULL, 16))))
       {
 	*copy = val;
@@ -544,81 +575,39 @@ bk_url_unescape(bk_s B, const char *component)
 
 
 /**
- * Same as above with a len argument;
- *
- *	@param B BAKA thread/global state.
- *	@param component The component string (may be NULL).
- *	@param len The length not to go beyond.
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
- */
-char *
-bk_url_unescape_len(bk_s B, const char *component, u_int len)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char *tmp = NULL;
-  char *ret;
-
-  // Handle gracefully.
-  if (!component)
-    goto error;
-
-  if (!(BK_CALLOC_LEN(tmp, len+1)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate temporary copy: %s\n", strerror(errno));
-    goto error;
-  }
-
-  if (!strncpy(tmp, component, len))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "strncpy failed(?!): %s\n", strerror(errno));
-    goto error;
-  }
-  
-  ret = bk_url_unescape(B, tmp);
-
-  free(tmp);
-  BK_RETURN(B, ret);
-  
- error:
-  if (tmp)
-    free(tmp);
-  // Alex wants it to be done this way.
-  BK_RETURN(B, calloc(1,1));
-}
-
-
-
-
-
-/**
- * Parse semicolon delimited parameters of URL.
+ * Parse delimited parameters of URL.
  *
  * This function, whose interface and implementation are brazenly stolen from
  * getsubopt(), parses URL parameters from a path component which has been
  * extracted from a URL by @a bk_url_parse.
  *
- * These parameters must be separated by semicolons and may consist of either a
+ * These parameters must be separated by delimiters and may consist of either a
  * single token, or a token-value pair separated by an equal sign.  Because
- * semicolons delimit parameters in the path, they are not allowed to be part
- * of the parameter name or the value of a parameter (semicolons can be escaped
- * as %3B).  Similarly, because the equal sign separates a parameter name from
+ * delimiters delimit parameters in the path, they are not allowed to be part
+ * of the parameter name or the value of a parameter (delimiters can be escaped
+ * using %).  Similarly, because the equal sign separates a parameter name from
  * its value, a parameter name must not contain an equal sign (equals signs can
- * be escaped as %3D).  For correct parsing when escaped semicolon or equals
+ * be escaped as %3D).  For correct parsing when escaped delimiter or equals
  * are present, the supplied path string should <em>not</em> be unescaped.
  *
  * This function takes the address of a pointer to the path string, an array of
  * possible tokens, and the address of a value string pointer.  If the path
  * string at @a *pathp contains only one parameter, this function updates @a
  * *pathp to point to the null at the end of the string.  Otherwise, it
- * isolates the parameter by replacing the semicolon separator with a null, and
- * updates @a *pathp to point to the start of the next parameter.  If the
- * parameter has an associated value, this function updates @a *valuep to point
- * to the value's first character.  Otherwise it sets @a *valuep to a null
- * pointer.
+ * isolates the parameter by replacing the delimiter with a null, and updates
+ * @a *pathp to point to the start of the next parameter.  If the parameter has
+ * an associated value, this function updates @a *valuep to point to the
+ * value's first character.  Otherwise it sets @a *valuep to a null pointer.
  *
  * The token array is organised as a series of pointers to strings.  The end
- * of the token array is identified by a null pointer.
+ * of the token array is identified by a null pointer.  An empty token ("")
+ * (except as the first token) indicates that all following tokens are case
+ * independent
+ * ignored (except for specifying a delimiter as noted below).
+ *
+ * The default delimiter is ';' (semicolon).  If an alternate delimiter is
+ * desired, the first token should be the string NUL delim NUL (e.g. to specify
+ * ',' (comma) as delimiter, the first token should be "\0,".
  *
  * On a successful return, if @a *valuep is not a null pointer then the
  * parameter processed included a value.  The calling program may use this
@@ -647,6 +636,9 @@ int
 bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char delim = PARAM_DELIM;
+  int (*compare)(const char *, const char *) = strcmp;
+  char * const *tokenstart;
   char *param;
   char *p;
   int cnt;
@@ -659,14 +651,19 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
 
   param = *valuep = NULL;
 
-  if (!pathp || !*pathp)
+  if (!tokens || !pathp || !*pathp)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
-  /* skip leading white-space, semicolons */
-  for (p = *pathp; *p && (*p == ';' || *p == ' ' || *p == '\t'); ++p)
+  /* check for alternate delimiter */
+  if (*tokens && (*tokens)[0] == '\0'
+      && (*tokens)[1] != '\0' && (*tokens)[2] == '\0')
+    delim = (*tokens++)[1];
+
+  /* skip leading white-space, delimiters */
+  for (p = *pathp; *p && (*p == delim || *p == ' ' || *p == '\t'); ++p)
     /* empty */;
 
   if (!*p) 
@@ -677,7 +674,7 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
 
   /* save the start of the token, and skip the rest of the token */
   for (param = p;
-       *++p && *p != ';' && *p != '=' && *p != ' ' && *p != '\t';);
+       *++p && *p != delim && *p != '=' && *p != ' ' && *p != '\t';);
 
   if (*p) 
   {
@@ -690,36 +687,53 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
     {
       *p = '\0';
       for (*valuep = ++p;
-	   *p && *p != ';' && *p != ' ' && *p != '\t'; ++p);
+	   *p && *p != delim && *p != ' ' && *p != '\t'; ++p);
       if (*p) 
 	*p++ = '\0';
     } 
     else
       *p++ = '\0';
-    /* Skip any whitespace or semicolons after this token. */
-    for (; *p && (*p == ';' || *p == ' ' || *p == '\t'); ++p)
+    /* Skip any whitespace or delimiters after this token. */
+    for (; *p && (*p == delim || *p == ' ' || *p == '\t'); ++p)
       /* empty */;
   }
 
   /* set pathp for next round */
   *pathp = p;
 
-  for (cnt = 0; *tokens; ++tokens, ++cnt)
-    if (!strcmp(param, *tokens))
-      BK_RETURN(B, cnt);
+  if (*param)					// never match "empty" token
+  {
+    tokenstart = tokens;
 
-  /* if parameter unrecognized, try unescaping and rescan if different */
-
-  if ((p = bk_url_unescape(B, param)) && strcmp(p, param))
     for (cnt = 0; *tokens; ++tokens, ++cnt)
-      if (!strcmp(param, *tokens))
-      {
-	free(p);
-	BK_RETURN(B, cnt);
-      }
+    {
+      if (!**tokens)				// empty token => case indep.
+	compare = strcasecmp;
+      if (!compare(param, *tokens))
+	BK_RETURN(B, cnt + (delim != PARAM_DELIM));
+    }
 
-  if (p)
-    free(p);
+    /* if parameter unrecognized, try unescaping and rescan if different */
+
+    if ((p = bk_url_unescape(B, param)) && strcmp(p, param))
+    {
+      compare = strcmp;				// reset case dependent
+      tokens = tokenstart;			// restart token list
+
+      for (cnt = 0; *tokens; ++tokens, ++cnt)
+      {
+	if (!**tokens)				// empty token => case indep.
+	  compare = strcasecmp;
+	if (!compare(p, *tokens))
+	{
+	  free(p);
+	  BK_RETURN(B, cnt + (delim != PARAM_DELIM));
+	}
+      }
+    }
+    if (p)
+      free(p);
+  }
 
   /* on unrecognized param, restore '=' (if any), set *valuep to bad param */
   if (*valuep)
