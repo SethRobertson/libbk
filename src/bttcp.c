@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.45 2004/04/08 21:03:45 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.46 2004/06/07 17:16:20 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -632,6 +632,15 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 		       BK_FLAG_ISSET(pc->pc_flags, PC_MULTICAST_NOMEMBERSHIP)?BK_MULTICAST_NOJOIN:0) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not turn on multicast options after socket creation\n");
+	BK_RETURN(B, -1);
+      }
+    }
+    else if (pc->pc_multicast_ttl > 1)
+    {
+      // OK this is a stupid overloading hack, but I don't think it is a generally useful option
+      if (setsockopt(sock, IPPROTO_IP, IP_TTL, &pc->pc_multicast_ttl, sizeof(pc->pc_multicast_ttl)) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not set IP ttl preference to %d: %s\n", pc->pc_multicast_ttl, strerror(errno));
 	BK_RETURN(B, -1);
       }
     }
