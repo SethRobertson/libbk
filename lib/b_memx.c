@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_memx.c,v 1.4 2001/11/06 22:56:04 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_memx.c,v 1.5 2001/11/07 21:35:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,6 +23,21 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+
+
+/**
+ * Information about an extendible buffer being managed
+ */
+struct bk_memx
+{
+  void		*bm_array;			///< Extensible memory
+  size_t	bm_unitsize;			///< Size of units
+  size_t	bm_curalloc;			///< Allocated memory
+  size_t	bm_curused;			///< Current used
+  u_int		bm_incr;			///< Increment amount
+  bk_flags	bm_flags;			///< Fun for the future
+};
 
 
 

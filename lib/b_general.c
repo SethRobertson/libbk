@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.20 2001/11/06 23:00:53 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.21 2001/11/07 21:35:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,12 +26,28 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-extern char **environ;				/**< Some morons (e.g. linux) do not define the environment */
-
-
-
 static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***argv, char ***envp, char **program, bk_flags flags);
 static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_flags flags);
+
+
+
+/**
+ * Process title information--saved arguments, environment, and current title
+ */
+struct bk_proctitle
+{
+  int		bp_argc;			///< Number of program arguments
+  char		**bp_argv;			///< Program and arguments
+  char		**bp_envp;			///< Environment
+  bk_vptr	bp_title;			///< Original vector for overwriting
+  bk_flags	bp_flags;			///< Flags
+#define BK_PROCTITLE_OFF	1		///< Process title is disabled
+};
+
+
+
+extern char **environ;				/**< Some morons (e.g. linux) do not define the environment */
+
 
 
 /**
@@ -67,10 +83,9 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
   if (!(B = bk_general_thread_init(NULL, "*MAIN*")))
     goto error;
 
-  BK_MALLOC(BK_BT_GENERAL(B));
-
-  if (!BK_BT_GENERAL(B))
+  if (!BK_MALLOC(BK_BT_GENERAL(B)))
     goto error;
+  BK_ZERO(BK_BT_GENERAL(B));
 
   BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
 
@@ -253,13 +268,13 @@ bk_s bk_general_thread_init(bk_s B, char *name)
     return(NULL);
   }
 
-  BK_MALLOC(B1);
-  if (!B1)
+  if (!BK_MALLOC(B1))
   {
     if (B)
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate new bk_thread information\n");
     return(NULL);
   }
+  BK_ZERO(B1);
 
   if (!(BK_BT_FUNSTACK(B1) = bk_fun_init()))
     goto error;
@@ -494,12 +509,12 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_proctitle *PT;
 
-  BK_MALLOC(PT);
-  if (!PT)
+  if (!BK_MALLOC(PT))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate proctitle buffer: %s\n",strerror(errno));
     BK_RETURN(B, (struct bk_proctitle *)NULL);
   }
+  BK_ZERO(PT);
 
   PT->bp_argc = argc;
   PT->bp_argv = argv?*argv:NULL;

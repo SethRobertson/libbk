@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_debug.c,v 1.10 2001/11/06 20:31:14 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_debug.c,v 1.11 2001/11/07 21:35:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,7 +26,31 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-#define MAXDEBUGLINE 8192
+#define MAXDEBUGLINE 8192			///< Maximum number of bytes of debugging information produced in one call
+
+
+
+/**
+ * Information about the current state debugging in the program
+ */
+struct bk_debug
+{
+  dict_h	bd_leveldb;			///< Debugging levels by fun/grp/pkg/prg
+  u_int32_t	bd_defaultlevel;		///< Default debugging level
+  FILE		*bd_fh;				///< Debugging info file handle
+  int		bd_sysloglevel;			///< Debugging syslog level
+  bk_flags	bd_flags;			///< Fun for the future
+};
+
+
+/**
+ * Information about one particular debugging name/value pair
+ */
+struct bk_debugnode
+{
+  char		*bd_name;			///< Name to debug
+  u_int32_t	bd_level;			///< Level to debug at
+};
 
 
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.6 2001/11/06 22:56:04 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.7 2001/11/07 21:35:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,6 +23,125 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+
+
+/**
+ * Information about a particular event which will be executed at some future point
+ */
+struct br_equeue
+{
+  struct timeval	bre_when;		///< Time to run event
+  void			(*bre_event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags); ///< Event to run
+  void			*bre_opaque;		///< Data for opaque
+};
+
+
+/**
+ * Opaque data for cron job event queue function.  Data containing information about
+ * true user callback which is scheduled to run at certain interval.
+ */
+struct br_equeuecron
+{
+  time_t		brec_interval;		///< usec Interval timer--max one hour
+  void			(*brec_event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags); ///< Event to run
+  void			*brec_opaque;		///< Data for opaque
+  struct br_equeue	*brec_equeue;		///< Current event
+};
+
+
+/**
+ * Function to be called syncronously out of bk_run after an async
+ * signal was received--implements safe ways of performing complex
+ * functionality when signals are received.
+ */
+struct br_sighandler
+{
+  void			(*brs_handler)(bk_s B, struct bk_run *run, int signum, void *opaque, struct timeval starttime); ///< Handler
+  void			*brs_opaque;		///< Opaque data
+};
+
+
+/**
+ * Association between a file descriptor (or handle) and a callback
+ * provide the service. Note that when windows compatability is
+ * required, the fd must be replaced by a struct bk_iodescriptor
+ */
+struct bk_run_fdassoc
+{
+  int			brf_fd;			///< Fd we are handling
+  void		      (*brf_handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottype, void *opaque, struct timeval starttime);		///< Function to handle
+  void		       *brf_opaque;		///< Opaque information
+};
+
+
+/**
+ * All information known about events on the system.  Note that when
+ * windows compatability is required, the fd_sets must be supplimented
+ * by a list of bk_iodescriptors obtaining the various read/write/xcpt
+ * requirements since these may not be expressable in an fdset.
+ */
+struct bk_run
+{
+  fd_set		br_readset;		///< FDs interested in this operation
+  fd_set		br_writeset;		///< FDs interested in this operation
+  fd_set		br_xcptset;		///< FDs interested in this operation
+  int			br_selectn;		///< Highest FD (+1) in fdsets
+  dict_h		br_fdassoc;		///< FD to callback association
+  dict_h		br_poll_funcs;		///< Poll functions
+  dict_h		br_ondemand_funcs;	///< On demands functions
+  dict_h		br_idle_funcs;		///< Idle tasks (nothing else to do)
+  pq_h			*br_equeue;		///< Event queue
+  volatile u_int8_t	br_signums[NSIG];	///< Number of signal events we hx]ave received
+  struct br_sighandler	br_handlerlist[NSIG];	///< Handlers for signals
+  bk_flags		br_flags;		///< General flags
+#define BK_RUN_FLAG_RUN_OVER		0x1	///< bk_run_run should terminate
+#define BK_RUN_FLAG_NEED_POLL		0x2	///< Execute poll list
+#define BK_RUN_FLAG_CHECK_DEMAND	0x4	///< Check demand list
+#define BK_RUN_FLAG_HAVE_IDLE		0x8	///< Run idle task
+#define BK_RUN_FLAG_NOTIFYANYWAY	0x10	///< Notify caller if handed off*/
+};
+
+
+/**
+ * Information about a polling or idle function known to the run environment
+ */
+struct bk_run_func
+{
+  void *	brfn_key;
+  int		(*brfn_fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags);
+  void *	brfn_opaque;
+  bk_flags	brfn_flags;
+  dict_h	brfn_backptr;
+};
+
+
+/**
+ * Information about an on-demand function known to the run environment
+ */
+struct bk_run_ondemand_func
+{
+  void *		brof_key;
+  int			(*brof_fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime, bk_flags flags);
+  void *		brof_opaque;
+  volatile int *	brof_demand;
+  bk_flags		brof_flags;
+  dict_h		brof_backptr;
+};
+
+
+/**
+ * Process title information--saved arguments, environment, and current title
+ */
+struct bk_proctitle
+{
+  int		bp_argc;			///< Number of program arguments
+  char		**bp_argv;			///< Program and arguments
+  char		**bp_envp;			///< Environment
+  bk_vptr	bp_title;			///< Original vector for overwriting
+  bk_flags	bp_flags;			///< Flags
+#define BK_PROCTITLE_OFF	1		///< Process title is disabled
+};
 
 
 
@@ -405,7 +524,7 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
 
 
 /**
- * Enqueue an event for a future action.
+ * Enqueue an event for a future action--note this can only enqueue events up to one hour away
  *
  *	@param B BAKA thread/global state 
  *	@param run The baka run environment state
@@ -440,7 +559,7 @@ int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(
 
 
 /**
- * Set up a reoccurring event at a periodic interval.
+ * Set up a reoccurring event at a periodic interval--note this can only enqueue events up to one hour apart
  *
  *	@param B BAKA thread/global state 
  *	@param run The baka run environment state
@@ -623,7 +742,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
       if (ret == 1)
       {
-	if (!use_deltapoll || (BK_TV2F(&tmp_deltapoll) < BK_TV2F(&deltapoll)))
+	if (!use_deltapoll || (BK_TV_CMP(&tmp_deltapoll, &deltapoll) < 0))
 	{
 	  deltapoll=tmp_deltapoll;
 	}
@@ -661,7 +780,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
      * Use the shorter delta (between event and poll) if there's a deltapoll
      * at to be concerned about or ...
      */
-    if (use_deltapoll && BK_TV2F(&deltapoll) < BK_TV2F(&deltaevent))
+    if (use_deltapoll && (BK_TV_CMP(&deltapoll, &deltaevent) < 0))
     {
       selectarg = &deltapoll;     
     }
@@ -1314,12 +1433,12 @@ brfn_alloc(bk_s B)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_run_func *brfn;
 
-  BK_MALLOC(brfn);
-  if (!brfn)
+  if (!BK_MALLOC(brfn))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
   }
+  BK_ZERO(brfn);
 
   brfn->brfn_key=brfn;
 
@@ -1456,12 +1575,12 @@ brof_alloc(bk_s B)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_run_ondemand_func *brof;
 
-  BK_MALLOC(brof);
-  if (!brof)
+  if (!BK_MALLOC(brof))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
   }
+  BK_ZERO(brof);
 
   BK_RETURN(B,brof);
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_funlist.c,v 1.3 2001/11/06 20:31:14 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_funlist.c,v 1.4 2001/11/07 21:35:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,6 +23,27 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+
+
+/**
+ * General function list information
+ */
+struct bk_funlist
+{
+  dict_h	bf_list;			///< Function list
+  bk_flags	bf_flags;			///< Fun for the future
+};
+
+
+/**
+ * Information about a particular function in the function list
+ */
+struct bk_fun
+{
+  void		(*bf_fun)(bk_s B, void *args, u_int aux);	///< Callback function
+  void		*bf_args;					///< Opaque callback arguments
+};
 
 
 

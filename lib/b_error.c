@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.10 2001/11/06 22:15:50 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.11 2001/11/07 21:35:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -30,6 +30,39 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 #define MAXERRORLINE 8192
+
+
+
+/**
+ * Information about the general state of errors in the system
+ */
+struct bk_error
+{
+  FILE		*be_fh;				///< Error info file handle
+  u_int		be_seqnum;			///< Sequence number
+  dict_h	be_markqueue;			///< Queue of high priority error messages
+  dict_h	be_hiqueue;			///< Queue of high priority error messages
+  dict_h	be_lowqueue;			///< Queue of low priority error messages
+  char		be_hilo_pivot;			///< Pivot value
+#define BK_ERROR_PIVOT	BK_ERR_ERR		///< Default HI-LO pivot
+  char		be_sysloglevel;			///< Error syslog level
+  u_short	be_curHiSize;			///< Current queue size
+  u_short	be_curLowSize;			///< Current queue size
+  u_short	be_maxsize;			///< Maximum queue size
+  bk_flags	be_flags;			///< Flags
+};
+
+
+/**
+ * Information about one particular error message
+ */
+struct bk_error_node
+{
+  time_t	ben_time;			///< Timestamp
+  u_int		ben_seq;			///< Sequence number
+  int		ben_level;			///< Level of message
+  char		*ben_msg;			///< Actual message
+};
 
 
 
@@ -164,7 +197,7 @@ void bk_error_destroy(bk_s B, struct bk_error *beinfo)
  *	@param fh The stdio file handle to print error messages to when errors occur (typically for debugging)
  *	@param syslogthreshhold The syslog level which high priority error messages will be logged at (NONE to disable logging)
  *	@param hilo_pivot The BK_ERR level which seperates messages into the high and low error queues (default BK_ERR_ERR which means BK_ERR_WARN messages and less important go into the low priority queue).
- *	@param flags Flags for future expansion--saved through run structure.
+ *	@param flags Controls which of the previous configuration values are set (BK_ERROR_(FH, HILO_PIVOT, SYSLOGTHRESHHOLD, QUEUELEN))
 */
 void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, int syslogthreshhold, int hilo_pivot, bk_flags flags)
 {

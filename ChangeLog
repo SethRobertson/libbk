@@ -1,3 +1,11 @@
+2001-11-07  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_general.c: Convert BK_MALLOC to new semantic
+	* lib/b_run.c: Convert BK_MALLOC to new semantic
+	(bk_run_once): Convert to BK_TV_CMP instead of using float comparison
+
+	* lib/b_config.c: Convert BK_MALLOC to new semantic
+
 2001-11-06  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* test/test_getbyfoo.c (progrun): test program for getbyfoo

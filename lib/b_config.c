@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.15 2001/11/06 22:15:50 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.16 2001/11/07 21:35:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,9 +16,6 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
-#include <libbk.h>
-#include "libbk_internal.h"
-
 /**
  * @file
  * This module implements the BAKA config file facility. Config files are
@@ -34,14 +31,89 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * Blank lines are ignored.
  */
 
-
-#define SET_CONFIG(b,B,c) do { if (!(c)) { (b)=BK_GENERAL_CONFIG(B); } else { (b)=(c); } } while (0)
-#define LINELEN 1024
-#define CONFIG_MANAGE_FLAG_NEW_KEY	0x1
-#define CONFIG_MANAGE_FLAG_NEW_VALUE	0x2
+#include <libbk.h>
+#include "libbk_internal.h"
 
 
+#define SET_CONFIG(b,B,c) do { if (!(c)) { (b)=BK_GENERAL_CONFIG(B); } else { (b)=(c); } } while (0) ///< Set the configuration database to use--either from BAKA or from passed-in
+#define LINELEN 1024				///< Maximum size of one configuration line
+#define CONFIG_MANAGE_FLAG_NEW_KEY	0x1	///< Internal state info required for config_manage cleanup
+#define CONFIG_MANAGE_FLAG_NEW_VALUE	0x2	///< Internal state info required for config_manage cleanup
+#define BK_CONFIG_SEPARATOR	"="		///< Default configuration seperator
+#define BK_CONFIG_INCLUDE_TAG	"#include"	///< Default include-command key
 
+
+
+/**
+ * General configuration information
+ */
+struct bk_config
+{
+  bk_flags			bc_flags;	///< Everyone needs flags
+  struct bk_config_fileinfo *	bc_bcf;		///< Files of conf data
+  dict_h			bc_kv;		///< Hash of value dlls
+  int				bc_kv_error;	///< clc errno for bc_kv
+  struct bk_config_user_pref 	bc_bcup;	///< User prefrences
+};
+
+
+/**
+ * Information about the files parsed when creating this configuration group
+ */
+struct bk_config_fileinfo
+{
+  bk_flags	       		bcf_flags;	///< Everyone needs flags
+  char *			bcf_filename;	///< File of data
+  dict_h			bcf_includes;	///< Included files
+  struct bk_config_fileinfo *	bcf_insideof;	///< What file am I inside of
+  struct stat			bcf_stat;	///< Stat struct
+};
+
+
+/**
+ * Information about a specific key found when parsing the configuration file
+ */
+struct bk_config_key
+{
+  char *			bck_key;	///< Key string
+  bk_flags			bck_flags;	///< Everyone needs flags
+  dict_h			bck_values;	///< dll of values of this key
+};
+
+
+/**
+ * A individual value for a key.
+ *
+ * <TODO>Doesn't this need a bk_config_fileinfo ptr as well, to
+ * give context to the lineno?  Or is the lineno monotomically increasing?</TODO>
+ */
+struct bk_config_value
+{
+  char *			bcv_value;	///< Value string
+  bk_flags			bcv_flags;	///< Everyone needs flags
+  u_int				bcv_lineno;	///< Where value is in file
+};
+
+
+
+static struct bk_config_fileinfo *bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf);
+static void bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf);
+static int load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *bcf);
+static struct bk_config_key *bck_create(bk_s B, const char *key, bk_flags flags);
+static void bck_destroy(bk_s B, struct bk_config_key *bck);
+static struct bk_config_value *bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags);
+static void bcv_destroy(bk_s B, struct bk_config_value *bcv);
+static int config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, const char *ovalue, u_int lineno);
+static int check_for_double_include(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *cur_bcf, struct bk_config_fileinfo *new_bcf);
+
+
+
+/**
+ * @name Defines: config_kv_clc
+ * Key-value database CLC definitions
+ * to hide CLC choice.
+ */
+// @{
 #define config_kv_create(o,k,f,a)	ht_create((o),(k),(f),(a))
 #define config_kv_destroy(h)		ht_destroy(h)
 #define config_kv_insert(h,o)		ht_insert((h),(o))
@@ -58,14 +130,20 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define config_kv_nextobj(h,i)		ht_nextobj((h),(i))
 #define config_kv_iterate_done(h,i)	ht_iterate_done((h),(i))
 #define config_kv_error_reason(h,i)	ht_error_reason((h),(i))
-
 static int kv_oo_cmp(void *bck1, void *bck2);
 static int kv_ko_cmp(void *a, void *bck2);
 static ht_val kv_obj_hash(void *bck);
 static ht_val kv_key_hash(void *a);
 static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
+// @}
 
 
+/**
+ * @name Defines: config_values_clc
+ * list of values for a particular key CLC definitions
+ * to hide CLC choice.
+ */
+// @{
 #define config_values_create(o,k,f)		dll_create((o),(k),(f))
 #define config_values_destroy(h)		dll_destroy(h)
 #define config_values_insert(h,o)		dll_insert((h),(o))
@@ -82,20 +160,9 @@ static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
 #define config_values_nextobj(h,i)		dll_nextobj((h),(i))
 #define config_values_iterate_done(h,i)		dll_iterate_done((h),(i))
 #define config_values_error_reason(h,i)		dll_error_reason((h),(i))
-
 static int bcv_oo_cmp(void *bck1, void *bck2);
 static int bcv_ko_cmp(void *a, void *bck2);
-
-
-static struct bk_config_fileinfo *bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf);
-static void bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf);
-static int load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *bcf);
-static struct bk_config_key *bck_create(bk_s B, const char *key, bk_flags flags);
-static void bck_destroy(bk_s B, struct bk_config_key *bck);
-static struct bk_config_value *bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags);
-static void bcv_destroy(bk_s B, struct bk_config_value *bcv);
-static int config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, const char *ovalue, u_int lineno);
-static int check_for_double_include(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *cur_bcf, struct bk_config_fileinfo *new_bcf);
+// @}
 
 
 
@@ -123,13 +190,12 @@ bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, b
     BK_RETURN(B, NULL);
   }
   
-  BK_MALLOC(bc);
-
-  if (!bc)
+  if (!BK_MALLOC(bc))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bc: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
   }
+  BK_ZERO(bc);
 
   /* Create kv clc */
   if (!(bc->bc_kv=config_kv_create(kv_oo_cmp, kv_ko_cmp, DICT_UNORDERED, &kv_args)))
@@ -630,13 +696,12 @@ bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf)
     BK_RETURN(B, NULL);
   }
 
-  BK_MALLOC(bcf);
-
-  if (!bcf)
+  if (!BK_MALLOC(bcf))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bcf: %s\n", strerror(errno));
     goto error;
   }
+  BK_ZERO(bcf);
   
   if (!(bcf->bcf_filename=strdup(filename)))
   {
@@ -712,13 +777,12 @@ bck_create(bk_s B, const char *key, bk_flags flags)
     BK_RETURN(B, NULL);
   }
   
-  BK_MALLOC(bck);
-  
-  if (!bck)
+  if (!BK_MALLOC(bck))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bck: %s\n", strerror(errno));
     goto error;
   }
+  BK_ZERO(bck);
 
   if (!(bck->bck_key=strdup(key)))
   {
@@ -802,12 +866,12 @@ bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags)
     BK_RETURN(B,NULL);
   }
 
-  BK_MALLOC(bcv);
-  if (!bcv)
+  if (!BK_MALLOC(bcv))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bcv: %s\n", strerror(errno));
     goto error;
   }
+  BK_ZERO(bcv);
 
   if (!(bcv->bcv_value=strdup(value)))
   {
