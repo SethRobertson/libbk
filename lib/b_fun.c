@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char baka__rcsid[] = "$Id: b_fun.c,v 1.1 2001/05/30 01:23:07 seth Exp $";
-static char baka__copyright[] = "Copyright (c) 2001";
-static char baka__contact[] = "<projectbaka@baka.org>";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.2 2001/06/08 22:11:03 seth Exp $";
+static char libbk__copyright[] = "Copyright (c) 2001";
+static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
- * ++Copyright BAKA++
+ * ++Copyright LIBBK++
  *
  * Copyright (c) 2001 The Authors.  All rights reserved.
  *
@@ -13,9 +13,11 @@ static char baka__contact[] = "<projectbaka@baka.org>";
  *
  * Mail <projectbaka@baka.org> for further information
  *
- * --Copyright BAKA--
+ * --Copyright LIBBK--
  */
 
-#include <baka.h>
-#include "baka_internal.h"
+#include <libbk.h>
+#include "libbk_internal.h"
+
+
 

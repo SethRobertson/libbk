@@ -1,5 +1,5 @@
 /*
- * ++Copyright BAKA++
+ * ++Copyright LIBBK++
  *
  * Copyright (c) 2001 The Authors.  All rights reserved.
  *
@@ -8,22 +8,22 @@
  *
  * Mail <projectbaka@baka.org> for further information
  *
- * --Copyright BAKA--
+ * --Copyright LIBBK--
  */
 
-#ifndef _baka_internal_h_
-#define _baka_internal_h_
+#ifndef _libbk_internal_h_
+#define _libbk_internal_h_
 
 
 
 /* b_config.h */
-struct baka_config
+struct bk_config
 {
   char 			*bc_filename;		/* Filename for re-read */
-  dict_h		bc_keylist;		/* List of keys (baka_config_key) */
+  dict_h		bc_keylist;		/* List of keys (bk_config_key) */
 };
 
-struct baka_config_key
+struct bk_config_key
 {
   char			*bc_key;		/* Key for values */
   char			*bc_getnext;		/* State for getnext */
@@ -33,46 +33,46 @@ struct baka_config_key
 
 
 /* b_debug.c */
-struct baka_debug
+struct bk_debug
 {
   FILE		*bd_fh;				/* Debugging info file handle */
   u_char	bd_sysloglevel;			/* Debugging syslog level */
-  bakaflags	bd_flags;			/* Flags */
+  bk_flags	bd_flags;			/* Flags */
 };
 
 
 
 /* b_error.c */
-struct baka_error
+struct bk_error
 {
   FILE		*be_fh;				/* Debugging info file handle */
   u_char	be_sysloglevel;			/* Debugging syslog level */
   dict_h	be_queue;			/* Queue of error messages */
   u_short	be_cursize;			/* Current queue size */
   u_short	be_maxsize;			/* Maximum queue size */
-  bakaflags	be_flags;			/* Flags */
+  bk_flags	be_flags;			/* Flags */
 };
 
 
 
 /* b_funlist.c */
-struct baka_funlist
+struct bk_funlist
 {
   dict_h	bf_list;			/* Function list */
-  bakaflags	bf_flags;			/* Flags */
+  bk_flags	bf_flags;			/* Flags */
 };
 
 /* Function info */
-struct baka_fun
+struct bk_fun
 {
-  void		(*bf_fun)(baka B, void *args, u_int aux);
+  void		(*bf_fun)(bk_s B, void *args, u_int aux);
   void		*bf_args;
 };
 
 
 
 /* b_run.c */
-struct baka_run
+struct bk_run
 {
   fd_set		br_readset;		/* FDs interested in this operation */
   fd_set		br_writeset;		/* FDs interested in this operation */
@@ -88,7 +88,7 @@ struct baka_run
   u_int16_t		br_eq_maxsize;		/* Equeue current size */
   u_int8_t		br_signums[NSIG];	/* Number of signal events we have received */
   struct br_sighandler	br_handlerlist[NSIG];	/* Handlers for signals */
-  baka_flags		br_flags;		/* General flags */
+  bk_flags		br_flags;		/* General flags */
 };
 
 /* Event queue structure */
@@ -116,4 +116,4 @@ struct br_sighandler
   void			*brs_opaque;		/* Opaque data */
 };
 
-#endif /* _baka_h_ */
+#endif /* _libbk_h_ */

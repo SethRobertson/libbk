@@ -1,5 +1,5 @@
 /*
- * ++Copyright BAKA++
+ * ++Copyright LIBBK++
  *
  * Copyright (c) 2001 The Authors.  All rights reserved.
  *
@@ -8,11 +8,11 @@
  *
  * Mail <projectbaka@baka.org> for further information
  *
- * --Copyright BAKA--
+ * --Copyright LIBBK--
  */
 
-#ifndef _baka_include_h_
-#define _baka_include_h_
+#ifndef _libbk_include_h_
+#define _libbk_include_h_
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,4 +63,4 @@
 #include "ht.h"
 #include "pq.h"
 
-#endif /* _baka_include_h_ */
+#endif /* _libbk_include_h_ */
