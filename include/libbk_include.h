@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.23 2002/03/26 23:21:19 dupuy Exp $
+ * $Id: libbk_include.h,v 1.24 2002/04/08 17:32:45 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -16,6 +16,8 @@
 #ifndef _libbk_include_h_
 #define _libbk_include_h_
 
+
+#define _GNU_SOURCE				// turn on all GNU extensions
 
 #if defined(__INSURE__) && defined(__linux__)
 /*
@@ -60,7 +62,6 @@
 #define u_int64_t __uint64_t
 
 #endif /* __INSURE__ */
-
 
 #include <stdio.h>
 #include <stdlib.h>
