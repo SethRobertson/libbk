@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.39 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.40 2003/06/18 21:08:51 brian Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -708,6 +708,7 @@ void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
+  tode = NULL; // use to avoid deprecated use warnings w/o threads
 }
 
 
@@ -762,6 +763,7 @@ void bk_error_imark(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags 
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
+  node = NULL; // use to avoid deprecated label use warning w/o THREADS
 }
 
 
@@ -933,6 +935,7 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, const char *mark,
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
+  hi = NULL; // use to avoid deprecated label use w/o threads
 }
 
 

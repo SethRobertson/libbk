@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_child.c,v 1.6 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_child.c,v 1.7 2003/06/18 21:08:51 brian Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -401,11 +401,13 @@ int bk_child_istart(bk_s B, struct bk_child *bchild, void (*cc_callback)(bk_s B,
 
   if (0)
   {
+    int i; // keep here to avoid deprecated label usage warnings
   lockerror:
 #ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_unlock(&bchild->bc_lock) != 0)
       abort();
 #endif /* BK_USING_PTHREADS */
+    i=0; // keep here to avoid deprecated label usage warnings
   }
 
  error:
