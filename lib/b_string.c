@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.24 2002/02/07 22:31:09 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.25 2002/02/11 19:42:05 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,11 +24,6 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 #include <math.h>
-
-/**
- * @file
- * String utilites
- */
 
 
 #define TOKENIZE_FIRST		8		///< How many we will start with 
@@ -64,20 +59,20 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
  *
  * Note we may not be applying modulus in this function since this is
  * normally used by CLC functions, CLC will supply its own modulus and
- * it is bad voodoo to double modulus if the moduluses are different.
+ * it is bad voodoo to double modulus if the moduli are different.
  *
  *	@param a The string to be hashed
- *	@param flags Whether we want this value to be moduloused by a large prime
+ *	@param flags Whether we want this value to be modulo a large prime
  *	@return <i>hash</i> of number
  */
 u_int 
 bk_strhash(const char *a, bk_flags flags)
 {
-  const u_int M = (unsigned)37U;		/* Multiplier */
-  const u_int P = (unsigned)2147486459U;	/* Arbitrary large prime */
+  const u_int M = 37U;				// Multiplier
+  const u_int P = 2147486459U;			// Arbitrary large prime
   u_int h;
 
-  for (h = 0; *a; a++)
+  for (h = 17; *a; a++)
     h = h * M + *a;
 
   if (BK_FLAG_ISSET(flags, BK_STRHASH_NOMODULUS))
@@ -103,8 +98,8 @@ bk_strhash(const char *a, bk_flags flags)
  *	@param intro Description of buffer being printed
  *	@param prefix Data to be prepended to each line of buffer data
  *	@param buf The vectored raw data to be converted
- *	@param flags Fun for the ruture
- *	@return <i>NULL</i> on callfailure, allocation failure, size failure, etc
+ *	@param flags Fun for the future
+ *	@return <i>NULL</i> on call failure, allocation failure, size failure, etc
  *	@return <br><i>string</i> representing the buffer on success
  */
 char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk_vptr *buf, bk_flags flags)
@@ -113,7 +108,7 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
   const u_int bytesperline = 16;		// Must be multiple of bytes per group--the maximum number of source bytes displayed on one output line
   const u_int hexaddresscols = 4;		// The number of columns outputting the address takes
   const u_int addressbitspercol = 16;		// The base of the address
-  const u_int bytespergroup = 2;		// The number of source bytes outputted per space seperated group
+  const u_int bytespergroup = 2;		// The number of source bytes outputted per space separated group
   const u_int colsperbyte = 2;			// The number of columns of output it takes to output one bytes of source data
   const u_int colsperline = hexaddresscols + 1 + (bytesperline / bytespergroup) * (colsperbyte * bytespergroup + 1) + 1 + bytesperline + 1; // Number of output columns for a single line
   u_int64_t maxaddress;
@@ -466,7 +461,7 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
  *		which will quote the next character (aside from NUL)
  *		appearing in the source string (BACKSLASH_INTERPOLATE
  *		will override this); otherwise BACKSLASH is not
- *		treated specially (modula BACKSLASH_INTERPOLATE).
+ *		treated specially (modulo BACKSLASH_INTERPOLATE).
  *		BK_STRING_TOKENIZE_SINGLEQUOTE, if set, will cause
  *		single quotes to create a string in which the
  *		seperator character, backslashes, and other magic
@@ -475,7 +470,7 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
  *		BK_STRING_TOKENIZE_DOUBLEQUOTE, if set, will cause
  *		double quotes to create a string in which the
  *		seperator character may exist without causing
- *		tokenization seperation (backslashes are still magic
+ *		tokenization separation (backslashes are still magic
  *		and may quote a double quote); otherwise, double
  *		quotes are not treated specially.  At some point in
  *		the future, BK_STRING_TOKENIZE_VARIABLE may exist
@@ -535,7 +530,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	if (BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_MULTISPLIT))
 	  continue;
 
-	/* Multiple seperators are additonal tokens */
+	/* Multiple seperators are additional tokens */
 	goto tokenizeme;
       }
       else
@@ -863,12 +858,12 @@ void bk_string_tokenize_destroy(bk_s B, char **tokenized)
 
 
 /**
- * Rip a string -- terminate it at the first occurance of the terminator characters.,
- * Typipcally used with vertical whitespace to nuke the \r\n stuff.
+ * Rip a string -- terminate it at the first occurrence of the terminator characters.,
+ * Typically used with vertical whitespace to nuke the \r\n stuff.
  *
  *	@param B BAKA Thread/global state
  *	@param string String to examine and change
- *	@param terminators String containing characters to terminate source at, on first occurance--if NULL use vertical whitespace.
+ *	@param terminators String containing characters to terminate source at, on first occurrence--if NULL use vertical whitespace.
  *	@param flags Fun for the future
  *	@return <i>NULL</i> on failure
  *	@return <br><i>modified string</i> on success
@@ -901,7 +896,7 @@ char *bk_string_rip(bk_s B, char *string, const char *terminators, bk_flags flag
  *
  * 	@param B BAKA Thread/global state
  *	@param src Source string to convert
- *	@param needquote Characters which need backslash qutoing (double quote if NULL)
+ *	@param needquote Characters which need backslash quoting (double quote if NULL)
  *	@param flags BK_STRING_QUOTE_NULLOK will convert NULL @a src into BK_NULLSTR.  BK_STRING_QUOTE_NONPRINT will quote non-printable characters.
  *	@return <i>NULL</i> on call failure, allocation failure, other failure
  *	@return <br><i>quoted src</i> on success (you must free)
@@ -1385,8 +1380,8 @@ bk_strndup(bk_s B, const char *s, u_int len)
 
 /**
  * Search for a fixed string within a buffer without exceeding a specified
- * max. IOW this is @a strstr(3) but doesn't assume that the supplied
- * haystack is null terminated. The needle is assumed to be null
+ * max.  This is like @a strstr(3) but doesn't assume that the supplied
+ * haystack is null terminated.  The needle is assumed to be null
  * terminated.
  *
  *	@param B BAKA thread/global state.
@@ -1536,11 +1531,11 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
 
 
 /**
- * Comput the nubmer of textual columns it will take to print an integer
+ * Compute the number of textual columns required to print an integer.
  *
- *	@param B BAKA thread/global state.
- *	@param num The number who's colums you should count
- *	@param base The number base to use.
+ *	@param B BAKA thread/global state
+ *	@param num The integer to be printed
+ *	@param base The numerical base for printing (2, 4, 8, 10, or 16)
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
@@ -1548,19 +1543,33 @@ int
 bk_string_intcols(bk_s B, int64_t num, u_int base)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int val = 0; 
+  /*
+   * <TODO>replace this with array of thresholds for each base and use binary
+   * search to find number of columns</TODO>
+   */
+  static const double logbase[] =
+    { 0.0, 0.0, M_LN2, 0.0, 2.0 * M_LN2, 0.0, 0.0, 0.0, 3.0 * M_LN2, 0.0,
+      M_LN10, 0.0, 0.0, 0.0, 0.0, 0.0, 4.0 * M_LN2};
+  int val;
   
+  if (base > 16 || logbase[base] == 0.0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid base %d\n", base);
+    BK_RETURN(B, -1);
+  }
+
+  if (num == 0)					// avoid computing log(0)
+    BK_RETURN(B, 1);    
+
   if (num < 0)
   {
-    val++;
+    val = 1;
     num *= -1;
   }
-  else if (num == 0)
-  {
-    // Can't take the log of 0
-    BK_RETURN(B,1);    
-  }
+  else
+    val = 0;
     
-  val += (int)(log((double)val)/log((double)base));
-  BK_RETURN(B,val);  
+  val += 0.5 + log(num) / logbase[base];
+
+  BK_RETURN(B, val);  
 }

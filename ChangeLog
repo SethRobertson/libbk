@@ -1,8 +1,13 @@
+2002-02-11  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_string.c (bk_string_intcols): fix bugs, spelling errors,
+	restrict bases
+
 2002-02-07  James Tanis  <jtt@saint.sysdetect.com>
 
-	* lib/b_exec.c (bk_pipe_to_process): possible decriptor leak repair.
+	* lib/b_exec.c (bk_pipe_to_process): possible decriptor leak repair
 
-	* lib/b_string.c (bk_string_intcols): Count the columms an integer requires.
+	* lib/b_string.c (bk_string_intcols): Count columns required for int
 
 2002-01-31  Alexander Dupuy  <dupuy@sysdetect.com>
 
