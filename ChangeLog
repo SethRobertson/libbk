@@ -1,7 +1,17 @@
+2004-08-26  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_pollio.c (bk_polling_io_read, bk_polling_io_write): don't
+	deadlock waiting for the i/o thread to do the work when running on
+	the i/o thread
+
+	* lib/b_run.c (struct bk_run): track thread executing bk_run_run
+	(bk_run_run): set br_iothread
+	(bk_run_on_iothread): new function to report if on i/o thread
+
 2004-08-21  Seth Robertson  <seth@sampson.sysdetect.com>
 
 	* lib/b_vptr.c (bk_vptr_cmp): When comparing keys of unequal length,
-	we lost track of what (pos/neg)value to return when the keys were
+	we lost track of what pos/neg value to return when the keys were
 	unequal in the raw data.
 
 2004-08-16  Alexander Dupuy  <dupuy@sysdetect.com>

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.307 2004/08/20 21:52:52 seth Exp $
+ * $Id: libbk.h,v 1.308 2004/08/27 02:10:15 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1637,6 +1637,7 @@ extern int bk_run_fd_is_closed(bk_s B, struct bk_run *run, int fd);
 extern int bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern void bk_run_handler_discard(bk_s B, struct bk_run *run, int fd, u_int types, void *opaque, const struct timeval *starttime);
 extern void bk_run_select_changed(bk_s B, struct bk_run *run, bk_flags flags);
+extern int bk_run_on_iothread(bk_s B, struct bk_run *run);
 
 
 

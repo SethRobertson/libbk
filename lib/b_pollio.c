@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.51 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.52 2004/08/27 02:10:15 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -808,7 +808,8 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
     }
 
 #ifdef BK_USING_PTHREADS
-    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_THREADED) && BK_GENERAL_FLAG_ISTHREADON(B))
+    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_THREADED) && BK_GENERAL_FLAG_ISTHREADON(B)
+	&& !bk_run_on_iothread(B, bpi->bpi_ioh->ioh_run))
     {
       struct timespec ts;
       struct timeval tv;
@@ -991,7 +992,8 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
     }
 
 #ifdef BK_USING_PTHREADS
-    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_THREADED) && BK_GENERAL_FLAG_ISTHREADON(B))
+    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_THREADED) && BK_GENERAL_FLAG_ISTHREADON(B)
+	&& !bk_run_on_iothread(B, bpi->bpi_ioh->ioh_run))
     {
       struct timespec ts;
       struct timeval tv;
@@ -1056,7 +1058,8 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
   if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_SYNC) && !timedout)
   {
 #ifdef BK_USING_PTHREADS
-    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_THREADED) && BK_GENERAL_FLAG_ISTHREADON(B))
+    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_THREADED) && BK_GENERAL_FLAG_ISTHREADON(B)
+	&& !bk_run_on_iothread(B, bpi->bpi_ioh->ioh_run))
     {
       int waitcount = bpi->bpi_wroutstanding;
 

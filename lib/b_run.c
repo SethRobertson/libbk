@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.75 2004/08/20 21:52:53 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.76 2004/08/27 02:10:15 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -171,6 +171,7 @@ struct bk_run
   dict_h		br_canceled;		///< List of canceled descriptors.
 #ifdef BK_USING_PTHREADS
   pthread_t		br_signalthread;	///< Specify thread to receive signals
+  pthread_t		br_iothread;		///< Thread handling io for this struct
   pthread_mutex_t	br_lock;		///< Lock on run management
   int			br_runfd;		///< File descriptor for select interrupt
   int			br_selectcount;		///< Number of entries in select
@@ -968,6 +969,7 @@ int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags)
     abort();
 #endif /* BK_USING_PTHREADS */
   BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_RUN_OVER); // Don't inherit previous setting
+  run->br_iothread = pthread_self();
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
     abort();
@@ -1028,7 +1030,8 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   }
 
 #ifdef BK_USING_PTHREADS
-  if (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_SIGNAL_THREAD) || run->br_signalthread == pthread_self())
+  if (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_SIGNAL_THREAD) ||
+      pthread_equal(run->br_signalthread, pthread_self()))
     wantsignals = 1;
 #endif /* BK_USING_PTHREADS */
 
@@ -3543,6 +3546,40 @@ void bk_run_select_changed(bk_s B, struct bk_run *run, bk_flags flags)
 
 
 #ifdef BK_USING_PTHREADS
+/**
+ * Returns true if current (possibly only) thread is responsible for i/o on
+ * this run environment, and therefore should call bk_run_once rather than
+ * doing a (timed) condwait for the io thread to complete the i/o.
+ *
+ * @param B BAKA thread/global state
+ * @param run The run environment
+ */
+int bk_run_on_iothread(bk_s B, struct bk_run *run)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int its_me = 1;				// in single-threaded case
+
+  if (!run)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+
+  its_me = pthread_equal(pthread_self(), run->br_iothread);
+
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B, its_me);
+}
+
+
+
 /**
  * Create a loopback file descriptor
  *
