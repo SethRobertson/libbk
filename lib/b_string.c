@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.91 2003/06/24 21:33:00 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.92 2003/06/25 17:01:01 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2021,11 +2021,19 @@ bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, b
  *
  * This is kinda, err, slow if there are many items in the list.
  *
+ * Update: Well it's only slow if you have use @a name. If you already know
+ * the @a id, meaning someone else has registered the string and you are
+ * only "taking out a lock" on it, then this function is pretty darn
+ * fast. If you do not know the @a id, you pass 0 (which is reserved as
+ * never used by the registry); if you pass in *both* @a name and @a id, @a
+ * id will be preferred as it (to reiterate) is much faster.
+ *
  * THREADS: MT-SAFE (assuming different handle)
  * THREADS: THREAD-REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param str The string to search for.
+ *	@param id The id to use. 
  *	@param flags Flags for future use.
  *	@return <i>0</i> on FAILURE (!! NB THIS IS NOT NORMAL FOR LIBBK !!).<br>
  *	@return <i>positive</i> on success.
