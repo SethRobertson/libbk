@@ -1,3 +1,8 @@
+2001-11-13  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* test/test_ioh.c (proginit): inet_aton returns zero on error
+	(address_resolved): cast sockaddr * argument
+
 2001-11-13  Seth Robertson  <seth@yeah.baka.org>
 
 	* test/test_ioh.c: Add test program

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.2 2001/11/13 06:46:52 seth Exp $";
+static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.3 2001/11/13 16:26:51 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -232,7 +232,7 @@ int proginit(bk_s B, struct program_config *pconfig)
   {						// Transmit
     struct in_addr himaddr;
 
-    if (inet_aton(pconfig->pc_remhost, &himaddr) < 0)
+    if (!inet_aton(pconfig->pc_remhost, &himaddr))
     {
       bk_die(B,254,stderr,"Could not perform convert remote address\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     }
@@ -528,7 +528,7 @@ static void address_resolved(bk_s B, struct program_config *pconfig, struct in_a
   sinhim.sin_addr = *himaddr;
   sinhim.sin_port = htons(pconfig->pc_port);
 
-  if (connect(sd, &sinhim, sizeof(sinhim)) < 0)
+  if (connect(sd, (struct sockaddr *)&sinhim, sizeof(sinhim)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could connect to remote address\n");
     close(sd);
