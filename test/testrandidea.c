@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: testrandidea.c,v 1.2 2002/01/20 03:19:11 seth Exp $";
+static char libbk__rcsid[] = "$Id: testrandidea.c,v 1.3 2002/01/21 17:46:57 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -58,6 +58,9 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * for the timer, and it produces approximately 4 bits per byte of
  * entropy (mostly due to the high order bytes being zero).
  *
+ * A revised version of this test, which includes the time of day in
+ * the random number mix, proved to be even more effective, producing
+ * thousands of high-quality random numbers per cycle.
  *
  * The alarm calls produced approximately the same rate, but
  * due to the additional implementation complexity (e.g.
@@ -278,7 +281,7 @@ main(int argc, char **argv, char **envp)
 	gettimeofday(&cur, NULL);
 	if (BK_TV_CMP(&end,&cur) < 0)
 	  break;
-	BK_TV_SUB(&diff, &end, &last);
+	BK_TV_SUB(&diff, &cur, &last);
 	if (BK_FLAG_ISSET(pconfig->pc_flags, PC_BINARY))
 	  printf("%c%c%c%c",((char *)&diff.tv_usec)[0],((char *)&diff.tv_usec)[1],((char *)&diff.tv_usec)[2],((char *)&diff.tv_usec)[3]);
 	else
