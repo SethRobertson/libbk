@@ -1,3 +1,11 @@
+2003-01-20  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_exec.c: Update users of tokenization to handle new
+	variable expansion arguments
+
+	* lib/b_string.c (bk_string_tokenize_split): Add variable
+	expansion (two methods: CLC and environ)
+
 2003-01-09  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_md5.c (bk_MD5Update): Changed inBuf parameter from char *

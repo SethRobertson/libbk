@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.195 2003/01/09 08:03:01 lindauer Exp $
+ * $Id: libbk.h,v 1.196 2003/01/20 23:37:21 seth Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1563,16 +1563,14 @@ extern u_int bk_strhash(const char *a, bk_flags flags);
 extern u_int bk_bufhash(const struct bk_vptr *b, bk_flags flags);
 #define BK_HASH_NOMODULUS	0x01		///< Do not perform modulus of hash by a large prime
 #define BK_STRHASH_NOMODULUS	BK_HASH_NOMODULUS
-extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const void *variabledb, bk_flags flags);
+extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const dict_h kvht_vardb, const char **variabledb, bk_flags flags);
 #define BK_WHITESPACE					" \t\r\n" ///< General definition of horizonal and vertical whitespace
 #define BK_VWHITESPACE					"\r\n" ///< General definition of vertical whitespace
 #define BK_HWHITESPACE					" \t" ///< General definition of horizontal whitespace
 #define BK_STRING_TOKENIZE_MULTISPLIT			0x001	///< During bk_string_tokenize_split: Allow multiple split characters to seperate items (foo::bar are two tokens, not three)
 #define BK_STRING_TOKENIZE_SINGLEQUOTE			0x002	///< During bk_string_tokenize_split: Handle single quotes
 #define BK_STRING_TOKENIZE_DOUBLEQUOTE			0x004	///< During bk_string_tokenize_split: Handle double quotes
-#ifdef NOTYET
-#define BK_STRING_TOKENIZE_SIMPLEVARIABLE		0x008	///< During bk_string_tokenize_split: Convert $VAR (not currently available)
-#endif /* NOTYET */
+// #define BK_STRING_TOKENIZE_VARIABLE			0x008	///< Reserved for variable expansion--implicit flag
 #define BK_STRING_TOKENIZE_BACKSLASH			0x010	///< During bk_string_tokenize_split: Backslash quote next char
 #define BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR	0x020	///< During bk_string_tokenize_split: Convert \n et al
 #define BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT	0x040	///< During bk_string_tokenize_split: Convert \010 et al
@@ -1756,9 +1754,9 @@ extern pid_t bk_pipe_to_process(bk_s B, int *fdinp, int*fdoutp, bk_flags flags);
 extern int bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags flags);
 extern char *bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags flags);
 extern int bk_exec_cmd(bk_s B, const char *cmd, char *const *env, bk_flags flags);
-extern int bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
+extern int bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, const char *spliton, const dict_h kvht_vardb, const char **variabledb, bk_flags tokenize_flags, bk_flags flags);
 extern pid_t bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *args, char *const *env, bk_flags flags);
-extern pid_t bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const *env, u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
+extern pid_t bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const *env, u_int limit, const char *spliton, const dict_h kvht_vardb, const char **variabledb, bk_flags tokenize_flags, bk_flags flags);
 extern pid_t bk_pipe_to_cmd(bk_s B, int *fdin,int *fdout, const char *cmd, char *const *env, bk_flags flags);
 extern int bk_setenv_with_putenv(bk_s B, const char *key, const char *value, int overwrite);
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.70 2003/01/09 08:03:02 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.71 2003/01/20 23:37:22 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -29,14 +29,17 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define TOKENIZE_INCR		4		///< How many we will expand if we need more 
 #define TOKENIZE_STR_FIRST	16		///< How many we will start with 
 #define TOKENIZE_STR_INCR	16		///< How many we will expand 
+#define MAXVARIABLESIZE		1024		///< Maximum size of a variable
 
-#define S_BASE			0x40		///< Base state 
 #define S_SQUOTE		0x1		///< In single quote 
 #define S_DQUOTE		0x2		///< In double quote 
 #define S_VARIABLE		0x4		///< In variable 
 #define S_BSLASH		0x8		///< Backslash found 
 #define S_BSLASH_OCT		0x10		///< Backslash octal 
 #define S_SPLIT			0x20		///< In split character 
+#define S_BASE			0x40		///< Base state 
+#define S_VARIABLE		0x80		///< In $variable (saw at least $)
+#define S_VARIABLEDELIM		0x100		///< In ${variable} (saw at least ${)
 #define INSTATE(x)		(state & (x))	///< Are we in this state 
 #define GOSTATE(x)		state = x	///< Become this state  
 #define ADDSTATE(x)		state |= x	///< Superstate (typically variable in dquote) 
@@ -348,13 +351,18 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  * Yeah, this function uses gotos a bit more than I really like, but
  * avoiding the code duplication is pretty important too.
  *
+ * If the variable database variables are set, variable expansion of the form
+ * $[A-Za-z0-9_]+ and ${[A-Za-z0-9_]+} will take place, in unquoted and double-quoted
+ * strings.
+ *
  * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param src Source string to tokenize
  *	@param limit Maximum number of tokens to generate--last token contains "rest" of string.  Zero for unlimited.
  *	@param spliton The string containing the character(s) which separate tokens
- *	@param variabledb Future expansion--variable substitution.  Set to NULL for now.
+ *	@param kvht_vardb Key-value hash table for variable substitution
+ *	@param variabledb Environ-style environment for variable substitution
  *	@param flags BK_STRING_TOKENIZE_SKIPLEADING, if set will cause
  *		leading separator characters to be ignored; otherwise,
  *		an initial zero-length token will be generated.
@@ -387,17 +395,13 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *		separator character may exist without causing
  *		tokenization separation (backslashes are still magic
  *		and may quote a double quote); otherwise, double
- *		quotes are not treated specially.  At some point in
- *		the future, BK_STRING_TOKENIZE_VARIABLE may exist
- *		which may cause $variable text substitution. There are
- *		some convenience flags which group some of these
- *		together. See @a libbk.h for details. You should call
- *		@a bk_string_tokenize_destroy to free up the generated
- *		array.
+ *		quotes are not treated specially.  See @a libbk.h for
+ *		details. You should call @a bk_string_tokenize_destroy
+ *		to free up the generated array.
  *	@return <i>NULL</i> on call failure, allocation failure, other failure
  *	@return <br><i>null terminated array of token strings</i> on success.
  */
-char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const void *variabledb, bk_flags flags)
+char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const dict_h kvht_vardb, const char **variabledb, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char **ret;
@@ -408,6 +412,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
   char *token;
   u_char newchar;
   struct bk_memx *tokenx, *splitx = NULL;
+  char varspace[MAXVARIABLESIZE];
 
   if (!src)
   {
@@ -436,6 +441,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
   /* Go over all characters in source string */
   for(; ; curloc++)
   {
+  retry:
     if (INSTATE(S_SPLIT))
     {
       /* Are we still looking at a separator? */
@@ -584,6 +590,105 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
       /* Fall through for subsequent processing */
     }
 
+    /* We have seen a dollar sign */
+    if (INSTATE(S_VARIABLE))
+    {
+      if (*curloc == '{' && (curloc == (startseq + 1)))
+      {
+	SUBSTATE(S_VARIABLE);
+	ADDSTATE(S_VARIABLEDELIM);
+	continue;
+      }
+
+      if (((*curloc >= 'A') && (*curloc <= 'Z')) ||
+	  ((*curloc >= 'a') && (*curloc <= 'z')) ||
+	  ((*curloc >= '0') && (*curloc <= '9')) ||
+	  (*curloc == '_'))
+      {
+	// Still in variable
+	continue;
+      }
+
+      // At end of variable
+      if (curloc == (startseq + 1))
+      {
+	// Variable was empty "$" -> ""
+      }
+      else
+      {
+	startseq++;
+	if ((curloc - startseq + 1) < MAXVARIABLESIZE)
+	{
+	  char *replace = NULL;
+	  int len;
+
+	  memcpy(varspace,startseq,curloc-startseq);
+	  varspace[curloc-startseq] = 0;
+
+	envreplace:
+	  replace = NULL;
+	  if (!replace && kvht_vardb)
+	  {
+	    replace = ht_search(kvht_vardb,varspace);
+	  }
+	  if (!replace && variabledb)
+	  {
+	    char **tmpenv = environ;
+	    environ = (char **)variabledb;
+	    replace = getenv(varspace);
+	    environ = tmpenv;
+	  }
+
+	  if (replace && (len = strlen(replace)))
+	  {
+	    if (!(token = bk_memx_get(B, tokenx, len, NULL, BK_MEMX_GETNEW)))
+	    {
+	      bk_error_printf(B, BK_ERR_ERR, "Could not extend array for additional character\n");
+	      goto error;
+	    }
+	    memcpy(token,replace,len);
+	  }
+	}
+	// Iff variable too big->replace with empty string
+      }
+      SUBSTATE(S_VARIABLE);
+      SUBSTATE(S_VARIABLEDELIM);
+      startseq = NULL;
+      goto retry;				// Must handle terminating character in previous state
+    }
+
+    /* We have seen a dollar sign */
+    if (INSTATE(S_VARIABLEDELIM))
+    {
+      if (((*curloc >= 'A') && (*curloc <= 'Z')) ||
+	  ((*curloc >= 'a') && (*curloc <= 'z')) ||
+	  ((*curloc >= '0') && (*curloc <= '9')) ||
+	  (*curloc == '_'))
+      {
+	// Still in variable
+	continue;
+      }
+
+      // At end of variable
+      if (*curloc == '}')
+      {
+	startseq += 2;
+
+	if ((curloc-startseq) < MAXVARIABLESIZE)
+	{
+	  memcpy(varspace,startseq,curloc-startseq);
+	  varspace[curloc-startseq] = 0;
+	  curloc++;				// envreplace will rerun current character
+	  goto envreplace;
+	}
+      }
+
+      // If we got here, it is an illegal variable, we replace with empty string
+      SUBSTATE(S_VARIABLEDELIM);
+      startseq = NULL;
+      goto retry;				// Must handle terminating character in previous state
+    }
+
     /* Non-special state */
     if (INSTATE(S_BASE))
     {
@@ -632,6 +737,14 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	  break;
 
 	GOSTATE(S_SPLIT);
+	continue;
+      }
+
+      /* Variable? */
+      if ((kvht_vardb || variabledb) && *curloc == 044)
+      {
+	ADDSTATE(S_VARIABLE);
+	startseq = curloc;
 	continue;
       }
 
@@ -697,6 +810,14 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
       {
 	bk_error_printf(B, BK_ERR_NOTICE, "Unexpected end-of-string inside a double quote\n");
 	goto tokenizeme;
+      }
+
+      /* Variable? */
+      if ((kvht_vardb || variabledb) && *curloc == 044)
+      {
+	ADDSTATE(S_VARIABLE);
+	startseq = curloc;
+	continue;
       }
 
       /* Backslash? */

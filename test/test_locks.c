@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_locks.c,v 1.5 2002/08/15 04:16:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_locks.c,v 1.6 2003/01/20 23:37:22 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -247,7 +247,7 @@ static void progrun(bk_s B, struct program_config *pconfig)
     fgets(line, sizeof(line), stdin);
 
     bk_string_rip(B, line, NULL, 0);
-    if (!(args = bk_string_tokenize_split(B, line, 10, NULL, NULL, 0)))
+    if (!(args = bk_string_tokenize_split(B, line, 10, NULL, NULL, NULL, 0)))
     {
       fprintf(stderr,"Could not tokenize string: %s\n", line);
       continue;

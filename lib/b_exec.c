@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.8 2002/10/20 05:17:54 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.9 2003/01/20 23:37:22 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -254,7 +254,7 @@ bk_exec_cmd(bk_s B, const char *cmd, char *const *env, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  BK_RETURN(B,bk_exec_cmd_tokenize(B, cmd, env, 0, NULL, NULL, 0, flags));  
+  BK_RETURN(B,bk_exec_cmd_tokenize(B, cmd, env, 0, NULL, NULL, NULL, 0, flags));  
 }
 
 
@@ -269,6 +269,7 @@ bk_exec_cmd(bk_s B, const char *cmd, char *const *env, bk_flags flags)
  *	@param env The enviroment to use (NULL means keep current).
  *	@param limit the number of tokens to create.
  *	@param spliton String used to split up the command.
+ *	@param kvht_vardb Hash Table Variable
  *	@param variabledb DB of expansion variables.
  *	@param tokenizd_flags Flags to pass to tokenize routine
  *	@param flags Flags for future use.
@@ -276,7 +277,7 @@ bk_exec_cmd(bk_s B, const char *cmd, char *const *env, bk_flags flags)
  *	@return <i>does not return</i> of child on success.
  */
 int
-bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags)
+bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, const char *spliton, const dict_h kvht_vardb, const char **variabledb, bk_flags tokenize_flags, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char **args = NULL;
@@ -287,7 +288,7 @@ bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, con
     BK_RETURN(B, -1);
   }
   
-  if (!(args = bk_string_tokenize_split(B, cmd, limit, spliton, variabledb, tokenize_flags)))
+  if (!(args = bk_string_tokenize_split(B, cmd, limit, spliton, kvht_vardb, variabledb, tokenize_flags)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not tokenize string\n");
     goto error;
@@ -427,6 +428,7 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
  *	@param env The enviroment to use (NULL means keep current).
  *	@param limit the number of tokens to create.
  *	@param spliton String used to split up the command.
+ *	@param kvht_vardb Hash Table Variable
  *	@param variabledb DB of expansion variables.
  *	@param tokenizd_flags Flags to pass to tokenize routine
  *	@param flags Flags  are fun.
@@ -434,7 +436,7 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
  *	@return <i>pid</i> on success.
  */
 pid_t
-bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const *env, u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags)
+bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const *env, u_int limit, const char *spliton, const dict_h kvht_vardb, const char **variabledb, bk_flags tokenize_flags, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   pid_t pid;
@@ -468,7 +470,7 @@ bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *
     break;
       
   case 0:
-    if (bk_exec_cmd_tokenize(B, cmd, env, limit, spliton, variabledb, tokenize_flags, flags) < 0)
+    if (bk_exec_cmd_tokenize(B, cmd, env, limit, spliton, kvht_vardb, variabledb, tokenize_flags, flags) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not exec child process\n");
       // <TODO> syslog? </TODO>
@@ -518,7 +520,7 @@ bk_pipe_to_cmd(bk_s B, int *fdinp,int *fdoutp, const char *cmd, char *const *env
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   
-  BK_RETURN(B, bk_pipe_to_cmd_tokenize(B, fdinp, fdoutp, cmd, env, 0, NULL, NULL, 0, flags));
+  BK_RETURN(B, bk_pipe_to_cmd_tokenize(B, fdinp, fdoutp, cmd, env, 0, NULL, NULL, NULL, 0, flags));
 }
 
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.10 2002/08/15 04:16:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.11 2003/01/20 23:37:22 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -57,7 +57,7 @@ char *prompts[] =
   "String to unsigned 64 bit integer conversion.  Please enter number:  ",
   "String to signed 64 bit integer conversion.  Please enter number:  ",
   "String hash.  Please enter string to hash:  ",
-  "String tokenization.  Please enter arguments followed by the string to tokenize.\n  <limit>#<spliton>#<flagbits>#<string to tokenize>\n  0x01 - Multisplit (foo::bar are two tokens, not three)\n  0x02 - Singlequote quoting\n  0x04 - Doublequote quoting\n  0x10 - Backslash quoting of next character\n  0x20 - Backslash character interpolation\\n\n  0x40 - Backslash octal number ascii interpolation\010\n\n",
+  "String tokenization.  Please enter arguments followed by the string to tokenize.\n  <limit>#<spliton>#<flagbits>#<string to tokenize>\n  0x01 - Multisplit (foo::bar are two tokens, not three)\n  0x02 - Singlequote quoting\n  0x04 - Doublequote quoting\n  0x08 - Variable expansion\n  0x10 - Backslash quoting of next character\n  0x20 - Backslash character interpolation\\n\n  0x40 - Backslash octal number ascii interpolation\010\n\n",
   NULL,
 };
 
@@ -90,6 +90,8 @@ main(int argc, char **argv, char **envp)
     bk_exit(B,254);
   }
     
+  printf("Enter END to end each section's input.\n");
+
   if (proginit(B, pconfig) < 0)
   {
     bk_die(B,254,stderr,"Could not perform program initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
@@ -192,6 +194,7 @@ void progrun(bk_s B, struct program_config *pconfig)
 	  u_int limit;
 	  bk_flags flags;
 	  char **tokens, **cur;
+	  char **vardb = NULL;
 
 	  if (!(split=strchr(line,'#')))
 	  {
@@ -220,7 +223,13 @@ void progrun(bk_s B, struct program_config *pconfig)
 	    break;
 	  }
 
-	  if (!(tokens = bk_string_tokenize_split(B, string, limit, split, NULL, flags)))
+	  if (flags & 0x8)
+	  {
+	    flags &= ~0x8;
+	    vardb = environ;
+	  }
+
+	  if (!(tokens = bk_string_tokenize_split(B, string, limit, split, NULL, (const char **)vardb, flags)))
 	  {
 	    printf("Could not tokenize string\n");
 	    break;
