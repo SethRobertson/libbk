@@ -1,3 +1,7 @@
+2001-09-08  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_bits.c: Bit operations created
+
 2001-09-04  Seth Robertson  <seth@yeah.baka.org>
 
 	* lib/b_cksum.c (b_in_cksum): Add in_cksum from Net4BSD

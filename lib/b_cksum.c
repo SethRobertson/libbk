@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_cksum.c,v 1.1 2001/09/05 02:56:35 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_cksum.c,v 1.2 2001/09/08 19:13:52 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -31,7 +31,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  *
  * This function is from Net4 BSD, and is NOT licensed under LGPL.
  */
-int b_in_cksum(register struct bk_vptr **m, register int len)
+int bk_in_cksum(register struct bk_vptr **m, register int len)
 {
   register u_short *w;
   register int sum = 0;

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.26 2001/09/07 16:24:46 dupuy Exp $
+ * $Id: libbk.h,v 1.27 2001/09/08 19:13:50 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -36,6 +36,7 @@
 #endif
 
 
+
 /* Error levels & their syslog equivalents */
 #define BK_ERR_NONE	-1
 #define BK_ERR_CRIT	LOG_CRIT
@@ -43,6 +44,7 @@
 #define BK_ERR_WARN	LOG_WARNING
 #define BK_ERR_NOTICE	LOG_NOTICE
 #define BK_ERR_DEBUG	LOG_DEBUG
+
 
 
 /* Very generic (should not be used) application configuration file */
@@ -69,6 +71,7 @@
 
 typedef u_int32_t bk_flags;
 
+
 /* General vectored pointer */
 typedef struct bk_vptr
 {
@@ -83,6 +86,7 @@ struct bk_alloc_ptr
   u_int32_t cur;				/* Current length */
   u_int32_t max;				/* Maximum length */
 };
+
 
 
 /* b_general.c -- General libbk global information */
@@ -112,6 +116,7 @@ struct bk_general
 #define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON)
 #define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON)
 
+
 /* Per-thread state information */
 typedef struct __bk_thread
 {
@@ -126,6 +131,15 @@ typedef struct __bk_thread
 #define BK_BT_THREADNAME(B)	((B)->bt_threadname)
 #define BK_BT_GENERAL(B)	((B)->bt_general)
 #define BK_BT_FLAGS(B)		((B)->bt_flags)
+
+
+
+/* b_bits.c */
+#define BK_BITS_SIZE(b)		(((b)+7)/8)
+#define BK_BITS_BYTENUM(b)	((b)/8)
+#define BK_BITS_BITNUM(b)	((b)%8)
+#define BK_BITS_VALUE(B,b)	(((B)[BK_BITS_BYTENUM(b)] & (1 << BK_BITS_BITNUM(b))) >> BK_BITS_BITNUM(b))
+#define BK_BITS_SET(B,b,v)	(B)[BK_BITS_BYTENUM(b)] = (((B)[BK_BITS_BYTENUM(b)] & ~(1 << BK_BITS_BITNUM(b))) | ((v) & 1) << BK_BITS_BITNUM(b));
 
 
 
@@ -232,8 +246,18 @@ struct bk_config
 };
 
 
+
+/* b_bits.c */
+extern char *bk_bits_create(bk_s B, size_t size, bk_flags flags);
+extern void bk_bits_destroy(bk_s B, char *base);
+extern char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags);
+extern char *bk_bits_restore(bk_s B, char *saved, size_t *size, bk_flags flags);
+
+
+
 /* b_cksum.c */
-extern int b_in_cksum(register struct bk_vptr **m, register int len);
+extern int bk_in_cksum(register struct bk_vptr **m, register int len);
+
 
 
 /* b_config.c */
