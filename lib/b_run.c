@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.73 2004/08/07 04:43:21 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.74 2004/08/12 20:18:59 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -228,6 +228,8 @@ static void bk_run_runfd(bk_s B, struct bk_run *run, int fd, u_int gottypes, bk_
 static int bk_run_select_changed_init(bk_s B, struct bk_run *run);
 static void *bk_run_runfd_thread(bk_s B, void *opaque);
 #endif /* BK_USING_PTHREADS */
+static struct bk_run_fdassoc *brf_create(bk_s B, bk_flags flags);
+static void brf_destroy(bk_s B, struct bk_run_fdassoc *brf);
 
 
 
@@ -1739,6 +1741,67 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
 
 /**
+ * Create a @a bk_run_fdassoc.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a new <i>brf</i> on success.
+ */
+static struct bk_run_fdassoc *
+brf_create(bk_s B, bk_flags flags)
+{
+  struct bk_run_fdassoc *brf = NULL;
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!(BK_CALLOC(brf)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allcoate fd association struct: %s\n", strerror(errno));
+    goto error;
+  }
+
+  BK_RETURN(B, brf);  
+
+ error:
+  if (brf)
+    brf_destroy(B, brf);
+  BK_RETURN(B, NULL);  
+}
+
+
+
+/**
+ * Destroy a @a bk_run_fdassoc
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brf The @a brf to nuke
+ */
+static void
+brf_destroy(bk_s B, struct bk_run_fdassoc *brf)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!brf)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+#ifdef BK_USING_PTHREADS
+  if (pthread_cond_destroy(&brf->brf_cond))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not destroy fd association condition\n");
+  }
+#endif /* BK_USING_PTHREADS */
+
+  free(brf);
+
+  BK_VRETURN(B);  
+}
+
+
+
+/**
  * Specify the handler to take care of all fd activity.
  *
  * THREADS: THREAD-REENTRANT
@@ -1756,7 +1819,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, void *opaque, u_int wanttypes, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_run_fdassoc *new = NULL;
+  struct bk_run_fdassoc *brf = NULL;
 
   if (!run || !handler)
   {
@@ -1764,40 +1827,36 @@ int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, v
     BK_RETURN(B, -1);
   }
 
-  if (!(new = malloc(sizeof(*new))))
+  if (!(brf = brf_create(B, 0)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate fd association structure: %s\n",strerror(errno));
-    BK_RETURN(B, -1);
+    bk_error_printf(B, BK_ERR_ERR, "Could not create fd association structure\n");
+    goto error;
   }
 
-  new->brf_fd = fd;
-  new->brf_handler = handler;
-  new->brf_opaque = opaque;
-  new->brf_flags = flags;
+  brf->brf_fd = fd;
+  brf->brf_handler = handler;
+  brf->brf_opaque = opaque;
+  brf->brf_flags = flags;
 
 #ifdef BK_USING_PTHREADS
-  BK_ZERO(&new->brf_userid);
+  BK_ZERO(&brf->brf_userid);
 
-  if (pthread_cond_init(&new->brf_cond, NULL) < 0)
+  if (pthread_cond_init(&brf->brf_cond, NULL) < 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_LOCK(B, &run->br_lock);
 
-  if (fdassoc_insert(run->br_fdassoc, new) < 0)
+  if (fdassoc_insert(run->br_fdassoc, brf) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not associate fd %d: %s\n",fd,fdassoc_error_reason(run->br_fdassoc, NULL));
     goto error;
   }
 
   run->br_selectn = MAX(run->br_selectn,fd+1);
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+
+  BK_SIMPLE_UNLOCK(B, &run->br_lock);
+
   bk_run_setpref(B, run, fd, wanttypes, BK_RUN_WANTREAD|BK_RUN_WANTWRITE|BK_RUN_WANTXCPT, 0);
 
   bk_debug_printf_and(B,1,"Added fd: %d -- selectn now: %d\n", fd, run->br_selectn);
@@ -1805,15 +1864,11 @@ int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, v
   BK_RETURN(B, 0);
 
  error:
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_UNLOCK(B, &run->br_lock);
 
-  if (new)
-  {
-    free(new);
-  }
+  if (brf)
+    brf_destroy(B, brf);
+
   BK_RETURN(B, -1);
 }
 
@@ -1829,13 +1884,13 @@ int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, v
  *	@param run The baka run environment state
  *	@param fd The file descriptor which should be monitored
  *	@param flags Flags for the Future.
- *	@return <i><0</i> on call failure, or other error.
+ *	@return <i>-1</i> on call failure, or other error.
  *	@return <br><i>0</i> on success.
  */
 int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_run_fdassoc *curfda;
+  struct bk_run_fdassoc *brf;
   struct timeval curtime;
   int ret = 0;
 
@@ -1845,12 +1900,11 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
+  BK_SIMPLE_LOCK(B, &run->br_lock);
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
-    abort();
  again:
 #endif /* BK_USING_PTHREADS */
-  if (!(curfda = fdassoc_search(run->br_fdassoc, &fd)))
+  if (!(brf = fdassoc_search(run->br_fdassoc, &fd)))
   {
     bk_debug_printf_and(B,4,"Double close protection kicked in\n");
     bk_error_printf(B, BK_ERR_WARN, "Could not find fd %d in association while attempting to delete\n",fd);
@@ -1860,36 +1914,31 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 
 #ifdef BK_USING_PTHREADS
   // See if someone (other than myself) is currently using this function
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && curfda->brf_userid && !pthread_equal(curfda->brf_userid, pthread_self()))
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && brf->brf_userid && !pthread_equal(brf->brf_userid, pthread_self()))
   {
     // Wait for the current user to finish
-    pthread_cond_wait(&curfda->brf_cond, &run->br_lock);
+    pthread_cond_wait(&brf->brf_cond, &run->br_lock);
     goto again;
   }
 #endif /* BK_USING_PTHREADS */
 
   // Get rid of event in list, which will also prevent double deletion
-  if (fdassoc_delete(run->br_fdassoc, curfda) != DICT_OK)
+  if (fdassoc_delete(run->br_fdassoc, brf) != DICT_OK)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not delete descriptor %d from fdassoc list: %s\n", fd, fdassoc_error_reason(run->br_fdassoc, NULL));
     ret = -1;
     goto unlockexit;
   }
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+
+  BK_SIMPLE_UNLOCK(B, &run->br_lock);
 
   // Optionally tell user handler that he will never be called again.
   gettimeofday(&curtime, NULL);
-  bk_run_runfd(B, run, fd, BK_RUN_CLOSE, curfda->brf_handler, curfda->brf_opaque, &curtime, curfda->brf_flags);
+  bk_run_runfd(B, run, fd, BK_RUN_CLOSE, brf->brf_handler, brf->brf_opaque, &curtime, brf->brf_flags);
 
-  free(curfda);
+  brf_destroy(B, brf);
 
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_LOCK(B, &run->br_lock);
 
   FD_CLR(fd, &run->br_readset);
   FD_CLR(fd, &run->br_writeset);
@@ -1899,19 +1948,17 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   if (run->br_selectn == fd+1)
   {
     run->br_selectn = 0;
-    for(curfda=fdassoc_minimum(run->br_fdassoc);curfda;curfda = fdassoc_successor(run->br_fdassoc, curfda))
+    for(brf=fdassoc_minimum(run->br_fdassoc);brf;brf = fdassoc_successor(run->br_fdassoc, brf))
     {
-      run->br_selectn = MAX(run->br_selectn,curfda->brf_fd + 1);
+      run->br_selectn = MAX(run->br_selectn,brf->brf_fd + 1);
     }
   }
 
   bk_debug_printf_and(B,1,"Closed fd: %d -- selectn now: %d\n", fd, run->br_selectn);
 
  unlockexit:
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_UNLOCK(B, &run->br_lock);
+
   BK_RETURN(B, ret);
 }
 
@@ -1940,20 +1987,16 @@ u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_LOCK(B, &run->br_lock);
+
   if (FD_ISSET(fd, &run->br_readset))
     type |= BK_RUN_WANTREAD;
   if (FD_ISSET(fd, &run->br_writeset))
     type |= BK_RUN_WANTWRITE;
   if (FD_ISSET(fd, &run->br_xcptset))
     type |= BK_RUN_WANTXCPT;
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+
+  BK_SIMPLE_UNLOCK(B, &run->br_lock);
 
   BK_RETURN(B, type);
 }
@@ -1986,10 +2029,7 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wa
     BK_RETURN(B, -1);
   }
 
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_LOCK(B, &run->br_lock);
 
   // Do we only want to modify one (or two) flags?
   if (wantmask)
@@ -2031,10 +2071,7 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wa
 #endif /* BK_USING_PTHREADS */
   }
 
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_UNLOCK(B, &run->br_lock);
 
   BK_RETURN(B, 0);
 }

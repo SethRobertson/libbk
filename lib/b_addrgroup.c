@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.47 2004/08/11 00:41:43 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.48 2004/08/12 20:18:59 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1497,22 +1497,10 @@ do_net_init_listen(bk_s B, struct addrgroup_state *as)
 
   as->as_state = BkAddrGroupStateReady;
 
-  /* Put the socket in the select loop waiting for *write* to come ready */
-  if (socktype == SOCK_STREAM)
+  if (bk_run_handle(B, as->as_run, s, listen_activity, as, BK_RUN_WANTREAD, 0) < 0)
   {
-    if (bk_run_handle(B, as->as_run, s, listen_activity, as, BK_RUN_WANTREAD, 0) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
-      goto error;
-    }
-  }
-  else
-  {
-    if (bk_run_handle(B, as->as_run, s, listen_activity, as, BK_RUN_WANTREAD, 0) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
-      goto error;
-    }
+    bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
+    goto error;
   }
 
   /*
@@ -1578,7 +1566,7 @@ static void
 listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct addrgroup_state *as = args;
+  struct addrgroup_state *as = NULL;
   struct addrgroup_state *nas = NULL;
   struct sockaddr sa;
   int len = sizeof(sa);
@@ -1587,7 +1575,13 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
   int socktype;
   int swapped = 0;
 
-  if (!run || !as)
+  if (BK_FLAG_ISSET(gottype, BK_RUN_CLOSE))
+  {
+    // We're looping around in our own callbacks (most likely)
+    BK_VRETURN(B);
+  }
+
+  if (!run || !(as = args))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
@@ -1618,15 +1612,9 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
     goto error;
   }
 
-  if (BK_FLAG_ISSET(gottype, BK_RUN_CLOSE))
-  {
-    // We're looping around in our own callbacks (most likely)
-    BK_VRETURN(B);
-  }
-
   if (!(bag = as->as_bag))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Missing address group in addres state\n");
+    bk_error_printf(B, BK_ERR_ERR, "Address group missing from address group state\n");
     goto error;
   }
 
@@ -1697,6 +1685,12 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
       goto error;
     }
 
+    if (bk_run_close(B, run, as->as_sock, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not withdraw newly connected DGRAM socket from serving\n");
+      goto error;
+    }
+
     if (connect(as->as_sock, &(bs.bs_sa), bs_len) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create server dgram connection: %s\n", strerror(errno));
@@ -1740,7 +1734,14 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
       goto error;
     }
 
+    if (bk_run_handle(B, run, newfd, listen_activity, as, BK_RUN_WANTREAD, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
+      goto error;
+    }
+
     BK_SWAP(as->as_sock, newfd);
+
     swapped = 1;
   }
 

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.54 2004/08/11 00:41:42 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.55 2004/08/12 20:19:00 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -57,8 +57,6 @@ static int cancel_relay = 0;
  */
 struct global_structure
 {
-  bk_s			gs_B;
-  struct bk_run *	gs_run;
 } Global;
 
 
@@ -140,7 +138,7 @@ static int connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *b
 static void relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags);
 static void cleanup(bk_s B, struct program_config *pc);
 static void finish(int signum);
-static int do_cancel_relay(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags);
+static int do_cancel(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags);
 static int set_run_over(bk_s B, struct program_config *pc, bk_flags flags);
 
 
@@ -215,8 +213,6 @@ main(int argc, char **argv, char **envp)
     exit(254);
   }
   bk_fun_reentry(B);
-
-  Global.gs_B = B;
 
   pc = &Pconfig;
   memset(pc,0,sizeof(*pc));
@@ -487,7 +483,12 @@ proginit(bk_s B, struct program_config *pc)
     goto error;
   }
 
-  Global.gs_run = pc->pc_run;
+  if (bk_run_on_demand_add(B, pc->pc_run, do_cancel, pc, &cancel_relay, NULL, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not add relay cancel on demand function\n");
+    goto error;
+  }
+
 
   // SIGPIPE is just annoying
   bk_signal(B, SIGPIPE, SIG_IGN, BK_RUN_SIGNAL_RESTART);
@@ -612,13 +613,16 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     goto done;
     break;
   case BkAddrGroupStateConnected:
-    if (pc->pc_server && BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-      fprintf(stderr,"%s%s: Accepted connection\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
-    if (!pc->pc_server && BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-      fprintf(stderr,"%s%s: Connection complete\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
+    if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+    {
+      if (pc->pc_server)
+	fprintf(stderr,"%s%s: Accepted connection\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
+      else
+	fprintf(stderr,"%s%s: Connection complete\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
+    }
 
     if (BK_FLAG_ISSET(pc->pc_flags, PC_SERVER))
-    {
+    { 
       switch (fork())
       {
       case -1:
@@ -635,7 +639,8 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     if (pc->pc_server /* && ! serving_conintuously */)
     {
       BK_FLAG_SET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
-      bk_addrgroup_server_close(B, server_handle);
+      bk_addrgroup_server_close(B, pc->pc_server);
+      pc->pc_server = NULL;
     }
     break;
   case BkAddrGroupStateClosing:
@@ -646,7 +651,8 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
       BK_FLAG_CLEAR(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
       goto done;
     }
-    fprintf(stderr,"Software shutdown during connection setup\n");
+    if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+      fprintf(stderr,"Software shutdown during connection setup\n");
     goto error;
     break;
   case BkAddrGroupStateSocket:
@@ -831,12 +837,6 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     goto error;
   }
 
-  if (bk_run_on_demand_add(B, pc->pc_run, do_cancel_relay, pc, &cancel_relay, NULL, 0) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not add relay cancel on demand function\n");
-    goto error;
-  }
-
  done:
   BK_RETURN(B, 0);
 
@@ -1008,7 +1008,7 @@ static void finish(int signum)
  *	@param flags Flags for your enjoyment.
  */
 static int 
-do_cancel_relay(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags)
+do_cancel(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
   struct program_config *pc = opaque;
@@ -1019,15 +1019,24 @@ do_cancel_relay(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, 
     BK_RETURN(B, -1);
   }
 
-  if (!*demand)
+  if (!*demand) // Protect against bizzare recursion (shouldn't happen but does)
     BK_RETURN(B, 0);    
 
   *demand = 0;
 
-  if (bk_relay_cancel(B, &pc->pc_brc, 0) < 0)
+  if (pc->pc_server)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not cancel relay\n");
-    goto error;
+    bk_addrgroup_server_close(B, pc->pc_server);
+    pc->pc_server = NULL;
+  }
+    
+  if (pc->pc_brc.brc_ioh1)
+  {
+    if (bk_relay_cancel(B, &pc->pc_brc, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not cancel relay\n");
+      goto error;
+    }
   }
 
   if (set_run_over(B, pc, 0) < 0)

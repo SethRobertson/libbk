@@ -1,3 +1,12 @@
+2004-08-12  James Tanis  <jtt@outpost.tanis.org>
+
+	* src/bttcp.c (connect_complete): Close out correct server handle.
+	(do_cancel): Also shut down server if set.
+
+	* lib/b_addrgroup.c (listen_activity): For DGRAM servers: remove
+	serving socket from serving after connecting it to client. Add new
+	socket to service.
+
 2004-08-10  James Tanis  <jtt@outpost.tanis.org>
 
 	* src/bttcp.c (set_run_over): Set the run over flag if it has not
