@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.4 2003/03/26 16:46:06 jtt Exp $
+# $Id: Makefile,v 1.5 2003/05/31 01:36:28 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -30,6 +30,22 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 -include ./Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
+
+ifneq ($(BK_WANT_LIBTOOL),false)
+
+# If we are using libtool, we can rely on libraries to specify their own
+# dependencies, and therefore should specify only the minimal and absolutely
+# required libraries on the program link line (bkmk/Make.productions ignores
+# this stuff for modules and shared libraries, but not for programs).
+#
+# We must do this in order for ent to run even if the postgres/xml/etc.
+# libraries are missing.
+
+PKG_LIBS:=
+
+THIRD_PARTY_LIBS:=
+
+endif # BK_WANT_LIBTOOL
 
 LOCAL_LIBS=$(BK_LIBM)
 BK_LOCALJUNK=*.bak
