@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.11 2002/01/24 08:54:43 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.12 2002/01/30 17:56:41 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -134,6 +134,27 @@ typedef char *caddr_t;
 # define BK_GET_SOCKADDR_LEN(B,s,l) do { (l)=bk_netutils_get_sa_len((B),((struct sockaddr *)(s))); } while(0)
 #endif /* !HAVE_SA_LEN_MACRO */
 #endif /* !HAVE_SOCKADDR_SA_LEN */
+
+/*
+ * No OS has ntohll/htonll yet, but it probably will be added
+ */
+#ifndef ntohll
+#if BYTE_ORDER == BIG_ENDIAN
+# define ntohll(x) (x)
+# define htonll(x) (x)
+#elif BYTE_ORDER == LITTLE_ENDIAN
+# ifdef __bswap_64				// Linux uses this
+#  define ntohll(x) __bswap_64 (x)
+#  define htonll(x) __bswap_64 (x)
+# else  /* !bswap_64 */
+#  define ntohll(x) ((ntohl((x) & 0xffffffff) << 32) | ntohl((x) >> 32))
+#  define htonll(x) ((ntohl((x) & 0xffffffff) << 32) | ntohl((x) >> 32))
+# endif
+#else
+#  // better hope ntohll is in library
+#endif /* !bswap_64 */
+
+#endif /* ntohll */
 
 #if defined(AF_INET6) && defined(HAVE_INET_PTON)
 #define HAVE_INET6
