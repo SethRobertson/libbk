@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.3 2001/11/07 22:24:11 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.4 2001/11/07 22:34:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -651,3 +651,21 @@ gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval sta
   free(bgs);
   BK_VRETURN(B);
 }
+
+
+#ifdef CODE_REVIEW
+
+Lots of bad documention "this file is full of stuff", bk_gethostbyfoo(), etc
+structure bk_gethostbyfoo_state not documented.
+structure bk_gethostbyfoo_state should be at top of file:  (see chapter.langC "File layout")
+
+General API comment:   Not using fill-in bk_endpoint structure
+(e.g. bk_getservbyfoo(B, "http", NULL, NULL, endpoint) which would take the proto
+ out of the endpoint, and fill out the port number in the endpoint)
+
+In-line comment on column 48
+----------------------------------------
+  *ih=NULL; /* Make sure this is initialized right away (see error section) */
+----------------------------------------
+
+#endif
