@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_signal.c,v 1.5 2001/12/11 20:06:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_signal.c,v 1.6 2002/01/09 06:25:39 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -244,7 +244,6 @@ void *
 bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
-  int ret;
   int oldmask = 0;
   u_int oldtime = 0;
   struct bk_signal_saved *bss;
