@@ -1,3 +1,7 @@
+2001-12-11  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_url.c (bk_url_parse): Correct for ipv6.
+
 2001-12-10  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_string.c (bk_strdelim): new function to return first

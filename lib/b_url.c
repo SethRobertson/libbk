@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.3 2001/12/11 01:56:26 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.4 2001/12/11 17:04:06 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,7 +25,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-static u_int count_colons(bk_s B, const char *str);
+static u_int count_colons(bk_s B, const char *str, const char *str_end);
 
 
 
@@ -45,10 +45,9 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
   struct bk_url *bu = NULL;
   const char *host=NULL, *host_end;
   const char *proto=NULL, *proto_end;
-  const char *serv=NULL, *serv_end=NULL;
-  const char *path=NULL, *path_end;
+  const char *serv=NULL;
+  const char *path=NULL;
   u_int cnt;
-  u_int len;
 
   if (!url)
   {
@@ -68,10 +67,20 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
   {
     proto = NULL;				/* No protocol */
     host = url;					/* Try host from begining */
+    if (!(bu->bu_proto = strdup("")))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup proto: %s\n", strerror(errno));
+      goto error;
+    }
   }
   else
   {
     host = proto_end+1;				/* Skip over : but *not* / */
+    if (!(bu->bu_proto = bk_strndup(B, proto, proto_end - proto +1)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy proto\n");
+      goto error;
+    }
   }
   
   if (strncmp(host,"//",2) == 0) 		/* Skip over // */
@@ -79,117 +88,88 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
     host += 2;
   }
 
-  // XXX - IPv6 sucks.  Just look for "/" and then much later, when you know if you are focused at a host section,
-  // XXX   reprocess and count colons (N.B. you probably will want count_colons take a host_end ptr, or a length).
-  if ((host_end = bk_strdelim(B, host,":/")))
+  /* 
+   * Host is now set to the begining of host. Now we attempt to find the
+   * _path_ component and save it (if we find it). Then we process the
+   * host/serv part.
+   */
+  if ((path = strchr(host,'/')))
   {
-    if (*host_end == ':')			/* Host ends with : (or EOS) */
-    {
-      serv = host_end+1;			/* Skip over : */
-      serv_end = bk_strdelim(B, serv,":/");
-      if (serv_end && *serv_end == ':')
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Malfomed URL: <%s>\n", url);
-	goto error;
-      }
-      path = serv_end;
-    }
-    else
-    {
-      path = host_end;
-    }
-  }
-  else
-  {
-    path = host;
-  }
-
-  if (path)
-  {
-    if (*path != '/')
-    {
-      path=NULL;
-    }
-    else if (path == host)
-    {
-      if (serv)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "I seem have a service spec with no host spec. How can that happen\n");
-	goto error;
-      }
-      host = NULL;
-    }
-  }
-
-  if (host)
-  {
-    // XXX - in case of foo://bar -- host_end is not set
-    // XXX - note, "later" as defined above, has arrived
-    len=host_end-host+1;
-    if (!(bu->bu_host = bk_strndup(B, host, len)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not copy host: %s\n", strerror(errno));
-      goto error;
-    }
-  }
-  else
-  {
-    if (!(bu->bu_host = strdup("")))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not copy empty string to host: %s\n", strerror(errno));
-      goto error;
-    }
-  }
-
-  if (proto)
-  {
-    len=proto_end-proto+1;
-    if (!(bu->bu_proto = bk_strndup(B, proto, len)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not copy proto: %s\n", strerror(errno));
-      goto error;
-    }
-  }
-  else
-  {
-    if (!(bu->bu_proto = strdup("")))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not copy empty string to proto: %s\n", strerror(errno));
-      goto error;
-    }
-  }
-
-  if (serv)
-  {
-    len=serv_end-serv+1;
-    if (!(bu->bu_serv = bk_strndup(B, serv, len)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not copy serv: %s\n", strerror(errno));
-      goto error;
-    }
-  }
-  else
-  {
-    if (!(bu->bu_serv = strdup("")))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not copy empty string to serv: %s\n", strerror(errno));
-      goto error;
-    }
-  }
-
-  if (path)
-  {
-    if (!(bu->bu_path=strdup(path)))
+    if (!(bu->bu_path = strdup(path)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not strdup path: %s\n", strerror(errno));
       goto error;
     }
+    host_end = path;
   }
   else
   {
-    if (!(bu->bu_path=strdup("")))
+    if (!(bu->bu_path = strdup("")))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Couldnot strdup empty string to path: %s\n", strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup empty string to path: %s\n", strerror(errno));
+      goto error;
+    }
+    host_end = host+strlen(host);
+  }
+
+  if (path != host)
+  {
+    switch ((cnt = count_colons(B, host, host_end)))
+    {
+      /* host_part:serv_part */
+    case 1: /* AF_INET */
+    case 8: /* AF_INET6 */
+      if (!(serv = strrchr(host,':')))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not locate the last colon in string which I know has either 1 or 8. How could this happend?\n");
+	goto error;
+      }
+      serv++;					/* Skip over ':' */
+      if (!(bu->bu_serv = bk_strndup(B, serv, host_end - serv +1)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not copy service string\n");
+	goto error;
+      }
+    
+      if (!(bu->bu_host = bk_strndup(B, host, serv - host)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not copy host string\n");
+	goto error;
+      }
+      break;
+    
+    /* host_part only. No service string */
+    case 0: /* AF_INET */
+    case 7: /* Af_INET6 */
+      if (!(bu->bu_serv = strdup("")))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not strdup service string: %s\n", strerror(errno));
+	goto error;
+      }
+
+      if (!(bu->bu_host = bk_strndup(B, host, host_end - host +1)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not copy host string\n");
+	goto error;
+      }
+      break;
+    
+    default:
+      bk_error_printf(B, BK_ERR_ERR, "Illegal colon count (is: %d -- allowed values: 0, 1, 7, and 8\n", cnt);
+      goto error;
+    }
+  }
+  else
+  {
+    /* There is no host *or* service part */
+    if (!(bu->bu_host = strdup("")))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup empty string to host\n");
+      goto error;
+    }
+    if (!(bu->bu_serv = strdup("")))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup empty string to serv\n");
       goto error;
     }
   }
@@ -260,11 +240,12 @@ bk_url_destroy(bk_s B, struct bk_url *bu)
  *
  *	@param B BAKA thread/global state.
  *	@param str The string to sum up.
+ *	@param str_end The maximum position of str.
  *	@return <i>-1</i> on failure.<br>
  *	@return The <i>cnt</i> of colons on success.
  */
 static u_int
-count_colons(bk_s B, const char *str)
+count_colons(bk_s B, const char *str, const char *str_end)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   u_int cnt = 0;
@@ -276,10 +257,11 @@ count_colons(bk_s B, const char *str)
     BK_RETURN(B, -1);
   }
 
-  while((c = *str++))
+  while(str < str_end && *str)
   {
-    if (c == ':') 
+    if (*str == ':') 
       cnt++;
+    str++;
   }
 
   BK_RETURN(B,cnt);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_url.c,v 1.2 2001/12/11 01:34:26 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_url.c,v 1.3 2001/12/11 17:04:06 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,11 +25,6 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 #define ERRORQUEUE_DEPTH 32			///< Default depth
-
-static char *url=NULL;
-static char *defhost=NULL;
-static char *defserv=NULL;
-static char *defproto=NULL;
 
 /**
  * Information of international importance to everyone
@@ -79,9 +74,6 @@ main(int argc, char **argv, char **envp)
   const struct poptOption optionsTable[] = 
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
-    {"host", 'h', POPT_ARG_STRING, &defhost, 'h', "Set default host string", "host" },
-    {"service", 's', POPT_ARG_STRING, &defserv, 's', "Set default service string", "service" },
-    {"proto", 'p', POPT_ARG_STRING, &defproto, 'p', "Set default proto string", "proto" },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -111,19 +103,10 @@ main(int argc, char **argv, char **envp)
       bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);					// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       break;
-    case 's':
-    case 'h':
-    case 'p':
-      break;
     default:
       getopterr++;
       break;
     }
-  }
-
-  if (!(url=(char *)poptGetArg(optCon)))
-  {
-    getopterr++;
   }
 
   if (c < -1 || getopterr)
@@ -183,23 +166,51 @@ int proginit(bk_s B, struct program_config *pconfig)
 void progrun(bk_s B, struct program_config *pconfig)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
-  char line[1024];
+  char outputline[1024];
+  char inputline[1024];
   struct bk_url *bu;
+  u_int nextstart;
   
-  while(fgets(line, 1024, stdin))
+  while(fgets(inputline, 1024, stdin))
   {
-    bk_string_rip(B, line, NULL, 0);
+    bk_string_rip(B, inputline, NULL, 0);
 
-    if (BK_STREQ(line,"quit") || BK_STREQ(line,"exit"))
+    if (BK_STREQ(inputline,"quit") || BK_STREQ(inputline,"exit"))
       BK_VRETURN(B);
       
 
-    if (!(bu=bk_url_parse(B, line, 0)))
+    memset(outputline,0,1024);
+    nextstart = 0;
+    if (!(bu=bk_url_parse(B, inputline, 0)))
     {
       fprintf(stderr,"Could not convert url\n");
       continue;
     }
-    printf("%s://%s:%s%s\n", bu->bu_proto, bu->bu_host, bu->bu_serv, bu->bu_path);
+
+    if (!BK_STREQ(bu->bu_proto,""))
+    {
+      snprintf(outputline, 1024, "%s://", bu->bu_proto);
+      nextstart = strlen(outputline);
+    }
+
+    if (!BK_STREQ(bu->bu_host,""))
+    {
+      snprintf(outputline + nextstart, 1024 - nextstart, "%s", bu->bu_host);
+      nextstart = strlen(outputline);
+    }
+
+    if (!BK_STREQ(bu->bu_serv,""))
+    {
+      snprintf(outputline + nextstart, 1024 - nextstart, ":%s", bu->bu_serv);
+      nextstart = strlen(outputline);
+    }
+    
+    if (!BK_STREQ(bu->bu_path,""))
+    {
+      snprintf(outputline + nextstart, 1024 - nextstart, "%s", bu->bu_path);
+    }
+
+    printf("%-20s %-20s %s://%s:%s%s\n", inputline, outputline,  bu->bu_proto, bu->bu_host, bu->bu_serv, bu->bu_path);
   }
   
   BK_VRETURN(B);
