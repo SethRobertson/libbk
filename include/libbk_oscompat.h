@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.39 2003/04/18 11:31:38 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.40 2003/04/28 21:59:12 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -146,12 +146,12 @@ asm (".long	" #mod "_finish"); void mod ## _finish (void)
 #endif
 
 
-#ifdef __cplusplus
+// Force NULL to be a pointer type, for proper typeof (esp. in BK_RETURN)
 #ifdef NULL
 #undef NULL
 #endif
 #define NULL ((void *)0)
-#endif /* __cplusplus */
+
 
 #ifndef MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))

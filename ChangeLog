@@ -1,3 +1,19 @@
+2003-04-28  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h (BK_RETURN): eliminate umpteen billion calls to
+	__errno_location, incorporate BK_ORETURN functionality
+	(BK_ORETURN): trivially defined as BK_RETURN for compatibility
+
+	* include/libbk_oscompat.h (NULL): ensure pointer-ness of NULL
+
+	* lib/b_fun.c (bk_fun_exit): make the billion calls to _errno_location
+	here, in a function only called if seatbelts are turned on
+	
+	* lib/b_strconv.c (bk_string_atou64_int): ignore trailing whitespace
+	[applies to all of bk_string_ato{flag,[ui]{32,64}}]
+	(bk_string_atod): return 1 for trailing junk, just like integers
+	[also applies to bk_string_atof]
+	
 2003-04-17  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_string.c (bk_string_registry_insert): Return the *correct*
@@ -5,8 +21,8 @@
 
 2003-04-14  Seth Robertson  <seth@startide.sysdetect.com>
 
-	* lib/b_rand.c: Make usable (WRT generating _true_ random numbers
-	with actual measurement of individual machine's characteristics)
+	* lib/b_rand.c: Make usable [w.r.t. generating _true_ random numbers
+	with actual measurement of individual machine's characteristics]
 
 2003-04-16  Alexander Dupuy  <dupuy@sysdetect.com>
 
@@ -37,7 +53,7 @@
 	* lib/b_cksum.c: Specify thread state.
 
 	* lib/b_child.c: Specify thread state.  Do cleanup to bring closer
-	to working (really, not yet operational)
+	to working [really, not yet operational]
 
 	* test/diskspeed.c: Seth's stupid disk throughput tester
 
@@ -58,19 +74,19 @@
 
 	* lib/b_general.c (bk_general_init): Create thread tracking list.
 
-	* lib/b_thread.c: Convenience routines (mostly internal) to create
+	* lib/b_thread.c: Convenience routines [mostly internal] to create
 	and track a thread.
 
 2003-04-07  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* test/test_clc.c: Routine for CLC performance testing
 
-	* lib/b_strconv.c (bk_string_{symboltoa,atosymbol}): Provide
-	conversion routines from values to strings and vis versa.  Similar
-	to the flag routines, but doesn't use obscure flag formats, and
-	doesn't allow multiencoding of values (3=foo|bar).
+	* lib/b_strconv.c (bk_string_symboltoa, bk_string_atosymbol):
+	Provide conversion routines from values to strings and vis versa.
+	Similar to the flag routines, but doesn't use obscure flag
+	formats, and doesn't allow multiencoding of values [3=foo|bar].
 
-	* src/proto.c: Provide hints (search for XXX) for the typical
+	* src/proto.c: Provide hints [search for XXX] for the typical
 	places you will need to modify the prototype code.  Update the
 	flags and options to match the useful general additions made to
 	other programs.
@@ -95,8 +111,8 @@
 
 2003-04-03  James Tanis  <jtt@saint.sysdetect.com>
 
-	* lib/b_ioh.c (bk_ioh_cancel): set adminstrative close flag (ie
-	not in b_run.c).
+	* lib/b_ioh.c (bk_ioh_cancel): set adminstrative close flag [i.e. not
+	in b_run.c.
 	(ioh_internal_read): If the ioh is administratively closed, return EOF.
 
 	* lib/b_run.c (bk_run_fd_cancel_register): Allow two kinds of
@@ -152,7 +168,7 @@
 	aggregation messages get added to the error queues.
 
 	* test/test_errorstuff.c (progrun): Call bk_error_repeater_flush
-	before bk_error_dump (here and other test programs).
+	before bk_error_dump [here and other test programs].
 
 2003-03-19  Seth Robertson  <seth@startide.sysdetect.com>
 
@@ -162,8 +178,8 @@
 2003-03-18  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* xml/b_search.c: libbkxml for non-awb-specific XML routines
-	(licensing needed them and licensing is not AWB specific).
-	These should be used preferrentially over a_xml.
+	[licensing needed them and licensing is not AWB specific].
+	These should be used in preference to a_xml.
 	
 2003-03-17  James Tanis  <jtt@saint.sysdetect.com>
 
@@ -182,11 +198,11 @@
 2003-03-07  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_run.c (bk_run_event_comparator): Priority queues want
-	*BOOLEAN* *NOT* tri-state comparators.
+	*BOOLEAN*, *NOT* tri-state comparators.
 
 	* lib/b_ioh.c (bk_ioh_init): Initialization for follow mode.
 	(ioh_runhandler): Check if we run out of data in follow mode.
-	(check_follow): Function to determine (when in follow mode)
+	(check_follow): Function to determine [when in follow mode]
 	whether we need to wait for new data or to proceed if new data
 	have arrived.
 
@@ -209,8 +225,8 @@
 2003-02-23  James Tanis  <jtt@hawking.sysdetect.com>
 
 	* lib/b_string.c (bk_string_unique_string): Avoid placing EOS
-	marker in middle of string (snprintf(3) *guarentees* an EOS at the
-	end).
+	marker in middle of string [snprintf(3) *guarentees* an EOS at the
+	end].
 
 2003-02-22  Seth Robertson  <seth@startide.sysdetect.com>
 
@@ -225,7 +241,7 @@
 2003-02-11  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_memx.c (bk_memx_addstr): Wrapper around bk_memx_get to
-	handle the common(?) case where you want to have an infinately
+	handle the common(?) case where you want to have an infinitely
 	expandable string which keeps getting appended to.
 
 	* lib/b_md5.c (bk_MD5_extract_printable): Make sure that extracted
@@ -238,13 +254,13 @@
 2003-02-02  James Tanis  <jtt@hawking.sysdetect.com>
 
 	* lib/b_listnum.c (bk_listnum_next): Remove pointer from CLC
-	*before* freeing (wild pointer reference -- not really, but this
-	is more correct and shuts up insight).
+	*before* freeing [wild pointer reference -- not really, but this
+	is more correct and shuts up insight].
 
 2003-01-31  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_string.c (bsre_create): Add reference cnt to string
-	registry to avoid overfreeing (created wild pointers).
+	registry to avoid overfreeing [created wild pointers].
 
 	* include/libbk_oscompat.h (BK_FINISH_FUN): Insure no longer
 	chokes on __contructor__ attribute.
@@ -273,7 +289,7 @@
 	variable expansion arguments
 
 	* lib/b_string.c (bk_string_tokenize_split): Add variable
-	expansion (two methods: CLC and environ)
+	expansion [two methods: CLC and environ]
 
 2003-01-09  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
@@ -349,11 +365,11 @@
 
 	* lib/b_string.c (bk_string_unique_string): The deleted code
 	before the while loop had no effect--hashed value was not actually
-	moved anywhere and there were essentially no sideeffects (other
-	than using a random number).  Also, delete hash stuff entirely--
+	moved anywhere and there were essentially no sideeffects [other
+	than using a random number].  Also, delete hash stuff entirely--
 	the rand number is already whitened for your pleasure--no need to
 	go through *another* round.  Besides, there was MAJOR stack
-	overrun bug (either reading or writing, depending on the value)
+	overrun bug [either reading or writing, depending on the value]
 	since curlen was set to MAX instead of MIN.  Just say no to
 	overcomplicated functions, unless, of course, they are my
 	overcomplicated functions :-)
@@ -371,7 +387,7 @@
 2002-11-06  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_ioh.c (bk_ioh_stdwrfun): Add option to write all available
-	data on each write (for RAW mode only).
+	data on each write [for RAW mode only].
 
 2002-11-05  Alexander Dupuy  <dupuy@sysdetect.com>
 
@@ -429,13 +445,13 @@
 
 	* lib/b_addrgroup.c (tcp_connect_activity): Also check errno
 	against autoconf'ed determined value for subsequent calls to
-	connect(2) after the first one (for a given socket) has been
+	connect(2) after the first one [for a given socket] has been
 	refused.
 
 2002-10-04  James Tanis  <jtt@hawking.sysdetect.com>
 
 	* lib/b_run.c (bk_run_once): Do not block in select(2) if an event
-	has fired (ie allow timeouts to works their magic).
+	has fired [i.e. allow timeouts to works their magic].
 	(bk_run_checkeventq): Optional copyout to return the number of
 	events which have fired in this check.
 
@@ -494,7 +510,7 @@
 2002-09-06  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_strcode.c (bk_string_str2xml): Allow non-printable
-	characters in xml string (well it's really more of an xml-like string).
+	characters in xml string [well it's really more of an xml-like string].
 
 2002-09-05  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
@@ -533,10 +549,10 @@
 
 2002-09-04  James Tanis  <jtt@saint.sysdetect.com>
 
-	* lib/b_string.c: String registry functions (maps a string to a
-	unique ID for quick comparison and perfect hashing).
-	(bk_string_registry_idbystr): Program for empty repository boundry
-	case (doh!).
+	* lib/b_string.c: String registry functions [maps a string to a
+	unique ID for quick comparison and perfect hashing].
+	(bk_string_registry_idbystr): Program for empty repository boundary
+	case [doh!].
 
 2002-08-31  Seth Robertson  <seth@hawking.sysdetect.com>
 
@@ -598,9 +614,9 @@
 2002-08-14  James Tanis  <jtt@saint.sysdetect.com>
 
 	* include/libbk.h (BK_ENTRY): Do not call bk_fun stuff if !B.
-	(BK_ENTRY_MAIN): Special BK_ENTRY for main() (ie when B == NULL,
-	but you still want bk_fun stuff).
-	(BK_RETURN): (and pals) Do not do anything if B == NULL.
+	(BK_ENTRY_MAIN): Special BK_ENTRY for main() [i.e. when B == NULL,
+	but you still want bk_fun stuff].
+	(BK_RETURN and pals): Do not do anything if B == NULL.
 
 2002-08-09  Alexander Dupuy  <dupuy@sysdetect.com>
 
@@ -762,7 +778,7 @@
 	ensures coalesces into a valid string, suitlable for certain
 	protocols.
 
-	* lib/b_string.c (bk_mempbrk): strpbrk for vptrs (memory ranges)
+	* lib/b_string.c (bk_mempbrk): strpbrk for vptrs [memory ranges]
 
 2002-05-14  Seth Robertson  <seth@startide.sysdetect.com>
 
@@ -839,8 +855,8 @@
 2002-04-29  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_ioh.c: Revert "fix" made recently to allow ioh_close's
-	on full queues to succeed. Replace with real fix (which is to
-	bypass queue full check on commands).
+	on full queues to succeed. Replace with real fix [which is to
+	bypass queue full check on commands].
 
 2002-04-26  Alexander Dupuy  <dupuy@sysdetect.com>
 
@@ -853,8 +869,8 @@
 	a pointer which is not in an array is legal but ugly.
 
 	* lib/b_bnbio.c (bk_iohh_bnbio_write): Do at least one poll on
-	each write to clean up the state created by the write (under
-	normal conditions).
+	each write to clean up the state created by the write [under
+	normal conditions].
 
 2002-04-26    <seth@luggage>
 
@@ -863,7 +879,7 @@
 	support
 
 	* lib/b_addrgroup.c: Sanify as destruction--multiple frees allowed.
-	Add UDP transmit support (receive support is a bit more tricky)
+	Add UDP transmit support [receive support is a bit more tricky]
 
 2002-04-25 Brian Lindauer <lindauer@sysd.com>
 
@@ -872,7 +888,8 @@
 	
 2002-04-18  Seth Robertson  <seth@startide.sysdetect.com>
 
-	* include/libbk_net.h: Internal version of common network headers (struct ip, etc)
+	* include/libbk_net.h: Internal version of common network headers
+	[struct ip, etc.]
 
 2002-04-15  Seth Robertson  <seth@startide.sysdetect.com>
 
@@ -905,7 +922,7 @@
 
 2002-03-28  James Tanis  <jtt@saint.sysdetect.com>
 
-	* lib/b_string.c (bk_string_unique_string): Create a (very likely)
+	* lib/b_string.c (bk_string_unique_string): Create a [very likely]
 	unique string.
 
 	* lib/b_md5.c (bk_MD5_extract_printable): Copy out md5 digest into
@@ -917,7 +934,7 @@
 	if refused until you either succeed or faile miserably.
 
 	* lib/b_ioh.c (ioh_queue): Don't refuse to queue a large buffer if
-	the output queue is empty (even of said buffer exceeds the queue max).
+	the output queue is empty [even of said buffer exceeds the queue max].
 
 2002-03-27  James Tanis  <jtt@saint.sysdetect.com>
 
@@ -927,7 +944,7 @@
 2002-03-28  Seth Robertson  <seth@winwood.sysdetect.com>
 
 	* include/libbk.h (BK_FLAG_ALLSET): Macro to test for all flags
-	being set, not any flag.  (Should this be ARESET instead?)
+	being set, not any flag.  [Should this be ARESET instead?]
 
 2002-03-26  Alexander Dupuy  <dupuy@sysdetect.com>
 
@@ -1080,12 +1097,12 @@
 
 2002-02-18  James Tanis  <jtt@saint.sysdetect.com>
 
-	* lib/b_relay.c (bk_relay_iohhandler): update to use new coalesce interface.
+	* lib/b_relay.c (bk_relay_iohhandler): update to use new coalesce
+	interface.
 
-	* lib/b_ioh.c (bk_ioh_coalesce): New flags to force (on input)
-	copies and (on output) to indicate whether a copy had not
-	happened. 
-	(bk_ioh_coalesce): Do *not* free input vptr (violation of IOH API).
+	* lib/b_ioh.c (bk_ioh_coalesce): New flags to force [on input] copies
+	and [on output] to indicate whether a copy had not happened. 
+	(bk_ioh_coalesce): Do *not* free input vptr [violation of IOH API].
 
 2002-02-11  Alexander Dupuy  <dupuy@sysdetect.com>
 
@@ -1142,8 +1159,8 @@
 2002-01-19  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* include/libbk_oscompat.h (realloc): Redefine realloc to
-	specifically use malloc when ptr is NULL (mostly for Insight,
-	though protects against *really* broken malloc libs).
+	specifically use malloc when ptr is NULL [mostly for Insight,
+	though protects against *really* broken malloc libs].
 
 2002-01-19  Seth Robertson  <seth@yeah.baka.org>
 
@@ -1296,15 +1313,15 @@
 
 2001-12-19  James Tanis  <jtt@winwood.sysdetect.com>
 
-	* lib/b_run.c (bk_run_on_demand_add): Set brof key (DOH!)
+	* lib/b_run.c (bk_run_on_demand_add): Set brof key [DOH!]
 	(bk_run_on_demand_remove): Actutally destroy brof you are removing.
 
 	* lib/b_pollio.c (bk_polling_io_create): Sigh. Fully initialize
-	structure (despite memset()) in order to pacify insight.
+	structure [despite memset()] in order to pacify insight.
 	(bk_polling_io_close): Lingering close.
 	(bk_polling_io_close): Close out ioh too.
 	(polling_io_ioh_handler): Don't destroy bpi if asked not too
-	(lingering close).
+	[lingering close].
 	(bk_polling_io_data_destroy): We only need to destroy one vptr.
 
 	* lib/b_ioh.c (ioh_execute_cmds): Make sure you clear and destroy
@@ -1355,7 +1372,7 @@
 	(bk_signal_reset): Fuction to safely reset the above.
 
 	* lib/b_string.c: Eliminatef bk_strdelim which is identical to
-	strpbrk (thanks to Alex for pointing this out).
+	strpbrk [thanks to Alex for pointing this out]
 
 	* lib/b_url.c (bk_url_parse): Correct for ipv6.
 
@@ -1366,7 +1383,7 @@
 	(bk_strndup): Like strdup but only do n chars.
 
 	* lib/b_url.c: File for url munging.
-	(bk_url_parse): Seth's alg. (at least mostly done).
+	(bk_url_parse): Seth's alg. [at least mostly done].
 
 	* include/libbk.h (struct bk_version): bk_version stuff added.
 
@@ -1392,12 +1409,12 @@
 	* lib/b_netutils.c (bk_netutils_start_service_verbose): Null out
 	the appropriate things at the appropriate time to avoid double free.
 
-	* libbk: (everwhere) Replace XXX's with standards document
+	* libbk (everywhere): Replace XXX's with standards document
 	compliant notation
 
-	* include/libbk.h: Camel case and _e all enums (propogate through
-	source files too).
-	Change callback_t's to callback_f's (propogate).
+	* include/libbk.h: Camel case and _e all enums [propagate through
+	source files too].
+	Change callback_t's to callback_f's [propagate].
 
 2001-11-30  Seth Robertson  <seth@startide.sysdetect.com>
 
@@ -1411,31 +1428,31 @@
 	the API
 
 	* lib/b_netinfo.c (bk_netinfo_from_socket): make sure len is
-	initialized (jtt must have dropped this somewhere today).
+	initialized [jtt must have dropped this somewhere today].
 
 	* src/bttcp.c (proginit): Patch up old service staring names to
 	new. 
 
 	* lib/b_netutils.c (bk_parse_endpt_no_defaults): Convenience
-	function for parsing a url with no default values (as in a default
-	url).
-	(bk_netutils_start_service): Short version of start_servce (old
-	version renamed to BLAH_verbose).
-	(bk_netutils_make_conn): Short version of make_conn (old version
-	renmaed to BLAH_verbose).
+	function for parsing a url with no default values [as in a default
+	url].
+	(bk_netutils_start_service): Short version of start_servce [old
+	version renamed to BLAH_verbose].
+	(bk_netutils_make_conn): Short version of make_conn [old version
+	renmaed to BLAH_verbose].
 
 	* lib/b_addrgroup.c (net_init_end): Don't bypass callback on error
 	(DOH!).
 
-	* src/bttcp.c: Convert to using new event granularity (ie: fix
-	timeouts).
+	* src/bttcp.c: Convert to using new event granularity [i.e.: fix
+	timeouts].
 
 2001-12-03  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_netutils.c: Convert to new bk_addrgroup_state_e values.
 	(bk_netutils_make_conn): Make sure that values handed over to sss
 	are not freed. Make sure that sss is not freed once callback has
-	been called (it was freed in the callback).
+	been called [it was freed in the callback].
 	(bk_netutils_make_conn): make sure that all temporary values are
 	freed. 
 
@@ -1588,7 +1605,7 @@
 
 	* lib/b_string.c (bk_encode_base64): Mime encode/decode routines
 
-	* src/mmcat.c (main): Mime encode/decode test program (useful too)
+	* src/mmcat.c (main): Mime encode/decode test program [useful too]
 
 2001-11-16  James Tanis  <jtt@winwood.sysdetect.com>
 
@@ -1598,19 +1615,19 @@
 	Listening transfers now working.
 
 	* lib/b_getbyfoo.c (bk_gethostbyfoo): support for "resolving" the
-	special token BK_ADDR_ANY ("resolves" to the ANY address for the
-	given address family).
+	special token BK_ADDR_ANY ["resolves" to the ANY address for the
+	given address family].
 
 	* lib/b_addrgroup.c (do_net_init_af_inet_tcp_listen): Some copy
 	paste errors copied from connect section.
 	(net_init_check_sanity): Correct sanity checking. Was doing
-	*everything* under if (remote && local) condition which was
+	*everything* under if remote && local condition which was
 	patently wrong
 
 	* test/test_getbyfoo.c (main): Better usage message.
 
 	* src/proto.c (main): Example of how to configure pOpt to print
-	out the meaning of an option argument on the usage (brief) line.
+	out the meaning of an option argument on the usage [brief] line.
 
 	* src/bttcp.c: Too many chages. *Connecting* relay works.
 
@@ -1618,7 +1635,7 @@
 	sockaddr's correctly.
 	(bk_netinfo_from_socket): Don't pass sockaddr when you mean to
 	pass only the contained address.
-	(bk_netinfo_from_socket): Split out INET6 (sigh). There are *just*
+	(bk_netinfo_from_socket): Split out INET6 [sigh]. There are *just*
 	enough differences from INET to require this.
 	(bk_netinfo_info): Force bni to update and return pretty string.
 
@@ -1649,16 +1666,16 @@
 2001-11-16  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_ioh.c (bk_ioh_init): all handler to be NULL with only a
-	warning. This is but legal (see bk_ioh_relay).
+	warning. This is but legal [see bk_ioh_relay].
 
 	* lib/b_netinfo.c (bk_netinfo_update_hostent): pass bni *not*
-	bni->bni_addrs (sigh).
+	bni->bni_addrs [sigh].
 	(bk_netinfo_destroy): Don't forget to destroy clc's
 
 2001-11-15  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* libbk: Too many changes to document here. Basic support for
-	asynchronous connect (working).
+	asynchronous connect [working].
 
 2001-11-13  James Tanis  <jtt@winwood.sysdetect.com>
 
@@ -1702,9 +1719,9 @@
 
 	* lib/b_ioh.c (ioht_block_other): Line misordering causing
 	blocking to return invalid status codes, invalid command switch
-	variable (switching on flags instead).
-	(ioh_getlastbuf): Must offset for both inuse (read) and used
-	(write)
+	variable [switching on flags instead].
+	(ioh_getlastbuf): Must offset for both inuse [read] and used
+	[write]
 	
 	* lib/b_error.c (bk_error_iprint): File handles is another legal
 	output source.
@@ -1728,7 +1745,7 @@
 	* lib/b_relay.c: IOH relay code
 
 	* lib/b_ioh.c (ioht_raw_other): Remove data from queue after freeing it.
-	IOH now working (for some value of working) in RAW mode
+	IOH now working [for some value of working] in RAW mode
 	
 	* test/test_ioh.c (relayer): Bug which caused us to trash memory
 
@@ -1761,10 +1778,10 @@
 2001-11-08  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_netinfo.c: New file dealing with various aspects of
-	network information. All utility functions (perhaps should be
-	broken out into two files).
+	network information. All utility functions [perhaps should be
+	broken out into two files].
 
-	* lib/b_getbyfoo.c: Port to new BK_MALLOC(CALLOC) semantics.
+	* lib/b_getbyfoo.c: Port to new BK_MALLOC/CALLOC semantics.
 
 	* lib/b_string.c (bk_strlen): Acts like strlen, but bounded.
 
@@ -1789,7 +1806,7 @@
 	functions. 
 
 	* lib/b_getbyfoo.c (bk_getprotobyfoo): Get protoent by
-	anything (not yet mutex'ed).
+	anything [not yet mutex'ed].
 	(bk_protoent_destroy): Destroy a protoent created by above.
 	(bk_getprotobyfoo): Get a servent by anything.
 	(bk_protoent_destroy): Destroy the servent created above.
@@ -1867,7 +1884,7 @@
 	(BK_NULLSTR): string placeholder for NULL
 
 	* lib/b_bits.c (bk_bits_save): decrement size by 8 bits per char
-	(bk_bits_restore): size (in bits) is 4*strlen(x)
+	(bk_bits_restore): size [in bits] is 4*strlen(x)
 
 	* lib/b_string.c (bk_string_tokenize_split): avoid segv for default ws
 	(bk_string_quote): generate NULL for NULL, if ok

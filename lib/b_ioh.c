@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.74 2003/04/21 20:38:29 brian Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.75 2003/04/28 21:59:12 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1658,7 +1658,7 @@ static int ioht_raw_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags fl
     bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, BK_RUN_WANTWRITE, BK_RUN_WANTWRITE, 0);
   }
 
-  BK_ORETURN(B, ret);
+  BK_RETURN(B, ret);
 }
 
 
@@ -2564,7 +2564,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
        * We are not enforcing line oriented output, thus this is no different
        * that raw, so we will trivially call raw.
       */
-      BK_ORETURN(B, ioht_raw_other(B, ioh, aux, cmd, flags));
+      BK_RETURN(B, ioht_raw_other(B, ioh, aux, cmd, flags));
     }
 
     if (aux == BK_RUN_READREADY)
@@ -2579,7 +2579,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
        * that everything is NUL terminated, but since the stuff
        * is not guaranteed contiguous, this is not too interesting.
        */
-      BK_ORETURN(B, ioht_raw_other(B, ioh, aux, cmd, flags));
+      BK_RETURN(B, ioht_raw_other(B, ioh, aux, cmd, flags));
     }
     break;
 

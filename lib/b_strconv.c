@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.11 2003/04/09 03:57:13 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.12 2003/04/28 21:59:13 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -297,7 +297,7 @@ static int bk_string_atou64_int(bk_s B, const char *string, u_int64_t *value, in
   for(tmp='a';tmp<='z';tmp++)
     decode[tmp] = tmp - 'a' + 10;
 
-  /* Skip over leading space */
+  // skip over leading space
   while (isspace(*string))
     string++;
 
@@ -309,7 +309,7 @@ static int bk_string_atou64_int(bk_s B, const char *string, u_int64_t *value, in
     BK_RETURN(B, 1);
   }
 
-  /* Sign determination */
+  // sign determination
   switch(*string)
   {
   case '-':
@@ -318,7 +318,7 @@ static int bk_string_atou64_int(bk_s B, const char *string, u_int64_t *value, in
     neg = 1; string++; break;
   }
 
-  /* Base determination */
+  // base determination
   if (*string == '0')
   {
     switch(*(string+1))
@@ -351,7 +351,7 @@ static int bk_string_atou64_int(bk_s B, const char *string, u_int64_t *value, in
     u_int64_t oldval = val;
     int x = decode[*(unsigned char *)string++];
 
-    /* Is this the end of the number? */
+    // is this the end of the number?
     if (x < 0 || x >= base)
     {
       string--;					// point back at "end" char
@@ -375,6 +375,11 @@ static int bk_string_atou64_int(bk_s B, const char *string, u_int64_t *value, in
 
   *sign = neg;
   *value = val;
+
+  // skip over trailing space as well
+  while (isspace(*string))
+    string++;
+
   // digits == 1 iff we saw only "0x"
   BK_RETURN(B, digits ? 1 : (*string != '\0'));
 }
@@ -510,6 +515,7 @@ int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *n
  *	@param flags Future meta-ness.
  *	@return <i>-1</i> Call failure, not a valid string
  *	@return <br><i>0</i> on success
+ *	@return <br><i>positive</i> on non-null terminated flags--best effort
  *	@return <br>Copy-out <i>dst</i>
  */
 int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names, bk_flags flags)
@@ -736,6 +742,7 @@ bk_string_intcols(bk_s B, int64_t num, u_int base)
  *	BK_STRING_ATOD_FLAG_ALLOW_NAN to accept not-a-number values.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
+ *	@return <br><i>positive</i> on non-null terminated number--best effort
  */
 int
 bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
@@ -756,6 +763,13 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
   errno = 0;
   tmp = strtod(string, &end);
   err = errno;
+
+  // skip trailing whitespace
+  while (end && isspace(*end))
+    end++;
+  // note warning if trailing junk
+  if (*end != '\0')
+    ret = 1;
 
   if (tmp == 0.0)
   {
@@ -813,7 +827,7 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
     *value = tmp;
   }
 
-  if (ret)
+  if (ret < 0)
   {
     const char *errmsg;
 
@@ -825,7 +839,7 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, errmsg, string);
   }
 
-  BK_RETURN(B,ret);
+  BK_RETURN(B, ret);
 }
 
 
@@ -842,6 +856,7 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
  *	BK_STRING_ATOD_FLAG_ALLOW_NAN to accept not-a-number values.
  * @return <i>-1</i> on failure.<br>
  * @return <i>0</i> on success.
+ * @return <br><i>positive</i> on non-null terminated number--best effort
  */
 int
 bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)

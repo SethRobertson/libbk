@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.229 2003/04/21 20:38:28 brian Exp $
+ * $Id: libbk.h,v 1.230 2003/04/28 21:59:12 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -727,39 +727,36 @@ struct bk_addrgroup
 #define BK_ENTRY_MAIN(B, fun, pkg, grp) struct bk_funinfo *__bk_funinfo = bk_fun_entry(B, fun, pkg, grp)
 
 
+#ifdef __GNUC__
 /**
  * @brief Return a value, letting function tracing know you are exiting the
- * function, while preserving errno
+ * function preserving the order of return value function stack evaluation
+ * (e.g. if return value is actually a function which must be evaluated0.
  */
 #define BK_RETURN(B, retval)			\
 do {						\
-  int save_errno = errno;			\
-  if ((B) && BK_GENERAL_FLAG_ISFUNON(B))	\
-    bk_fun_exit((B), __bk_funinfo);		\
-  errno = save_errno;				\
-  return retval;				\
-  /* NOTREACHED */				\
-} while (0)
-
-
-/**
- * @brief Return a value, letting function tracing know you are exiting the
- * function, while preseving errno, and preseving the order of return
- * value function stack evaluation (e.g. if the return value is
- * actually a function which must be evaluated--the normal version
- * will have the return value evaluation be called by the parent
- * instead of this function, from function tracing's perspective
- */
-#define BK_ORETURN(B, retval)			\
-do {						\
   typeof(retval) myretval = (retval);		\
-  int save_errno = errno;			\
   if ((B) && BK_GENERAL_FLAG_ISFUNON(B))	\
     bk_fun_exit((B), __bk_funinfo);		\
-  errno = save_errno;				\
   return myretval;				\
   /* NOTREACHED */				\
 } while (0)
+#else  /* !__GNUC__ */
+// order of function stack *will* be messed up, tough baka
+#define BK_RETURN(B, retval)			\
+do {						\
+  if ((B) && BK_GENERAL_FLAG_ISFUNON(B))	\
+    bk_fun_exit((B), __bk_funinfo);		\
+  return retval;				\
+  /* NOTREACHED */				\
+} while (0)
+#endif /* !__GNUC__ */
+
+
+
+/// @brief Obsolete version of BK_RETURN()--use that instead.
+#define BK_ORETURN(B, retval) BK_RETURN(B, retval)
+
 
 
 /**
@@ -768,10 +765,8 @@ do {						\
  */
 #define BK_VRETURN(B)				\
 do {						\
-  int save_errno = errno;			\
   if ((B) && BK_GENERAL_FLAG_ISFUNON(B))	\
     bk_fun_exit((B), __bk_funinfo);		\
-  errno = save_errno;				\
   return;					\
   /* NOTREACHED */				\
 } while (0)

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.19 2003/03/28 20:33:35 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.20 2003/04/28 21:59:12 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -148,17 +148,18 @@ struct bk_funinfo *bk_fun_entry(bk_s B, const char *func, const char *package, c
 void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
 {
   struct bk_funinfo *cur = NULL;
+  int save_errno = errno;
 
   if (!fh)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
-    return;
+    goto done;
   }
 
   if (!B)
   {
     free(fh);
-    return;
+    goto done;
   }
 
   if (fh->bf_starttime.tv_sec && BK_GENERAL_ISFUNSTATSON(B))
@@ -191,6 +192,9 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
     bk_error_printf(B, BK_ERR_ERR,"Could not find function to exit: %s\n",fh->bf_funname);
     /* free(fh);  ---  Whether to leak memory or to double free... */
   }
+
+ done:
+  errno = save_errno;
 }
 
 
