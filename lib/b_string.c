@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.6 2001/09/29 13:25:31 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.7 2001/11/06 22:56:04 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,28 +16,33 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
+/**
+ * @file
+ * Random useful string functions
+ */
+
 #include <libbk.h>
 #include "libbk_internal.h"
 
 
-#define TOKENIZE_FIRST		8		/* How many we will start with */
-#define TOKENIZE_INCR		4		/* How many we will expand if we need more */
-#define TOKENIZE_STR_FIRST	16		/* How many we will start with */
-#define TOKENIZE_STR_INCR	16		/* How many we will expand */
+#define TOKENIZE_FIRST		8		/**< How many we will start with */
+#define TOKENIZE_INCR		4		/**< How many we will expand if we need more */
+#define TOKENIZE_STR_FIRST	16		/**< How many we will start with */
+#define TOKENIZE_STR_INCR	16		/**< How many we will expand */
 
-#define S_BASE			0x40		/* Base state */
-#define S_SQUOTE		0x1		/* In single quote */
-#define S_DQUOTE		0x2		/* In double quote */
-#define S_VARIABLE		0x4		/* In variable */
-#define S_BSLASH		0x8		/* Backslash found */
-#define S_BSLASH_OCT		0x10		/* Backslash octal */
-#define S_SPLIT			0x20		/* In split character */
-#define INSTATE(x)		(state & (x))	/* Are we in this state */
-#define GOSTATE(x)		state = x	/* Become this state  */
-#define ADDSTATE(x)		state |= x	/* Superstate (typically variable in dquote) */
-#define SUBSTATE(x)		state &= ~(x)	/* Get rid of superstate */
+#define S_BASE			0x40		/**< Base state */
+#define S_SQUOTE		0x1		/**< In single quote */
+#define S_DQUOTE		0x2		/**< In double quote */
+#define S_VARIABLE		0x4		/**< In variable */
+#define S_BSLASH		0x8		/**< Backslash found */
+#define S_BSLASH_OCT		0x10		/**< Backslash octal */
+#define S_SPLIT			0x20		/**< In split character */
+#define INSTATE(x)		(state & (x))	/**< Are we in this state */
+#define GOSTATE(x)		state = x	/**< Become this state  */
+#define ADDSTATE(x)		state |= x	/**< Superstate (typically variable in dquote) */
+#define SUBSTATE(x)		state &= ~(x)	/**< Get rid of superstate */
 
-#define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	/* yes, limit>1 and limit-- will always have the same truth value */
+#define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	/**< Check to see if the limit on numbers of tokens has been reached or not.  Yes, limit>1 and limit-- will always have the same truth value */
 
 
 static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sign, bk_flags flags);
@@ -45,14 +50,19 @@ static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sig
 
 
 
-/*
+/**
  * Hash a string
  *	
- * The Practice of Programming: Kernighan and Pike: 2.9
+ * The Practice of Programming: Kernighan and Pike: 2.9 (i.e. not covered
+ * under LGPL)
  *
  * Note we may not be applying modulus in this function since this is
  * normally used by CLC functions, CLC will supply its own modulus and
  * it is bad voodoo to double modulus if the moduluses are different.
+ *
+ *	@param a The string to be hashed
+ *	@param flags Whether we want this value to be moduloused by a large prime
+ *	@return <i>hash</i> of number
  */
 u_int 
 bk_strhash(char *a, bk_flags flags)
@@ -72,14 +82,23 @@ bk_strhash(char *a, bk_flags flags)
 
 
 
-/*
+/**
  * Print a binary buffer into human readable form.  Limit 65K bytes.
  * Allocates and returns a character buffer of sufficient size.
  * Caller is required to free this buffer.
  *
  * size = (n/16) * (prefix+61) + strlen(intro) + 10
  *
+ * Example output line:
  * AAA 1234 5678 1234 5678 1234 5678 1234 5678 0123456789abcdef
+ *
+ *	@param B BAKA Thread/global state
+ *	@param intro Description of buffer being printed
+ *	@param prefix Data to be prepended to each line of buffer data
+ *	@param buf The vectored raw data to be converted
+ *	@param flags Fun for the ruture
+ *	@return <i>NULL</i> on callfailure, allocation failure, size failure, etc
+ *	@return <br><i>string</i> representing the buffer on success
  */
 char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_flags flags)
 {
@@ -172,12 +191,17 @@ char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_fla
 
 
 
-/*
+/**
  * Convert ascii string to unsigned int32
  *
- * Returns -1 on error
- * Returns 0 on success
- * Returns pos on non-null terminated number (number is still returned)
+ *	@param B BAKA Thread/global state
+ *	@param string String to convert
+ *	@param value Copy-out of number the string represents
+ *	@param flags Fun for the future.
+ *    	@see bk_string_atoull_int
+ *	@return <i>-1</i> on error (string not converted)
+ *	@return <br><i>0</i> on success
+ *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
  */
 int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags)
 {
@@ -201,10 +225,17 @@ int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags)
 
 
 
-/*
- * Convert ascii string to unsigned int
+/**
+ * Convert ascii string to signed int
  *
- * Returns pos on non-null terminated number (number is still returned)
+ *	@param B BAKA Thread/global state
+ *	@param string String to convert
+ *	@param value Copy-out of number the string represents
+ *	@param flags Fun for the future.
+ *    	@see bk_string_atoull_int
+ *	@return <i>-1</i> on error (string not converted)
+ *	@return <br><i>0</i> on success
+ *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
  */
 int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags)
 {
@@ -228,12 +259,17 @@ int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags)
 
 
 
-/*
+/**
  * Convert ascii string to unsigned int64
  *
- * Returns -1 on error
- * Returns 0 on success
- * Returns pos on non-null terminated number (number is still returned)
+ *	@param B BAKA Thread/global state
+ *	@param string String to convert
+ *	@param value Copy-out of number the string represents
+ *	@param flags Fun for the future.
+ *    	@see bk_string_atoull_int
+ *	@return <i>-1</i> on error (string not converted)
+ *	@return <br><i>0</i> on success
+ *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
  */
 int bk_string_atoull(bk_s B, char *string, u_int64_t *value, bk_flags flags)
 {
@@ -256,10 +292,17 @@ int bk_string_atoull(bk_s B, char *string, u_int64_t *value, bk_flags flags)
 
 
 
-/*
- * Convert ascii string to unsigned int64
+/**
+ * Convert ascii string to signed int64
  *
- * Returns pos on non-null terminated number (number is still returned)
+ *	@param B BAKA Thread/global state
+ *	@param string String to convert
+ *	@param value Copy-out of number the string represents
+ *	@param flags Fun for the future.
+ *    	@see bk_string_atoull_int
+ *	@return <i>-1</i> on error (string not converted)
+ *	@return <br><i>0</i> on success
+ *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
  */
 int bk_string_atoill(bk_s B, char *string, int64_t *value, bk_flags flags)
 {
@@ -281,12 +324,18 @@ int bk_string_atoill(bk_s B, char *string, int64_t *value, bk_flags flags)
 
 
 
-/*
+/**
  * Convert ascii string to unsigned int64 with sign extension
  *
- * Returns -1 on error
- * Returns 0 on success
- * Returns pos on non-null terminated number (number is still returned)
+ *	@param B BAKA Thread/global state
+ *	@param string String to convert
+ *	@param value Copy-out of number the string represents
+ *	@param sign Copy-out sign of number converted
+ *	@param flags Fun for the future.
+ *    	@see bk_string_atoull_int
+ *	@return <i>-1</i> on call failure
+ *	@return <br><i>0</i> on success
+ *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
  */
 static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sign, bk_flags flags)
 {
@@ -366,11 +415,54 @@ static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sig
 
 
 
-/*
+/**
  * Tokenize a string into an array of the tokens in the string
  *
  * Yeah, this function uses gotos a bit more than I really like, but
  * avoiding the code duplication is pretty important too.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param src Source string to tokenize
+ *	@param limit Maximum number of tokens to generate--last token contains "rest" of string
+ *	@param spliton The string containing the character(s) which seperate tokens
+ *	@param variabledb Future expansion--variable substitution.  Set to NULL for now.
+ *	@param flags BK_STRING_TOKENIZE_SKIPLEADING, if set will cause
+ *		leading seperator characters to be ignored; otherwise,
+ *		an initial zero-length token will be generated.
+ *		BK_STRING_TOKENIZE_MULTISPLIT, if set, will cause
+ *		multiple seperators in a row to be treated as the same
+ *		seperator; otherwise, zero-length tokens will be
+ *		generated for every subsequent seperator character.
+ *		BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR, if set,
+ *		will cause ANSI-C backslash sequences to be
+ *		interpolated (\n); otherwise, ANSI-C backslash
+ *		sequences are not treated differently.
+ *		BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT, if set,
+ *		will cause backslash followed by zero and an octal
+ *		number (of variable length up to length 3) to be
+ *		interpreted as, and converted to, an ASCII character;
+ *		otherwise, that sequence is not treated
+ *		specially. BK_STRING_TOKENIZE_BACKSLASH, if set, will
+ *		cause a backslash to be a general quoting character
+ *		which will quote the next character (aside from NUL)
+ *		appearing in the source string (BACKSLASH_INTERPOLATE
+ *		will override this); otherwise BACKSLASH is not
+ *		treated specially (modula BACKSLASH_INTERPOLATE).
+ *		BK_STRING_TOKENIZE_SINGLEQUOTE, if set, will cause
+ *		single quotes to create a string in which the
+ *		seperator character, backslashes, and other magic
+ *		characters may exist without interpolation; otherwise
+ *		single quote is not treated specially.
+ *		BK_STRING_TOKENIZE_DOUBLEQUOTE, if set, will cause
+ *		double quotes to create a string in which the
+ *		seperator character may exist without causing
+ *		tokenization seperation (backslashes are still magic
+ *		and may quote a double quote); otherwise, double
+ *		quotes are not treated specially.  At some point in
+ *		the future, BK_STRING_TOKENIZE_VARIABLE may exist which may
+ *		cause $variable text substitution.
+ *	@return <i>NULL</i> on call failure, allocation failure, other failure
+ *	@return <br><i>null terminated array of token strings</i> on success.
  */
 char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, void *variabledb, bk_flags flags)
 {
@@ -717,8 +809,12 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
 
 
 
-/*
+/**
  * Destroy the array of strings produced by bk_string_tokenize_split
+ *
+ *	@param B BAKA Thread/global state
+ *	@param tokenized The array of tokens produced by @a bk_string_tokenize_split
+ *	@see bk_string_tokenize_split
  */
 void bk_string_tokenize_destroy(bk_s B, char **tokenized)
 {
@@ -740,9 +836,16 @@ void bk_string_tokenize_destroy(bk_s B, char **tokenized)
 
 
 
-/*
+/**
  * Rip a string -- terminate it at the first occurance of the terminator characters.,
  * Typipcally used with vertical whitespace to nuke the \r\n stuff.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param string String to examine and change
+ *	@param terminators String containing characters to terminate source at, on first occurance--if NULL use vertical whitespace.
+ *	@param flags Fun for the future
+ *	@return <i>NULL</i> on failure
+ *	@return <br><i>modified string</i> on success
  */
 char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags)
 {
@@ -763,12 +866,19 @@ char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags)
 
 
 
-/*
+/**
  * Quote a string, with double quotes, for printing, and subsequent split'ing, and
  * returning a newly allocated string which should be free'd by the caller.
  *
  * split should get the following flags to decode
  * BK_STRING_TOKENIZE_DOUBLEQUOTE|BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT
+ *
+ * 	@param B BAKA Thread/global state
+ *	@param src Source string to convert
+ *	@param needquote Characters which need backslash qutoing (double quote if NULL)
+ *	@param flags BK_STRING_QUOTE_NULLOK will convert NULL @a src into BK_NULLSTR.
+ *	@return <i>NULL</i> on call failure, allocation failure, other failure
+ *	@return <br><i>quoted src</i> on success (you must free)
  */
 char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags)
 {
@@ -846,8 +956,15 @@ char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags)
 
 
 
-/*
- * Convert flags to a string
+/**
+ * Convert flags (number/bitfield) to a string (ascii hex encoding)
+ *  Reverse of @a bk_string_atoflag
+ *
+ *	@param B BAKA Thread/global state
+ *	@param src Source number to convert
+ *	@param flags Fun for the future
+ *	@return <i>NULL</i> on allocation failure
+ *	@return <br><i>string</i> on success (you must free)
  */
 char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags)
 {
@@ -868,8 +985,16 @@ char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags)
 
 
 
-/*
- * Convert a string to flags
+/**
+ * Convert a string to flags.  Reverse of @a bk_string_flagtoa.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param src Source ascii string to convert
+ *	@param dst Copy-out flags
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> Call failure, not a valid string
+ *	@return <br><i>0</i> on success
+ *	@return <br>Copy-out <i>dst</i>
  */
 int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags)
 {

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_memx.c,v 1.3 2001/11/06 20:33:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_memx.c,v 1.4 2001/11/06 22:56:04 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,8 +26,17 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-/*
- * Extensible buffer management
+
+/**
+ * Create the extensible buffer management state along with an initial allocation
+ *
+ *	@param B BAKA Thread/global state
+ *	@param objsize Object size in bytes/octets
+ *	@param start_hint Number of objects to start out with
+ *	@param incr_hint Number of objects to grow when more are needed
+ *	@param flags Fun for the future
+ *	@return <i>NULL</i> on call failure, allocation failure
+ *	@return <br><i>Buffer handle</i> on success
  */
 struct bk_memx *bk_memx_create(bk_s B, size_t objsize, u_int start_hint, u_int incr_hint, bk_flags flags)
 {
@@ -70,8 +79,14 @@ struct bk_memx *bk_memx_create(bk_s B, size_t objsize, u_int start_hint, u_int i
 
 
 
-/*
+/**
  * Destroy buffer and management
+ *
+ *	@param B BAKA Thread/global state 
+ *	@param bm Buffer management handle
+ *	@param flags BK_MEMX_PRESERVE_ARRAY if the allocated memory
+ *		must live on (will be free'd later) but the dynamic buffer
+ *		management side should still go away
  */
 void bk_memx_destroy(bk_s B, struct bk_memx *bm, bk_flags flags)
 {
@@ -92,8 +107,19 @@ void bk_memx_destroy(bk_s B, struct bk_memx *bm, bk_flags flags)
 
 
 
-/*
+/**
  * Get an element (new or otherwise)
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bm Buffer management handle
+ *	@param count Number of new elements to obtain or location of old element to return
+ *	@param curused Copy-out the number of elements currently in use
+ *	@param flags BK_MEMX_GETNEW will request a new allocation; otherwise will request a prior allocation
+ *	@return <i>NULL</i> on call failure, allocation failure
+ *	@return <br><i>new allocation</i> pointer to first of new allocation (array layout)
+ *	@return <br><i>old allocation</i> pointer to a particular prior allocation (array layout).
+ *		Note that you can obtain a pointer to one past the end of the array.  Avoid
+ *		reading or writing to this location.  This can be useful in certain circumstances.
  */
 void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused, bk_flags flags)
 {
@@ -138,8 +164,15 @@ void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused, bk_fl
 
 
 
-/*
- * Reset memory extender used count (truncate)
+/**
+ * Reset memory extender used count (truncate).
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bm Buffer management handle
+ *	@param count The number of elements to virtually set as the length--truncation only
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> on call failure
+ *	@return <br><i>0</i> on success (including "already smaller than this size")
  */
 int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags)
 {

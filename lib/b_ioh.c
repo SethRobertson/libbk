@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.3 2001/11/06 18:25:24 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.4 2001/11/06 22:56:04 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -18,7 +18,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 /**
  * @file
- * All of the baka ioh public and private functions.
+ * Association of file descriptor/handle to callback.  Queue data for output, translate input stream
+ * into messages.
  */
 
 #include <libbk.h>
@@ -88,9 +89,11 @@ struct bk_ioh
 
 
 /**
- * @group biqclc bk ioh queue of data pending for I/O defintions.
- * @{
+ * @name Defines: biq_clc
+ * Queue of data pending for I/O CLC definition
+ * to hide CLC choice.
  */
+// @{
 #define biq_create(o,k,f,a)		dll_create(o,k,f)
 #define biq_destroy(h)			dll_destroy(h)
 #define biq_insert(h,o)			dll_insert(h,o)
@@ -107,30 +110,47 @@ struct bk_ioh
 #define biq_nextobj(h,i)		dll_nextobj(h,i)
 #define biq_iterate_done(h,i)		dll_iterate_done(h,i)
 #define biq_error_reason(h,i)		dll_error_reason(h,i)
-/**@}*/
+// @}
 
 
 
-/*
- * Static functions
- */
 static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime);
+
+
+
+/**
+ * @name IOH message type queueing functions
+ * Data sent from the user must be placed on the output queue prior to actual system output.
+ * This allows transformation (vectoring, blocking, etc) to take place.
+ */
+// @{
 static int ioht_raw_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
 static int ioht_block_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
 static int ioht_vector_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
 static int ioht_line_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
+// @}
+
+
+/**
+ * @name IOH message type for exceptional events functions
+ * When the user issues a shutdown, flush, close, etc: the message type functions
+ * may have to take special actions with the queued data.
+ */
+// @{
 static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags);
 static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags);
 static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags);
 static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags);
-#define IOHT_SHUTDOWN		0x01		// Other command is a shutdown
-#define IOHT_FLUSH		0x02		// Other command is a flush
-#define IOHT_CLOSE		0x04		// Other command is a close
+#define IOHT_SHUTDOWN		0x01		///< Other command is a shutdown
+#define IOHT_FLUSH		0x02		///< Other command is a flush
+#define IOHT_CLOSE		0x04		///< Other command is a close
+// @}
 
 
 
 /**
  * Create and initialize the ioh environment.
+ *
  *	@param B BAKA thread/global state 
  *	@param fdin The file descriptor to read from.  -1 if no input is desired.
  *	@param fdout The file descriptor to write to.  -1 if no output is desired.
@@ -143,8 +163,8 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flag
  *	@param outbufmax The maximum amount of data queued for transmission (0 for unlimited)
  *	@param run The bk run environment to use with the fd.
  *	@param flags The type of data on the file descriptors.
- *	@return NULL on call failure, allocation failure, or other fatal error.
- *	@return The initialized ioh structure if successful.
+ *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
+ *	@return <br><i>ioh structure</i> if successful.
  */
 struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_iofunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags)
 {
@@ -265,6 +285,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_io
 
 /**
  * Update various configuration parameters of a IOH instance
+ *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  *	@param readfun The function to use to read data.
@@ -277,8 +298,8 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_io
  *	       -- lowered maximum will not affect previously queued data
  *	@param flags The type of data on the file descriptors.
  *	       -- not all (any?) flags changes will take affect or will have a positive effect--handle with care
- *	@return -1 on call failure.
- *	@return 0 on success.
+ *	@return <i>-1<i> on call failure.
+ *	@return <br><i>0</i> on success.
  */
 int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iofunc readfun, bk_iofunc writefun, int (*handler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags), void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags)
 {
@@ -308,6 +329,7 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iofunc readfun, bk_iofunc write
 
 /**
  * Request various configuration parameters of a IOH instance.
+ *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  *	@param fdin The file descriptor to read from.  -1 if no input is desired.
@@ -321,8 +343,8 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iofunc readfun, bk_iofunc write
  *	@param outbufmax The maximum amount of data queued for transmission (0 for unlimited)
  *	@param run The bk run environment to use with the fd.
  *	@param flags The type of data on the file descriptors.
- *	@return -1 on call failure.
- *	@return 0 on success.
+ *	@return <i>-1</i> on call failure.
+ *	@return <br><i>0</i> on success.
  */
 int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iofunc *readfun, bk_iofunc *writefun, int (**handler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags), void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags)
 {
@@ -355,12 +377,13 @@ int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iofunc *rea
 
 /**
  * Enqueue data for output, if allowed.
+ *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  *	@param data The data to be sent
  *	@param flags Future expansion
- *	@return -1 on call failure or subsystem refusal
- *	@return 0 on success
+ *	@return <i>-1</i> on call failure or subsystem refusal
+ *	@return <i>0</i> on success
  */
 int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
 {
@@ -421,15 +444,18 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
 
 /**
  * Tell the system that no futher system I/O will be permitted.
+ *
  * If data is currently queued for input, this data will sent to the user as incomplete.
  * If data is currented queued for output, this data will be drained before the shutdown takes effect.
- * See bk_ioh_flush for a way to avoid this.
+ * See @a bk_ioh_flush for a way to avoid this.
+ *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  *	@param how -- SHUT_RD to shut down reads, SHUT_WR to shut down writes, SHUT_RDWR for both.
  *	@param flags Future expansion
- *	@return -1 on call failure or subsystem refusal
- *	@return 0 on success
+ *	@see bk_ioh_flush
+ *	@return <i>-1</i> on call failure or subsystem refusal
+ *	@return <br><i>0</i> on success
  */
 void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 {
@@ -522,13 +548,15 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 
 /**
  * Flush data queued in the ioh.
+ *
  * Data may be queued for input or output.
+ *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  *	@param how -- SHUT_RD to flush input, SHUT_WR to flush output, SHUT_RDWR for both.
  *	@param flags Future expansion
- *	@return -1 on call failure or subsystem refusal
- *	@return 0 on success
+ *	@return <i>-1</i> on call failure or subsystem refusal
+ *	@return <br><i>0</i> on success
  */
 void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 {
@@ -577,13 +605,15 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 
 /**
  * Control whether or not new input will be accepted from the system.
+ *
  * Note there may be incomplete data on the input queue which will remain pending.
+ *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  *	@param isallowed Zero if no reads desired, non-zero if reads allowed
  *	@param flags Future expansion
- *	@return -1 on call failure or subsystem refusal
- *	@return 0 on success
+ *	@return <i>-1</i> on call failure or subsystem refusal
+ *	@return <br><i>0</i> on success
  */
 void bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags)
 {
@@ -626,11 +656,13 @@ void bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flag
 
 /**
  * Indicate that no further activity is desired on this ioh.
+ *
  * The ioh may linger if data requires draining, unless abort.
  * Incomplete data pending on the input queue will be sent to user as incomplete unless abort.
  * Additional callbacks may occur--WRITECOMPLETEs or IOHWRITEERRORs
  *  (if no abort), WRITEABORTEDs (if abort), IOHCLOSING (if
  *  NOTIFYANYWAY)
+ *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  *	@param flags Future expansion
@@ -696,10 +728,12 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
 /**
  * Indicate that no further activity is desired on this ioh.
+ *
  * All queued data will be flushed (use _close instead).
  * User data queued on system probably will not be freed (use _close instead).
  * No user notification (use _close instead).
  * Did we mention you should use _close instead of this interface?
+ *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  */
@@ -750,8 +784,18 @@ void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
 
 
 
-/*
- * Run's interface into the IOH
+/**
+ * Run's interface into the IOH.  The callback which it calls when activity was referenced.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param run Handle into run environment
+ *	@param fd File descriptor which had the activity
+ *	@param gottypes Description of activity seen
+ *	@param opaque The ioh we passed in previosly
+ *	@param starttime The "current time" of when the select loop
+ *		terminated, which may have a casual relationship with the
+ *		actual time.  Useful to save system calls when you don't care
+ *		that much, or want to avoid starvation.
  */
 static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime)
 {

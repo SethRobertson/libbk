@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.5 2001/11/06 18:25:24 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.6 2001/11/06 22:56:04 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -124,14 +124,19 @@ static int brofl_ko_cmp(void *a, struct bk_run_ondemand_func *b);
 
 
 
-/*
- * Static.  Yes, well, when you have signals which have to affect
- * system state, you have no choice but to use a static or global.
+/**
+ * @name Signal static variables
  *
- * This points to the bk_run number of signal received array.
+ * Data which signal handlers running on the signal stack can modify.
+ * This is used for syncronous signal handling (the signal handler simply
+ * sets the beensignaled variable and the increments number of signals received
+ * for this signal, and the baka run environment will call a handler
+ * running in the normal context/stack as part of the baka run loop.
  */
+// @{
 static volatile u_int8_t	(*br_signums)[NSIG];
 static volatile int		br_beensignaled;
+// @}
 
 
 
@@ -139,8 +144,8 @@ static volatile int		br_beensignaled;
  * Create and initialize the run environment.
  *	@param B BAKA thread/global state 
  *	@param flags Flags for future expansion--saved through run structure.
- *	@return NULL on call failure, allocation failure, or other fatal error.
- *	@return The initialized baka run structure if successful.
+ *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
+ *	@return <br><i>The</i> initialized baka run structure if successful.
  */
 struct bk_run *bk_run_init(bk_s B, bk_flags flags)
 {
@@ -294,8 +299,8 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
  *	@param handler The function to call during the run event loop if a signal was received.
  *	@param opaque The opaque data for the handler.
  *	@param flags Flags for future expansion.
- *	@return <0 on call failure, system call failure, or other failure.
- *	@return 0 on success.
+ *	@return <i><0</i> on call failure, system call failure, or other failure.
+ *	@return <br><i>0</i> on success.
  */
 int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B, struct bk_run *run, int signum, void *opaque, struct timeval starttime), void *opaque, bk_flags flags)
 {
@@ -356,8 +361,8 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
  *	@param opaque The opaque data for the handler
  *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
  *	@param flags Flags for the Future.
- *	@return <0 on call failure, allocation failure, or other error.
- *	@return 0 on success.
+ *	@return <i><0</i> on call failure, allocation failure, or other error.
+ *	@return <br><i>0</i> on success.
  */
 int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
@@ -409,8 +414,8 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
  *	@param opaque The opaque data for the handler
  *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
  *	@param flags Flags for the Future.
- *	@return <0 on call failure, allocation failure, or other error.
- *	@return 0 on success.
+ *	@return <i><0</i> on call failure, allocation failure, or other error.
+ *	@return <br><i>0</i> on success.
  */
 int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
@@ -444,8 +449,8 @@ int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(
  *	@param opaque The opaque data for the handler
  *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
  *	@param flags Flags for the Future.
- *	@return <0 on call failure, allocation failure, or other error.
- *	@return 0 on success.
+ *	@return <i><0</i> on call failure, allocation failure, or other error.
+ *	@return <br><i>0</i> on success.
  */
 int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
@@ -486,8 +491,8 @@ int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(b
  *	@param run The baka run environment state
  *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
  *	@param flags Flags for the Future.
- *	@return <0 on call failure, or other error.
- *	@return 0 on success.
+ *	@return <i><0</i> on call failure, or other error.
+ *	@return <br><i>0</i> on success.
  */
 int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags)
 {
@@ -524,8 +529,8 @@ int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags)
  *	@param B BAKA thread/global state 
  *	@param run The baka run environment state
  *	@param flags Flags for the Future.
- *	@return <0 on call failure, or other error.
- *	@return 0 on success.
+ *	@return <i><0</i> on call failure, or other error.
+ *	@return <br><i>0</i> on success.
  */
 int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags)
 {
@@ -555,8 +560,8 @@ int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags)
  *	@param B BAKA thread/global state 
  *	@param run The baka run environment state
  *	@param flags Flags for the Future.
- *	@return <0 on call failure, or other error.
- *	@return 0 on success.
+ *	@return <i><0</i> on call failure, or other error.
+ *	@return <br><i>0</i> on success.
  */
 int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 {
@@ -781,8 +786,8 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
  *	@param handler The function to call when activity is monitored on the fd
  *	@param wanttypes What types of activities you want notification on
  *	@param flags Flags for the Future.
- *	@return <0 on call failure, or other error.
- *	@return 0 on success.
+ *	@return <i><0</i> on call failure, or other error.
+ *	@return <br><i>0</i> on success.
  */
 int bk_run_handle(bk_s B, struct bk_run *run, int fd, void (*handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime), void *opaque, u_int wanttypes, bk_flags flags)
 {
@@ -859,8 +864,8 @@ int bk_run_handle(bk_s B, struct bk_run *run, int fd, void (*handler)(bk_s B, st
  *	@param run The baka run environment state
  *	@param fd The file descriptor which should be monitored
  *	@param flags Flags for the Future.
- *	@return <0 on call failure, or other error.
- *	@return 0 on success.
+ *	@return <i><0</i> on call failure, or other error.
+ *	@return <br><i>0</i> on success.
  */
 int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 {
@@ -918,8 +923,8 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
  *	@param run The baka run environment state
  *	@param fd The file descriptor which should be monitored
  *	@param flags Flags for the Future.
- *	@return (u_int)-1 on error
- *	@return BK_RUN_WANT* bitmap on success
+ *	@return <i>(u_int)-1</i> on error
+ *	@return <br><i>BK_RUN_WANT* bitmap</i> on success
  */
 u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 {
@@ -953,8 +958,8 @@ u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags)
  *	@param whattypes What preferences the user wishes to get notification on
  *	@param wantmask What preferences the user is attempting to set
  *	@param flags Flags for the Future.
- *	@return -1 on error
- *	@return 0 on success
+ *	@return <i>-1</i> on error
+ *	@return <br><i>0</i> on success
  */
 int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wantmask, bk_flags flags)
 {
@@ -998,8 +1003,12 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wa
 
 
 
-/*
+/**
  * Event priority queue comparison routines
+ *
+ *	@param a First event queue event
+ *	@param b Second event queue event
+ *	@return <i>sort order</i>
  */
 static int bk_run_event_comparator(struct br_equeue *a, struct br_equeue *b)
 {
@@ -1008,11 +1017,13 @@ static int bk_run_event_comparator(struct br_equeue *a, struct br_equeue *b)
 
 
 
-/*
+/**
  * Signal handler for synchronous signal--glue beween OS and libbk
  *
  * <TODO>Worry about locking!</TODO>
  * <TODO>Autoconf for multiple signal prototypes</TODO>
+ *
+ *	@param signnum signal number that was received
  */
 static void bk_run_signal_ihandler(int signum)
 {
@@ -1026,9 +1037,15 @@ static void bk_run_signal_ihandler(int signum)
 
 
 
-/*
+/**
  * The internal event which implements cron functionality on top of
  * the normal once-only event queue methodology
+ *
+ *	@param B BAKA Thread/global state
+ *	@param run Run environment handle
+ *	@param opaque Event cron structure handle
+ *	@param starttime The time when this global-event queue run was started
+ *	@param flags BK_RUN_DESTROY when this event is being called for the last time.
  */
 static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags)
 {
@@ -1051,9 +1068,17 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, struct t
 
 
 
-/*
+/**
  * Execute all pending event queue events, return delta time to next event via *delta.
- * Return <0 on error, ==0 if no next event, >0 otherwise.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param run Run environment handle
+ *	@param startime The time when this global-event queue run was started
+ *	@param delta The time to the next event
+ *	@return <i>-1</i> on call failure
+ *	@return <br><i>0</i> if there is no next event
+ *	@return <br><i>>0</i> if there is a next event
+ *	@return <br>copy-out <i>delta</i> is time to next event, if there is a next event
  */
 static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval starttime, struct timeval *delta)
 {
@@ -1111,8 +1136,8 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval startti
  *	@param fun function to call
  * 	@param opaque data for fun call
  * 	@param handle handle to use to remove this fun
- * 	@return -1 on failure
- * 	@return 0 on success
+ * 	@return <i>-1</i> on failure
+ * 	@return <br><i>0</i> on success
  */
 int
 bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle)
@@ -1197,8 +1222,8 @@ bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle)
  *	@param fun function to call
  * 	@param opaque data for fun call
  * 	@param handle handle to use to remove this fun
- * 	@return -1 on failure
- * 	@return 0 on success
+ * 	@return <i>-1</i> on failure
+ * 	@return <br><i>0</i> on success
  */
 int
 bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle)
@@ -1276,8 +1301,12 @@ bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle)
 
 
 
-/*
+/**
  * Allocate a brf
+ *
+ *	@param B BAKA Thread/global state
+ *	@return <i>NULL</i> on allocation failure
+ *	@return <i>function handle</i> on success
  */
 static struct bk_run_func *
 brfn_alloc(bk_s B)
@@ -1299,8 +1328,11 @@ brfn_alloc(bk_s B)
 
 
 
-/*
+/**
  * Destroy a brf
+ *
+ *	@param B BAKA Thread/global state
+ *	@param brfn Baka run function handle
  */
 static void
 brfn_destroy(bk_s B, struct bk_run_func *brfn)
@@ -1331,8 +1363,8 @@ brfn_destroy(bk_s B, struct bk_run_func *brfn)
  * 	@param opaque data for fun call
  * 	@param demand pointer to int which controls whether function will run
  * 	@param handle handle to use to remove this fun
- * 	@return -1 on failure
- * 	@return 0 on success
+ * 	@return <i>-1</i> on failure
+ * 	@return <br><i>0</i> on success
  */
 int
 bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime, bk_flags flags), void *opaque, volatile int *demand, void **handle)
@@ -1380,7 +1412,7 @@ bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_ru
 
 /**
  * Remove a function from the bk_run poll list
- *	@param B BAKA thread/global state 
+ *	@param B BAKA Thread/global state 
  *	@param run bk_run structure
  *	@param hand on demand function to remove
  */
@@ -1411,8 +1443,12 @@ bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle)
 
 
 
-/*
- * Allocate a brf
+/**
+ * Allocate a brf -- on-demand function structure
+ *
+ *	@param B BAKA Thread/global state
+ *	@return <i>NULL</i> on allocation failure
+ *	@return <br><i>baka on-demand function</i> on success
  */
 static struct bk_run_ondemand_func *
 brof_alloc(bk_s B)
@@ -1432,8 +1468,11 @@ brof_alloc(bk_s B)
 
 
 
-/*
- * Destroy a brf
+/**
+ * Destroy a brf -- on-demand function
+ *
+ *	@param B BAKA Thread/global state
+ *	@param brof BAKA run on-demand function structure
  */
 static void
 brof_destroy(bk_s B, struct bk_run_ondemand_func *brof)
@@ -1476,6 +1515,11 @@ static ht_val fa_key_hash(int *a)
   return(*a);
 }
 
+
+
+/*
+ * baka run function list CLC routines
+ */
 static int brfl_oo_cmp(struct bk_run_func *a, struct bk_run_func *b)
 {
   return ((char *)(a->brfn_key) - (char *)(b->brfn_key));
@@ -1485,6 +1529,11 @@ static int brfl_ko_cmp(void *a, struct bk_run_func *b)
   return ((char *)a)-((char *)b->brfn_key);
 }
 
+
+
+/*
+ * baka run on-demand function list CLC routines
+ */
 static int brofl_oo_cmp(struct bk_run_ondemand_func *a, struct bk_run_ondemand_func *b)
 {
   return ((char *)(a->brof_key) - (char *)(b->brof_key));
