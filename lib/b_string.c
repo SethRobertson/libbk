@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.98 2003/11/22 10:11:12 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.99 2003/11/26 03:52:53 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1097,8 +1097,6 @@ char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags f
  * the bound. NB: This function returns a @a ssize_t not a @a size_t as per
  * @a strlen(3). This is so we can return <i>-1</i>.`
  *
- * <TODO>Should this be replaced with memmem?  No, silly, this is a totally different function.</TODO>
- *
  * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state.
@@ -1299,40 +1297,6 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t nlen)
 
 
 
-// <TODO>This can be removed ifdef HAVE_MEMRCHR once B is gone</TODO>
-/**
- * Search len bytes of buffer for the final occurrence of character.
- *
- * THREADS: MT-SAFE
- *
- *	@param B BAKA thread/global state.
- *	@param buffer The buffer in which to search.
- *	@param character The character to search for.
- *	@param len The max length to search.
- *	@return <i>NULL</i> on failure.<br>
- *	@return <i>pos</i> of @a needle on success.
- */
-void *
-bk_memrchr(bk_s B, const void *buffer, int character, size_t len)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-#ifndef HAVE_MEMRCHR
-  const char *p;
-
-  p = buffer;
-  p += len;
-  while (--p >= (const char *)buffer)
-    if (*p == character)
-      BK_RETURN(B, (void *)p);
-
-  BK_RETURN(B, NULL);
-#else  /* !HAVE_MEMRCHR */
-  BK_RETURN(B, memrchr(buffer, character, len));
-#endif /* !HAVE_MEMRCHR */
-}
-
-
-
 /**
  * Compare two possibly NUL-terminated strings, ignoring whitespace
  * differences.  This is like @a strncasecmp(3) but does not do case folding;
@@ -1385,6 +1349,112 @@ bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2)
 
   // equality requires matching all characters from the first string
   BK_RETURN(B, s1[i1] ? len1 - i1 : 0);
+}
+
+
+
+// <TODO>This can be removed ifdef HAVE_MEMRCHR once B is gone</TODO>
+/**
+ * Search len bytes of buffer for the final occurrence of character.
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state.
+ *	@param buffer The buffer in which to search.
+ *	@param character The character to search for.
+ *	@param len The max length to search.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>pos</i> of @a needle on success.
+ */
+void *
+bk_memrchr(bk_s B, const void *buffer, int character, size_t len)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+#ifndef HAVE_MEMRCHR
+  const char *p;
+
+  p = buffer;
+  p += len;
+  while (--p >= (const char *)buffer)
+    if (*p == character)
+      BK_RETURN(B, (void *)p);
+
+  BK_RETURN(B, NULL);
+#else  /* !HAVE_MEMRCHR */
+  BK_RETURN(B, memrchr(buffer, character, len));
+#endif /* !HAVE_MEMRCHR */
+}
+
+
+
+/**
+ * Compare two arbitrary byte strings.  This is like @a memcmp(3) but
+ * handles vptrs of different lengths in much the same way that @a strncmp(3)
+ * does.  If the byte strings you will be comparing are known to be of the same
+ * length, you may prefer to use memcmp instead, unless you want the string
+ * difference return value that this function provides.
+ *
+ * The return code from this function is negative if the first string is
+ * lexicographically less than the second, and positive if the the first string
+ * is lexicographically greater than the second.  Furthermore, the magnitude of
+ * the return code is a string distance measurement that obeys the following
+ * invariants, given 3 strings a, b, and c, all of length <= 8 MB (2^23 bytes):
+ *
+ *	(a - b) == -1 * (b - a)
+ *	(a - c) > (a - b) => (c - b) > 0
+ *	(a - b) > 0 => (a - c) >= (b - c)
+ *	(a - b) > 0 => (c - b) >= (c - a)
+ *
+ * Note: (a - b) > 0 does not imply(a - c) > (b - c), nor (c - a) < (c - b),
+ * e.g. "ba" - "bb" > 0, but yet "a" - "ba" == "a" - "bb", and furthermore,
+ * "ab" - "ba" == "ab" - "bb", so this string difference is only accurate to an
+ * "order of magnitude", however, that's the best you can do without a
+ * string-valued difference.
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state.
+ *	@param b1 The first byte string
+ *	@param b2 The second byte string
+ *	@param len1 Length of b1
+ *	@param len2 Length of b2
+ *	@return <i>negative</i> if b1 compares less than b2<br>
+ *	@return <i>0</i> if b1 and b2 are exactly equal<br>
+ *	@return <i>positive</i> if b1 compares greater than b2<br>
+ */
+int
+bk_memdiff(bk_s B, const void *b1, const void *b2, u_int len1, u_int len2)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  const char *s1 = b1;
+  const char *s2 = b2;
+  u_int i;
+  int res = 0;
+
+  for (i = 0; i < len1 && i < len2; i++)
+  {
+    if ((res = s1[i] - s2[i]))
+    {
+      i++;
+      break;
+    }
+  }
+
+  // string index difference i=0 => -2^31-1, i=2^23-1 => 0
+  i = INT_MIN + (256 * (i + 1));
+
+  if (!res)
+  {
+    if (len1 == len2)
+      BK_RETURN(B, 0);
+
+    if (len1 > len2)
+      i = -i;
+  }
+  else if (res > 0)
+    i = -i;
+
+  BK_RETURN(B, i + res);
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.264 2003/11/22 06:07:51 dupuy Exp $
+ * $Id: libbk.h,v 1.265 2003/11/26 03:52:52 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1727,8 +1727,9 @@ extern ssize_t bk_strnlen(bk_s B, const char *s, size_t max);
 extern char *bk_strndup(bk_s B, const char *s, size_t len);
 extern char *bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len);
 extern char *bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t len);
-extern void *bk_memrchr(bk_s B, const void *buffer, int character, size_t len);
 extern int bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2);
+extern void *bk_memrchr(bk_s B, const void *buffer, int character, size_t len);
+extern int bk_memdiff(bk_s B, const void *b1, const void *b2, u_int len1, u_int len2);
 extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #define BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY	0x1 ///< Take more time to return use as little memory as possible.
 char *
