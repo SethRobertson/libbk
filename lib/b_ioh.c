@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.51 2002/05/03 04:11:43 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.52 2002/05/14 20:49:01 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -139,6 +139,7 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags);
 static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
 static struct ioh_data_cmd *idc_create(bk_s B);
 static void idc_destroy(bk_s B, struct ioh_data_cmd *idc);
+static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags)
 
 
 
@@ -787,6 +788,20 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
     BK_RETURN(B,-1);
   }
 
+  if (ioh->ioh_throttle_cnt < 1 && ioh->ioh_readq.biq_queuelen > 0 && BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_LINE) && !ioh->ioh_readallowedevent)
+  {
+    if (bk_run_enqueue_delta(B, ioh->ioh_run, 0, bk_ioh_userdrainevent, ioh, &ioh->ioh_readallowedevent, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not enqueue event to potential drain remaining lines\n");
+      ioh->ioh_readallowedevent = NULL;
+    }
+  }
+  else if (ioh->ioh_readallowedevent)
+  {
+    bk_run_dequeue(B, run, ioh->ioh_readallowedevent, BK_RUN_DEQUEUE_EVENT);
+    ioh->ioh_readallowedevent = NULL;
+  }
+
   BK_RETURN(B,old_state);
 }
 
@@ -967,6 +982,12 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
   if (ioh->ioh_fdout >= 0 && ioh->ioh_fdout != ioh->ioh_fdin)
     bk_run_close(B, ioh->ioh_run, ioh->ioh_fdout, 0);
 
+  if (ioh->ioh_readallowedevent)
+  {
+    bk_run_dequeue(B, run, ioh->ioh_readallowedevent, BK_RUN_DEQUEUE_EVENT);
+    ioh->ioh_readallowedevent = NULL;
+  }
+
   if (BK_FLAG_ISCLEAR(ioh->ioh_intflags, IOH_FLAGS_DONTCLOSEFDS))
   {						// Close FDs if we can
     if (ioh->ioh_fdin >= 0)
@@ -1124,8 +1145,11 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
   }
 
   // Time for reading
-  if (ret >= 0 && BK_FLAG_ISSET(gottypes, BK_RUN_READREADY))
+  if (ret >= 0 && BK_FLAG_ISSET(gottypes, BK_RUN_READREADY|BK_RUN_USERFLAG1))
   {
+    if (BK_FLAG_ISCLEAR(gottypes, BK_RUN_USERFLAG1))
+      goto processonly;
+
     // Ask each algorithm to specify how many bytes it wants
     if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
     {
@@ -1184,6 +1208,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
 	bid->bid_inuse += ret;
 	ioh->ioh_readq.biq_queuelen += ret;
 
+      processonly:
 	if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
 	{
 	  ret = ioht_raw_other(B, ioh, ret, IOHT_HANDLER_RMSG, 0);
@@ -2471,7 +2496,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
      * Since we may have many lines in the queue, we loop over the data
      * until the data is exhausted or we don't find a complete line.
      */
-    while (ioh->ioh_readq.biq_queuelen > 0)
+    while (ioh->ioh_readq.biq_queuelen > 0 && !ioh->ioh_throttle_cnt)
     {
       bk_vptr *sendup;
       u_int32_t tmp = 0;
@@ -3491,4 +3516,33 @@ extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, char *format, ...)
   }
 
   BK_RETURN(B, -1);
+}
+
+
+
+/**
+ * Event queue job to ask for the user IOH queue to be drained of any
+ * pending input
+ *
+ * @param B BAKA Thread/global environment
+ * @param run Run environment
+ * @param opaque Private data
+ * @param starttime When this event queue run started
+ * @param flags Fun for the future
+ */
+static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ioh *ioh = opaque;
+
+  if (!run || !ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_VRETURN(B);
+  }
+
+  ioh->ioh_readallowedevent = NULL;
+  ioh_runhandler(B, run, BK_RUN_USERFLAG1, ioh, starttime);
+
+  BK_VRETURN(B);
 }

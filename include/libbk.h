@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.143 2002/05/07 05:48:29 jtt Exp $
+ * $Id: libbk.h,v 1.144 2002/05/14 20:49:01 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1173,6 +1173,10 @@ extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t han
 #define BK_RUN_CLOSE				0x08 ///< user handler is notified by bk_run that bk_run is in process of closing this fd
 #define BK_RUN_DESTROY				0x10 ///< user handler is notified by bk_run that bk_run is in process of destroying
 #define BK_RUN_BAD_FD				0x20 ///< Select(2) returned EBADFD for this fd.
+#define BK_RUN_USERFLAG1			0x1000 ///< Reserved for user use
+#define BK_RUN_USERFLAG2			0x2000 ///< Reserved for user use
+#define BK_RUN_USERFLAG3			0x4000 ///< Reserved for user use
+#define BK_RUN_USERFLAG4			0x8000 ///< Reserved for user use
 extern int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wantmask, bk_flags flags);

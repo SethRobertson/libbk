@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.27 2002/03/20 20:18:11 dupuy Exp $
+ * $Id: libbk_internal.h,v 1.28 2002/05/14 20:49:01 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -72,6 +72,7 @@ struct bk_ioh
   char			ioh_eolchar;		///< End of line character
   bk_flags		ioh_deferredclosearg;	///< Flags argument to deferred close
   int			ioh_throttle_cnt;	///< How many people want to block reads.
+  void		       *ioh_readallowedevent;	///< Event to schedule user queue drain after readallowed
   bk_flags		ioh_extflags;		///< Flags--see libbk.h
   bk_flags		ioh_intflags;		///< Flags
 #define IOH_FLAGS_SHUTDOWN_INPUT	0x01	///< Input shut down

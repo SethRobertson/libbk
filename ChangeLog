@@ -1,3 +1,15 @@
+2002-05-14  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_ioh.c (bk_ioh_readallowed): When unblocking, attempt to
+	see if there might be line-mode data queued up to go to the user,
+	and schedule a job to deliver it at some later moment.
+	(ioht_line_other): Don't deliver data to user if throttled
+	(read-not-allowed).
+
+	* include/libbk.h (BK_RUN_USERFLAG): Create user flags for the
+	bk_fd_handler to allow users to call the function for their own
+	purposes.
+
 2002-04-25 Brian Lindauer <lindauer@sysd.com
 
 	* lib/b_error.c: when flushing error queues, decrement queue count
