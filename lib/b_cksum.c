@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_cksum.c,v 1.8 2003/04/13 00:24:39 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_cksum.c,v 1.9 2003/06/17 05:10:46 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -77,7 +77,7 @@ int bk_in_cksum(bk_s B, struct bk_vptr **m, int len)
        * of a word spanning between this mbuf and the
        * last mbuf.
        *
-       * s_util.c[0] is already saved when scanning previous 
+       * s_util.c[0] is already saved when scanning previous
        * mbuf.
        */
       s_util.c[1] = *(char *)w;

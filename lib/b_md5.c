@@ -1,18 +1,18 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_md5.c,v 1.9 2003/02/11 06:22:38 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_md5.c,v 1.10 2003/06/17 05:10:46 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
- * 
+ *
  * Copyright (c) 2002 The Authors. All rights reserved.
- * 
+ *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- * 
+ *
  * Mail <projectbaka@baka.org> for further information
- * 
+ *
  * --Copyright LIBBK--
  */
 
@@ -415,5 +415,5 @@ bk_MD5_extract_printable(bk_s B, char *str, bk_MD5_CTX *ctx, bk_flags flags)
   }
   str[cnt*2] = 0;				// Null terminate
 
-  BK_RETURN(B,0);  
+  BK_RETURN(B,0); 
 }

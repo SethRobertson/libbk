@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.9 2003/06/09 21:19:16 lindauer Exp $
+# $Id: Makefile,v 1.10 2003/06/17 05:10:45 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -12,7 +12,7 @@
 #
 # --Copyright LIBBK--
 #
-# libbk group Makefile 
+# libbk group Makefile
 #
 BK_INCLUDE_DIRS=include
 BK_SUBDIR=Packages_Defined_Below
@@ -32,7 +32,7 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
 
-BK_SUBDIR=lib xml 
+BK_SUBDIR=lib xml
 ifneq ($(strip $(BK_USING_SSL)),false)
 BK_SUBDIR+=ssl # This must come *after* lib in list
 endif # BK_USING_SSL

@@ -139,10 +139,10 @@
 	(btl_oo_cmp, btl_ko_cmp, btl_obj_hash, btl_key_hash): use btn_B so
 	that bk_thread_cleanup can use btl_search to find node using B
 	[if we actually need lookup by [non-unique?!?] name, add another bst]
-	
+
 	* lib/b_general.c (bk_general_destroy): use new bk_thread_kill_others()
 	to avoid giving anyone a false sense of security.
-	
+
 2003-05-15  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_pollio.c (bk_polling_io_read): Handle unthrottle

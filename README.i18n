@@ -20,7 +20,7 @@ Help options:
   -?, --help            Show this help message
   --usage               Display brief usage message
 ----------------------------------------------------------------------
-startide seth> BAKA_HOME=. LANG=dansk proto   
+startide seth> BAKA_HOME=. LANG=dansk proto  
 Guten Wurlden
 ----------------------------------------------------------------------
 
@@ -41,7 +41,7 @@ How to do all of this, for C programmers:
 Constant string initializers get the N_() wrapper.  Ex:
 
 ----------------------------------------------------------------------
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', N_("Turn on debugging"), NULL },
 ----------------------------------------------------------------------
@@ -68,7 +68,7 @@ emacs messages.po
 # Compile the translation
 msgfmt messages.po
 # Install the translation (da.ISO-8859-1 from locale.aliases for danish)
-mv messages $INSTDIR/locale/da.ISO-8859-1/LC_MESSAGES/proto.mo 
+mv messages $INSTDIR/locale/da.ISO-8859-1/LC_MESSAGES/proto.mo
 # Run the program
 BAKA_HOME=$INSTDIR LANG=danish proto
 **********************************************************************

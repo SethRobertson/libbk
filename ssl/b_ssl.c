@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.3 2003/06/03 18:44:09 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.4 2003/06/17 05:10:48 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -120,7 +120,7 @@ static long *lock_count = NULL;
 
 
 /**
- * Initialize global OpenSSL state.  You *must* call this function before 
+ * Initialize global OpenSSL state.  You *must* call this function before
  * any other ssl functions.
  *
  * @param B BAKA Thread/global state.
@@ -153,7 +153,7 @@ bk_ssl_env_init(bk_s B)
     }
 
     RAND_seed(buf, bufsize);
-  } 
+  }
 
   bk_truerand_destroy(B, randinfo);
   randinfo = NULL;
@@ -249,14 +249,14 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
     cert_path = NULL;
     key_path = NULL;
     cafile = NULL;
-    
+   
     // Read DH params
     if (!(dhparam_in = BIO_new_file(dhparam_path, "r")))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not initialize BIO: %s.\n", ERR_error_string(ERR_get_error(), NULL));
       goto error;
     }
-    
+   
     if (!(dh = PEM_read_bio_DHparams(dhparam_in, NULL, NULL, NULL)))
     {
       err = ERR_get_error();
@@ -279,7 +279,7 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
       goto error;
     }
     dhparam_in = NULL;
-  
+ 
     if (!SSL_CTX_set_tmp_dh(ssl_ctx->bsc_ssl_ctx, dh))
     {
       bk_error_printf(B, BK_ERR_ERR, "Failed to set temporary DH key: %s.\n", ERR_error_string(ERR_get_error(), NULL));
@@ -316,7 +316,7 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
       bk_error_printf(B, BK_ERR_ERR, "Could not load SSL CA file: %s.\n", ERR_error_string(ERR_get_error(), NULL));
       goto error;
     }
-    
+   
     if (!(store = SSL_CTX_get_cert_store(ssl_ctx->bsc_ssl_ctx)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not get SSL certificate store: %s.\n", ERR_error_string(ERR_get_error(), NULL));
@@ -325,7 +325,7 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
 
     X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK);
 
-    SSL_CTX_set_verify(ssl_ctx->bsc_ssl_ctx, 
+    SSL_CTX_set_verify(ssl_ctx->bsc_ssl_ctx,
 		       SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT | SSL_VERIFY_CLIENT_ONCE, verify_callback);
   }
 
@@ -386,7 +386,7 @@ bk_ssl_destroy_context(bk_s B, struct bk_ssl_ctx *ssl_ctx)
  * @param B BAKA Thread/global state
  * @param ssl to destroy
  */
-void 
+void
 bk_ssl_destroy(bk_s B, struct bk_ssl *ssl, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
@@ -472,13 +472,13 @@ bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_
   ssa->ssa_ssl_ctx = ssl_ctx->bsc_ssl_ctx;
   ssa->ssa_task = SslTaskAccept;
 
-  if (bk_netutils_start_service_verbose(B, run, url, defhoststr, defservstr, defprotostr, securenets, 
+  if (bk_netutils_start_service_verbose(B, run, url, defhoststr, defservstr, defprotostr, securenets,
 					ssl_newsock, ssa, backlog, flags) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to start service.\n");
     goto error;
   }
-  
+ 
   BK_RETURN(B, 0);
 
  error:
@@ -537,7 +537,7 @@ bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx,
   ssa->ssa_ssl_ctx = ssl_ctx->bsc_ssl_ctx;
   ssa->ssa_task = SslTaskConnect;
 
-  if (bk_netutils_make_conn_verbose(B, run, rurl, defrhost, defrserv, lurl, deflhost, deflserv, 
+  if (bk_netutils_make_conn_verbose(B, run, rurl, defrhost, defrserv, lurl, deflhost, deflserv,
 				    defproto, timeout, ssl_newsock, ssa, flags) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to make connection.\n");
@@ -576,7 +576,7 @@ bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx,
  *	@return <br><i>ioh structure</i> if successful.
  */
 struct bk_ioh *
-bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, 
+bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f handler, void *opaque,
 		u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
@@ -596,7 +596,7 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
   }
 
   // Set read & write functions and activate
-  if (bk_ioh_update(B, ioh, ssl_readfun, ssl_writefun, ssl_closefun, ssl, 0, 0, 0, 0, 0, flags, 
+  if (bk_ioh_update(B, ioh, ssl_readfun, ssl_writefun, ssl_closefun, ssl, 0, 0, 0, 0, 0, flags,
 		    BK_IOH_UPDATE_READFUN | BK_IOH_UPDATE_WRITEFUN | BK_IOH_UPDATE_CLOSEFUN | BK_IOH_UPDATE_IOFUNOPAQUE | BK_IOH_UPDATE_FLAGS) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "IOH update failed.\n");
@@ -610,7 +610,7 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
   {
     bk_ioh_close(B, ioh, 0);
   }
-  
+ 
   BK_RETURN(B, NULL);
 }
 
@@ -625,7 +625,7 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
  *	@param state Why we are being called
  *	@param server Accepting server state
  */
-int 
+int
 ssl_newsock(bk_s B, void *opaque, int newsock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
@@ -634,7 +634,7 @@ ssl_newsock(bk_s B, void *opaque, int newsock, struct bk_addrgroup *bag, void *s
   void *user_args = NULL;
   struct accept_handler_args *aha = NULL;
   int err_ret = 0;				// value to return from this function on error
-  
+ 
   if (!ssa || !server_handle)
   {
     bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments.\n");
@@ -763,7 +763,7 @@ ssl_connect_accept_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, vo
   int ret;
   int err;
   int err_level;
-  
+ 
   if (!run || !(aha = args))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -894,11 +894,11 @@ ssl_connect_accept_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, vo
       bk_error_printf(B, BK_ERR_ERR, "Calloc failed: %s.\n", strerror(errno));
       goto error;
     }
-    
+   
     bs->bs_ssl = aha->aha_ssl;
     bs->bs_run = run;
     /*
-     * <TODO>There needs to be a better place b/c the bag can leak the ssl state & 
+     * <TODO>There needs to be a better place b/c the bag can leak the ssl state &
      * we don't b_addrgroup to call back into b_ssl.</TODO>
      */
     bag->bag_ssl = bs;
@@ -922,7 +922,7 @@ ssl_connect_accept_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, vo
   }
 
   close(fd);
-  
+ 
   if (aha)
   {
     if (aha->aha_ssl)
@@ -983,7 +983,7 @@ int ssl_readfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t buf, _
       break;
     case SSL_ERROR_WANT_WRITE:
       /*
-       * This should never happen unless there's an error in OpenSSL 
+       * This should never happen unless there's an error in OpenSSL
        * (read source for SSL_get_error() for details).
        */
       errno = EAGAIN;
@@ -1073,7 +1073,7 @@ int ssl_writefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iovec 
       if ((ssl_err == SSL_ERROR_WANT_READ) || (ssl_err == SSL_ERROR_WANT_WRITE))
       {
 	/*
-	 * WANT_READ should never happen unless there's an error in OpenSSL 
+	 * WANT_READ should never happen unless there's an error in OpenSSL
 	 * (read source for SSL_get_error() for details).
 	 */
 	errno = EAGAIN;
@@ -1144,7 +1144,7 @@ void ssl_closefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int fdout,
       goto error;
     }
   }
-      
+     
   if ((fdin >=0) && (fdin != fdout))
   {
     if (bk_run_handle(B, bs->bs_run, fdin, ssl_shutdown_handler, bs->bs_ssl, 0, 0) < 0)
@@ -1218,10 +1218,10 @@ ssl_shutdown_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, void *op
   }
 
   ret = SSL_shutdown(bs->bs_ssl);
-  
+ 
   if (ret == 1)
     goto done;
-  
+ 
   ssl_err = SSL_get_error(bs->bs_ssl, ret);
 
   if (ssl_err == SSL_ERROR_WANT_WRITE)
@@ -1282,7 +1282,7 @@ ssl_shutdown_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, void *op
 /**
  * Initialize global objects for SSL threading.
  *
- * This and other threading code based on (or downright copied from) 
+ * This and other threading code based on (or downright copied from)
  * openssl/crypto/threads/mttest.c.
  *
  * @param B BAKA Thread/global state
@@ -1402,7 +1402,7 @@ unsigned long pthreads_thread_id(void)
 
 
 /**
- * Function to decide verification.  Right now, it 
+ * Function to decide verification.  Right now, it
  * just returns whatever the value for preverify_ok was.
  *
  * @param ok Whether the cert passed verification with CA file
@@ -1410,7 +1410,7 @@ unsigned long pthreads_thread_id(void)
  * @return <i>1</i> to authenticate
  * @return <i>0</i> to deny
  */
-int 
+int
 verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
   return(preverify_ok);

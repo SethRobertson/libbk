@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.86 2003/06/07 23:51:13 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.87 2003/06/17 05:10:46 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3703,8 +3703,8 @@ void bk_ioh_stdclosefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int 
  *	@return <i>the number of bytes written</i> on success
  *	@return <i>-1</i> on error
  */
-static int 
-compress_write(bk_s B, struct bk_ioh *ioh, bk_iowfunc_f writefun, void *opaque, int fd, 
+static int
+compress_write(bk_s B, struct bk_ioh *ioh, bk_iowfunc_f writefun, void *opaque, int fd,
 	       struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");

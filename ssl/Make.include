@@ -1,27 +1,27 @@
 ######################################################################
-# $Id: Make.include,v 1.4 2003/06/09 21:19:17 lindauer Exp $
+# $Id: Make.include,v 1.5 2003/06/17 05:10:48 seth Exp $
 #
 # ++Copyright SYSDETECT++
-# 
+#
 # Copyright (c) 2001 System Detection.  All rights reserved.
-# 
+#
 # THIS IS UNPUBLISHED PROPRIETARY SOURCE CODE OF SYSTEM DETECTION.
 # The copyright notice above does not evidence any actual
 # or intended publication of such source code.
-# 
+#
 # Only properly authorized employees and contractors of System Detection
 # are authorized to view, posses, to otherwise use this file.
-# 
+#
 # System Detection
 # 5 West 19th Floor 2 Suite K
 # New York, NY 10011-4240
-# 
+#
 # +1 212 242 2970
 # <sysdetect@sysdetect.org>
-# 
+#
 # --Copyright SYSDETECT--
 #
-# libbkssl local Makefile 
+# libbkssl local Makefile
 #
 LOCAL_INCS=-I$(GROUPTOP)/include -I$(BK_SSL_INC_PATH)
 LOCAL_LDS=-L$(GROUPTOP)/lib -L$(BK_SSL_LIB_PATH)

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.41 2003/06/03 21:14:13 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.42 2003/06/17 05:10:46 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -268,7 +268,7 @@ __attribute__ ((__packed__))
 #if defined(__INSURE__) && defined(__linux__)
 #if defined(__FD_ISSET) && defined(__FDS_BITS) && defined(__FDELT) && defined(__FDMASK)
 #undef __FD_ISSET
-#define __FD_ISSET(d, set)  (__FDS_BITS (set)[__FDELT (d)] & __FDMASK (d)) 
+#define __FD_ISSET(d, set)  (__FDS_BITS (set)[__FDELT (d)] & __FDMASK (d))
 #endif /* __FD_ISSET */
 #endif /* __INSURE__ */
 
@@ -359,7 +359,7 @@ extern struct tm *gmtime_r(const time_t *timenow, struct tm *buffer);
 /*
  * Some platforms provide a definition for this in unistd.h, but even those
  * platforms say that you have to declare environ in your program.  On some
- * platforms, we may need to declare this as common (i.e. uninitialized data): 
+ * platforms, we may need to declare this as common (i.e. uninitialized data):
  *
  *   char **environ;
  *

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.12 2003/05/02 03:29:58 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.13 2003/06/17 05:10:46 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -159,7 +159,7 @@ bk_netaddr_destroy (bk_s B, struct bk_netaddr *bna)
  *
  *	@param B BAKA thread/global state.
  *	@param type The address type.
- *	@param addr The address data. (Stored in returned ptr) 
+ *	@param addr The address data. (Stored in returned ptr)
  *	@param len The length of the object (zero to discover outselves)
  *	@param flags Everyone needs flags.
  *	@returns A new @a struct @a bk_netaddr pointer on success.<br>

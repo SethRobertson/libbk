@@ -87,14 +87,14 @@ static void help(void)
 
 /*  GETOPT  --	Dumb version of getopt for brain-dead MS-DOS.  */
 
-#ifdef _MSDOS	
+#ifdef _MSDOS
 static int optind = 1;
 
 static int getopt(int argc, char *argv[], char *opts)
 {
     static char *opp = NULL;
     int o;
-    
+   
     while (opp == NULL) {
         if ((optind >= argc) || (*argv[optind] != '-')) {
 	   return -1;
@@ -103,10 +103,10 @@ static int getopt(int argc, char *argv[], char *opts)
 	optind++;
 	if (*opp == 0) {
 	    opp = NULL;
-	}	
+	}
     }
     o = *opp++;
-    if (*opp == 0) { 
+    if (*opp == 0) {
 	opp = NULL;
     }
     return strchr(opts, o) == NULL ? '?' : o;

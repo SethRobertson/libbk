@@ -9,7 +9,7 @@ int timeout=10;
 int finished=0;
 int status;
 int pid;
-/* 
+/*
  * This program exits with bizzare exit status so that it's more likely that
  * user scripts will be able to determine if the exit status derived from the
  * subprocess or this program.
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 
   while ((ch = getopt(argc, argv, "s:t:e:")) != EOF)
   {
-    switch(ch) 
+    switch(ch)
     {
     case 'e':
       error_exit=atoi(optarg);
@@ -61,7 +61,7 @@ int main(int argc, char **argv)
     perror("signal");
     exit(error_exit);
   }
-    
+   
   if (!(pid=fork()))
   {
     if (execvp(*argv++,argv)<0)
@@ -69,14 +69,14 @@ int main(int argc, char **argv)
       perror("fork");
       exit(error_exit);
     }
-    
+   
   }
   sleep(timeout);
 
   if (!finished)
   {
     kill(pid,sig);
-    exit(error_exit); 
+    exit(error_exit);
   }
   exit(WEXITSTATUS(status));
 }

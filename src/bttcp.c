@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.33 2003/06/04 00:36:31 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.34 2003/06/17 05:10:47 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -351,7 +351,7 @@ proginit(bk_s B, struct program_config *pc)
       BK_RETURN(B, -1);
     }
 
-    if (!(pc->pc_ssl_ctx = bk_ssl_create_context(B, pc->pc_ssl_cert_file, pc->pc_ssl_key_file, 
+    if (!(pc->pc_ssl_ctx = bk_ssl_create_context(B, pc->pc_ssl_cert_file, pc->pc_ssl_key_file,
 						 pc->pc_ssl_dhparam_file, pc->pc_ssl_cafile, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Failed to create SSL context.\n");

@@ -1,15 +1,15 @@
 /*
- * $Id: libbk_inline.h,v 1.3 2003/06/12 20:57:41 dupuy Exp $
+ * $Id: libbk_inline.h,v 1.4 2003/06/17 05:10:46 seth Exp $
  *
  * ++Copyright LIBBK++
- * 
+ *
  * Copyright (c) 2002 The Authors. All rights reserved.
- * 
+ *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- * 
+ *
  * Mail <projectbaka@baka.org> for further information
- * 
+ *
  * --Copyright LIBBK--
  */
 
@@ -45,7 +45,7 @@ typedef void *		bk_dll_h;		///< Opaque handle to "generic" baka dll.
 
 
 /*
- * Generic dll header 
+ * Generic dll header
  *
  * There are no flags here (and please avoid creating any if possible)
  * owing to the fact that to support flags we would have to "violate" the
@@ -99,18 +99,18 @@ static __inline__ bk_dll_h
 bk_dll_create(void)
 {
   struct bk_generic_dll_header *gdh = NULL;
-  
+ 
   if (!(gdh = calloc(1, sizeof(*gdh))))
   {
     goto error;
   }
 
-  return((bk_dll_h)gdh);  
-  
+  return((bk_dll_h)gdh); 
+ 
  error:
   if (gdh)
     bk_dll_destroy(gdh);
-  return(NULL);  
+  return(NULL); 
 }
 
 
@@ -149,7 +149,7 @@ bk_dll_insert(bk_dll_h header, void *obj)
 
   if (!gdh || !gde)
     return(DICT_ERR);
-  
+ 
   gde->gde_prev = NULL;
   gde->gde_next = gdh->gdh_head;
 
@@ -164,7 +164,7 @@ bk_dll_insert(bk_dll_h header, void *obj)
 
   gdh->gdh_head = gde;
 
-  return(DICT_OK);  
+  return(DICT_OK); 
 }
 
 
@@ -188,7 +188,7 @@ bk_dll_append(bk_dll_h header, void *obj)
 
   if (!gdh || !gde)
     return(DICT_ERR);
-  
+ 
   gde->gde_next = NULL;
   gde->gde_prev = gdh->gdh_tail;
 
@@ -229,7 +229,7 @@ bk_dll_delete(bk_dll_h header, void *obj)
 
   if (gde->gde_next)
     gde->gde_next->gde_prev = gde->gde_prev;
-  
+ 
   if (gde->gde_prev)
     gde->gde_prev->gde_next = gde->gde_next;
 
@@ -256,7 +256,7 @@ static __inline__ void *
 bk_dll_minimum(bk_dll_h header)
 {
   struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
-  
+ 
   if (!gdh)
     return(NULL);
 
@@ -277,7 +277,7 @@ static __inline__ void *
 bk_dll_maximum(bk_dll_h header)
 {
   struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
-  
+ 
   if (!gdh)
     return(NULL);
 
@@ -301,7 +301,7 @@ static __inline__ void *
 bk_dll_successor(bk_dll_h header, void *obj)
 {
   struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
-  
+ 
   if (!gde)
     return(NULL);
 
@@ -324,7 +324,7 @@ static __inline__ void *
 bk_dll_predecessor(bk_dll_h header, void *obj)
 {
   struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
-  
+ 
   if (!gde)
     return(NULL);
 

@@ -178,7 +178,7 @@ int main(int argc,char *argv[])
       fprintf(stderr,"Cannot open file %s\n",argv[optind]);
       errflg++;
     }
-      
+     
   if (errflg)
     {
       fprintf(stderr,"Usage: %s [-w] [-p] [-f filename] [-b buffer size] [-n num buffer/test] [-r num tests ]\n",argv[0]);
@@ -234,7 +234,7 @@ int main(int argc,char *argv[])
 	  perror("ftruncate");
 	  exit(5);
 	}
-      
+     
       bytes = 0;
 
       /**************************************************/
@@ -316,7 +316,7 @@ int main(int argc,char *argv[])
 void
 prep_timer()
 {
-  
+ 
 #if defined(HRTIME)
   start.real = gethrtime();
 #elif defined(TIMEOFDAY)
@@ -328,13 +328,13 @@ prep_timer()
 #if defined(TIMES)
   (void)times(&(start.systime));
 #else
-  (void)getrusage(RUSAGE_SELF, &(start.systime)); 
+  (void)getrusage(RUSAGE_SELF, &(start.systime));
 #endif
 }
 
 /*
  *			R E A D _ T I M E R
- * 
+ *
  */
 void
 read_timer(struct timer_info *diffT)
@@ -351,7 +351,7 @@ read_timer(struct timer_info *diffT)
 #if defined(TIMES)
   (void)times(&(stop.systime));
 #else
-  (void)getrusage(RUSAGE_SELF, &(stop.systime)); 
+  (void)getrusage(RUSAGE_SELF, &(stop.systime));
 #endif
 
   sub_timer(diffT,&stop,&start);
@@ -377,7 +377,7 @@ zero_timer(struct timer_info *timer)
   timer->systime.ru_stime.tv_sec = 0;
   timer->systime.ru_stime.tv_usec = 0;
 #endif
-}  
+} 
 
 /*
  * Add two timers together

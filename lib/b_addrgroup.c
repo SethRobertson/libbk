@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.34 2003/06/03 17:47:37 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.35 2003/06/17 05:10:46 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -143,7 +143,7 @@ bag_create(bk_s B)
 
 
 /**
- * Decrement reference count and destroy 
+ * Decrement reference count and destroy
  * a @a bk_addrgroup if the count is zero.
  *
  * THREADS: MT-SAFE (assuming different bag)
@@ -202,7 +202,7 @@ bk_addrgroup_ref(bk_s B, struct bk_addrgroup *bag)
 
 
 /**
- * Decrement the reference count on a bag.  You probably want 
+ * Decrement the reference count on a bag.  You probably want
  * to call destroy() instead of unref() unless you know what
  * you're doing.
  *

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_search.c,v 1.4 2003/03/20 19:09:13 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_search.c,v 1.5 2003/06/17 05:10:49 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -30,7 +30,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * Search an xml tree (recursively) for an entity
  *
  * THREADS: MT-SAFE
- *	
+ *
  *	@param B BAKA Thread/global environment
  *	@param node The xml node to start the search (preserve even when restarting)
  *	@param last The XML node where we stopped last time (copy in-out--recurse till you get here before checking more)

@@ -94,7 +94,7 @@ String to unsigned 32 bit integer conversion.  Please enter number:  4294967296
 bk_string_atou failed with -1 -- converted to 0xffffffff or 4294967295 or 037777777777
 
 
-String to unsigned 32 bit integer conversion.  Please enter number:   50 
+String to unsigned 32 bit integer conversion.  Please enter number:   50
 Converted to 0x32 or 50 or 062
 
 
@@ -328,7 +328,7 @@ String to unsigned 64 bit integer conversion.  Please enter number:  02000000000
 bk_string_atou failed with -1 -- converted to 0xffffffffffffffff or 18446744073709551615 or 01777777777777777777777
 
 
-String to unsigned 64 bit integer conversion.  Please enter number:   50 
+String to unsigned 64 bit integer conversion.  Please enter number:   50
 Converted to 0x32 or 50 or 062
 
 
