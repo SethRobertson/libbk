@@ -4,6 +4,7 @@
 
 	* lib/b_ioh.c (ioht_vector_other): document one of probably many
 	bugs in vectored i/o
+	(ioh_runhandler): avoid recursive close when destroying
 
 2002-03-06  Alexander Dupuy  <dupuy@sysdetect.com>
 
