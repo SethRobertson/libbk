@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.301 2004/07/12 18:10:57 jtt Exp $
+ * $Id: libbk.h,v 1.302 2004/08/02 17:25:00 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1877,11 +1877,9 @@ extern int bk_netaddr_nat2af(bk_s B, int type);
 
 /* b_servinfo.c */
 extern struct bk_servinfo *bk_servinfo_serventdup (bk_s B, struct servent *s);
-extern struct bk_servinfo *bk_servinfo_user(bk_s B, char *servstr, u_short port, char *protostr);
 extern void bk_servinfo_destroy (bk_s B,struct bk_servinfo *bsi);
 extern struct bk_servinfo *bk_servinfo_clone (bk_s B, struct bk_servinfo *obsi);
 extern struct bk_protoinfo *bk_protoinfo_protoentdup (bk_s B, struct protoent *p);
-extern struct bk_protoinfo *bk_protoinfo_user(bk_s B, char *protoname, int proto);
 extern void bk_protoinfo_destroy (bk_s B,struct bk_protoinfo *bsi);
 extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obsi);
 

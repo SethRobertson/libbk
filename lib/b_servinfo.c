@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_servinfo.c,v 1.8 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_servinfo.c,v 1.9 2004/08/02 17:24:59 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -154,66 +154,6 @@ bk_servinfo_serventdup (bk_s B, struct servent *s)
   if (bsi) bsi_destroy(B,bsi);
   BK_RETURN(B,NULL);
 }
-
-
-
-#ifdef PROBABLY_NOT_USEFUL
-/**
- * Create a servinfo from user information. NB: @a port is assumed to be in
- * <em>host</em> order here (since the input comes from a user. If @a
- * servname is NULL, then a string made from the (host order) port is
- * quietly constructed.. Allocates memory.
- *
- * THREADS: MT-SAFE
- *
- *	@param B BAKA thread/global state.
- *	@param servname Optional name of the service.
- *	@param port Port number in <em>host</em> order.
- *	@param bpi @a bk_protoinfo to add (may be NULL);
- *	@return <i>NULL</i> on failure.<br>
- *	@return a new @a servinfo on success.
- */
-struct bk_servinfo *
-bk_servinfo_user(bk_s B, char *servstr, u_short port, char *protostr)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_servinfo *bsi = NULL;
-
-  if (!(bsi = bsi_create(B)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate bsdi\n");
-    goto error;
-  }
-
-  if (servstr)
-  {
-    if (!(bsi->bsi_servstr = strdup(servstr)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not strdup serv name: %s\n", strerror(errno));
-      goto error;
-    }
-  }
-  else
-  {
-    char buf[MAXINTSIZE];
-
-    snprintf(buf, MAXINTSIZE, "%d", port);
-    if (!(bpi->bpi_protostr = strdup(buf)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not allocate serv portnum: %s\n", strerror(errno));
-      goto error;
-    }
-  }
-
-  bsi->bsi_flags = 0;
-  bsi->bsi_port = htons(port);
-  BK_RETURN(B,bsi);
-
- error:
-  if (bsi) bsi_destroy(B,bsi);
-  BK_RETURN(B,NULL);
-}
-#endif /* PROBABLY_NOT_USEFUL */
 
 
 

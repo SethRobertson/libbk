@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.8 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.9 2004/08/02 17:24:59 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -153,65 +153,6 @@ bk_protoinfo_protoentdup(bk_s B, struct protoent *p)
   if (bpi) bpi_destroy(B,bpi);
   BK_RETURN(B,NULL);
 }
-
-
-
-#ifdef PROBABLY_NOT_USEFUL
-/**
- * Create a protoinfo from user information.  If @a
- * protoname is NULL, then a string made from the proto is
- * quietly constructed. Allocates memory.
- *
- * THREADS: MT-SAFE
- *
- *	@param B BAKA thread/global state.
- *	@param protoname Optional name of the protocol.
- *	@param proto Protocol number.
- *	@return <i>NULL</i> on failure.<br>
- *	@return a new @a protoinfo on success.
- */
-struct bk_protoinfo *
-bk_protoinfo_user(bk_s B, char *protoname, int proto)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_protoinfo *bpi=NULL;
-
-  if (!(bpi=bpi_create(B)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate bsdi\n");
-    goto error;
-  }
-
-  if (protoname)
-  {
-    if (!(bpi->bpi_protostr=strdup(protoname)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not strdup proto name: %s\n", strerror(errno));
-      goto error;
-    }
-  }
-  else
-  {
-    char buf[MAXINTSIZE];
-
-    snprintf(buf, MAXINTSIZE, "%d", proto);
-    if (!(bpi->bpi_protostr = strdup(buf)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not allocate prootstr: %s\n", strerror(errno));
-      goto error;
-    }
-  }
-
-  bpi->bpi_flags=0;
-  bpi->bpi_proto=proto;
-
-  BK_RETURN(B,bpi);
-
- error:
-  if (bpi) bpi_destroy(B,bpi);
-  BK_RETURN(B,NULL);
-}
-#endif /* PROBABLY_NOT_USEFUL */
 
 
 

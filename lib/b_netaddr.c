@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.15 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.16 2004/08/02 17:24:59 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -112,7 +112,7 @@ bna_destroy(bk_s B, struct bk_netaddr *bna)
 
   if (bna->bna_netinfo_addrs) netinfo_addrs_delete(bna->bna_netinfo_addrs, bna);
   if (bna->bna_pretty) free (bna->bna_pretty);
-  if (bna->bna_type == BkNetinfoTypeLocal && bna->bna_path)
+  if ((bna->bna_type == BkNetinfoTypeLocal) && bna->bna_path)
     free(bna->bna_path);
 
   bk_debug_printf_and(B, 128, "bna free: %p\n", bna);
