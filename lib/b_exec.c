@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.7 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.8 2002/10/20 05:17:54 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -601,4 +601,68 @@ bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags fl
   if (ret)
     free(ret);
   BK_RETURN(B,NULL);  
+}
+
+
+
+/**
+ * Put an environment variable into the system using the setenv(2) API but
+ * the putenv(2) function.
+ *
+ * <WARNING>
+ * This is too stupid for words! The SUSv2 specification for putenv(3), for
+ * reasons passing *all* understanding, requires that the *pointer* to the
+ * string be saved in the evironment, *not* a copy of the data. Hence it is
+ * illegal to use any memory which might go be freed during the use of the
+ * variable. So in this function we are *forced* to *leak memory* (!!) by
+ * allocating the string space and then forgetting about the string.
+ *
+ * NB: It *appears* (from some, but not all, putenv(3) manpages) that it is
+ * safe to call putenv with an automatic variable (or one of an unknown
+ * source) if there is no "=" in the string. This (evidently) causes the
+ * variable to be unset so it shouldn't matter if then gets freed.
+ * </WARNING>
+ *
+ *	@param B BAKA thread/global state.
+ *	@param key Environment variable name
+ *	@param value The value of the variable.
+ *	@param overwrite. Ignored (overwrite assumed), but needed for the API.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_setenv_with_putenv(bk_s B, const char *key, const char *value, int overwrite)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *str = NULL;
+  int len;
+
+  if (!key || !value)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  len = strlen(key) + strlen(value) + 2; // 2: provide space for "=" and '\0'
+
+  if (!BK_MALLOC_LEN(str, len))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for environment string: %s\n", strerror(errno));
+    goto error;
+  }
+
+  snprintf(str, len, "%s=%s", key,value);
+  
+  if (putenv(str) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert \'%s\' into environment: %s\n", str, strerror(errno));
+    goto error;
+  }
+  
+  BK_RETURN(B,0);  
+  
+ error:
+  // Presumably it's OK to free the string if an error occured.
+  if (str) free(str);
+  BK_RETURN(B,-1);  
 }

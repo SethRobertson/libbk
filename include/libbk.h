@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.183 2002/10/18 20:03:30 jtt Exp $
+ * $Id: libbk.h,v 1.184 2002/10/20 05:17:53 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1702,6 +1702,7 @@ extern int bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int
 extern pid_t bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *args, char *const *env, bk_flags flags);
 extern pid_t bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const *env, u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
 extern pid_t bk_pipe_to_cmd(bk_s B, int *fdin,int *fdout, const char *cmd, char *const *env, bk_flags flags);
+extern int bk_setenv_with_putenv(bk_s B, const char *key, const char *value, int overwrite);
 
 
 /* b_rand.c */

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.3 2002/10/18 18:50:14 dupuy Exp $
+ * $Id: libbk_net.h,v 1.4 2002/10/20 05:17:53 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -40,11 +40,10 @@ struct baka_etherhdr
  */
 struct baka_iphdr
 {
-#if BYTE_ORDER == LITTLE_ENDIAN
+#ifndef WORDS_BIGENDIAN
   u_int8_t  pkt_ip_hdr_len:4;			///< header length
   u_int8_t  pkt_ip_version:4;			///< version
-#endif
-#if BYTE_ORDER == BIG_ENDIAN
+#else
   u_int8_t  pkt_ip_version:4;			///< version
   u_int8_t  pkt_ip_hdr_len:4;			///< header length
 #endif

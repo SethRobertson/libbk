@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.32 2002/10/18 22:51:01 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.33 2002/10/20 05:17:53 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -21,6 +21,8 @@
 #undef HAVE_CONSTRUCTOR_ATTRIBUTE
 #undef HAVE_INIT_PRAGMA
 #endif
+
+
 
 // Parentheses prevent string concatenation which __func__ may not support
 #ifdef HAVE__FUNC__
@@ -222,10 +224,10 @@ __attribute__ ((__packed__))
  * No OS has ntohll/htonll yet, but it probably will be added
  */
 #ifndef ntohll
-#if BYTE_ORDER == BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
 # define ntohll(x) (x)
 # define htonll(x) (x)
-#elif BYTE_ORDER == LITTLE_ENDIAN
+#else
 # if defined(__bswap_64) && !defined(__INSURE__)	// Linux uses this
 #  define ntohll(x) __bswap_64 (x)
 #  define htonll(x) __bswap_64 (x)
@@ -233,8 +235,6 @@ __attribute__ ((__packed__))
 #  define ntohll(x) (((u_int64_t)ntohl((u_int64_t)(x) & 0xffffffff) << 32) | ntohl((u_int64_t)(x) >> 32))
 #  define htonll(x) (((u_int64_t)ntohl((u_int64_t)(x) & 0xffffffff) << 32) | ntohl((u_int64_t)(x) >> 32))
 # endif
-#else
-#  // better hope ntohll is in library
 #endif /* !bswap_64 */
 
 #endif /* ntohll */
@@ -356,5 +356,13 @@ struct tm *gmtime_r(const time_t *timenow, struct tm *buffer);
 #endif
 
 #define bk_u_quad_t bk_uquad_t
+
+#ifdef HAVE_SETENV
+# define BK_SETENV(B, variable, value, overwrite)	(setenv(variable, value, overwrite))
+# define BK_UNSETENV(B, variable)			(unsetenv(variable))
+#else /* HAVE_SETENV */
+# define BK_SETENV(B, variable, value, overwrite)	(bk_setenv_with_putenv(B, variable, value, overwrite))
+# define BK_UNSETENV(B, variable)			(putenv(variable))
+#endif /* HAVE_SETENV */
 
 #endif /* _libbk_oscompat_h_ */
