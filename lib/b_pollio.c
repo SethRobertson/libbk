@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.6 2002/01/14 20:34:13 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.7 2002/01/18 17:35:13 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -275,6 +275,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr data[], void *args, struct bk_ioh *ioh, b
     if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY))
     {
       bk_polling_io_destroy(B,bpi);
+      if (pid) pid_destroy(B, pid);
       BK_VRETURN(B);
     }
     
