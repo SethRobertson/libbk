@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.18 2002/03/06 22:51:47 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.19 2002/03/14 17:51:16 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -540,6 +540,54 @@ bk_url_unescape(bk_s B, const char *component)
   *copy = '\0';					// finish expanded
   BK_RETURN(B, expanded);
 }
+
+
+
+/**
+ * Same as above with a len argument;
+ *
+ *	@param B BAKA thread/global state.
+ *	@param component The component string (may be NULL).
+ *	@param len The length not to go beyond.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+char *
+bk_url_unescape_len(bk_s B, const char *component, u_int len)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *tmp = NULL;
+  char *ret;
+
+  // Handle gracefully.
+  if (!component)
+    goto error;
+
+  if (!(BK_CALLOC_LEN(tmp, len+1)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate temporary copy: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (!strncpy(tmp, component, len))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "strncpy failed(?!): %s\n", strerror(errno));
+    goto error;
+  }
+  
+  ret = bk_url_unescape(B, tmp);
+
+  free(tmp);
+  BK_RETURN(B, ret);
+  
+ error:
+  if (tmp)
+    free(tmp);
+  // Alex wants it to be done this way.
+  BK_RETURN(B, calloc(1,1));
+}
+
+
 
 
 

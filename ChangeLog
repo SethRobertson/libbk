@@ -1,3 +1,8 @@
+2002-03-14  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_url.c (bk_url_unescape_len): Same as bk_url_unescape(),
+	but constrained to the given len.
+
 2002-03-11  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_string.c (bk_string_printbuf): Don't write beyond end of str.

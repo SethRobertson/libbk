@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.121 2002/03/12 00:18:16 jtt Exp $
+ * $Id: libbk.h,v 1.122 2002/03/14 17:51:16 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1392,6 +1392,7 @@ extern struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_url_parse_mode
 extern struct bk_url *bk_url_create(bk_s B);
 extern void bk_url_destroy(bk_s B, struct bk_url *bu);
 extern char *bk_url_unescape(bk_s B, const char *urlcomponent);
+extern char *bk_url_unescape_len(bk_s B, const char *component, u_int len);
 extern int bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep);
 
 /* b_nvmap.c */
