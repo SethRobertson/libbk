@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.9 2001/07/08 05:10:46 jtt Exp $
+ * $Id: libbk_internal.h,v 1.10 2001/08/17 04:12:53 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -68,12 +68,22 @@ struct bk_debugnode
 struct bk_error
 {
   FILE		*be_fh;				/* Error info file handle */
-  u_char	be_sysloglevel;			/* Error syslog level */
   dict_h	be_hiqueue;			/* Queue of high priority error messages */
   dict_h	be_lowqueue;			/* Queue of low priority error messages */
-  u_short	be_cursize;			/* Current queue size */
+  char		be_hilo_pivot;			/* Pivot value */
+#define BK_ERROR_PIVOT	BK_ERR_ERR
+  char		be_sysloglevel;			/* Error syslog level */
+  u_short	be_curHiSize;			/* Current queue size */
+  u_short	be_curLowSize;			/* Current queue size */
   u_short	be_maxsize;			/* Maximum queue size */
   bk_flags	be_flags;			/* Flags */
+};
+
+struct bk_error_node
+{
+  time_t	ben_time;			/* Timestamp */
+  int		ben_level;			/* Level of message */
+  char		*ben_msg;			/* Actual message */
 };
 
 

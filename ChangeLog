@@ -1,4 +1,15 @@
+2001-08-17  Seth Robertson  <seth@yeah.baka.org>
+
+
 2001-08-16  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_fun.c (bk_fun_destroy): Convert to DICT_NUKE_CONTENTS
+	* lib/b_debug.c (bk_debug_destroy): Convert to DICT_NUKE_CONTENTS
+	
+	* lib/b_error.c: Write error functions
+
+	* lib/b_debug.c: error functions will have incorrect function name
+	listed.
 
 	* lib/b_config.c (kv_key_hash): Switch to new strhash API.
 

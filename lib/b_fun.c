@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fun.c,v 1.5 2001/07/09 07:08:17 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.6 2001/08/17 04:12:54 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -54,11 +54,7 @@ void bk_fun_destroy(dict_h funstack)
 {
   struct bk_funinfo *fh = NULL;
 
-  while (fh = (struct bk_funinfo *)funstack_minimum(funstack))
-  {
-    funstack_delete(funstack, fh);
-    free(fh);
-  }
+  DICT_NUKE_CONTENTS(funstack, funstack, fh, break, free(fh));
   funstack_destroy(funstack);
 }
 
