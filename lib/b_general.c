@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.48 2003/06/24 17:42:59 brian Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.49 2003/06/24 17:46:29 brian Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -391,6 +391,9 @@ void bk_general_thread_destroy(bk_s B)
       // <TODO>should perform some validation of printf format string</TODO>
       snprintf(buf, PATH_MAX, BK_GENERAL_FUNSTATFILE(B),
 	       getpid(), (pid_t) pthread_self());
+#else /* BK_USING_PTHREADS */
+      snprintf(buf, PATH_MAX, BK_GENERAL_FUNSTATFILE(B),
+	       getpid(), getpid());
 #endif /* BK_USING_PTHREADS */
 
       if (FH = fopen(buf,"w"))
