@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.298 2004/07/08 04:40:15 lindauer Exp $
+ * $Id: libbk.h,v 1.299 2004/07/12 15:56:50 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1803,6 +1803,7 @@ extern char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_
 extern ssize_t bk_strnlen(bk_s B, const char *s, size_t max);
 extern char *bk_strndup(bk_s B, const char *s, size_t len);
 extern char *bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len);
+extern void *bk_memmem(bk_s B, const void *haystack, size_t haystacklen, const void *needle, size_t needlelen);
 extern char *bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t len);
 extern int bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2);
 extern void *bk_memrchr(bk_s B, const void *buffer, int character, size_t len);

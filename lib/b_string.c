@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.110 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.111 2004/07/12 15:56:50 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1184,6 +1184,74 @@ bk_strndup(bk_s B, const char *s, size_t len)
 #else  /* !HAVE_STRNDUP */
   BK_RETURN(B, strndup(s, len));
 #endif /* !HAVE_STRNDUP */
+}
+
+
+
+/**
+ * Search for a fixed string within a buffer without exceeding a specified
+ * max.  This is like @a memmem(3) and doesn't assume that either haystack
+ * or needle are null terminated.
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state.
+ *	@param haystack The buffer in which to search.
+ *	@param needle The fixed string to search for.
+ *	@param len The max length to search.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return pointer to @a needle in @a haystack on success.
+ */
+void *
+bk_memmem(bk_s B, const void *haystack, size_t haystacklen, const void *needle, size_t needlelen)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+#ifndef HAVE_MEMMEM
+  const char *p;
+  const char *q;
+  const char *upper_bound;
+  size_t hlen;
+  size_t nlen;
+
+  if (!haystack || !needle)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  p = haystack;
+
+  hlen = haystacklen;
+  nlen = needlelen;
+  if (hlen >= nlen)
+  {
+    upper_bound = (char*) haystack + hlen + 1 - nlen;
+
+    while(p < upper_bound)
+    {
+      if (!(q = memchr(p, *(char *)needle, upper_bound - p)))
+	break;					// Not found
+
+      if ((hlen - (q - (char *) haystack)) < nlen)
+	break; // too close to end to find
+
+      if (!memcmp(q, needle, nlen))
+	BK_RETURN(B, (void *)q);
+
+      p = q + 1;
+    }
+  }
+
+  BK_RETURN(B,NULL);
+#else  /* !HAVE_MEMMEM */
+  if (!haystack || !needle)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  BK_RETURN(B, memmem(haystack, hlen, needle, needlelen));
+#endif /* !HAVE_MEMMEM */
 }
 
 
