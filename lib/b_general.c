@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.50 2003/06/24 18:19:40 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.51 2003/06/24 18:42:05 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -388,16 +388,24 @@ void bk_general_thread_destroy(bk_s B)
       FILE *FH;
 
       /*
-       * <TODO>When we port this to another system where threads are
-       * not implemented as processes, we need to figure out an
-       * identifier.  Note, Alex, that using pthread_self() is not
-       * usable.  It is implemented as an integer on Linux, but on
-       * other systems it may be a structure, a copy of a structure, a
-       * pointer, a pointer to a copy of a structure, or all sorts of
-       * bizarre stuff.  In other words, printing it as a number is not
-       * a good idea.  We have now come full circle.</TODO>
+       * <TODO>When we port this to another system where pthread_t is a
+       * structure that cannot be cast to (pid_t) - I know of no such system,
+       * not even Windows, which we will probably never support - this code
+       * will fail to compile, and we will need to come up with a better
+       * solution.  Nonetheless, getpid() alone is not sufficient on *BSD,
+       * which we already support, nor on MacOS X, which we will support
+       * someday soon, and even if pthread_t is actually a pointer, it can
+       * still be cast to a number that will be unique within the process,
+       * which is all we need.  So even though this may not be theologically
+       * pure, it is still the best solution right now.</TODO>
        */
-      snprintf(buf, PATH_MAX, BK_GENERAL_FUNSTATFILE(B), getpid());
+#ifdef BK_USING_PTHREADS
+      // <TODO>should perform some validation of printf format string</TODO>
+      snprintf(buf, PATH_MAX, BK_GENERAL_FUNSTATFILE(B),
+	       getpid(), (pid_t) pthread_self());
+#else /* BK_USING_PTHREADS */
+      snprintf(buf, PATH_MAX, BK_GENERAL_FUNSTATFILE(B), getpid(), 0);
+#endif /* BK_USING_PTHREADS */
 
       if (FH = fopen(buf,"w"))
       {
