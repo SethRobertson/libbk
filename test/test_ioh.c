@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.13 2001/11/29 17:39:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.14 2001/11/29 21:12:42 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -65,7 +65,6 @@ struct program_config
 
 
 int proginit(bk_s B, struct program_config *pconfig);
-static void nullhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in, u_int state_flags);
 static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int fd1out, int fd2in, int fd2out, bk_flags flags);
 static void rmt_acceptor(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, const struct timeval *starttime);
 static void address_resolved(bk_s B, struct program_config *pconfig, struct in_addr *himaddr);
@@ -403,14 +402,14 @@ static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int f
   }
 
   // Create IOH for network
-  if (!(ioh1 = bk_ioh_init(B, fd1in, fd1out, nullhandler, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, mode)))
+  if (!(ioh1 = bk_ioh_init(B, fd1in, fd1out, NULL, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, mode)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid network ioh creation\n");
     bk_die(B,254,stderr,"Could not perform ioh initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 
   // Create IOH for stdio
-  if (!(ioh2 = bk_ioh_init(B, fd2in, fd2out, nullhandler, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, BK_IOH_STREAM|BK_IOH_RAW)))
+  if (!(ioh2 = bk_ioh_init(B, fd2in, fd2out, NULL, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, BK_IOH_STREAM|BK_IOH_RAW)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid network ioh creation\n");
     bk_die(B,254,stderr,"Could not perform ioh initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
@@ -425,12 +424,6 @@ static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int f
 static void donecb(bk_s B, void *opaque, u_int state)
 {
   bk_exit(B,0);
-}
-
-
-static void nullhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in, u_int state_flags)
-{
-  abort();
 }
 
 

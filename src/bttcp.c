@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.16 2001/11/29 17:39:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.17 2001/11/29 21:12:42 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -239,7 +239,7 @@ proginit(bk_s B, struct program_config *pc)
     break;
 
   case BTTCP_ROLE_TRANSMIT:
-    if (bk_netutils_make_conn(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, DEFAULT_PROTO_STR, pc->pc_timeout, connect_complete, pc, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP)<0)
+    if (bk_netutils_make_conn(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, DEFAULT_PROTO_STR, pc->pc_timeout, connect_complete, pc, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not start connection\n");
       goto error;

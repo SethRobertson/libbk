@@ -1,6 +1,10 @@
+2001-11-29  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_relay.c lib/b_ioh.c: Code review day 4
+
 2001-11-28  Seth Robertson  <seth@startide.sysdetect.com>
 
-	* lib/b_memx.c lib/b_run.c lib/string.c: Code review day 3
+	* lib/b_memx.c lib/b_run.c lib/b_string.c lib/b_ioh.c: Code review day 3
 
 2001-11-27  Seth Robertson  <seth@startide.sysdetect.com>
 

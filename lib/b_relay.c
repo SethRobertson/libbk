@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_relay.c,v 1.6 2001/11/29 02:49:42 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_relay.c,v 1.7 2001/11/29 21:12:42 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -99,9 +99,11 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
   bk_ioh_readallowed(B, ioh1, 1, 0);
   bk_ioh_readallowed(B, ioh2, 1, 0);
 
-  if (bk_ioh_update(B, ioh1, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
+  //<TODO> Allow the caller to specify a callback which gets called in each read/write 
+
+  if (bk_ioh_update(B, ioh1, NULL, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
     goto error;
-  if (bk_ioh_update(B, ioh2, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
+  if (bk_ioh_update(B, ioh2, NULL, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
     goto error;
 
   BK_RETURN(B, 0);
@@ -207,7 +209,6 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   case BK_IOH_STATUS_IOHWRITEERROR:
     // Propagate shutdown to read side of peer
     bk_debug_printf_and(B, 1, "Received write error msg.\n");
-  error:
     BK_FLAG_SET(*state_him, BR_IOH_READCLOSE);
     bk_ioh_shutdown(B, ioh_other, SHUT_RD, 0);
     bk_debug_printf_and(B, 1, "Write error msg.  My state %x, his state %x\n",*state_me,*state_him);
@@ -234,10 +235,11 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
     BK_FLAG_SET(*state_me, BR_IOH_CLOSED);
     if (BK_FLAG_ISCLEAR(*state_me, BR_IOH_READCLOSE) ||
 	BK_FLAG_ISCLEAR(*state_him, BR_IOH_READCLOSE))
-    {						// Other party not aware of severity yet
+    {						// Other party may not be aware of severity yet. Close him anyway.
       BK_FLAG_SET(*state_me, BR_IOH_READCLOSE);
       BK_FLAG_SET(*state_him, BR_IOH_READCLOSE);
-      bk_ioh_close(B, ioh_other, 0);
+      if (BK_FLAG_ISCLEAR(*state_him, BR_IOH_CLOSED))
+	bk_ioh_close(B, ioh_other, 0);
     }
     bk_debug_printf_and(B, 1, "Received ioh close notification.  My state %x, his state %x\n",*state_me,*state_him);
     break;
@@ -245,6 +247,14 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   default:
     bk_error_printf(B, BK_ERR_ERR, "Unknown IOH state %d\n",state_flags);
     break;
+  }
+
+  if (0)					// Stupid method of getting error case to continue execution
+  {
+  error:
+    BK_FLAG_SET(*state_me, BR_IOH_READCLOSE);
+    bk_ioh_shutdown(B, ioh, SHUT_RD, 0);
+    bk_ioh_shutdown(B, ioh_other, SHUT_WR, 0);
   }
 
   if (BK_FLAG_ISSET(*state_me, BR_IOH_CLOSED) &&
@@ -260,13 +270,14 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   // Check if both sides have read shut down, but neither has closed (e.g. we are not already in close-wait)
   if (BK_FLAG_ISSET(*state_me, BR_IOH_READCLOSE) &&
       BK_FLAG_ISSET(*state_him, BR_IOH_READCLOSE) &&
-      !(BK_FLAG_ISSET(*state_me, BR_IOH_CLOSED) ||
-	BK_FLAG_ISSET(*state_him, BR_IOH_CLOSED)))
+      BK_FLAG_ISCLEAR(*state_me, BR_IOH_CLOSED) &&
+      BK_FLAG_ISCLEAR(*state_him, BR_IOH_CLOSED))
   {
     // Both sides have read gone--start cleanup process
     bk_debug_printf_and(B, 1, "Both sides seem to have read issues--closing\n");
     bk_ioh_close(B, ioh, 0);
-    bk_ioh_close(B, ioh_other, 0);
+    if (BK_FLAG_ISCLEAR(*state_him, BR_IOH_CLOSED))
+      bk_ioh_close(B, ioh_other, 0);
   }
 
   BK_VRETURN(B);

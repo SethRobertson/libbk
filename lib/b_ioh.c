@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.26 2001/11/29 02:49:42 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.27 2001/11/29 21:12:41 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -52,7 +52,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
    BK_FLAG_CLEAR((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK);					\
  } while (0)					///< Function to evaluate user callback with new data/state information
 
-#define IOH_DEFAULT_DATA_SIZE	1024		///< Default read size
+#define IOH_DEFAULT_DATA_SIZE	128		///< Default read size (optimized for user and protocol traffic, not bulk data transfer)
 #define IOH_VS			2		///< Number of vectors to hold length and msg
 #define IOH_EOLCHAR		'\n'		///< End of line character (for line oriented mode--change to m
 
@@ -111,6 +111,7 @@ struct bk_ioh
   u_int32_t		ioh_fdout_savestate;	///< Information about fdout which we changed
   bk_iorfunc 		ioh_readfun;		///< Function to read data
   bk_iowfunc		ioh_writefun;		///< Function to write data
+  void		       *ioh_iofunopaque;	///< Opaque data for iofuns
   bk_iohhandler		ioh_handler;		///< Callback function for event handling
   void		       *ioh_opaque;		///< Opaque data for handler
   u_int32_t		ioh_inbuf_hint;		///< Hint for input buffer sizes
@@ -365,6 +366,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler handler, v
  *	@param ioh The IOH environment to update
  *	@param readfun The function to use to read data.
  *	@param writefun The function to use to write data.
+ *	@param iofunopaque The opaque data for the I/O functions
  *	@param handler The user callback to notify on complete I/O or other events
  *	@param opaque The opaque data for the user callback.
  *	@param inbufhint A hint for the input routines (0 for 128 bytes)
@@ -376,7 +378,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler handler, v
  *	@return <i>-1<i> on call failure.
  *	@return <br><i>0</i> on success.
  */
-int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags)
+int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc writefun, void *iofunopaque, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
  
@@ -419,6 +421,7 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc wri
  *	@param fdout The file descriptor to write to.  -1 if no output is desired.
  *	@param readfun The function to use to read data.
  *	@param writefun The function to use to write data.
+ *	@param iofunopaque The I/O functions opaque data
  *	@param handler The user callback to notify on complete I/O or other events
  *	@param opaque The opaque data for the user callback.
  *	@param inbufhint A hint for the input routines (0 for 128 bytes)
@@ -429,7 +432,7 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc wri
  *	@return <i>-1</i> on call failure.
  *	@return <br><i>0</i> on success.
  */
-int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc *readfun, bk_iowfunc *writefun, bk_iohhandler *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags)
+int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc *readfun, bk_iowfunc *writefun, void **iofunopaque, bk_iohhandler *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
  
@@ -445,6 +448,7 @@ int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc *re
   if (fdout) *fdout = ioh->ioh_fdout;
   if (readfun) *readfun = ioh->ioh_readfun;
   if (writefun) *writefun = ioh->ioh_writefun;
+  if (iofunopaque) *iofunopaque = ioh->ioh_iofunopaque;
   if (handler) *handler = ioh->ioh_handler;
   if (opaque) *opaque = ioh->ioh_opaque;
   if (inbufhint) *inbufhint = ioh->ioh_inbuf_hint;
@@ -1142,9 +1146,6 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
  *	@return <i>-1</i> on call failure
  *	@return <br><i>0</i> no changes made
  *	@return <br><i>> 0</i> some changes made
-
-xxx Move this to b_run.c
-
  */
 static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
 {
@@ -1173,7 +1174,6 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
   if (getsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &oobinline, &size) < 0)
     oobinline = -1;
   size = sizeof(linger);
-  // XXX Linux uses struct linger and you need to deal with it but under BSD you save the timeout
   if (getsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, &size) < 0)
     linger = -1;
 
@@ -1192,8 +1192,12 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
       oobinline = 1;
       *savestate |= IOH_ADDED_OOBINLINE;
     }
-    if (linger > 1)
+    if (linger > 0)
     {
+      // We need to save the linger value--some OSs overload this information.
+      // Bound it to 2^16-1, store in upper 16 bits of savestate;
+      if (linger > 65535) linger = 65535;
+      *savestate |= linger<<16;;
       linger = 0;
       *savestate |= IOH_NUKED_LINGER;
     }
@@ -1211,7 +1215,7 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
     }
     if (BK_FLAG_ISSET(*savestate, IOH_NUKED_LINGER) && linger == 0)
     {
-      linger = 1;
+      linger = (*savestate >> 16)&0xffff;
     }
   }
 
@@ -1634,7 +1638,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 	// <TODO>Perhaps attempt to write multiple buffers if available (here and elsewhere) </TODO>
 
-	cnt = (*ioh->ioh_writefun)(B, ioh->ioh_fdout, &iov, 1, 0);
+	cnt = (*ioh->ioh_writefun)(B, ioh->ioh_opaque, ioh->ioh_fdout, &iov, 1, 0);
 
 	if (cnt == 0 || cnt < 0 && IOH_EBLOCKING)
 	{
@@ -1847,7 +1851,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	}
       }
 
-      cnt = (*ioh->ioh_writefun)(B, ioh->ioh_fdout, iov, cnt, 0);
+      cnt = (*ioh->ioh_writefun)(B, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
       free(iov);
 
       bk_debug_printf_and(B, 2, "Post-write, cnt %d, size %d\n", cnt, size);
@@ -2076,7 +2080,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 
       if (bid && cnt > 0)
       {
-	cnt = (*ioh->ioh_writefun)(B, ioh->ioh_fdout, iov, cnt, 0);
+	cnt = (*ioh->ioh_writefun)(B, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
 
 	if (cnt == 0 || cnt < 0 && IOH_EBLOCKING)
 	{
@@ -2576,7 +2580,7 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
   bk_debug_printf_and(B, 1, "Internal read IOH %p of %d bytes\n", ioh, len);
 
   // Worry about non-stream protocols--somehow
-  ret = (*ioh->ioh_readfun)(B, fd, data, len, flags);
+  ret = (*ioh->ioh_readfun)(B, ioh->ioh_iofunopaque, fd, data, len, flags);
 
   BK_RETURN(B,ret);
 }
@@ -2621,7 +2625,8 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
 
   if (!cnt)
   {
-    // Only things left might be allocated but unused buffers
+    // Only things left might be allocated but unused buffers.
+    // No cmds can exist on the read queue.
     bk_ioh_flush(B, ioh, SHUT_RD, 0);
     BK_VRETURN(B);
   }
@@ -2765,13 +2770,15 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, u_int32_t cmds, bk_flags
 /**
  * Standard read() functionality in IOH api
  *
+ *	@param B BAKA Thread/global state
+ *	@param opaque Common opaque data for read and write funs
  *	@param fd File descriptor
  *	@param buf Data to read
  *	@param size Amount of data to read
  *	@param flags Fun for the future
  *	@return Standard @a read() return codes
  */
-int bk_ioh_stdrdfun(bk_s B, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags)
+int bk_ioh_stdrdfun(bk_s B, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret, erno;
@@ -2801,13 +2808,15 @@ int bk_ioh_stdrdfun(bk_s B, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags fl
 /**
  * Standard write() functionality in IOH api
  *
+ *	@param B BAKA Thread/global state
  *	@param fd File descriptor
+ *	@param opaque Common opaque data for read and write funs
  *	@param iovec Data to write
  *	@param size Number of iovec buffers
  *	@param flags Fun for the future
  *	@return Standard @a writev() return codes
  */
-int bk_ioh_stdwrfun(bk_s B, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags)
+int bk_ioh_stdwrfun(bk_s B, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret, erno;
