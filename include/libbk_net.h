@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.11 2004/06/30 15:28:35 jtt Exp $
+ * $Id: libbk_net.h,v 1.12 2004/07/12 17:23:36 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -20,6 +20,9 @@
 
 #ifndef _libbk_net_h_
 #define _libbk_net_h_
+
+
+#define BK_INET_NET_MATCH(addr1, addr2, mask) (((ntohl(((struct in_addr *)(addr1))->s_addr)) & (ntohl(((struct in_addr *)(mask))->s_addr))) == ((ntohl(((struct in_addr *)(addr2))->s_addr)) & (ntohl(((struct in_addr *)(mask))->s_addr))))
 
 
 
@@ -239,12 +242,37 @@ struct bk_interface_info
 
 typedef void *bk_intinfo_list_t;
 
+
+/**
+ * OS Independent (or, more accurately, All-OS shared) route features
+ */
+struct bk_route_info
+{
+  struct sockaddr	bri_dst;		///< Route destination.
+  struct sockaddr	bri_mask;		///< Mask to apply to route destination.
+  struct sockaddr	bri_gateway;		///< Gateway address;
+  u_short		bri_flags;		///< Route flags (eg: RTF_UP)
+  const char *		bri_if_name;		///< Interface name.
+  int			bri_mask_len;		///< Length of netmask.
+};
+
+typedef void *bk_rtinfo_list_t;
+
+
 /* b_intinfo.c */
 extern bk_intinfo_list_t bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags);
 extern void bk_intinfo_list_destroy(bk_s B, bk_intinfo_list_t list);
 struct bk_interface_info *bk_intinfo_list_minimum(bk_s B, bk_intinfo_list_t list);
 struct bk_interface_info *bk_intinfo_list_successor(bk_s B, bk_intinfo_list_t list, struct bk_interface_info *bii);
 struct bk_interface_info *bk_intinfo_list_search(bk_s B, bk_intinfo_list_t list, const char *name, bk_flags flags);
+
+/* b_rtinfo.c */
+extern bk_rtinfo_list_t bk_rtinfo_list_create(bk_s B, bk_flags flags);
+extern void bk_rtinfo_list_destroy(bk_s B, bk_rtinfo_list_t list);
+extern struct bk_route_info * bk_rtinfo_list_minimum(bk_s B, bk_rtinfo_list_t list, bk_flags flags);
+extern struct bk_route_info *bk_rtinfo_list_successor(bk_s B, bk_rtinfo_list_t list, struct bk_route_info *bri, bk_flags flags);
+extern struct bk_route_info *bk_rtinfo_get_route(bk_s B, bk_rtinfo_list_t rtlist, struct in_addr *dst, bk_flags flags);
+extern struct bk_route_info *bk_rtinfo_get_route_by_string(bk_s B, bk_rtinfo_list_t rtlist, const char *dst_str, bk_flags flags);
 
 
 #endif /* _libbk_net_h_ */

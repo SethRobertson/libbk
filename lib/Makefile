@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.53 2004/07/08 04:40:16 lindauer Exp $
+# $Id: Makefile,v 1.54 2004/07/12 17:23:35 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -48,6 +48,7 @@ BK_LARGE_LIBSRC=				\
 		b_relay.c			\
 		b_ringbuf.c			\
 		b_ringdir.c			\
+		b_rtinfo.c			\
 		b_run.c				\
 		b_servinfo.c			\
 		b_signal.c			\

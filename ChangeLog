@@ -1,3 +1,7 @@
+2004-07-12  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_strconv.c (bk_string_atou64_int): Allow caller to force base.
+
 2004-07-09  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_ringbuf.c: Convert over to BK_SIMPLE_{UN,}LOCK() for

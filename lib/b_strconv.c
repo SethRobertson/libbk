@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.20 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.21 2004/07/12 17:23:35 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -320,31 +320,41 @@ static int bk_string_atou64_int(bk_s B, const char *string, u_int64_t *value, in
     neg = 1; string++; break;
   }
 
-  // base determination
-  if (*string == '0')
-  {
-    switch(*(string+1))
-    {
-    case 'x':
-    case 'X':
-      digits = 1;
-      base = 16; string += 2; break;
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-      digits = 0;
-      base = 8; string += 1; break;
-    default:
-      base = 10; break;
-    }
-  }
-  else
+  // Allow the caller to force the base...
+  if (BK_FLAG_ISSET(flags, BK_STRING_ATOI_FLAG_HEX))
+    base = 16;
+  else if (BK_FLAG_ISSET(flags, BK_STRING_ATOI_FLAG_DEC))
     base = 10;
+  else if (BK_FLAG_ISSET(flags, BK_STRING_ATOI_FLAG_OCT))
+    base = 8;
+  else
+  {
+    // ... otherwise determine it automagically.
+    if (*string == '0')
+    {
+      switch(*(string+1))
+      {
+      case 'x':
+      case 'X':
+	digits = 1;
+	base = 16; string += 2; break;
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+	digits = 0;
+	base = 8; string += 1; break;
+      default:
+	base = 10; break;
+      }
+    }
+    else
+      base = 10;
+  }
 
   val = 0;
 

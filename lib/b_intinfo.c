@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_intinfo.c,v 1.4 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_intinfo.c,v 1.5 2004/07/12 17:23:35 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -309,7 +309,7 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
  * Destroy a list of baka interface info strerror
  *
  *	@param B BAKA thread/global state.
- *	@param bii_list List to nuke.
+ *	@param list List to nuke.
  */
 void
 bk_intinfo_list_destroy(bk_s B, bk_intinfo_list_t list)

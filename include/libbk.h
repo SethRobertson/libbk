@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.299 2004/07/12 15:56:50 lindauer Exp $
+ * $Id: libbk.h,v 1.300 2004/07/12 17:23:36 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1721,6 +1721,9 @@ extern int bk_string_atoi32(bk_s B, const char *string, int32_t *value, bk_flags
 extern int bk_string_atot(bk_s B, const char *string, time_t *value, bk_flags flags);
 extern int bk_string_atou64(bk_s B, const char *string, u_int64_t *value, bk_flags flags);
 extern int bk_string_atoi64(bk_s B, const char *string, int64_t *value, bk_flags flags);
+#define BK_STRING_ATOI_FLAG_HEX		0x1	///< This number is hexidecimal even though it might not look like it
+#define BK_STRING_ATOI_FLAG_OCT		0x2	///< This number is octal even though it might not look like it
+#define BK_STRING_ATOI_FLAG_DEC		0x4	///< This number is octal even though it might not look like it
 extern int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *names, bk_flags flags);
 extern int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names, bk_flags flags);
 extern const char *bk_string_symboltoa(bk_s B, u_int value, struct bk_symbol *convlist, bk_flags flags);
