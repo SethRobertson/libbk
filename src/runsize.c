@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: runsize.c,v 1.3 2004/06/07 09:11:09 seth Exp $";
+static const char libbk__rcsid[] = "$Id: runsize.c,v 1.4 2004/06/21 01:41:03 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -292,7 +292,7 @@ main(int argc, char **argv, char **envp)
       {
 	double size = offset;
 	char *mag = bk_string_magnitude(B, size, 3, "B", NULL, 0, BK_STRING_MAGNITUDE_POWER10);
-	printf("Group %d output-ed %u or around %s bytes\n", counter, offset, mag);
+	fprintf(stderr, "Group %d output-ed %u or around %s bytes\n", counter, offset, mag);
 	if (mag) free(mag);
       }
 
@@ -351,6 +351,7 @@ main(int argc, char **argv, char **envp)
       offset += retcode;
       cur += retcode;
     }
+    offset = cur;
 
     if (retcode < 0)
     {
