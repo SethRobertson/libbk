@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_relay.c,v 1.4 2001/11/15 19:52:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_relay.c,v 1.5 2001/11/15 22:03:35 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -241,7 +241,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
     {						// Other party not aware of severity yet
       BK_FLAG_SET(*state_me, BR_IOH_READCLOSE);
       BK_FLAG_SET(*state_him, BR_IOH_READCLOSE);
-      bk_ioh_close(B, ioh_other, BK_IOH_NOTIFYANYWAY);
+      bk_ioh_close(B, ioh_other, 0);
     }
     bk_debug_printf_and(B, 1, "Received ioh close notification.  My state %x, his state %x\n",*state_me,*state_him);
     break;
@@ -269,8 +269,8 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   {
     // Both sides have read gone--start cleanup process
     bk_debug_printf_and(B, 1, "Both sides seem to have read issues--closing\n");
-    bk_ioh_close(B, ioh, BK_IOH_NOTIFYANYWAY);
-    bk_ioh_close(B, ioh_other, BK_IOH_NOTIFYANYWAY);
+    bk_ioh_close(B, ioh, 0);
+    bk_ioh_close(B, ioh_other, 0);
   }
 
   BK_VRETURN(B);
