@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.166 2002/08/27 23:33:07 dupuy Exp $
+ * $Id: libbk.h,v 1.167 2002/08/28 01:52:58 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1362,7 +1362,7 @@ extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags fla
 
 /* b_string.c */
 extern u_int bk_strhash(const char *a, bk_flags flags);
-extern u_int bk_oldstrhash(const char *a, bk_flags flags);
+#define BK_HASH_V2		0x02		///< Better (but slower) hashing function
 extern u_int bk_bufhash(const struct bk_vptr *b, bk_flags flags);
 #define BK_HASH_NOMODULUS	0x01		///< Do not perform modulus of hash by a large prime
 #define BK_STRHASH_NOMODULUS	BK_HASH_NOMODULUS

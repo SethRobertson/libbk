@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.63 2002/08/27 23:03:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.64 2002/08/28 01:52:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -47,56 +47,84 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 /**
- * Hash a string into tiny little bits.
- *	
- * Not covered under the normal BK license.
- * 
- * Returns a 32-bit value.  Every bit of the key affects every bit of
- * the return value.  Every 1-bit and 2-bit delta achieves avalanche.
- * About 6*len+35 instructions.
+ * Hash a string into tiny little bits two different ways.
  *
- * The best hash table sizes are powers of 2.  There is no need to do
- * mod by a prime (mod is sooo slow!).  If you need less than 32 bits,
- * use a bitmask.
- * 
- * By Bob Jenkins, 1996.  bob_jenkins@burtleburtle.net.  You may use this
- * code any way you wish, private, educational, or commercial.  It's free.
- * 
- * See http://burtleburtle.net/bob/hash/evahash.html
- * Use for hash table lookup, or anything where one collision in 2^^32 is
- * acceptable.  Do NOT use for cryptographic purposes.
- * 
+ * Not covered under the LGPL
+ *	
  *	@param k The string to be hashed
- *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function
+ *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function, BK_HASH_V2 for better, but slower mixing
  *	@return <i>hash</i> of number
  */
 u_int 
 bk_strhash(const char *k, bk_flags flags)
 {
-  /*
-   * mix -- mix 3 32-bit values reversibly.
-   * For every delta with one or two bits set, and the deltas of all three
-   *   high bits or all three low bits, whether the original value of a,b,c
-   *   is almost all zero or is uniformly distributed,
-   * * If mix() is run forward or backward, at least 32 bits in a,b,c
-   *   have at least 1/4 probability of changing.
-   * * If mix() is run forward, every bit of c will change between 1/3 and
-   *   2/3 of the time.  (Well, 22/100 and 78/100 for some 2-bit deltas.)
-   * mix() was built out of 36 single-cycle latency instructions in a 
-   *   structure that could supported 2x parallelism, like so:
-   *       a -= b; 
-   *       a -= c; x = (c>>13);
-   *       b -= c; a ^= x;
-   *       b -= a; x = (a<<8);
-   *       c -= a; b ^= x;
-   *       c -= b; x = (b>>13);
-   *       ...
-   *   Unfortunately, superscalar Pentiums and Sparcs can't take advantage 
-   *   of that parallelism.  They've also turned some of those single-cycle
-   *   latency instructions into multi-cycle latency instructions.  Still,
-   *   this is the fastest good hash I could find.  There were about 2^^68
-   *   to choose from.  I only looked at a billion or so.
-   */
+  const u_int32_t P = 2147486459U;		// Arbitrary large prime
+  u_int h;
+
+  if (BK_FLAG_ISCLEAR(flags, BK_HASH_V2))
+  {
+    /*
+     * Hash a string.
+     *	
+     * The Practice of Programming: Kernighan and Pike: 2.9 (i.e. not covered
+     * under LGPL)
+     *
+     * Note we may not be applying modulus in this function since this is
+     * often used by CLC functions, CLC will supply its own modulus and
+     * it is bad voodoo to double modulus if the moduli are different.
+     */
+    const u_int M = 37U;			// Multiplier
+
+    for (h = 17; *k; k++)
+      h = h * M + *k;
+  }
+  else
+  {
+    /*
+     * Hash a string into tiny little bits.
+     *	
+     * Not covered under the normal BK license.
+     * 
+     * Returns a 32-bit value.  Every bit of the key affects every bit of
+     * the return value.  Every 1-bit and 2-bit delta achieves avalanche.
+     * About 6*len+35 instructions.
+     *
+     * The best hash table sizes are powers of 2.  There is no need to do
+     * mod by a prime (mod is sooo slow!).  If you need less than 32 bits,
+     * use a bitmask.
+     * 
+     * By Bob Jenkins, 1996.  bob_jenkins@burtleburtle.net.  You may use this
+     * code any way you wish, private, educational, or commercial.  It's free.
+     * 
+     * See http://burtleburtle.net/bob/hash/evahash.html
+     * Use for hash table lookup, or anything where one collision in 2^^32 is
+     * acceptable.  Do NOT use for cryptographic purposes.
+     */
+
+    /*
+     * mix -- mix 3 32-bit values reversibly.
+     * For every delta with one or two bits set, and the deltas of all three
+     *   high bits or all three low bits, whether the original value of a,b,c
+     *   is almost all zero or is uniformly distributed,
+     * * If mix() is run forward or backward, at least 32 bits in a,b,c
+     *   have at least 1/4 probability of changing.
+     * * If mix() is run forward, every bit of c will change between 1/3 and
+     *   2/3 of the time.  (Well, 22/100 and 78/100 for some 2-bit deltas.)
+     * mix() was built out of 36 single-cycle latency instructions in a 
+     *   structure that could supported 2x parallelism, like so:
+     *       a -= b; 
+     *       a -= c; x = (c>>13);
+     *       b -= c; a ^= x;
+     *       b -= a; x = (a<<8);
+     *       c -= a; b ^= x;
+     *       c -= b; x = (b>>13);
+     *       ...
+     *   Unfortunately, superscalar Pentiums and Sparcs can't take advantage 
+     *   of that parallelism.  They've also turned some of those single-cycle
+     *   latency instructions into multi-cycle latency instructions.  Still,
+     *   this is the fastest good hash I could find.  There were about 2^^68
+     *   to choose from.  I only looked at a billion or so.
+     */
 #define mix(a,b,c)				\
 {						\
   a -= b; a -= c; a ^= (c>>13);			\
@@ -110,79 +138,45 @@ bk_strhash(const char *k, bk_flags flags)
   c -= a; c -= b; c ^= (b>>15);			\
 }
 
-  register u_int32_t length = strlen(k);	// the length of the key
-  register u_int32_t a,b,c,len;
-  const u_int32_t P = 2147486459U;		// Arbitrary large prime
+    register u_int32_t length = strlen(k);	// the length of the key
+    register u_int32_t a,b,len;
 
   // Set up the internal state
-  len = length;
-  a = b = 0x9e3779b9;				// the golden ratio; an arbitrary value
-  c = 0x8c7eaa15;				// First 7 primes: an arbitrary value
+    len = length;
+    a = b = 0x9e3779b9;				// the golden ratio; an arbitrary value
+    h = 0x8c7eaa15;				// First 7 primes: an arbitrary value
 
-  // Handle most of the key
-  while (len >= 12)
-  {
-    a += (k[0] +((u_int32_t)k[1]<<8) +((u_int32_t)k[2]<<16) +((u_int32_t)k[3]<<24));
-    b += (k[4] +((u_int32_t)k[5]<<8) +((u_int32_t)k[6]<<16) +((u_int32_t)k[7]<<24));
-    c += (k[8] +((u_int32_t)k[9]<<8) +((u_int32_t)k[10]<<16)+((u_int32_t)k[11]<<24));
-    mix(a,b,c);
-    k += 12; len -= 12;
+    // Handle most of the key
+    while (len >= 12)
+    {
+      a += (k[0] +((u_int32_t)k[1]<<8) +((u_int32_t)k[2]<<16) +((u_int32_t)k[3]<<24));
+      b += (k[4] +((u_int32_t)k[5]<<8) +((u_int32_t)k[6]<<16) +((u_int32_t)k[7]<<24));
+      h += (k[8] +((u_int32_t)k[9]<<8) +((u_int32_t)k[10]<<16)+((u_int32_t)k[11]<<24));
+      mix(a,b,h);
+      k += 12; len -= 12;
+    }
+
+    // Handle the last 11 bytes
+    h += length;
+    switch(len)					// all the case statements fall through
+    {
+    case 11: h+=((u_int32_t)k[10]<<24);
+    case 10: h+=((u_int32_t)k[9]<<16);
+    case 9 : h+=((u_int32_t)k[8]<<8);
+      // the first byte of h is reserved for the length
+    case 8 : b+=((u_int32_t)k[7]<<24);
+    case 7 : b+=((u_int32_t)k[6]<<16);
+    case 6 : b+=((u_int32_t)k[5]<<8);
+    case 5 : b+=k[4];
+    case 4 : a+=((u_int32_t)k[3]<<24);
+    case 3 : a+=((u_int32_t)k[2]<<16);
+    case 2 : a+=((u_int32_t)k[1]<<8);
+    case 1 : a+=k[0];
+      // case 0: nothing left to add
+    }
+    mix(a,b,h);
   }
-
-  // Handle the last 11 bytes
-  c += length;
-  switch(len)					// all the case statements fall through
-  {
-  case 11: c+=((u_int32_t)k[10]<<24);
-  case 10: c+=((u_int32_t)k[9]<<16);
-  case 9 : c+=((u_int32_t)k[8]<<8);
-    // the first byte of c is reserved for the length
-  case 8 : b+=((u_int32_t)k[7]<<24);
-  case 7 : b+=((u_int32_t)k[6]<<16);
-  case 6 : b+=((u_int32_t)k[5]<<8);
-  case 5 : b+=k[4];
-  case 4 : a+=((u_int32_t)k[3]<<24);
-  case 3 : a+=((u_int32_t)k[2]<<16);
-  case 2 : a+=((u_int32_t)k[1]<<8);
-  case 1 : a+=k[0];
-    // case 0: nothing left to add
-  }
-  mix(a,b,c);
-
-  if (BK_FLAG_ISSET(flags, BK_HASH_NOMODULUS))
-    return(c);
-  else
-    return(c % P);
-
 #undef mix
-}
-
-
-
-
-/**
- * Hash a string.
- *	
- * The Practice of Programming: Kernighan and Pike: 2.9 (i.e. not covered
- * under LGPL)
- *
- * Note we may not be applying modulus in this function since this is
- * often used by CLC functions, CLC will supply its own modulus and
- * it is bad voodoo to double modulus if the moduli are different.
- *
- *	@param a The string to be hashed
- *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function
- *	@return <i>hash</i> of number
- */
-u_int 
-bk_oldstrhash(const char *a, bk_flags flags)
-{
-  const u_int M = 37U;				// Multiplier
-  const u_int P = 2147486459U;			// Arbitrary large prime
-  u_int h;
-
-  for (h = 17; *a; a++)
-    h = h * M + *a;
 
   if (BK_FLAG_ISSET(flags, BK_HASH_NOMODULUS))
     return(h);
