@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.30 2003/05/16 20:13:14 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.31 2003/05/16 20:45:20 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -60,6 +60,7 @@ struct bk_polling_io
 #define BPI_FLAG_SYNC			0x80	///< Synchronous write
 #define BPI_FLAG_LINGER			0x100	///< Want to wait for write data to drain
 #define BPI_FLAG_SELF_THROTTLE		0x200	///< Throttled due to queue filling up
+#define BPI_FLAG_DONT_LINGER		0x400	///< Abort output data during close
   u_int			bpi_size;		///< Amount of data I'm buffering.
   dict_h		bpi_data;		///< Queue of data vptrs.
   struct bk_ioh *	bpi_ioh;		///< Ioh structure.
@@ -218,6 +219,7 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct polling_io_data *pid;
+  int ret;
 
   if (!bpi)
   {
@@ -232,11 +234,16 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
   BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_CLOSING);
   BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
-  BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_LINGER);	// Assume linger until everything is written...
+
+  if (BK_FLAG_ISSET(flags, BK_POLLING_LINGER))
+  {
+    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_LINGER);
+  }
 
   if (BK_FLAG_ISSET(flags, BK_POLLING_DONT_LINGER))
   {
     BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_LINGER);
+    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_DONT_LINGER);
   }
 
   // Nuke everything from the cached read list
@@ -259,7 +266,20 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
   else
   {
     bk_ioh_shutdown(B, bpi->bpi_ioh, SHUT_RD, 0);
-    bk_ioh_close(B, bpi->bpi_ioh, (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_LINGER)?0:BK_IOH_ABORT));
+
+    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_LINGER))
+    {
+      while (bpi->bpi_wroutstanding && (ret = bk_run_once(B, bpi->bpi_ioh->ioh_run, 0)))
+      {
+	if (ret < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
+	  break;
+	}
+      }
+    }
+
+    bk_ioh_close(B, bpi->bpi_ioh, (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_DONT_LINGER)?BK_IOH_ABORT:0));
   }
 
   BK_VRETURN(B);

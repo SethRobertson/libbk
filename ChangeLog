@@ -1,3 +1,12 @@
+2003-05-16  Seth Robertson  <seth@hawking.sysdetect.com>
+
+	* lib/b_pollio.c (bk_polling_io_close): Handle Linger more
+	correctly (actually wait for output to drain).
+
+2003-05-16  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_time.c (bk_time_iso_parse): Complain when this fails...
+
 2003-05-16  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_thread.c (struct bk_threadlist): add condvar, init state flags

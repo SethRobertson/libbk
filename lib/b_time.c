@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.14 2003/05/03 04:23:28 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_time.c,v 1.15 2003/05/16 20:45:20 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -366,7 +366,10 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
    * actually makes it difficult to handle the 'T' vs. ' ' option.
    */
   if (!(fraction = strptime(string, "%Y-%m-%dT%H:%M:%S", &t)))
-    BK_RETURN(B, -1);
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Invalid return when parsing text format: %s\n", string);
+      BK_RETURN(B, -1);
+    }
 #else
   {
     int len = 0;
@@ -375,7 +378,10 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
 	       (u_int *) &t.tm_mday, &sep, (u_int *) &t.tm_hour,
 	       (u_int *) &t.tm_min, (u_int *) &t.tm_sec, &len) < 7
 	|| (sep != 'T' && sep != ' '))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Invalid return when parsing text format: %s\n", string);
       BK_RETURN(B, -1);
+    }
 
     t.tm_year -= 1900;
     t.tm_mon -= 1;
