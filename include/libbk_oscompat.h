@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.51 2005/02/05 03:51:10 seth Exp $
+ * $Id: libbk_oscompat.h,v 1.52 2005/02/05 04:45:37 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -20,9 +20,11 @@
 #define BUG_LLI_CAST(x)	((long long int)(x))
 
 #ifdef __x86_64
-#define POINTER2INTS(x) ((long)(x))
+#define BK_POINTER2INTS(x) ((long)(x))
+#define BK_INTS2POINTER(x) ((void *)(long)(x))
 #else
-#define POINTER2INTS(x) ((int)(x))
+#define BK_POINTER2INTS(x) ((int)(x))
+#define BK_INTS2POINTER(x) ((void *)(x))
 #endif
 
 
