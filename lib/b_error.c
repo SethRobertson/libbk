@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.5 2001/09/03 15:31:03 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.6 2001/09/11 03:25:03 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -348,9 +348,15 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
   char fullprefix[40];
   struct tm *tm = localtime(&node->ben_time);
 
-  if ((tmp = strftime(timeprefix, sizeof(timeprefix), "%m/%d %T", tm)) != 14)
+  if ((tmp = strftime(timeprefix, sizeof(timeprefix), "%m/%d %H:%M:%S", tm)) != 14)
   {
+#if 0
+    /*
+     * this way lies madness (and infinite recursion).  A better
+     * solution is to use assert.
+     */
     bk_error_printf(B, BK_ERR_ERR, __FUNCTION__/**/": Somehow strftime produced %d bytes instead of the expected\n",tmp);
+#endif
     return;
   }
 
