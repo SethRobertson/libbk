@@ -1,3 +1,8 @@
+2002-11-06  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_ioh.c (bk_ioh_stdwrfun): Add option to write all available
+	data on each write (for RAW mode only).
+
 2002-11-05  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h: name millisecond timeout parameters msecs, not usec

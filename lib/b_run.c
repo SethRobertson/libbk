@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.32 2002/10/22 21:06:25 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.33 2002/11/07 01:31:14 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -998,10 +998,30 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	memcpy(p,scratch,strlen(scratch));
       }
     }
+
+    snprintf(scratch,1024, " Writeset: ");
+    if (!(p=bk_memx_get(B, bm, strlen(scratch), NULL, BK_MEMX_GETNEW)))
+    {
+      goto out;
+    }
+    memcpy(p,scratch,strlen(scratch));
+    for(f=0;f<s;f++)
+    {
+      if (FD_ISSET(f, &run->br_writeset))
+      {
+	snprintf(scratch,1024, "%d ", f);
+	if (!(p=bk_memx_get(B, bm, strlen(scratch), NULL, BK_MEMX_GETNEW)))
+	{
+	  goto out;
+	}
+	memcpy(p,scratch,strlen(scratch));
+      }
+    }
     if (!(p=bk_memx_get(B, bm, 2, NULL, BK_MEMX_GETNEW)))
     {
       goto out;
     }
+
     memcpy(p,"\n",2);
     bk_debug_printf(B,"%s", (char *)bk_memx_get(B,bm,0,NULL,0));
   out:

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.64 2002/09/28 23:25:30 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.65 2002/11/07 01:31:14 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -274,6 +274,11 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
     BK_RETURN(B, NULL);
   }
 
+  if (BK_FLAG_ISSET(flags, BK_IOH_WRITE_ALL) && !BK_FLAG_ISSET(flags, BK_IOH_RAW))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "IOH_WRITE_ALL is only valid with IOH_RAW\n");
+    BK_RETURN(B, NULL);
+  }
 
   // Check for invalid flags combinations
   tmp = 0;
@@ -1764,14 +1769,12 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
       int cnt = 0;
       struct iovec iov;
 
-      for (bid = biq_minimum(ioh->ioh_writeq.biq_queue); bid; bid = biq_successor(ioh->ioh_writeq.biq_queue, bid))
-      {	
-	if (bid->bid_data)
-	  break;
-      }
-
-      if (bid)
+      bid = biq_minimum(ioh->ioh_writeq.biq_queue); 
+      while(bid)
       {
+	if (!bid->bid_data)
+	  continue;
+
 	iov.iov_base = bid->bid_data + bid->bid_used;
 	iov.iov_len = bid->bid_inuse;
 
@@ -1783,15 +1786,20 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	{
 	  // Not quite ready for writing yet
 	  cnt = 0;
+	  break;
 	}
 	else if (cnt < 0)
 	{
 	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
 	  ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
 	  CALL_BACK(B, ioh, NULL, BkIohStatusIohWriteError);
+	  break;
 	}
 	else
 	{
+
+	  bid = biq_successor(ioh->ioh_writeq.biq_queue, bid);
+
 	  ioh_dequeue_byte(B, ioh, &ioh->ioh_writeq, (u_int32_t)cnt, 0);
 
 	  if (ioh->ioh_writeq.biq_queuelen < 1)
@@ -1799,6 +1807,9 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	    ioh->ioh_writeq.biq_queuelen = 0;
 	    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
 	  }
+
+	  if (BK_FLAG_ISCLEAR(ioh->ioh_extflags, BK_IOH_WRITE_ALL))
+	    break;
 	}
       }
     }

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.185 2002/11/05 11:02:36 dupuy Exp $
+ * $Id: libbk.h,v 1.186 2002/11/07 01:31:13 lindauer Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1378,6 +1378,7 @@ extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f h
 #define BK_IOH_BLOCKED		0x04		///< Must I/O in hint blocks: block size is required, for bk_ioh
 #define BK_IOH_VECTORED		0x08		///< Size of data sent before data: datagramish semantics, for bk_ioh
 #define BK_IOH_LINE		0x10		///< Line oriented reads, for bk_ioh
+#define BK_IOH_WRITE_ALL	0x20		///< Write all available data when doing a write, for bk_ioh
 #define BK_IOH_NO_HANDLER	0x8000		///< Suppress stupid warning
 
 #if 0
