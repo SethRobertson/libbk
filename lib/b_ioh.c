@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.13 2001/11/14 01:10:18 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.14 2001/11/14 06:57:44 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -773,7 +773,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
     bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
 
-  if (BK_FLAG_ISSET(ioh->ioh_intflags, BK_IOH_ABORT) || ret < 1)
+  if (BK_FLAG_ISSET(flags, BK_IOH_ABORT) || ret < 1)
     bk_ioh_destroy(B, ioh);
 
   BK_VRETURN(B);
@@ -805,6 +805,12 @@ void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
   }
 
   bk_debug_printf_and(B, 1, "Destroying ioh IOH %p\n", ioh);
+
+  if (bk_debug_and(B, 0x10))
+  {
+    bk_debug_print(B, "Printing stack trace\n");
+    bk_fun_trace(B, stderr, BK_ERR_NONE, 0);
+  }
 
   // Prevent recursive activity
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_DESTROYING))
@@ -1196,7 +1202,7 @@ static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t al
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh_data *bid;
 
-  if (!iohq || !data)
+  if (!iohq)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B,-1);
@@ -1472,7 +1478,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	iov.iov_base = bid->bid_data + bid->bid_used;
 	iov.iov_len = bid->bid_inuse;
 
-	cnt = (*ioh->ioh_writefun)(ioh->ioh_fdout, &iov, 1, 0);
+	cnt = (*ioh->ioh_writefun)(B, ioh->ioh_fdout, &iov, 1, 0);
 
 	if (cnt == 0 || cnt < 0 && (
 #ifdef EWOULDBLOCK
@@ -1714,7 +1720,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	}
       }
 
-      cnt = (*ioh->ioh_writefun)(ioh->ioh_fdout, iov, cnt, 0);
+      cnt = (*ioh->ioh_writefun)(B, ioh->ioh_fdout, iov, cnt, 0);
       free(iov);
 
       if (cnt == 0 || cnt < 0 && (
@@ -1965,7 +1971,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 
       if (bid && cnt > 0)
       {
-	cnt = (*ioh->ioh_writefun)(ioh->ioh_fdout, iov, cnt, 0);
+	cnt = (*ioh->ioh_writefun)(B, ioh->ioh_fdout, iov, cnt, 0);
 	free(iov);
 
 	if (cnt == 0 || cnt < 0 && (
@@ -2569,7 +2575,7 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
   bk_debug_printf_and(B, 1, "Interal read IOH %p\n", ioh);
 
   // Worry about non-stream protocols--somehow
-  ret = (*ioh->ioh_readfun)(fd, data, len, flags);
+  ret = (*ioh->ioh_readfun)(B, fd, data, len, flags);
 
   BK_RETURN(B,ret);
 }
@@ -2758,9 +2764,29 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, u_int32_t cmds, bk_flags
  *	@param flags Fun for the future
  *	@return Standard @a read() return codes
  */
-int bk_ioh_stdrdfun(int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags)
+int bk_ioh_stdrdfun(bk_s B, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags)
 {
-  return(read(fd, buf, size));
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret, erno;
+
+  errno = 0;
+  ret = read(fd, buf, size);
+  erno = errno;
+
+  bk_debug_printf_and(B, 1, "System read returns %d with errno %d\n", ret, errno);
+
+  if (bk_debug_and(B, 0x20) && ret > 0)
+  {
+    bk_vptr dbuf;
+
+    dbuf.ptr = buf;
+    dbuf.len = MIN(ret, 32);
+
+    bk_debug_printbuf_and(B, 0x20, "Buffer just read in:", "\t", &dbuf);
+  }
+
+  errno = erno;
+  BK_RETURN(B, ret);
 }
 
 
@@ -2774,7 +2800,27 @@ int bk_ioh_stdrdfun(int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags)
  *	@param flags Fun for the future
  *	@return Standard @a writev() return codes
  */
-int bk_ioh_stdwrfun(int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags)
+int bk_ioh_stdwrfun(bk_s B, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags)
 {
-  return(writev(fd, buf, size));
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret, erno;
+
+  errno = 0;
+  ret = writev(fd, buf, size);
+  erno = errno;
+
+  bk_debug_printf_and(B, 1, "System writev returns %d with errno %d\n",ret,errno);
+
+  if (bk_debug_and(B, 0x20) && ret > 0)
+  {
+    bk_vptr dbuf;
+
+    dbuf.ptr = buf[0].iov_base;
+    dbuf.len = MIN(MIN(buf[0].iov_len, 32), (u_int)ret);
+
+    bk_debug_printbuf_and(B, 0x20, "Buffer just wrote:", "\t", &dbuf);
+  }
+
+  errno = erno;
+  BK_RETURN(B, ret);
 }

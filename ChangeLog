@@ -1,3 +1,12 @@
+2001-11-14  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_ioh.c (bk_ioh_close): Ah silly boy.  You must check for a
+	flag only in places where it can be found, not in other random
+	flag variables in different flag-spaces.  I suppose Alex can make
+	a good argument here about enums.  Hmm.
+
+	* include/libbk.h (bk_debug_printbuf): Typo
+
 2001-11-13  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* src/proto.c (main): You must use bk_general_debug_config *in place of*

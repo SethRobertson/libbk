@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.52 2001/11/14 01:10:18 seth Exp $
+ * $Id: libbk.h,v 1.53 2001/11/14 06:57:44 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -79,7 +79,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define bk_debug_print(B,s) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprint(B,BK_GENERAL_DEBUG(B),s):1) ///< Perform a debugging print if debugging is enabled
 #define bk_debug_printf(B,f,args...) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprintf(B,BK_GENERAL_DEBUG(B),f,##args):1) ///< Perform a debugging printf if debugging is enabled
 #define bk_debug_vprintf(B,f,ap) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_ivprintf(B,BK_GENERAL_DEBUG(B),f,ap):1) ///< Perform a debugging vprintf if debugging is enabled
-#define bk_debug_printbuf(B,i,p,v) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprintbuf(B,BK_GENERAL_DEBUG(B),i,pv):1) ///< Perform a debugging printbuf if debugging is enabled
+#define bk_debug_printbuf(B,i,p,v) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprintbuf(B,BK_GENERAL_DEBUG(B),i,p,v):1) ///< Perform a debugging printbuf if debugging is enabled
 // @}
 
 
@@ -605,8 +605,8 @@ extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
 
 
 /* b_ioh.c */
-typedef int (*bk_iorfunc)(int, caddr_t, __SIZE_TYPE__, bk_flags); ///< read style I/O function for bk_ioh (flags for specialized datagram handling, like peek)
-typedef int (*bk_iowfunc)(int, struct iovec *, __SIZE_TYPE__, bk_flags); ///< writev style I/O function for bk_ioh
+typedef int (*bk_iorfunc)(bk_s, int, caddr_t, __SIZE_TYPE__, bk_flags); ///< read style I/O function for bk_ioh (flags for specialized datagram handling, like peek)
+typedef int (*bk_iowfunc)(bk_s, int, struct iovec *, __SIZE_TYPE__, bk_flags); ///< writev style I/O function for bk_ioh
 typedef void (*bk_iohhandler)(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh, u_int state_flags);  ///< User callback for bk_ioh w/zero terminated array of data ptrs free'd after handler returns
 extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iorfunc readfun, bk_iowfunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
 #define BK_IOH_STREAM		0x01		///< Stream (instead of datagram) oriented protocol, for bk_ioh
@@ -636,8 +636,8 @@ extern void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 #define BK_IOH_NOTIFYANYWAY	0x02		///< During bk_ioh_close: Call handler notifying when close actually completes */
 #define BK_IOH_DONTCLOSEFDS	0x04		///< During bk_ioh_close: Don't close the file descriptors during close */
 extern void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
-extern int bk_ioh_stdrdfun(int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags);		///< read() when implemented in ioh style
-extern int bk_ioh_stdwrfun(int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags);	///< write() when implemented in ioh style
+extern int bk_ioh_stdrdfun(bk_s B, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags);		///< read() when implemented in ioh style
+extern int bk_ioh_stdwrfun(bk_s B, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags);	///< write() when implemented in ioh style
 extern int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *outqueue, bk_flags flags);
 
 /* b_stdfun.c */
