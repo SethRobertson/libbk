@@ -1,3 +1,21 @@
+2001-12-19  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_run.c (bk_run_on_demand_add): Set brof key (DOH!)
+	(bk_run_on_demand_remove): Actutally destroy brof you are removing.
+
+	* lib/b_pollio.c (bk_polling_io_create): Sigh. Fully initialize
+	structure (despite memset()) in order to pacify insight.
+	(bk_polling_io_close): Lingering close.
+	(bk_polling_io_close): Close out ioh too.
+	(polling_io_ioh_handler): Don't destroy bpi if asked not too
+	(lingering close).
+	(bk_polling_io_data_destroy): We only need to destroy one vptr.
+
+	* lib/b_ioh.c (ioh_execute_cmds): Make sure you clear and destroy
+	the dll regardless of content of nodes.
+
+	* lib/b_bnbio.c (bk_iohh_bnbio_close): Lingering close.
+
 2001-12-14  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_ioh.c: Convert messages to use structures and dll's

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.2 2001/12/19 01:12:14 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.3 2001/12/19 20:21:02 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -78,7 +78,8 @@ static int polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags );
 
 
 /**
- * Create the context for on demand operation.
+ * Create the context for on demand operation. <em>NB</em> We take control
+ * of the @a ioh, just like in bk_relay().
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The BAKA ioh structure to use.
@@ -110,6 +111,10 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   }
 
   bpi->bpi_ioh = ioh;
+  bpi->bpi_flags = 0;
+  bpi->bpi_size = 0;
+  bpi->bpi_throttle_cnt = 0;
+  bpi->bpi_tell = 0;
   
   if (bk_ioh_update(B, ioh, NULL, NULL, NULL, polling_io_ioh_handler, bpi, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER | BK_IOH_UPDATE_OPAQUE) < 0)
   {
@@ -126,7 +131,15 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
 
 /**
- * Close up on demand I/O
+ * Close up on demand I/O.
+ *
+ * <WARNING> 
+ * For various and sundry reasons it's beoome clear that ioh should be
+ * closed here too. Therefore if you are using polling io then you should
+ * surrender contrl of the ioh (or more to the point control it via the
+ * polling routines). In this respect poilling io is like b_relay.c.
+ * </WARNING>
+ *
  *	@param B BAKA thread/global state.
  *	@param bpi The on demand state to close.
  *	@param flags Flags for the future.
@@ -143,6 +156,13 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
   }
 
   BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_CLOSING);
+  if (BK_FLAG_ISSET(flags, BK_POLLING_CLOSE_FLAG_LINGER))
+  {
+    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
+  }
+
+  bk_ioh_close(B, bpi->bpi_ioh, 0);
+
   BK_VRETURN(B);
 }
 
@@ -249,12 +269,18 @@ polling_io_ioh_handler(bk_s B, bk_vptr data[], void *args, struct bk_ioh *ioh, b
   case BkIohStatusIohClosing:
     if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_CLOSING))
     {
-      bk_error_printf(B, BK_ERR_ERR, "On demand io underlying IOH was nuked before bpi closed. Not Good (probably not fatal).\n");
+      bk_error_printf(B, BK_ERR_WARN, "Polling io underlying IOH was nuked before bpi closed. Not Good (probably not fatal).\n");
       // Forge on.
     }
-    bk_polling_io_destroy(B,bpi);
-    BK_VRETURN(B);
+    if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY))
+    {
+      bk_polling_io_destroy(B,bpi);
+      BK_VRETURN(B);
+    }
     
+    // The ioh is now dead.
+    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_IOH_DEAD);
+
   case BkIohStatusIohReadError:
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_READ_DEAD);
     break;
@@ -308,7 +334,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr data[], void *args, struct bk_ioh *ioh, b
   BK_VRETURN(B);
 
  error:
-  if (ndata) bk_polling_io_data_destroy(B, data);
+  if (ndata) bk_polling_io_data_destroy(B, ndata);
   if (pid) pid_destroy(B, pid);
   
   BK_VRETURN(B);
@@ -328,7 +354,6 @@ void
 bk_polling_io_data_destroy(bk_s B, bk_vptr *data)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  bk_vptr *d;
 
   if (!data)
   {
@@ -339,10 +364,7 @@ bk_polling_io_data_destroy(bk_s B, bk_vptr *data)
   /*
    * Free up all the data.
    */
-  for(d = data; d->ptr; d++)
-  {
-    free(d->ptr);
-  }
+  free(data->ptr);
   free(data);
 
   BK_VRETURN(B);
@@ -351,10 +373,10 @@ bk_polling_io_data_destroy(bk_s B, bk_vptr *data)
 
 
 /**
- * Do one on demand read.
+ * Do one polling read.
  *
  *	@param B BAKA thread/global state.
- *	@param bpi The on demand state to use.
+ *	@param bpi The polling state to use.
  *	@param datap Data to pass up to the user (copyout).
  *	@param statusp Status to pass up to the user (copyout).
  *	@return <i>-1</i> on failure.<br>
@@ -388,11 +410,11 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
 
 
 /**
- * Do one on demand poll. If we have some data, dequeue it and
+ * Do one polling poll. If we have some data, dequeue it and
  * return. Othewise call bk_run_once() one time.
  *
  *	@param B BAKA thread/global state.
- *	@param bpi The on demand state to use.
+ *	@param bpi The polling state to use.
  *	@param datap Data to pass up to the user (copyout).
  *	@param statusp Status to pass up to the user (copyout).
  *	@return <i>-1</i> on failure.<br>
@@ -415,11 +437,13 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
     *datap = NULL;
 
   // Seth sez: do bk_run_once regardless of presence of existing data to report.
-  if (bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
+  if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
+      bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "On demand bk_run_once failed severly\n");
+    bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severly\n");
     goto error;
   }
+
   pid = pidlist_minimum(bpi->bpi_data);
 
   // Now that we either have data or might
@@ -463,7 +487,8 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
 
   // <TODO> if file open for only writing mark the case so we don't do this </TODO>
   /* Enable reading if buffer is not full */
-  if (bpi->bpi_ioh->ioh_readq.biq_queuemax &&
+  if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
+      bpi->bpi_ioh->ioh_readq.biq_queuemax &&
       bpi->bpi_size < bpi->bpi_ioh->ioh_readq.biq_queuemax)
   {
     bk_polling_io_unthrottle(B, bpi, 0);
@@ -486,8 +511,8 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
 
 
 /**
- * Write out a buffer on demand. Basically <em>all</em> bk_ioh writes are
- * "on demand", but we need this function to provide the glue between some
+ * Write out a buffer polling. Basically <em>all</em> bk_ioh writes are
+ * "polling", but we need this function to provide the glue between some
  * layers which might not have access to the @a bk_ioh structure and the
  * actuall ioh level.
  *
@@ -565,7 +590,7 @@ pid_destroy(bk_s B, struct polling_io_data *pid)
 
 
 /**
- * Throttle an on demand I/O stream.
+ * Throttle an polling I/O stream.
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io to throttle.
@@ -603,7 +628,7 @@ bk_polling_io_throttle(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
 
 /**
- * Unthrottle an on demand I/O stream.
+ * Unthrottle an polling I/O stream.
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io to unthrottle.
@@ -642,7 +667,7 @@ bk_polling_io_unthrottle(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
 
 /**
- * Flush all data associated with on demand stuff. 
+ * Flush all data associated with polling stuff. 
  *
  *	@param B BAKA thread/global state.
  *	@param bpi @a bk_polling_io to flush.

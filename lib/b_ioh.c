@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.33 2001/12/19 01:12:13 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.34 2001/12/19 20:21:02 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2883,8 +2883,9 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct ioh_data_cmd *idc;
-  int ret;
+  int ret = 0;
   struct ioh_seek_args *isa = NULL;
+  
 
   if (!ioh)
   {
@@ -2896,49 +2897,53 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
   {
     bk_debug_printf_and(B, 1, "Execute cmds %d for IOH %p\n", idc->idc_type, ioh);
 
-    switch (idc->idc_type)
+    // Process commands until (and if) we see a CmdClose (but dequeue and destroy everything).
+    if (ret != 2)
     {
-    case IohDataCmdShutdown:
-      shutdown(ioh->ioh_fdin, SHUT_WR);
-      BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT_PEND);
-      BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT);
-      break;
-
-    case IohDataCmdClose:
-      bk_ioh_destroy(B, ioh);
-      BK_RETURN(B,2);
-      break;
-
-    case IohDataCmdSeek:
-      ret = 0;
-      if (!idc->idc_args)
+      switch (idc->idc_type)
       {
-	bk_error_printf(B, BK_ERR_ERR, "Seek command contained no args! Seek failed\n");
-	ret = -1;
-      }
-      else 
-      {
-	isa = idc->idc_args;
-	if (lseek(ioh->ioh_fdin, isa->isa_offset, isa->isa_whence) < 0)
+      case IohDataCmdShutdown:
+	shutdown(ioh->ioh_fdin, SHUT_WR);
+	BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT_PEND);
+	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT);
+	break;
+
+      case IohDataCmdClose:
+	bk_ioh_destroy(B, ioh);
+	ret = 2;
+	break;
+
+      case IohDataCmdSeek:
+	ret = 0;
+	if (!idc->idc_args)
 	{
-	  bk_error_printf(B, BK_ERR_ERR, "Could lseek: %s\n", strerror(errno));
+	  bk_error_printf(B, BK_ERR_ERR, "Seek command contained no args! Seek failed\n");
+	  ret = -1;
 	}
-	else
+	else 
 	{
-	  ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, 0);
+	  isa = idc->idc_args;
+	  if (lseek(ioh->ioh_fdin, isa->isa_offset, isa->isa_whence) < 0)
+	  {
+	    bk_error_printf(B, BK_ERR_ERR, "Could lseek: %s\n", strerror(errno));
+	  }
+	  else
+	  {
+	    ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, 0);
+	  }
 	}
-      }
 
-      bk_ioh_readallowed(B, ioh, 1, 0);
-      free(isa);
+	bk_ioh_readallowed(B, ioh, 1, 0);
+	free(isa);
 
-      CALLBACK(B, ioh, NULL, ret==0?BkIohStatusIohSeekSuccess:BkIohStatusIohSeekFailed);
+	CALLBACK(B, ioh, NULL, ret==0?BkIohStatusIohSeekSuccess:BkIohStatusIohSeekFailed);
 
-      break;
+	break;
     
-    default: 
-      bk_error_printf(B, BK_ERR_ERR, "Unkown bid command: %d\n", idc->idc_type);
-      break;
+      default: 
+	bk_error_printf(B, BK_ERR_ERR, "Unkown bid command: %d\n", idc->idc_type);
+	break;
+      }
     }
 
     if (cmd_list_delete(cmds, idc) != DICT_OK)
@@ -2950,7 +2955,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
   }
   cmd_list_destroy(cmds);
 
-  BK_RETURN(B,0);
+  BK_RETURN(B,ret);
 }
 
 

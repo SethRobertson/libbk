@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.23 2001/12/19 01:12:13 jtt Exp $
+ * $Id: libbk_internal.h,v 1.24 2001/12/19 20:21:02 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -99,6 +99,8 @@ struct bk_polling_io
 #define BPI_FLAG_READ_DEAD		0x2	///< Our read side is in permement ruins.
 #define BPI_FLAG_WRITE_DEAD		0x4	///< Our write side is in permement ruins.
 #define BPI_FLAG_SAW_EOF		0x8	///< We have seen EOF.
+#define BPI_FLAG_DONT_DESTROY		0x10	///< Tell io hander not destroy bpi.
+#define BPI_FLAG_IOH_DEAD		0x20	///< Tell io hander not destroy bpi.
   dict_h		bpi_data;		///< Queue of data vptrs.
   struct bk_ioh *	bpi_ioh;		///< Ioh structure.
   u_int			bpi_size;		///< Amount of data I'm buffering.

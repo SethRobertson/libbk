@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_bio.c,v 1.2 2001/12/19 01:12:14 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_bio.c,v 1.3 2001/12/19 20:21:02 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -57,6 +57,7 @@ struct program_config
   void *		pc_on_demand;		///< On demand handle.
   const char *		pc_check;
   const char *		pc_output;
+  const char *		pc_input;
   int			pc_check_fd;
   int			pc_output_fd;
 };
@@ -94,6 +95,7 @@ main(int argc, char **argv, char **envp)
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', N_("Turn on verbose message"), NULL },
     {"no-seatbelts", 0, POPT_ARG_NONE, NULL, 0x1000, N_("Sealtbelts off & speed up"), NULL },
     {"output-file", 'o', POPT_ARG_STRING, NULL, 'o', "The file in which to dump the the output", "output-file" },
+    {"input-file", 'i', POPT_ARG_STRING, NULL, 'i', "The file in which to dump the the input", "input-file" },
     {"checkpoint-file", 'c', POPT_ARG_STRING, NULL, 'c', "The file in which to dump the the checkpoint output", "checkpoint-file" },
     POPT_AUTOHELP
     POPT_TABLEEND
@@ -143,6 +145,9 @@ main(int argc, char **argv, char **envp)
       break;
     case 0x1000:				// no-seatbelts
       BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
+      break;
+    case 'i':
+      pconfig->pc_input = poptGetOptArg(optCon);
       break;
     case 'o':
       pconfig->pc_output = poptGetOptArg(optCon);
@@ -210,7 +215,7 @@ static int proginit(bk_s B, struct program_config *pconfig)
     BK_RETURN(B, -1);
   }
 
-  if ((fd = open("/usr/share/dict/words", O_RDONLY)) < 0)
+  if ((fd = open(pconfig->pc_input?pconfig->pc_input:"/usr/share/dict/words", O_RDONLY)) < 0)
   {
     perror("Could not open words");
     BK_RETURN(B,-1);    
@@ -333,8 +338,9 @@ do_read(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const st
     
 
     *demand = 0;
-    if (BK_STREQ(line, "read"))
+    if (BK_STREQ(line, "read") || BK_STREQ(line, "readall"))
     {
+    reread:
       if ((ret = bk_iohh_bnbio_read(B, pc->pc_bib, &data, 0)) < 0)
       {
 	fprintf(stderr,"Could not read data from ioh\n");
@@ -357,6 +363,9 @@ do_read(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const st
       else
       {
 	write(pc->pc_output_fd, data->ptr, data->len);
+	bk_polling_io_data_destroy(B, data);
+	if (BK_STREQ(line,"readall"))
+	  goto reread;
       }
     }
     else if (BK_STREQ(line, "tell"))
@@ -389,7 +398,11 @@ do_read(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const st
     *demand = 1;
   }
 
-  bk_iohh_bnbio_close(B, pc->pc_bib, 0);
+  *demand = 0;
+
+  bk_iohh_bnbio_close(B, pc->pc_bib, BK_IOHH_BNBIO_FLAG_LINGER);
+  // Must do this *after* lingering close
+  bk_run_on_demand_remove(B, pc->pc_run, pc->pc_on_demand);
   bk_run_set_run_over(B, pc->pc_run);
 
   BK_RETURN(B,0);

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.87 2001/12/19 01:12:13 jtt Exp $
+ * $Id: libbk.h,v 1.88 2001/12/19 20:21:02 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -90,6 +90,15 @@ struct bk_version
   u_int			bv_vers_minor;		///< Minor version number
 };
 
+
+/**
+ * @name Blocking Non-blocking flags
+ */
+// @{
+#define BK_IOHH_BNBIO_FLAG_LINGER	0x1	///< Linger on close untill all write data flushed.
+#define BK_IOHH_BNBIO_FLAG_SYNC		0x2	///< Linger on write until write completes.
+#define BK_IOHH_BNBIO_FLAG_NO_LINGER	0x4	///< Turn off LINGER or SYNC.
+// @}
 
 
 #define BK_VERSION_MAJOR(v) ((v)->bv_vers_major)
@@ -915,6 +924,7 @@ extern int bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence);
 /* b_pollio.c */
 extern struct bk_polling_io *bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern void bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
+#define BK_POLLING_CLOSE_FLAG_LINGER	0x1	///< This is a linger close
 extern void bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi);
 extern void  bk_polling_io_data_destroy(bk_s B, bk_vptr *data);
 extern int bk_polling_io_throttle(bk_s B, struct bk_polling_io *bpi, bk_flags flags);

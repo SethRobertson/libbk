@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.2 2001/12/19 01:12:13 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.3 2001/12/19 20:21:02 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -40,9 +40,6 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 struct bk_iohh_bnbio
 {
   bk_flags			bib_flags;	///< Everyone needs flags.
-#define BK_IOHH_BNBIO_FLAG_LINGER	0x1	///< Linger on close untill all write data flushed.
-#define BK_IOHH_BNBIO_FLAG_SYNC		0x2	///< Linger on write until write completes.
-#define BK_IOHH_BNBIO_FLAG_NO_LINGER	0x4	///< Turn off LINGER or SYNC.
   struct bk_polling_io *	bib_bpi;	///< Polling strucuture. 
 };
 
@@ -238,26 +235,28 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
   }
 
   // Wait for the buffer to return.
-  if (SHOULD_LINGER(bib,flags))
+  if ((BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_SYNC) && 
+       BK_FLAG_ISCLEAR(flags, BK_IOHH_BNBIO_FLAG_NO_LINGER)) || 
+      (BK_FLAG_ISSET(flags, BK_IOHH_BNBIO_FLAG_SYNC)))
   {
-  retry:
-    if (bk_polling_io_do_poll(B, bib->bib_bpi, &ddata, &status, 0) < 0)
+    // <WARNING> HIDEOUS LAYER VIOLATION </WARNING>
+    while (bib->bib_bpi->bpi_ioh->ioh_writeq.biq_queuelen > 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "polling run failed seveerly\n");
-      BK_RETURN(B,-1);      
-    }
+      if (bk_polling_io_do_poll(B, bib->bib_bpi, &ddata, &status, 0) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "polling run failed seveerly\n");
+	BK_RETURN(B,-1);      
+      }
 
     /*
-     * Check the queue even if ret == 1 (which generally means "no
-     * progress". The problem here is that we don't return write buffers
-     * back for freeing ('cause we don't always linger), so it's quite
-     * possible for us to make forward progress in terms of *writing* out
-     * data without the poll subsystem really knowing it.
+     * Continue checking the queue even if ret == 1 (which generally means
+     * "no progress". The problem here is that we don't return write
+     * buffers back for freeing ('cause we don't always linger), so it's
+     * quite possible for us to make forward progress in terms of *writing*
+     * out data without the poll subsystem really knowing it.
      */
+    }
 
-    // <WARNING> HIDEOUS LAYER VIOLATION </WARNING>
-    if (bib->bib_bpi->bpi_ioh->ioh_writeq.biq_queuelen > 0)
-      goto retry;
   }
   BK_RETURN(B,0);  
 }
@@ -366,6 +365,9 @@ void
 bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret = 0;
+  bk_vptr *data;
+  bk_ioh_status_e status;
 
   if (!bib)
   {
@@ -373,11 +375,38 @@ bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
     BK_VRETURN(B);
   }
 
-  bk_polling_io_close(B, bib->bib_bpi, 0);
 
   // <TODO> Jtt is not at all sure that this is correct and won't leak memory </TODO>
+
+  if ((BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_LINGER) && 
+       BK_FLAG_ISCLEAR(flags, BK_IOHH_BNBIO_FLAG_NO_LINGER)) || 
+      (BK_FLAG_ISSET(flags, BK_IOHH_BNBIO_FLAG_LINGER)))
+  {
+    bk_polling_io_close(B, bib->bib_bpi, BK_POLLING_CLOSE_FLAG_LINGER);
+    while (((ret = bk_polling_io_do_poll(B, bib->bib_bpi, &data, &status, 0)) >= 0) && 
+	   (status != BkIohStatusIohClosing))
+    {
+      if (data)
+      {
+	bk_polling_io_data_destroy(B, data);
+      }
+    }
+
+    if (ret < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "polling run failed seveerly\n");
+      BK_VRETURN(B);
+    }
+    // We have to destroy this ourselves now.
+    bk_polling_io_destroy(B, bib->bib_bpi);
+  }
+  else
+  {
+    // We're not linger so we can just let the run loop run its course when it chooses to.
+    bk_polling_io_close(B, bib->bib_bpi, 0);
+  }
+  
   bib->bib_bpi = NULL;
   bk_iohh_bnbio_destroy(B, bib);
-  
   BK_VRETURN(B);
 }

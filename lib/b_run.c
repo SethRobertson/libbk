@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.18 2001/12/19 01:12:14 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.19 2001/12/19 20:21:02 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -123,12 +123,12 @@ struct bk_run_func
  */
 struct bk_run_ondemand_func
 {
-  void *		brof_key;
-  bk_run_on_demand_f	brof_fun;
-  void *		brof_opaque;
-  bk_flags		brof_flags;
-  dict_h		brof_backptr;
-  volatile int *	brof_demand;
+  void *		brof_key;		///< Key for searching.
+  bk_run_on_demand_f	brof_fun;		///< Function to call.
+  void *		brof_opaque;		///< User args.
+  bk_flags		brof_flags;		///< Eveyone needs flags.
+  dict_h		brof_backptr;		///< Ponter to enclosing dll.
+  volatile int *	brof_demand;		///< Integer which controls execution decision.
 };
 
 
@@ -1636,6 +1636,7 @@ bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *o
   brof->brof_opaque=opaque;
   brof->brof_demand=demand;
   brof->brof_flags=0;
+  brof->brof_key = brof;
 
   if (brfl_insert(run->br_ondemand_funcs, brof) != DICT_OK)
   {
@@ -1679,8 +1680,8 @@ bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle)
     bk_error_printf(B, BK_ERR_WARN, "Handle %p not found in delete\n", handle);
     BK_RETURN(B, 0);
   }
-
-  // XXX - actually delete and free
+  
+  brof_destroy(B, brof);
 
   if (!brfl_minimum(run->br_ondemand_funcs))
   {
