@@ -1,3 +1,7 @@
+2002-01-31  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/Makefile (BK_LARGE_LIB): use ${LIBEXT} for libtool build
+
 2002-01-30  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk_oscompat.h (ntohll, htonll): 64-bit host/network order

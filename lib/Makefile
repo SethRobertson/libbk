@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.27 2002/01/20 03:19:11 seth Exp $
+# $Id: Makefile,v 1.28 2002/01/31 17:35:09 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -14,7 +14,7 @@
 #
 # libbk Makefile
 #
-BK_LARGE_LIB=libbk.a
+BK_LARGE_LIB=libbk$(LIBEXT)
 
 BK_LARGE_LIBSRC=		       		\
 		b_addrgroup.c			\
