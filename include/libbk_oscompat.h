@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.35 2002/11/05 07:36:35 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.36 2003/01/31 17:35:45 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -18,10 +18,9 @@
 
 
 #ifdef __INSURE__
-#undef HAVE_CONSTRUCTOR_ATTRIBUTE
+/* #undef HAVE_CONSTRUCTOR_ATTRIBUTE */
 #undef HAVE_INIT_PRAGMA
 #endif
-
 
 
 // Parentheses prevent string concatenation which __func__ may not support
@@ -50,8 +49,8 @@ typedef uint32_t in_addr_t;
 #define BK_RHS(expr) ({expr;})			// force GCC to forbid it also
 #endif /* __GNUC__ && !__INSURE__ */
 
-
-#ifdef HAVE_CONSTRUCTOR_ATTRIBUTE
+#ifndef BK_NO_USER_SHARED_LIBS
+#ifdef HAVE_CONSTRUCTOR_ATTRIBUTE) 
 /**
  * Define an initialization function.
  *
@@ -72,6 +71,7 @@ typedef uint32_t in_addr_t;
  */
 #define BK_INIT_FUN(mod) \
  void __attribute__((__constructor__)) mod ## _init (void)
+
 
 /**
  * Define a finalization function.
@@ -99,8 +99,10 @@ typedef uint32_t in_addr_t;
 #define BK_INIT_FUN(mod)  void mod ## _init (void)
 #define BK_FINISH_FUN(mod) void mod ## _finish (void)
 #else
-#ifdef __INSURE__
+#ifdef __INSURE__NOT
+#error DO NOT USE ASM CODE WITH INSURE
 // insure doesn't like __attribute__((__constructor__)) so we use asm instead
+// Thu Jan 30: This now appears fixed, but keeping this code around is probably usefull
 #define BK_INIT_FUN(mod) \
 asm ("	.section	.ctors,\"aw\""); BK_INSURE_INIT_FUN(mod)
 #define BK_FINISH_FUN(mod) \
@@ -116,6 +118,13 @@ asm (".long	" #mod "_finish"); void mod ## _finish (void)
 #endif /* !HAVE_INSURE */
 #endif /* !HAVE_INIT_PRAGMA */
 #endif /* !HAVE_CONSTRUCTOR_ATTRIBUTE */
+#else
+
+/* We don't want shared libs at all here */
+#define BK_INIT_FUN(mod) void mod ## _init (void)
+#define BK_FINISH_FUN(mod) void mod ## _finish (void)
+
+#endif /* NO_USER_SHARED_LIBS */
 
 
 // FreeBSD calls it O_FSYNC, not O_SYNC, and who can say why?

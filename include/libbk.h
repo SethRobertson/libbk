@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.202 2003/01/23 23:50:37 jtt Exp $
+ * $Id: libbk.h,v 1.203 2003/01/31 17:35:45 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -124,6 +124,18 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 
 #define BK_ALLOCA(p) BK_ALLOCA_LEN(p,sizeof(*(p))) ///< Structure allocation calloc with assignment and type cast
 #define BK_ALLOCA_LEN(p,l) ((p) = (typeof(p))bk_alloca(l))	///< Malloc with assignment and type cast
+
+#ifdef __INSURE__
+/*
+ * Insure (at least on linux) doesn't get that realloc(NULL,len) is legal
+ * (it complains about freeing NULL), so this macro takes care of that.
+ *
+ * <WARNING> 
+ * The pointer arg get evaluatied *twice*. Don't use side effects (which is a bad idea anyay).
+ * </WARNING>
+ */
+#define realloc(p,l) ((p)?realloc((p),(l)):malloc(l))
+#endif // __INSURE__
 
 
 
@@ -1208,6 +1220,7 @@ struct bk_str_registry_element
   bk_flags		bsre_flags;		///< Everyone needs flags. (NB Shares flag space with bk_str_registry)
   const char *		bsre_str;		///< The saved string.
   bk_str_id_t		bsre_id;		///< The id of this string.
+  u_int			bsre_ref;		///< Reference count
 };
 
 

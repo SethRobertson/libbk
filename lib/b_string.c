@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.74 2003/01/23 20:28:32 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.75 2003/01/31 17:35:46 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1724,6 +1724,8 @@ bsre_create(bk_s B, const char *str, bk_flags flags)
     bsre->bsre_str = str;
   }
 
+  bsre->bsre_ref = 0;
+
   BK_RETURN(B,bsre);  
 
  error:
@@ -1825,6 +1827,12 @@ bk_string_registry_delete(bk_s B, struct bk_str_registry *bsr, const char *str, 
     BK_RETURN(B,0);    
   }
 
+  if (--bsre->bsre_ref)
+  {
+    /* Someone is still using this, so we're done */
+    BK_RETURN(B,0);    
+  }
+
   if (bsr_delete(bsr->bsr_repository, bsre) != DICT_OK)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not delete string registry element from repository\n");
@@ -1921,6 +1929,8 @@ bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str,
     }
     inserted = 1;
   }
+
+  bsre->bsre_ref++;
 
   BK_RETURN(B,bsre->bsre_id);  
 

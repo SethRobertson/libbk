@@ -1,3 +1,14 @@
+2003-01-31  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_string.c (bsre_create): Add reference cnt to string
+	registry to avoid overfreeing (created wild pointers).
+
+	* include/libbk_oscompat.h (BK_FINISH_FUN): Insure no longer
+	chokes on __contructor__ attribute.
+
+	* include/libbk.h (realloc): Redefine realloc() when INSURE is on,
+	otherwise you must deal with a multitude of FREE_NULL "errors".
+
 2003-01-23  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_nvmap.c (bk_nvmap_name2value): Type int values to
