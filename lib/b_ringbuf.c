@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringbuf.c,v 1.4 2003/09/11 23:11:45 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringbuf.c,v 1.5 2003/09/17 01:19:51 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -134,13 +134,13 @@ void bk_ring_destroy(bk_s B, struct bk_ring *ring, bk_flags flags)
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ring->br_lock) != 0)
     abort();
-#endif /* BK_USING_PTHREADS */
+
   while (BK_FLAG_ISSET(flags, BK_RING_WAIT) && READALLOWED(B, ring))
   {
     pthread_cond_broadcast(&ring->br_cond);	// Double-check
     pthread_cond_wait(&ring->br_cond, &ring->br_lock);
   }
-#ifdef BK_USING_PTHREADS
+  
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ring->br_lock) != 0)
     abort();
 
@@ -248,8 +248,10 @@ int bk_ring_write(bk_s B, struct bk_ring *ring, void *opaque, bk_flags flags)
   ring->br_ring[new] = opaque;
   ring->br_whand = new;
 
+#ifdef BK_USING_PTHREADS
   if (ring->br_readasleep || !opaque)
     pthread_cond_broadcast(&ring->br_cond);	// Wake up sleeping reader
+#endif /* BK_USING_PTHREADS */
 
  unlockexit:
 #ifdef BK_USING_PTHREADS
@@ -337,8 +339,10 @@ volatile void *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
   ring->br_ring[new] = (void *)0xdeadbeef;	// Invalid value
   ring->br_rhand = new;
 
+#ifdef BK_USING_PTHREADS
   if (ring->br_writeasleep || BK_FLAG_ISSET(ring->br_flags, BK_RING_CLOSING) || !ret)
     pthread_cond_broadcast(&ring->br_cond);	// Wake up sleeping write, or if we are closing
+#endif /* BK_USING_PTHREADS */
 
  unlockexit:
 #ifdef BK_USING_PTHREADS

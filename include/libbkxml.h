@@ -1,5 +1,5 @@
 /*
- * $Id: libbkxml.h,v 1.5 2003/07/07 22:11:18 lindauer Exp $
+ * $Id: libbkxml.h,v 1.6 2003/09/17 01:19:51 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -30,6 +30,8 @@ extern xmlAttrPtr bkxml_attrsearch(bk_s B, xmlNodePtr node, char *findname, bk_f
 extern char *bkxml_attrnode_data(bk_s B, xmlDocPtr doc, xmlNodePtr node, bk_flags flags);
 #define BKXML_MISSING_TEXT_ARE_NULL	0x1	///< Missing text for attribute is null (default empty string)
 #define BKXML_EXPAND_VARS		0x2	///< Expand environment variables
+extern xmlDocPtr bkxml_minimize_doc(bk_s B, xmlDocPtr input, bk_flags flags);
+extern int bkxml_md5_doc(bk_s B, xmlDocPtr input, char **digestp, char **min_textp, bk_flags flags);
 
 
 #endif /* _LIBBKXML_h_ */

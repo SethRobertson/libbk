@@ -3,6 +3,15 @@
 	* lib/b_ringbuf.c (bk_ring_length): Function to return current
 	size (number of items in) of ring.
 
+2003-09-16  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* xml/b_minimize.c: Functions (some moved from libfeatureset.c) to
+	mimimize and md5 an xml tree.
+
+2003-09-15  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_ringbuf.c: Make NO_PTHREADS work.
+
 2003-09-02  James Tanis  <jtt@cheviot.sysdetect.com>
 
 	* lib/b_string.c (bk_string_registry_insert_by_id): Function to

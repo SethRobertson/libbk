@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.4 2003/06/17 06:07:20 seth Exp $
+# $Id: Makefile,v 1.5 2003/09/17 01:19:52 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -17,6 +17,7 @@
 BK_LARGE_LIB=libbkxml$(LIBEXT)
 
 BK_LARGE_LIBSRC=		       		\
+		b_minimize.c			\
 		b_search.c			\
 # Line eater fodder -- leave
 
