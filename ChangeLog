@@ -1,3 +1,8 @@
+2003-09-11  Seth Robertson  <seth@buscemi.sysdetect.com>
+
+	* lib/b_ringbuf.c (bk_ring_length): Function to return current
+	size (number of items in) of ring.
+
 2003-09-02  James Tanis  <jtt@cheviot.sysdetect.com>
 
 	* lib/b_string.c (bk_string_registry_insert_by_id): Function to

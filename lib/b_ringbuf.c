@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringbuf.c,v 1.3 2003/07/10 03:09:03 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringbuf.c,v 1.4 2003/09/11 23:11:45 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -347,4 +347,38 @@ volatile void *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
 #endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B, ret);
+}
+
+
+
+/**
+ * Return approximate number of elements in ring buffer (threading may
+ * make answer slightly wrong
+ *
+ * THREADS: MT-SAFE
+ *
+ * @param B Baka global thread environment
+ * @param ring Ring buffer
+ * @param flags 0
+ * @return <i>-1</i> on error or queue-empty waiting impossible
+ * @return <br><i>number of objects in ring</i> on success
+ */
+int bk_ring_length(bk_s B, struct bk_ring *ring, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  u_int rhand, whand;
+
+  if (!ring)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  rhand = ring->br_rhand;
+  whand = ring->br_whand;
+
+  if (whand < rhand)
+    whand += ring->br_size;
+
+  BK_RETURN(B, whand - rhand);
 }
