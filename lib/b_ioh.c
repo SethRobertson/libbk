@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.4 2001/11/06 22:56:04 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.5 2001/11/08 23:56:41 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -37,11 +37,15 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  */
 struct bk_ioh_data
 {
-  char		       *bid_data;		/**< Actual data */
-  u_int32_t		bid_allocated;		/**< Allocated size of data */
-  u_int32_t		bid_inuse;		/**< Amount actually used (!including consumed) */
-  u_int32_t		bid_used;		/**< Amount virtually consumed */
-  bk_vptr	       *bid_vptr;		/**< Stored vptr to return in callback */
+  char		       *bid_data;		///< Actual data
+  u_int32_t		bid_allocated;		///< Allocated size of data
+  u_int32_t		bid_inuse;		///< Amount actually used (!including consumed)
+  u_int32_t		bid_used;		///< Amount virtually consumed
+  bk_vptr	       *bid_vptr;		///< Stored vptr to return in callback
+  bk_flags		bid_flags;		///< Additional information about this dataa
+#define BID_FLAG_SHUTDOWN	0x01		///< When this mark is reached, shut everything down
+#define BID_FLAG_CLOSE		0x02		///< When this mark is reached, close everything down
+#define BID_FLAG_MESSAGE	0x04		///< This is a message boundry
 };
 
 
@@ -51,9 +55,17 @@ struct bk_ioh_data
  */
 struct bk_ioh_queue
 {
-  u_int32_t		biq_queuelen;		/**< Amount of non-consumed data current in queue */
-  u_int32_t		biq_queuemax;		/**< Maximum of non-consumed data storable queue */
-  dict_h		biq_queue;		/**< Queued data */
+  u_int32_t		biq_queuelen;		///< Amount of non-consumed data current in queue
+  u_int32_t		biq_queuemax;		///< Maximum of non-consumed data storable queue
+  dict_h		biq_queue;		///< Queued data
+  union
+  {
+    struct
+    {
+      u_int32_t 	remaining;		///< Number of bytes in previous complete block remaining
+      bk_flags		flags;			///< Private flags
+    }			block;			///< Block message types
+  }			biq;			///< Private data for message types
 };
 
 
@@ -63,28 +75,72 @@ struct bk_ioh_queue
  */
 struct bk_ioh
 {
-  int			ioh_fdin;		/**< Input file descriptor */
-  int			ioh_fdout;		/**< Output file descriptor */
-  bk_iofunc 		ioh_readfun;		/**< Function to read data */
-  bk_iofunc		ioh_writefun;		/**< Function to write data */
-  bk_iohhandler		ioh_handler;		/**< Callback function for event handling */
-  void		       *ioh_opaque;		/**< Opaque data for handler */
-  u_int32_t		ioh_inbuf_hint;		/**< Hint for input buffer sizes */
-  u_int32_t		ioh_inbuf_max;		/**< Maxmum size of input buffer */
-  u_int32_t		ioh_outbuf_max;		/**< Maxmum amount of data buffered for output */
-  struct bk_run	       *ioh_run;		/**< BK_RUN environment */
-  struct bk_ioh_queue	ioh_readq;		/**< Data queued for reading */
-  struct bk_ioh_queue	ioh_writeq;		/**< Data queued for writing */
-  bk_flags		ioh_extflags;		/**< Flags--see libbk.h */
-  bk_flags		ioh_intflags;		/**< Flags */
-#define IOH_FLAGS_SHUTDOWN_INPUT	0x01	/**< Input shut down */
-#define IOH_FLAGS_SHUTDOWN_OUTPUT	0x02	/**< Output shut down */
-#define IOH_FLAGS_SHUTDOWN_OUTPUT_PEND	0x04	/**< Output shut down */
-#define IOH_FLAGS_SHUTDOWN_CLOSING	0x08	/**< Attempting to close */
-#define IOH_FLAGS_SHUTDOWN_DESTROYING	0x10	/**< Attempting to destroy */
-#define IOH_FLAGS_SHUTDOWN_NOTIFYDIE	0x20	/**< Notify callback on actual death */
-#define IOH_FLAGS_DONTCLOSEFDS		0x40	/**< Don't close FDs on death */
+  int			ioh_fdin;		///< Input file descriptor
+  u_int32_t		ioh_fdin_savestate;	///< Information about fdin which we changed
+#define IOH_ADDED_NONBLOCK	0x01
+#define IOH_ADDED_OOBINLINE	0x02
+#define IOH_NUKED_LINGER	0x03
+  int			ioh_fdout;		///< Output file descriptor
+  u_int32_t		ioh_fdout_savestate;	///< Information about fdout which we changed
+  bk_iofunc 		ioh_readfun;		///< Function to read data
+  bk_iofunc		ioh_writefun;		///< Function to write data
+  bk_iohhandler		ioh_handler;		///< Callback function for event handling
+  void		       *ioh_opaque;		///< Opaque data for handler
+  u_int32_t		ioh_inbuf_hint;		///< Hint for input buffer sizes
+  u_int32_t		ioh_inbuf_max;		///< Maxmum size of input buffer
+  u_int32_t		ioh_outbuf_max;		///< Maxmum amount of data buffered for output
+  struct bk_run	       *ioh_run;		///< BK_RUN environment
+  struct bk_ioh_queue	ioh_readq;		///< Data queued for reading
+  struct bk_ioh_queue	ioh_writeq;		///< Data queued for writing
+  bk_flags		ioh_extflags;		///< Flags--see libbk.h
+  bk_flags		ioh_intflags;		///< Flags
+#define IOH_FLAGS_SHUTDOWN_INPUT	0x01	///< Input shut down
+#define IOH_FLAGS_SHUTDOWN_OUTPUT	0x02	///< Output shut down
+#define IOH_FLAGS_SHUTDOWN_OUTPUT_PEND	0x04	///< Output shut down
+#define IOH_FLAGS_SHUTDOWN_CLOSING	0x08	///< Attempting to close
+#define IOH_FLAGS_SHUTDOWN_DESTROYING	0x10	///< Attempting to destroy
+#define IOH_FLAGS_SHUTDOWN_NOTIFYDIE	0x20	///< Notify callback on actual death
+#define IOH_FLAGS_DONTCLOSEFDS		0x40	///< Don't close FDs on death
 };
+
+
+
+static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t allocated, u_int32_t inuse, u_int32_t used, bk_vptr *vptr, bk_flags msgflags, bk_flags flags);
+static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime);
+static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags);
+#define IOH_FDCTL_SET		1		///< Set the fd set to the ioh normal version
+#define IOH_FDCTL_RESET		1		///< Set the fd set to the original defaults
+
+
+
+/**
+ * @name IOH message type queueing functions
+ * Data sent from the user must be placed on the output queue prior to actual system output.
+ * This allows transformation (vectoring, blocking, etc) to take place.
+ */
+// @{
+static int ioht_raw_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
+static int ioht_block_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
+static int ioht_vector_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
+static int ioht_line_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
+// @}
+
+
+/**
+ * @name IOH message type for exceptional events functions
+ * When the user issues a shutdown, flush, close, etc: the message type functions
+ * may have to take special actions with the queued data.
+ */
+// @{
+static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk_flags flags);
+static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk_flags flags);
+static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk_flags flags);
+static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk_flags flags);
+#define IOHT_SHUTDOWN		1		///< Other command is a shutdown
+#define IOHT_FLUSH		2		///< Other command is a flush
+#define IOHT_CLOSE		3		///< Other command is a close
+#define IOHT_HANDLER		4		///< Other command is a run_handler
+// @}
 
 
 
@@ -114,46 +170,12 @@ struct bk_ioh
 
 
 
-static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime);
-
-
-
-/**
- * @name IOH message type queueing functions
- * Data sent from the user must be placed on the output queue prior to actual system output.
- * This allows transformation (vectoring, blocking, etc) to take place.
- */
-// @{
-static int ioht_raw_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
-static int ioht_block_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
-static int ioht_vector_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
-static int ioht_line_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
-// @}
-
-
-/**
- * @name IOH message type for exceptional events functions
- * When the user issues a shutdown, flush, close, etc: the message type functions
- * may have to take special actions with the queued data.
- */
-// @{
-static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags);
-static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags);
-static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags);
-static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags);
-#define IOHT_SHUTDOWN		0x01		///< Other command is a shutdown
-#define IOHT_FLUSH		0x02		///< Other command is a flush
-#define IOHT_CLOSE		0x04		///< Other command is a close
-// @}
-
-
-
 /**
  * Create and initialize the ioh environment.
  *
  *	@param B BAKA thread/global state 
  *	@param fdin The file descriptor to read from.  -1 if no input is desired.
- *	@param fdout The file descriptor to write to.  -1 if no output is desired.
+ *	@param fdout The file descriptor to write to.  -1 if no output is desired.  (This will be different from fdin only for pipe(2) style fds where descriptors are only useful in one direction and occur in pairs.)
  *	@param readfun The function to use to read data.
  *	@param writefun The function to use to write data.
  *	@param handler The user callback to notify on complete I/O or other events
@@ -170,6 +192,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_io
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *curioh = NULL;
+  struct linger linger;				// Linuxism for SO_LINGER???
   int tmp;
  
   if ((fdin < 0 && fdout < 0) || (fdin < 0 && !readfun) || (fdout < 0 && !writefun) || !handler || !run)
@@ -203,12 +226,11 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_io
     BK_RETURN(B, NULL);
   }
 
-  if (!(curioh = malloc(sizeof(*curioh))))
+  if (!BK_CALLOC(curioh))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate ioh structure: %s\n",strerror(errno));
     BK_RETURN(B, NULL);
   }
-  memset(curioh, 0, sizeof(*curioh));
 
   curioh->ioh_fdin = -1;
   curioh->ioh_fdout = -1;
@@ -243,6 +265,8 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_io
       bk_error_printf(B, BK_ERR_ERR, "Could not put this new read ioh into the bk_run environment\n");
       goto error;
     }
+
+    bk_ioh_fdctl(B, curioh->ioh_fdin, &curioh->ioh_fdin_savestate, IOH_FDCTL_SET);
   }
   else
   {
@@ -257,6 +281,9 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_io
       bk_error_printf(B, BK_ERR_ERR, "Could not put this new write ioh into the bk_run environment\n");
       goto error;
     }
+
+    // Examine file descriptor for proper file and socket options
+    bk_ioh_fdctl(B, curioh->ioh_fdout, &curioh->ioh_fdout_savestate, IOH_FDCTL_SET);
   }
   else
   {
@@ -381,9 +408,10 @@ int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iofunc *rea
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  *	@param data The data to be sent
- *	@param flags Future expansion
+ *	@param flags BK_IOH_BYPASSQUEUEFULL will bypass checks for queue size
  *	@return <i>-1</i> on call failure or subsystem refusal
  *	@return <i>0</i> on success
+ *	@return <i>1</i> on queue too full
  */
 int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
 {
@@ -501,19 +529,19 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   // The message type performs the necessary flushing, draining, and actual shutdown
   if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
   {
-    ret = ioht_raw_other(B, ioh, how, IOHT_SHUTDOWN);
+    ret = ioht_raw_other(B, ioh, how, IOHT_SHUTDOWN, 0);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_BLOCKED))
   {
-    ret = ioht_block_other(B, ioh, how, IOHT_SHUTDOWN);
+    ret = ioht_block_other(B, ioh, how, IOHT_SHUTDOWN, 0);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_VECTORED))
   {
-    ret = ioht_vector_other(B, ioh, how, IOHT_SHUTDOWN);
+    ret = ioht_vector_other(B, ioh, how, IOHT_SHUTDOWN, 0);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_LINE))
   {
-    ret = ioht_line_other(B, ioh, how, IOHT_SHUTDOWN);
+    ret = ioht_line_other(B, ioh, how, IOHT_SHUTDOWN, 0);
   }
   else
   {
@@ -578,19 +606,19 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   // The message type performs the necessary flushing, draining, and actual shutdown
   if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
   {
-    ret = ioht_raw_other(B, ioh, how, IOHT_FLUSH);
+    ioht_raw_other(B, ioh, how, IOHT_FLUSH, 0);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_BLOCKED))
   {
-    ret = ioht_block_other(B, ioh, how, IOHT_FLUSH);
+    ioht_block_other(B, ioh, how, IOHT_FLUSH, 0);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_VECTORED))
   {
-    ret = ioht_vector_other(B, ioh, how, IOHT_FLUSH);
+    ioht_vector_other(B, ioh, how, IOHT_FLUSH, 0);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_LINE))
   {
-    ret = ioht_line_other(B, ioh, how, IOHT_FLUSH);
+    ioht_line_other(B, ioh, how, IOHT_FLUSH, 0);
   }
   else
   {
@@ -665,12 +693,15 @@ void bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flag
  *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
- *	@param flags Future expansion
+ *	@param flags BK_IOH_(DONTFLOSEFDS to prevent close() from being executed on the fds,
+ *			ABORT to cause automatic flush of input and output queues (to prevent
+ *			indefinite wait for output to drain), NOTIFYANYWAY to cause user to be
+ *			notified of this close()).
  */
 void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int ret = 0;
+  int ret = -1;
  
   if (!ioh)
   {
@@ -693,32 +724,32 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   if (BK_FLAG_ISSET(flags, BK_IOH_ABORT))
     bk_ioh_flush(B, ioh, SHUT_RDWR, 0);
 
-  if (BK_FLAG_ISSET(ioh->ioh_intflags, BK_IOH_NOTIFYANYWAY))
+  if (BK_FLAG_ISSET(flags, BK_IOH_NOTIFYANYWAY))
     BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_NOTIFYDIE);
 
   // The message type performs the necessary flushing, draining, and actual shutdown
   if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
   {
-    ret = ioht_raw_other(B, ioh, flags, IOHT_CLOSE);
+    ret = ioht_raw_other(B, ioh, flags, IOHT_CLOSE, 0);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_BLOCKED))
   {
-    ret = ioht_block_other(B, ioh, flags, IOHT_CLOSE);
+    ret = ioht_block_other(B, ioh, flags, IOHT_CLOSE, 0);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_VECTORED))
   {
-    ret = ioht_vector_other(B, ioh, flags, IOHT_CLOSE);
+    ret = ioht_vector_other(B, ioh, flags, IOHT_CLOSE, 0);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_LINE))
   {
-    ret = ioht_line_other(B, ioh, flags, IOHT_CLOSE);
+    ret = ioht_line_other(B, ioh, flags, IOHT_CLOSE, 0);
   }
   else
   {
     bk_error_printf(B, BK_ERR_ERR, "Unknown message format type %x\n",ioh->ioh_extflags);
   }
 
-  if (BK_FLAG_ISSET(ioh->ioh_intflags, BK_IOH_ABORT) || ret == 0)
+  if (BK_FLAG_ISSET(ioh->ioh_intflags, BK_IOH_ABORT) || ret < 1)
     bk_ioh_destroy(B, ioh);
 
   BK_VRETURN(B);
@@ -765,6 +796,23 @@ void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
     if (ioh->ioh_fdout >= 0)
       close(ioh->ioh_fdout);
   }
+  else
+  {
+    if (ioh->ioh_fdin >= 0)
+    {
+      bk_ioh_fdctl(B, ioh->ioh_fdin, &ioh->ioh_fdin_savestate, IOH_FDCTL_RESET);
+    }
+    if (ioh->ioh_fdout >= 0 && ioh->ioh_fdin != ioh->ioh_fdout)
+    {
+      bk_ioh_fdctl(B, ioh->ioh_fdout, &ioh->ioh_fdout_savestate, IOH_FDCTL_RESET);
+    }
+  }
+
+  if (ioh->ioh_fdin >= 0)
+    bk_run_close(B, ioh->ioh_run, ioh->ioh_fdin, 0);
+
+  if (ioh->ioh_fdout >= 0 && ioh->ioh_fdout != ioh->ioh_fdin)
+    bk_run_close(B, ioh->ioh_run, ioh->ioh_fdout, 0);
 
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_NOTIFYDIE))
     CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHCLOSING);
@@ -780,6 +828,41 @@ void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
   free(ioh);
 
   BK_VRETURN(B);
+}
+
+
+
+/**
+ * Get length of IOH queues.  Note that this may only have a passing
+ * resemblence to the amount of user data that can still be placed in
+ * the queue, the amount that was placed in the queue, or any other
+ * version thereof.  The message types may compress or expand the
+ * number of bytes which get enqueued for transmission.
+ *
+ *	@param B BAKA Global/thread state
+ *	@param ioh The IOH environment handle
+ *	@param inqueue The copy-out size of the input queue
+ *	@param outqueue The copy-out size of the output queue
+ *	@param flags Fun for the future.
+ *	@return <i>-1</i> on call failure
+ *	@return <BR><i>0</i> on success
+ */
+static int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *outqueue, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+ 
+  if (!ioh || (!inqueue && !outqueue))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (inqueue)
+    *inqueue = ioh->ioh_readq.biq_queuelen;
+  if (outqueue)
+    *outqueue = ioh->ioh_writeq.biq_queuelen;
+
+  BK_RETURN(B, 0);
 }
 
 
@@ -801,9 +884,60 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *ioh = opaque;
+  int ret = -1;
  
-  switch (gottypes)
+  if (!opaque)
   {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_VRETURN(B);
+  }
+
+  // Check for error or exceptional conditions
+  if (BK_FLAG_ISSET(gottypes, BK_RUN_DESTROY) || BK_FLAG_ISSET(gottypes, BK_RUN_CLOSE))
+  {
+    bk_ioh_flush(B, ioh, SHUT_WR, 0);
+    bk_ioh_close(B, ioh, BK_IOH_NOTIFYANYWAY);
+    BK_VRETURN(B);
+  }
+
+  if (BK_FLAG_ISSET(gottypes, BK_RUN_READREADY) ||
+      BK_FLAG_ISSET(gottypes, BK_RUN_WRITEREADY) ||
+      BK_FLAG_ISSET(gottypes, BK_RUN_XCPTREADY))
+  {
+    // The message type performs the necessary I/O activity
+
+    if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
+    {
+      ret = ioht_raw_other(B, ioh, gottypes & (BK_RUN_READREADY|BK_RUN_WRITEREADY|BK_RUN_XCPTREADY), IOHT_HANDLER, 0);
+    }
+    else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_BLOCKED))
+    {
+      ret = ioht_block_other(B, ioh, gottypes & (BK_RUN_READREADY|BK_RUN_WRITEREADY|BK_RUN_XCPTREADY), IOHT_HANDLER, 0);
+    }
+    else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_VECTORED))
+    {
+      ret = ioht_vector_other(B, ioh, gottypes & (BK_RUN_READREADY|BK_RUN_WRITEREADY|BK_RUN_XCPTREADY), IOHT_HANDLER, 0);
+    }
+    else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_LINE))
+    {
+      ret = ioht_line_other(B, ioh, gottypes & (BK_RUN_READREADY|BK_RUN_WRITEREADY|BK_RUN_XCPTREADY), IOHT_HANDLER, 0);
+    }
+    else
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Unknown message format type %x\n",ioh->ioh_extflags);
+    }
+  }
+  else
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Unknown handler types %x\n",gottypes);
+    BK_VRETURN(B);
+  }
+
+  if (ret < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Message type handler failed severely\n");
+    bk_ioh_close(B, ioh, BK_IOH_NOTIFYANYWAY|BK_IOH_ABORT);
+    BK_VRETURN(B);
   }
 
   BK_VRETURN(B);
@@ -811,50 +945,349 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
 
 
 
-/*
- * IOH Type routines
+/**
+ * Get or set standard IOH file/network options.  Normally sets
+ * O_NONBLOCK (nonblocking), OOBINLINE (urgent data is treated
+ * normally), -SOLINGER (shutdown/close do not block).
+ *
+ *	@param B BAKA Thread/global state
+ *	@param fd File descriptor to set or reset
+ *	@param savestate Copy-in or copy-out (depending on mode) of
+ *			 what options need reset, or were set
+ *	@param flags IOH_FDCTL_SET -- set standard fd options.
+ *		     IOH_FDCTL_RESET -- reset to original defaults.
+ *	@return <i>-1</i> on call failure
+ *	@return <br><i>0</i> no changes made
+ *	@return <br><i>> 0</i> some changes made
+ */
+static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret = 0;
+  int fdflags, oobinline, linger, size;
+
+  if (!savestate)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B,-1);
+  }
+
+  if (fd < 0)
+  {
+    bk_error_printf(B, BK_ERR_NOTICE, "Cannot set fd mode on illegal fd\n");
+    BK_RETURN(B,0);
+  }
+
+  // Examine file descriptor for proper file and socket options
+  if (fcntl(fd, F_GETFL, &fdflags) < 0)
+    fdflags = -1;
+  size = sizeof(oobinline);
+  if (getsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &oobinline, &size) < 0)
+    oobinline = -1;
+  size = sizeof(oobinline);
+  if (getsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, &size) < 0)
+    linger = -1;
+
+
+  if (BK_FLAG_ISSET(flags,IOH_FDCTL_SET))
+  {
+    *savestate = 0;
+
+    if (fdflags >= 0 && BK_FLAG_ISCLEAR(fdflags, O_NONBLOCK))
+    {
+      BK_FLAG_SET(fdflags, O_NONBLOCK);
+      *savestate |= IOH_ADDED_NONBLOCK;
+    }
+    if (oobinline == 0)
+    {
+      oobinline = 1;
+      *savestate |= IOH_ADDED_OOBINLINE;
+    }
+    if (linger > 1)
+    {
+      linger = 0;
+      *savestate |= IOH_NUKED_LINGER;
+    }
+  }
+
+  if (BK_FLAG_ISSET(flags,IOH_FDCTL_RESET))
+  {
+    if (BK_FLAG_ISSET(*savestate, IOH_ADDED_NONBLOCK) && fdflags >= 0 && BK_FLAG_ISSET(fdflags, O_NONBLOCK))
+    {
+      BK_FLAG_CLEAR(fdflags, O_NONBLOCK);
+    }
+    if (BK_FLAG_ISSET(*savestate, IOH_ADDED_OOBINLINE) && oobinline > 0)
+    {
+      oobinline = 0;
+    }
+    if (BK_FLAG_ISSET(*savestate, IOH_NUKED_LINGER) && linger == 0)
+    {
+      linger = 1;
+    }
+  }
+
+  // Examine file descriptor for proper file and socket options
+  if (fdflags >= 0 && fcntl(fd, F_SETFL, &fdflags) >= 0)
+    ret++;
+  size = sizeof(oobinline);
+  if (oobinline >= 0 && setsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &oobinline, sizeof(oobinline)) >= 0)
+    ret++;
+  size = sizeof(oobinline);
+  if (linger >= 0 && setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger)) >= 0)
+    ret++;
+
+  BK_RETURN(B, ret);
+}
+
+
+
+/**
+ * Insert data into an I/O queue.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param iohq Input/Output data structure
+ *	@param data The data to store
+ *	@param allocated Size of memory allocated for data
+ *	@param inuse Amount of data used but not yet consumed
+ *	@param used Amount of data consumed
+ *	@param vptr Saved user buffer to be returned at some future point
+ *	@return <i>-1</i> on call failure, allocation failure, CLC failure, etc
+ *	@return <BR><i>0</i> on success
+ *	@return <BR><i>1</i> on queue-too-full
+ */
+static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t allocated, u_int32_t inuse, u_int32_t used, bk_vptr *vptr, bk_flags msgflags, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ioh_data *bid;
+
+  if (!iohq || !data)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B,-1);
+  }
+
+  if (BK_FLAG_ISCLEAR(flags, BK_IOH_BYPASSQUEUEFULL))
+  {
+    if (inuse + iohq->biq_queuelen > iohq->biq_queuemax)
+    {
+      bk_error_printf(B, BK_ERR_NOTICE, "IOH queue %p has filled up\n", iohq);
+      BK_RETURN(B,1);
+    }
+  }
+
+  if (!BK_CALLOC(bid))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate data management structure: %s\n", strerror(errno));
+    BK_RETURN(B,-1);
+  }
+
+  bid->bid_data = data;
+  bid->bid_allocated = allocated;
+  bid->bid_inuse = inuse;
+  bid->bid_used = used;
+  bid->bid_vptr = vptr;
+  bid->bid_flags = msgflags;
+
+  if (biq_append(iohq->biq_queue, bid) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert data management structure into IOH queue: %s\n", biq_error_reason(NULL, NULL));
+    goto error;
+  }
+
+  BK_RETURN(B, 0);
+
+ error:
+  if (bid)
+  {
+    biq_delete(iohq->biq_queue, bid);
+    free(bid);
+  }
+  BK_RETURN(B, -1);
+}
+
+
+
+/**
+ * Raw--no particular messaging format--IOH Type routines to queue data sent from user for output
+ *
+ *	@param B BAKA Thread/Global state
+ *	@param ioh The IOH environment handle
+ *	@param data Vectored data from user
+ *	@param flags BK_IOH_BYPASSQUEUEFULL--don't worry about the queue being too full
+ *	@return <i>-1</i> Call failure, allocation failure, CLC failure, other failure
+ *	@return <br><i>0</i> Success
+ *	@return <br><i>1</i> Queue too full to hold this data
  */
 static int ioht_raw_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret;
 
-  if (!ioh)
+  if (!ioh || !data)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B,-1);
   }
 
-  BK_RETURN(B, 0);
+  if ((ret = ioh_queue(B, &ioh->ioh_writeq, data->ptr, data->len, data->len, 0, data, BID_FLAG_MESSAGE, flags)) == 0)
+  {
+    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, BK_RUN_WANTWRITE, BK_RUN_WANTWRITE, 0);
+  }
+
+  BK_ORETURN(B, 0);
 }
 
+
+
+/**
+ * Complete full block--IOH Type routines to queue data sent from user for output
+ *
+ *	@param B BAKA Thread/Global state
+ *	@param ioh The IOH environment handle
+ *	@param data Vectored data from user
+ *	@param flags BK_IOH_BYPASSQUEUEFULL--don't worry about the queue being too full
+ *	@return <i>-1</i> Call failure, allocation failure, CLC failure, other failure
+ *	@return <br><i>0</i> Success
+ *	@return <br><i>1</i> Queue too full to hold this data
+ */
 static int ioht_block_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret;
 
-  if (!ioh)
+  if (!ioh || !data)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B,-1);
   }
 
+  if ((ret = ioh_queue(B, &ioh->ioh_writeq, data->ptr, data->len, data->len, 0, data, 0, flags)) == 0)
+  {
+    /*
+     * Yes, there may be blocks already partially sent, but if this condition
+     * is true, then we are guarenteed that there is at least one block ready.
+     * This block may be the partially sent block, and in that case write should
+     * already be set, and this will do no harm.
+     */
+    if (ioh->ioh_writeq.biq_queuelen >= ioh->ioh_inbuf_hint)
+      bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, BK_RUN_WANTWRITE, BK_RUN_WANTWRITE, 0);
+  }
+
   BK_RETURN(B, 0);
 }
 
+
+
+/**
+ * Vectored (size sent before data)--IOH Type routines to queue data sent from user for output
+ *
+ *	@param B BAKA Thread/Global state
+ *	@param ioh The IOH environment handle
+ *	@param data Vectored data from user
+ *	@param flags BK_IOH_BYPASSQUEUEFULL--don't worry about the queue being too full
+ *	@return <i>-1</i> Call failure, allocation failure, CLC failure, other failure
+ *	@return <br><i>0</i> Success
+ *	@return <br><i>1</i> Queue too full to hold this data
+ */
 static int ioht_vector_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  u_int32_t *netdatalen;
 
-  if (!ioh)
+  if (!ioh || !data)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B,-1);
   }
 
+  // Do our own checks for queue size since we have two buffers which either both have to be on, or both off
+  if (BK_FLAG_ISCLEAR(flags, BK_IOH_BYPASSQUEUEFULL))
+  {
+    if (sizeof(u_int32_t) + data->len + ioh->ioh_writeq.biq_queuelen > ioh->ioh_writeq.biq_queuemax)
+    {
+      bk_error_printf(B, BK_ERR_NOTICE, "IOH queue %p has filled up\n", &ioh->ioh_writeq);
+      BK_RETURN(B,1);
+    }
+  }
+
+  // Create the vector pointer and insert it on the output queue
+  if (!BK_CALLOC(netdatalen))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate vector data length: %s\n", strerror(errno));
+    goto error;
+  }
+  *netdatalen = htonl(data->len);
+  if (ioh_queue(B, &ioh->ioh_writeq, (char *)netdatalen, sizeof(*netdatalen), sizeof(*netdatalen), 0, NULL, 0, BK_IOH_BYPASSQUEUEFULL) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert vector length onto output stack\n");
+    goto error;
+  }
+
+  if (ioh_queue(B, &ioh->ioh_writeq, data->ptr, data->len, data->len, 0, data, BID_FLAG_MESSAGE, BK_IOH_BYPASSQUEUEFULL) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert post-vector data onto output stack--now we are in trouble\n");
+    goto error;
+  }
+
+  bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, BK_RUN_WANTWRITE, BK_RUN_WANTWRITE, 0);
+
   BK_RETURN(B, 0);
+
+ error:
+  if (netdatalen)
+  {
+    struct bk_ioh_data *bid;
+
+    // Find the possibly not-inserted vector length and dequeue it
+    for (bid=biq_maximum(ioh->ioh_writeq.biq_queue); bid; bid = biq_predecessor(ioh->ioh_writeq.biq_queue, bid))
+    {
+      if (bid->bid_data == (char *)netdatalen)
+      {
+	biq_delete(ioh->ioh_writeq.biq_queue, bid);
+	free(bid);
+	break;
+      }
+    }
+    free(netdatalen);
+  }
+  BK_RETURN(B, -1);
 }
 
+
+
+/**
+ * Line oriented messaging format--IOH Type routines to queue data sent from user for output.
+ * Note that we do not enforce line message boundries on output.
+ *
+ *	@param B BAKA Thread/Global state
+ *	@param ioh The IOH environment handle
+ *	@param data Vectored data from user
+ *	@param flags BK_IOH_BYPASSQUEUEFULL--don't worry about the queue being too full
+ *	@return <i>-1</i> Call failure, allocation failure, CLC failure, other failure
+ *	@return <br><i>0</i> Success
+ *	@return <br><i>1</i> Queue too full to hold this data
+ */
 static int ioht_line_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
 {
+  return(ioht_raw_queue(B, ioh, data, flags));
+}
+
+
+
+/**
+ * Raw--no particular messaging format--IOH Type routines to perform I/O maintenance and activity
+ *
+ *	@param B BAKA Thread/Global state
+ *	@param ioh The IOH environment handle
+ *	@param aux Auxiliary information for the command
+ *	@param cmd Command we are supposed to perform
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> Call failure, allocation failure, CLC failure, other failure
+ *	@return <br><i>0</i> Success & queue empty
+ *	@return <br><i>1</i> Success & queue non-empty
+ */
+static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_flags flags)
+{
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
   if (!ioh)
@@ -863,10 +1296,64 @@ static int ioht_line_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags f
     BK_RETURN(B,-1);
   }
 
+  switch (flags)
+  {
+  case IOHT_SHUTDOWN:
+    // If RD: Send input queue to user as incomplete
+    // If RD: Shutdown input queue
+    // If RD: Mark input side as disabled
+    // If WR: If output queue has stuff, ensure we are writing, append "shutdown mark" onto output queue
+    // If WR: If no stuff on output queue, shutdown
+    // If WR: Mark output side as disabled
+    break;
+  case IOHT_FLUSH:
+    // If RD: Flush & reset input queue
+    // If WR: Remember any "marks" on the output queue
+    // If WR: Flush & reset output queue, including write ability
+    // If WR: Execute any "marks" on the output queue
+    break;
+  case IOHT_CLOSE:
+    // If iq, Send input queue to user as incomplete.  Mark input side as disabled
+    // If oq, append "close mark" onto output queue
+    // Mark output side as disabled
+    // If !oq, execute "close mark"
+    break;
+  case IOHT_HANDLER:
+    // If read, check for read shutdown, remove run read ability if so
+    // If read, use policy to determine how much to read, potentially allocate and insert a new buffer if most recent buffer is too full, and read
+    // If read error (EWOULDBLOCK) continue
+    // If read error (!EWOULDBLOCK) flush input queue to user as incomplete, callback user with error, mark input side as disabled
+    // If read EOF, flush input queue to user as incomplete, callback user with EOF, mark input side as disabled
+    // If read data, update input queue with used.
+    // If policy says message is complete, send up to user, mark parts as used, removing what is fully used
+    // If input queue is at or over max, send up to user as incomplete, mark parts as used, removing what is fully used.
+    // If write, check for write shutdown or output queue size zero, remove run write ability if so
+    // If write, send queued data out over the wire (i.e. writev)
+    break;
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown command %d/%x\n",cmd,aux);
+    BK_RETURN(B,-1);
+  }
+
+
   BK_RETURN(B, 0);
 }
 
-static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags)
+
+
+/**
+ * Raw--no particular messaging format--IOH Type routines to perform I/O maintenance and activity
+ *
+ *	@param B BAKA Thread/Global state
+ *	@param ioh The IOH environment handle
+ *	@param aux Auxiliary information for the command
+ *	@param cmd Command we are supposed to perform
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> Call failure, allocation failure, CLC failure, other failure
+ *	@return <br><i>0</i> Success & queue empty
+ *	@return <br><i>1</i> Success & queue non-empty
+ */
+static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -879,7 +1366,21 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags
   BK_RETURN(B, 0);
 }
 
-static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags)
+
+
+/**
+ * Raw--no particular messaging format--IOH Type routines to perform I/O maintenance and activity
+ *
+ *	@param B BAKA Thread/Global state
+ *	@param ioh The IOH environment handle
+ *	@param aux Auxiliary information for the command
+ *	@param cmd Command we are supposed to perform
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> Call failure, allocation failure, CLC failure, other failure
+ *	@return <br><i>0</i> Success & queue empty
+ *	@return <br><i>1</i> Success & queue non-empty
+ */
+static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -892,20 +1393,21 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags fla
   BK_RETURN(B, 0);
 }
 
-static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
-  if (!ioh)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_RETURN(B,-1);
-  }
 
-  BK_RETURN(B, 0);
-}
-
-static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, bk_flags flags)
+/**
+ * Raw--no particular messaging format--IOH Type routines to perform I/O maintenance and activity
+ *
+ *	@param B BAKA Thread/Global state
+ *	@param ioh The IOH environment handle
+ *	@param aux Auxiliary information for the command
+ *	@param cmd Command we are supposed to perform
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> Call failure, allocation failure, CLC failure, other failure
+ *	@return <br><i>0</i> Success & queue empty
+ *	@return <br><i>1</i> Success & queue non-empty
+ */
+static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
