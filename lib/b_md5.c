@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_md5.c,v 1.2 2002/03/28 23:04:54 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_md5.c,v 1.3 2002/04/08 18:33:49 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -20,7 +20,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * @file
  *
  * MD5 as implemented by RSA Data Security, with minor modification to
- * bkify it to some minimal standard.  Note that the RSA copyright,
+ * bk-ify it to some minimal standard.  Note that the RSA copyright,
  * included below, overrides the standard "libbk" copyright.
  */
 
@@ -378,7 +378,7 @@ static void Transform(u_int32_t *buf, u_int32_t *in)
  * Extract an MD5 context into a printable string of binary digits.
  *
  *	@param B BAKA thread/global state.
- *	@param str The strint
+ *	@param str The string
  *	@param ctx The MD5 context
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
@@ -389,7 +389,6 @@ bk_MD5_extract_printable(bk_s B, char *str, bk_MD5_CTX *ctx, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int cnt;
-  int cnt2 = 0;
   char tmp[3];
 
   if (!str || !ctx || !ctx->digest)
