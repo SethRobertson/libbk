@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.20 2003/05/14 21:05:28 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.21 2003/05/14 21:44:21 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -466,8 +466,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
       bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
       goto error;
     }
-    *pid->pid_data = *newcopy;
-    free(newcopy);
+    pid->pid_data = newcopy;
 
 #ifdef BK_USING_PTHREADS
     pthread_cond_broadcast(&bpi->bpi_rdcond);
