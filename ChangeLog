@@ -1,3 +1,8 @@
+2002-06-21  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_run.c (bk_run_run): Reset run_over flag during entry
+	so that multiple run loop executions don't trash each other.
+
 2002-06-19  Seth Robertson  <seth@yeah.baka.org>
 
 	* lib/b_general.c (bk_general_destroy_insert): Copy-paste
