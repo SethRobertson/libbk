@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.17 2001/07/12 20:15:50 jtt Exp $
+ * $Id: libbk.h,v 1.18 2001/07/13 04:15:07 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -143,29 +143,43 @@ typedef struct __bk_thread
 /* b_fun.c */
 #define bk_fun_reentry(B) bk_fun_reentry_i(B, __bk_funinfo)
 #define BK_ENTRY(B, fun, pkg, grp) struct bk_funinfo *__bk_funinfo = (B && !BK_GENERAL_FLAG_ISFUNON(B)?NULL:bk_fun_entry(B, fun, pkg, grp))
-#define BK_RETURN(B, retval) \
-	do { \
-	  typeof(retval) myretval = (retval); \
-	  int save_errno = errno; \
-	  if ((B) && !BK_GENERAL_FLAG_ISFUNON(B)) \
-	    bk_fun_exit((B), __bk_funinfo); \
-	  errno = save_errno; \
-	  return myretval; \
-	  /* NOTREACHED */ \
-	} while (0)
-#define BK_VRETURN(B) \
-	do { \
-	  int save_errno = errno; \
-	  if (!BK_GENERAL_FLAG_ISFUNON(B)) \
-	    bk_fun_exit((B), __bk_funinfo); \
-	  errno = save_errno; \
-	  return; \
-	  /* NOTREACHED */ \
-	} while (0)
+
+#define BK_RETURN(B, retval)			\
+do {						\
+  int save_errno = errno;			\
+  if ((B) && !BK_GENERAL_FLAG_ISFUNON(B))	\
+    bk_fun_exit((B), __bk_funinfo);		\
+  errno = save_errno;				\
+  return retval;				\
+  /* NOTREACHED */				\
+} while (0)
+
+
+#define BK_ORETURN(B, retval)			\
+do {						\
+  typeof(retval) myretval = (retval);		\
+  int save_errno = errno;			\
+  if ((B) && !BK_GENERAL_FLAG_ISFUNON(B))	\
+    bk_fun_exit((B), __bk_funinfo);		\
+  errno = save_errno;				\
+  return myretval;				\
+  /* NOTREACHED */				\
+} while (0)
+
+
+#define BK_VRETURN(B)				\
+do {						\
+  int save_errno = errno;			\
+  if (!BK_GENERAL_FLAG_ISFUNON(B))		\
+    bk_fun_exit((B), __bk_funinfo);		\
+  errno = save_errno;				\
+  return;					\
+  /* NOTREACHED */				\
+} while (0)
 
 
 
-/* b_fun.c */
+     /* b_fun.c */
 struct bk_funinfo
 {
   const char *bf_funname;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.3 2001/07/12 20:02:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.4 2001/07/13 04:15:07 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -21,20 +21,6 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 #define SET_CONFIG(b,B,c) do { if (!(c)) { (b)=BK_GENERAL_CONFIG(B); } else { (b)=(c); } } while (0)
- 
-static struct bk_config_fileinfo *bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf);
-static void bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf);
-
-static int kv_oo_cmp(struct bk_config_key *bck1, struct bk_config_key *bck2);
-static int kv_ko_cmp(char *a, struct bk_config_key *bck2);
-static ht_val kv_obj_hash(struct bk_config_key *bck);
-static ht_val kv_key_hash(char *a);
-static int load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *bcf);
-static bk_config_key *bck_create(bk_s B, char *key, bk_flags flags);
-static void bck_destroy(bk_s B, struct bk_config_key *bck);
-static struct bk_config_value *bcv_create(bk_s B, char *value, u_int lineno, bk_flags flags);
-static void bcv_destroy(bk_s B, struct bk_config_value *bcv);
-
 
 struct bk_config_fileinfo
 {
@@ -63,24 +49,38 @@ struct bk_config_value
 };
 
 
-static int kv_oo_cmp(struct bk_config_key *bck1, struct bk_config_key *bck2)
+static struct bk_config_fileinfo *bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf);
+static void bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf);
+
+static int kv_oo_cmp(void *bck1, void *bck2);
+static int kv_ko_cmp(void *a, void *bck2);
+static ht_val kv_obj_hash(void *bck);
+static ht_val kv_key_hash(void *a);
+static int load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *bcf);
+static struct bk_config_key *bck_create(bk_s B, char *key, bk_flags flags);
+static void bck_destroy(bk_s B, struct bk_config_key *bck);
+static struct bk_config_value *bcv_create(bk_s B, char *value, u_int lineno, bk_flags flags);
+static void bcv_destroy(bk_s B, struct bk_config_value *bcv);
+
+
+static int kv_oo_cmp(void *bck1, void *bck2)
 {
-  return(strcmp(bck1->bck_key, bck2->bck_key));
+  return(strcmp(((struct bk_config_key *)bck1)->bck_key, ((struct bk_config_key *)bck2)->bck_key));
 } 
 
-static int kv_ko_cmp(char *a, struct bk_config_key *bck2)
+static int kv_ko_cmp(void *a, void *bck)
 {
-  return(strcmp(a, bck2->bck_key));
+  return(strcmp((char *)a, ((struct bk_config_key *)bck)->bck_key));
 } 
 
-static ht_val kv_obj_hash(struct bk_config_key *bck)
+static ht_val kv_obj_hash(void *bck)
 {
-  return(bk_strhash(bck->bck_key));
+  return(bk_strhash(((struct bk_config_key *)bck)->bck_key));
 }
 
-static ht_val kv_key_hash(char *a)
+static ht_val kv_key_hash(void *a)
 {
-  return(bk_strhash(a));
+  return(bk_strhash((char *)a));
 }
 
 static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
@@ -402,11 +402,11 @@ bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf)
 /*
  * Create a key struct
  */
-static bk_config_key *
+static struct bk_config_key *
 bck_create(bk_s B, char *key, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  static bk_config_key *bck=NULL;
+  struct bk_config_key *bck=NULL;
 
   if (!key)
   {
