@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.2 2001/11/15 22:19:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.3 2001/11/28 18:24:09 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -18,7 +18,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 /**
  * @file
- * All of the baka run public and private functions.
+ * The file contains all the required support routines for implementing @a
+ * BAKA's @a protoinfo strucutre.
  */
 
 #include <libbk.h>
@@ -26,11 +27,9 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-/**
- * @file
- * The file contains all the required support routines for implementing @a
- * BAKA's @a protoinfo strucutre.
- */
+#define MAXINTSIZE 11				///< Maximum size of a u_int32 in bytes + NULL
+
+
 
 static struct bk_protoinfo *bpi_create (bk_s B);
 static void bpi_destroy (bk_s B,struct bk_protoinfo *bpi);
@@ -39,6 +38,7 @@ static void bpi_destroy (bk_s B,struct bk_protoinfo *bpi);
 
 /**
  * Allocate a @a protoinfo.
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a protoinfo on success.
@@ -47,7 +47,7 @@ static struct bk_protoinfo *
 bpi_create (bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_protoinfo *bpi=NULL;
+  struct bk_protoinfo *bpi = NULL;
 
   if (!(BK_CALLOC(bpi)))
   {
@@ -55,7 +55,7 @@ bpi_create (bk_s B)
     goto error;
   }
 
-  BK_RETURN(B,bpi);
+  BK_RETURN(B, bpi);
 
  error:
   if (bpi) bpi_destroy(B, bpi);
@@ -65,7 +65,8 @@ bpi_create (bk_s B)
 
 
 /**
- * Destroy a @a protoinfo. *
+ * Destroy a @a protoinfo.
+ *
  *	@param B BAKA thread/global state.
  *	@param bpi to destroy.
  */
@@ -80,7 +81,7 @@ bpi_destroy (bk_s B,struct bk_protoinfo *bpi)
     BK_VRETURN(B);
   }
   
-  if (bpi->bpi_protostr) free (bpi->bpi_protostr);
+  if (bpi->bpi_protostr) free(bpi->bpi_protostr);
   free(bpi);
 
   BK_VRETURN(B);
@@ -90,6 +91,7 @@ bpi_destroy (bk_s B,struct bk_protoinfo *bpi)
 
 /**
  * Create a @a protoinfo from a traditional @a protoent. Allocates memory.
+ *
  *	@param B BAKA thread/global state.
  *	@param s @a protoent to copy.
  *	@param bpi @a bk_protoinfo to add (may be NULL).
@@ -97,7 +99,7 @@ bpi_destroy (bk_s B,struct bk_protoinfo *bpi)
  *	@return a new @a protoinfo on success.
  */
 struct bk_protoinfo *
-bk_protoinfo_protoentdup (bk_s B, struct protoent *p)
+bk_protoinfo_protoentdup(bk_s B, struct protoent *p)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_protoinfo *bpi;
@@ -116,7 +118,7 @@ bk_protoinfo_protoentdup (bk_s B, struct protoent *p)
   
   if (p->p_name)
   {
-    if (!(bpi->bpi_protostr=strdup(p->p_name)))
+    if (!(bpi->bpi_protostr = strdup(p->p_name)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not strdup proto name: %s\n", strerror(errno));
       goto error;
@@ -124,33 +126,34 @@ bk_protoinfo_protoentdup (bk_s B, struct protoent *p)
   }
   else
   {
-    /* XXX use bk_intcols here */
-    if (!(BK_CALLOC_LEN(bpi->bpi_protostr,100)))
+    char buf[MAXINTSIZE];
+
+    snprintf(buf, MAXINTSIZE, "%d", p->p_proto);
+    if (!(bpi->bpi_protostr = strdup(buf)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate prootstr: %s\n", strerror(errno));
       goto error;
     }
-    snprintf(bpi->bpi_protostr, 100, "%d", p->p_proto);
   }
 
   bpi->bpi_flags = 0;
-  bpi->bpi_proto = p->p_proto;			/* Network order */
+  bpi->bpi_proto = p->p_proto;
 
   BK_RETURN(B,bpi);
 
  error:
   if (bpi) bpi_destroy(B,bpi);
   BK_RETURN(B,NULL);
-  
 }
 
   
 
+#ifdef PROBABLY_NOT_USEFUL
 /**
- * Create a protoinfo from user information. NB: @a proto is assumed to be in
- * <em>host</em> order here (since the input comes from a user. If @a
+ * Create a protoinfo from user information.  If @a
  * protoname is NULL, then a string made from the proto is
- * quietly constructed.. Allocates memory.
+ * quietly constructed. Allocates memory.
+ *
  *	@param B BAKA thread/global state.
  *	@param protoname Optional name of the protocol.
  *	@param proto Protocol number.
@@ -161,7 +164,6 @@ struct bk_protoinfo *
 bk_protoinfo_user(bk_s B, char *protoname, int proto)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char scratch[100];
   struct bk_protoinfo *bpi=NULL;
   
   if (!(bpi=bpi_create(B)))
@@ -180,10 +182,12 @@ bk_protoinfo_user(bk_s B, char *protoname, int proto)
   }
   else
   {
-    snprintf(scratch,100,"%u",proto);
-    if (!(bpi->bpi_protostr=strdup(scratch)))
+    char buf[MAXINTSIZE];
+
+    snprintf(buf, MAXINTSIZE, "%d", proto);
+    if (!(bpi->bpi_protostr = strdup(buf)))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not strdup proto protonum: %s\n", strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate prootstr: %s\n", strerror(errno));
       goto error;
     }
   }
@@ -196,12 +200,14 @@ bk_protoinfo_user(bk_s B, char *protoname, int proto)
  error:
   if (bpi) bpi_destroy(B,bpi);
   BK_RETURN(B,NULL);
-
 }
+#endif /* PROBABLY_NOT_USEFUL */
+
 
 
 /**
  * Public @a protoinfo destuctor
+ *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a protoinfo to destroy.
  *	@return <i>-1</i> on failure.<br>
@@ -226,15 +232,16 @@ bk_protoinfo_destroy (bk_s B,struct bk_protoinfo *bpi)
 
 /**
  * Clone a @a protoinfo. Allocates memory.
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a protoinfo on success.
  */
 struct bk_protoinfo *
-bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obpi)
+bk_protoinfo_clone(bk_s B, struct bk_protoinfo *obpi)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_protoinfo *nbpi=NULL;
+  struct bk_protoinfo *nbpi = NULL;
 
   if (!obpi)
   {
@@ -242,24 +249,24 @@ bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obpi)
     BK_RETURN(B, NULL);
   }
 
-  if (!(nbpi=bpi_create(B)))
+  if (!(nbpi = bpi_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bpi\n");
     goto error;
   }
 
-  if (obpi->bpi_protostr && !(nbpi->bpi_protostr=strdup(obpi->bpi_protostr)))
+  if (obpi->bpi_protostr && !(nbpi->bpi_protostr = strdup(obpi->bpi_protostr)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not strdup proto name: %s\n", strerror(errno));
     goto error;
   }
 
-  nbpi->bpi_proto=obpi->bpi_proto;
-  nbpi->bpi_flags=obpi->bpi_flags;
+  nbpi->bpi_proto = obpi->bpi_proto;
+  nbpi->bpi_flags = obpi->bpi_flags;
 
-  BK_RETURN(B,nbpi);
+  BK_RETURN(B, nbpi);
 
  error:
-  if (nbpi) bpi_destroy(B,nbpi);
-  BK_RETURN(B,NULL);
+  if (nbpi) bpi_destroy(B, nbpi);
+  BK_RETURN(B, NULL);
 }

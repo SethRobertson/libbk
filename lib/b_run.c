@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.12 2001/11/20 19:34:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.13 2001/11/28 18:24:09 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -32,7 +32,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 struct br_equeue
 {
   struct timeval	bre_when;		///< Time to run event
-  void			(*bre_event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags); ///< Event to run
+  void			(*bre_event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags); ///< Event to run
   void			*bre_opaque;		///< Data for opaque
 };
 
@@ -43,10 +43,10 @@ struct br_equeue
  */
 struct br_equeuecron
 {
-  time_t		brec_interval;		///< usec Interval timer--max one hour
-  void			(*brec_event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags); ///< Event to run
+  time_t		brec_interval;		///< msec Interval timer
+  void			(*brec_event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags); ///< Event to run
   void			*brec_opaque;		///< Data for opaque
-  struct br_equeue	*brec_equeue;		///< Current event
+  struct br_equeue	*brec_equeue;		///< Queued cron event (ie next instance to fire).
 };
 
 
@@ -57,7 +57,7 @@ struct br_equeuecron
  */
 struct br_sighandler
 {
-  void			(*brs_handler)(bk_s B, struct bk_run *run, int signum, void *opaque, struct timeval starttime); ///< Handler
+  void			(*brs_handler)(bk_s B, struct bk_run *run, int signum, void *opaque); ///< Handler
   void			*brs_opaque;		///< Opaque data
 };
 
@@ -92,24 +92,24 @@ struct bk_run
   dict_h		br_ondemand_funcs;	///< On demands functions
   dict_h		br_idle_funcs;		///< Idle tasks (nothing else to do)
   pq_h			*br_equeue;		///< Event queue
-  volatile u_int8_t	br_signums[NSIG];	///< Number of signal events we hx]ave received
+  volatile sig_atomic_t	br_signums[NSIG];	///< Number of signal events we have received
   struct br_sighandler	br_handlerlist[NSIG];	///< Handlers for signals
   bk_flags		br_flags;		///< General flags
 #define BK_RUN_FLAG_RUN_OVER		0x1	///< bk_run_run should terminate
 #define BK_RUN_FLAG_NEED_POLL		0x2	///< Execute poll list
 #define BK_RUN_FLAG_CHECK_DEMAND	0x4	///< Check demand list
 #define BK_RUN_FLAG_HAVE_IDLE		0x8	///< Run idle task
-#define BK_RUN_FLAG_NOTIFYANYWAY	0x10	///< Notify caller if handed off*/
 };
 
 
 /**
  * Information about a polling or idle function known to the run environment
+// XXXX -- documentation failure. Need short descriptions of fields (-jtt)
  */
 struct bk_run_func
 {
   void *	brfn_key;
-  int		(*brfn_fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags);
+  int		(*brfn_fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags);
   void *	brfn_opaque;
   bk_flags	brfn_flags;
   dict_h	brfn_backptr;
@@ -122,19 +122,19 @@ struct bk_run_func
 struct bk_run_ondemand_func
 {
   void *		brof_key;
-  int			(*brof_fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime, bk_flags flags);
+  int			(*brof_fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags);
   void *		brof_opaque;
-  volatile int *	brof_demand;
   bk_flags		brof_flags;
   dict_h		brof_backptr;
+  volatile int *	brof_demand;
 };
 
 
 
 static int bk_run_event_comparator(struct br_equeue *a, struct br_equeue *b);
 static void bk_run_signal_ihandler(int signum);
-static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags);
-static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval starttime, struct timeval *delta);
+static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
+static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *starttime, struct timeval *delta);
 static struct bk_run_func *brfn_alloc(bk_s B);
 static void brfn_destroy(bk_s B, struct bk_run_func *brf);
 static struct bk_run_ondemand_func *brof_alloc(bk_s B);
@@ -239,8 +239,8 @@ static int brofl_ko_cmp(void *a, struct bk_run_ondemand_func *b);
  * running in the normal context/stack as part of the baka run loop.
  */
 // @{
-static volatile u_int8_t	(*br_signums)[NSIG];
-static volatile int		br_beensignaled;
+static volatile sig_atomic_t		(*br_signums)[NSIG];
+static volatile sig_atomic_t		br_beensignaled;
 // @}
 
 
@@ -329,6 +329,8 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
     BK_VRETURN(B);
   }
 
+  // XXX Double destroy protection.
+
   gettimeofday(&curtime,0);
 
   // Destroy the fd association
@@ -338,7 +340,7 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 
     while (cur = fdassoc_minimum(run->br_fdassoc))
     {
-      (*cur->brf_handler)(B, run, -1, BK_RUN_DESTROY, cur->brf_opaque, curtime);
+      (*cur->brf_handler)(B, run, -1, BK_RUN_DESTROY, cur->brf_opaque, &curtime);
       fdassoc_delete(run->br_fdassoc, cur);
       free(cur);
     }
@@ -352,35 +354,37 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 
     while (cur = pq_extract_head(run->br_equeue))
     {
-      (*cur->bre_event)(B, run, cur->bre_opaque, curtime, BK_RUN_DESTROY);
+      (*cur->bre_event)(B, run, cur->bre_opaque, &curtime, BK_RUN_DESTROY);
       free(cur);
     }
     pq_destroy(run->br_equeue);
   }
 
+  // XXX Consider saving all the original sig handlers instead of just restoring default.
   // Reset signal handlers to their default actions
   for(signum = 1;signum < NSIG;signum++)
   {
-    bk_run_signal(B, run, signum, NULL, NULL, 0);
+    if (run->br_handlerlist[signum].brs_handler)
+      bk_run_signal(B, run, signum, (void *)SIG_IGN, NULL, 0);
   }
 
   while (brfn=brfl_minimum(run->br_poll_funcs))
   {
-    (*brfn->brfn_fun)(B, run, brfn->brfn_opaque, curtime, NULL, BK_RUN_DESTROY);
+    (*brfn->brfn_fun)(B, run, brfn->brfn_opaque, &curtime, NULL, BK_RUN_DESTROY);
     brfn_destroy(B, brfn);
   }
   brfl_destroy(run->br_poll_funcs);
 
   while (brfn=brfl_minimum(run->br_idle_funcs))
   {
-    (*brfn->brfn_fun)(B, run, brfn->brfn_opaque, curtime, NULL, BK_RUN_DESTROY);
+    (*brfn->brfn_fun)(B, run, brfn->brfn_opaque, &curtime, NULL, BK_RUN_DESTROY);
     brfn_destroy(B, brfn);
   }
   brfl_destroy(run->br_idle_funcs);
 
-  while (brof=brfl_minimum(run->br_ondemand_funcs))
+  while (brof=brofl_minimum(run->br_ondemand_funcs))
   {
-    (*brof->brof_fun)(B, run, brof->brof_opaque, brof->brof_demand, curtime, BK_RUN_DESTROY);
+    (*brof->brof_fun)(B, run, brof->brof_opaque, brof->brof_demand, &curtime, BK_RUN_DESTROY);
     brof_destroy(B, brof);
   }
   brofl_destroy(run->br_ondemand_funcs);
@@ -408,10 +412,11 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
  *	@return <i>-1</i> on call failure, system call failure, or other failure.
  *	@return <br><i>0</i> on success.
  */
-int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B, struct bk_run *run, int signum, void *opaque, struct timeval starttime), void *opaque, bk_flags flags)
+int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B, struct bk_run *run, int signum, void *opaque), void *opaque, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct sigaction act, oact;
+  struct sigaction act;
+  sigset_t blockset;
 
   if (!run || signum >= NSIG)
   {
@@ -421,7 +426,7 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
 
   if (!handler || (void *)handler == (void *)SIG_IGN || (void *)handler == (void *)SIG_DFL)
   {							// Disabling signal
-    act.sa_handler = ((void *)handler==(void *)SIG_IGN)?(void *)SIG_IGN:(void *)SIG_DFL;
+    act.sa_handler = (void *)handler;
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
   }
@@ -440,17 +445,21 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
   act.sa_flags |= BK_FLAG_ISSET(flags, BK_RUN_SIGNAL_RESTART)?0:SA_INTERRUPT;
 #endif /* SA_INTERRUPT */
 
-  if (sigaction(signum, &act, &oact) < 0)
+  run->br_handlerlist[signum].brs_handler = handler;	// Might be NULL
+  run->br_handlerlist[signum].brs_opaque = opaque;	// Might be NULL
+
+  sigemptyset(&blockset);
+  sigaddset(&blockset, signum);
+  sigprocmask(SIG_BLOCK, &blockset, NULL);
+  if (BK_FLAG_ISSET(flags, BK_RUN_SIGNAL_CLEARPENDING))
+    run->br_signums[signum] = 0;
+
+  if (sigaction(signum, &act, NULL) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not insert signal: %s\n",strerror(errno));
     BK_RETURN(B, -1);
   }
-
-  run->br_handlerlist[signum].brs_handler = handler;	// Might be NULL
-  run->br_handlerlist[signum].brs_opaque = opaque;	// Might be NULL
-
-  if (BK_FLAG_ISSET(flags, BK_RUN_SIGNAL_CLEARPENDING))
-    run->br_signums[signum] = 0;
+  sigprocmask(SIG_UNBLOCK, &blockset, NULL);
 
   BK_RETURN(B, 0);
 }
@@ -470,7 +479,7 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
  *	@return <i><0</i> on call failure, allocation failure, or other error.
  *	@return <br><i>0</i> on success.
  */
-int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
+int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeue *new;
@@ -511,11 +520,11 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
 
 
 /**
- * Enqueue an event for a future action--note this can only enqueue events up to one hour away
+ * Enqueue an event for a future action
  *
  *	@param B BAKA thread/global state 
  *	@param run The baka run environment state
- *	@param usec The number of microseconds until the event should fire
+ *	@param msec The number of milliseconds until the event should fire
  *	@param event The handler to fire when the time comes (or we are destroyed).
  *	@param opaque The opaque data for the handler
  *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
@@ -523,7 +532,7 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
  *	@return <i>-1</i> on call failure, allocation failure, or other error.
  *	@return <br><i>0</i> on success.
  */
-int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
+int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t msec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct timeval tv, diff;
@@ -534,8 +543,8 @@ int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(
     BK_RETURN(B, -1);
   }
 
-  diff.tv_sec = 0;
-  diff.tv_usec = usec;
+  diff.tv_sec = msec/1000;
+  diff.tv_usec = msec%1000;
   gettimeofday(&tv, NULL);
 
   BK_TV_ADD(&tv,&tv,&diff);
@@ -546,11 +555,11 @@ int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(
 
 
 /**
- * Set up a reoccurring event at a periodic interval--note this can only enqueue events up to one hour apart
+ * Set up a reoccurring event at a periodic interval
  *
  *	@param B BAKA thread/global state 
  *	@param run The baka run environment state
- *	@param usec The number of microseconds until the event should fire
+ *	@param msec The number of milliseconds until the event should fire
  *	@param event The handler to fire when the time comes (or we are destroyed).
  *	@param opaque The opaque data for the handler
  *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
@@ -558,7 +567,7 @@ int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(
  *	@return <i><0</i> on call failure, allocation failure, or other error.
  *	@return <br><i>0</i> on success.
  */
-int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
+int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeuecron *brec;
@@ -576,7 +585,7 @@ int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(b
     BK_RETURN(B, -1);
   }
 
-  brec->brec_interval = usec;
+  brec->brec_interval = msec;
   brec->brec_event = event;
   brec->brec_opaque = opaque;
 
@@ -595,7 +604,7 @@ int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(b
  *
  *	@param B BAKA thread/global state 
  *	@param run The baka run environment state
- *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
+ *	@param handle The handle to dequeue the event in the future
  *	@param flags Flags for the Future.
  *	@return <i><0</i> on call failure, or other error.
  *	@return <br><i>0</i> on success.
@@ -661,7 +670,7 @@ int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags)
 
 
 /**
- * Run through all events once.
+ * Run through all events once. Don't call from a callback or beware.
  *
  *	@param B BAKA thread/global state 
  *	@param run The baka run environment state
@@ -673,11 +682,12 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   fd_set readset, writeset, xcptset;
-  struct timeval curtime, deltaevent, zero, deltapoll;
+  struct timeval curtime, deltaevent, deltapoll;
   struct timeval *selectarg;
   int ret;
   int x;
-  int use_deltapoll, check_idle;
+  int use_deltapoll, check_idle;	
+  struct timeval zero;
 
   if (!run)
   {
@@ -685,8 +695,8 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  zero.tv_sec=0;
-  zero.tv_usec=0;
+  zero.tv_sec = 0;
+  zero.tv_usec = 0;
 
   gettimeofday(&curtime, NULL);
 
@@ -702,9 +712,9 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	brof;
 	brof=brfl_successor(run->br_ondemand_funcs,brof))
     {
-      if (*brof->brof_demand && (*brof->brof_fun)(B, run, brof->brof_opaque, brof->brof_demand, curtime, 0)<0)
+      if (*brof->brof_demand && (*brof->brof_fun)(B, run, brof->brof_opaque, brof->brof_demand, &curtime, 0) < 0)
       {
-	bk_error_printf(B, BK_ERR_WARN, "The on demand procedure failed severely.\n");
+	bk_error_printf(B, BK_ERR_ERR, "The on demand procedure failed severely.\n");
 	BK_RETURN(B, -1);
       }
     }
@@ -721,7 +731,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	brfn;
 	brfn=brfl_successor(run->br_poll_funcs,brfn))
     {
-      if ((ret=(*brfn->brfn_fun)(B, run, brfn->brfn_opaque, curtime, &tmp_deltapoll,0))<0)
+      if ((ret=(*brfn->brfn_fun)(B, run, brfn->brfn_opaque, &curtime, &tmp_deltapoll,0)) < 0)
       {
 	bk_error_printf(B, BK_ERR_WARN, "The polling procedure failed severely.\n");
 	BK_RETURN(B, -1);
@@ -741,7 +751,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   if (br_beensignaled) goto beensignaled;
 
   // Check for event queue
-  if ((ret = bk_run_checkeventq(B, run, curtime, &deltaevent)) < 0)
+  if ((ret = bk_run_checkeventq(B, run, &curtime, &deltaevent)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "The event queue checking procedure failed severely.\n");
     BK_RETURN(B, -1);
@@ -769,7 +779,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
      */
     if (use_deltapoll && (BK_TV_CMP(&deltapoll, &deltaevent) < 0))
     {
-      selectarg = &deltapoll;     
+      selectarg = &deltapoll;
     }
     else
     {
@@ -785,7 +795,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
    * tasks should run.
    */
   if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_HAVE_IDLE) &&
-      (!selectarg || selectarg->tv_sec != 0 || selectarg->tv_usec != 0))
+      (!selectarg || selectarg->tv_sec > 0 || selectarg->tv_usec > 0))
   {
     selectarg = &zero;
     check_idle=1;
@@ -811,6 +821,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   // Wait for I/O or timeout
   if ((ret = select(run->br_selectn, &readset, &writeset, &xcptset, selectarg)) < 0)
   {
+    // XXX-Handle badfd, somehow, getfdflags--withdraw and notify handler
     if (errno != EINTR)
     {
       bk_error_printf(B, BK_ERR_ERR, "Select failed severely: %s\n", strerror(errno));
@@ -848,7 +859,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	  bk_error_printf(B, BK_ERR_WARN, "Could not find fd %d in association, yet type is %x\n",x,type);
 	  continue;
 	}
-	(*curfd->brf_handler)(B, run, x, type, curfd->brf_opaque, curtime);
+	(*curfd->brf_handler)(B, run, x, type, curfd->brf_opaque, &curtime);
       }
       if (br_beensignaled) goto beensignaled;
     }
@@ -863,7 +874,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	  brfn;
 	  brfn=brfl_successor(run->br_idle_funcs,brfn))
       {
-	if ((*brfn->brfn_fun)(B, run, brfn->brfn_opaque, curtime, NULL, 0)<0)
+	if ((*brfn->brfn_fun)(B, run, brfn->brfn_opaque, &curtime, NULL, 0)<0)
 	{
 	  bk_error_printf(B, BK_ERR_WARN, "The polling procedure failed severely.\n");
 	  BK_RETURN(B, -1);
@@ -880,11 +891,12 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
     for (x=0; x<NSIG; x++)
     {
+
       while (run->br_signums[x] > 0)
       {
 	run->br_signums[x]--;
 
-	(*run->br_handlerlist[x].brs_handler)(B, run, x, run->br_handlerlist[x].brs_opaque, curtime);
+	(*run->br_handlerlist[x].brs_handler)(B, run, x, run->br_handlerlist[x].brs_opaque);
       }
     }
   }
@@ -935,31 +947,31 @@ int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, v
   }
 
   if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTREAD))
-    {
-      FD_SET(fd, &run->br_readset);
-    }
+  {
+    FD_SET(fd, &run->br_readset);
+  }
   else
-    {
-      FD_CLR(fd, &run->br_readset);
-    }
+  {
+    FD_CLR(fd, &run->br_readset);
+  }
 
   if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTWRITE))
-    {
-      FD_SET(fd, &run->br_writeset);
-    }
+  {
+    FD_SET(fd, &run->br_writeset);
+  }
   else
-    {
-      FD_CLR(fd, &run->br_writeset);
-    }
+  {
+    FD_CLR(fd, &run->br_writeset);
+  }
 
   if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTXCPT))
-    {
-      FD_SET(fd, &run->br_xcptset);
-    }
+  {
+    FD_SET(fd, &run->br_xcptset);
+  }
   else
-    {
-      FD_CLR(fd, &run->br_xcptset);
-    }
+  {
+    FD_CLR(fd, &run->br_xcptset);
+  }
 
   run->br_selectn = MAX(run->br_selectn,fd+1);
 
@@ -976,7 +988,8 @@ int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, v
 
 
 /**
- * Specify that we no longer wish bk_run to take care of file descriptors
+ * Specify that we no longer wish bk_run to take care of file descriptors.
+ * We do not close the fd.
  *
  *	@param B BAKA thread/global state 
  *	@param run The baka run environment state
@@ -989,6 +1002,7 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_run_fdassoc *curfda;
+  struct timeval curtime;
 
   if (!run)
   {
@@ -997,21 +1011,17 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   }
 
   if (!(curfda = fdassoc_search(run->br_fdassoc, &fd)))
-    {
-      bk_error_printf(B, BK_ERR_WARN, "Could not find fd %d in association while attempting to delete\n",fd);
-      BK_RETURN(B, 0);
-    }
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Could not find fd %d in association while attempting to delete\n",fd);
+    BK_RETURN(B, 0);
+  }
 
   // Get rid of event in list, which will also prevent double deletion
   fdassoc_delete(run->br_fdassoc, curfda);
 
   // Optionally tell user handler that he will never be called again.
-  if (BK_FLAG_ISSET(flags, BK_RUN_FLAG_NOTIFYANYWAY))
-    {
-      struct timeval curtime;
-      gettimeofday(&curtime, NULL);
-      (*curfda->brf_handler)(B, run, fd, BK_RUN_CLOSE, curfda->brf_opaque, curtime);
-    }
+  gettimeofday(&curtime, NULL);
+  (*curfda->brf_handler)(B, run, fd, BK_RUN_CLOSE, curfda->brf_opaque, &curtime);
 
   free(curfda);
 
@@ -1021,13 +1031,13 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 
   // Check to see if we need to find out a new value for selectn
   if (run->br_selectn == fd+1)
+  {
+    run->br_selectn = 0;
+    for(curfda=fdassoc_minimum(run->br_fdassoc);curfda;curfda = fdassoc_successor(run->br_fdassoc, curfda))
     {
-      run->br_selectn = 0;
-      for(curfda=fdassoc_minimum(run->br_fdassoc);curfda;curfda = fdassoc_successor(run->br_fdassoc, curfda))
-	{
-	  run->br_selectn = MAX(run->br_selectn,curfda->brf_fd + 1);
-	}
+      run->br_selectn = MAX(run->br_selectn,curfda->brf_fd + 1);
     }
+  }
 
   BK_RETURN(B, 0);
 }
@@ -1122,7 +1132,7 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wa
 
 
 /**
- * Event priority queue comparison routines
+ * Event priority queue comparison routines--CLC PQ thing
  *
  *	@param a First event queue event
  *	@param b Second event queue event
@@ -1145,7 +1155,6 @@ static int bk_run_event_comparator(struct br_equeue *a, struct br_equeue *b)
  */
 static void bk_run_signal_ihandler(int signum)
 {
-  // <TODO>Worry about locking!</TODO>
   if (br_signums)
   {
     br_beensignaled = 1;
@@ -1165,10 +1174,11 @@ static void bk_run_signal_ihandler(int signum)
  *	@param starttime The time when this global-event queue run was started
  *	@param flags BK_RUN_DESTROY when this event is being called for the last time.
  */
-static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags)
+static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeuecron *brec = opaque;
+  struct timeval addtv;
 
   if (!run || !opaque)
   {
@@ -1176,8 +1186,12 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, struct t
     BK_VRETURN(B);
   }
 
+  addtv.tv_sec = brec->brec_interval / 1000;
+  addtv.tv_usec = brec->brec_interval % 1000;
+  BK_TV_ADD(&addtv,&addtv,starttime);
+
   if (BK_FLAG_ISCLEAR(flags,BK_RUN_DESTROY))
-    bk_run_enqueue_delta(B, run, brec->brec_interval, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), 0);
+    bk_run_enqueue(B, run, addtv, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), 0);
 
   (*brec->brec_event)(B, run, brec->brec_opaque, starttime, flags);
 
@@ -1195,17 +1209,17 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, struct t
  *	@param delta The time to the next event
  *	@return <i>-1</i> on call failure
  *	@return <br><i>0</i> if there is no next event
- *	@return <br><i>>0</i> if there is a next event
+ *	@return <br><i>1</i> if there is a next event
  *	@return <br>copy-out <i>delta</i> is time to next event, if there is a next event
  */
-static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval starttime, struct timeval *delta)
+static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *starttime, struct timeval *delta)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret = 0;
   struct br_equeue *top;
   struct timeval curtime;
 
-  if (!run)
+  if (!run || !delta)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_RETURN(B, -1);
@@ -1213,7 +1227,7 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval startti
 
   while (top = pq_head(run->br_equeue))
   {
-    if (BK_TV_CMP(&top->bre_when, &starttime) > 0)
+    if (BK_TV_CMP(&top->bre_when, starttime) > 0)
       break;  
 
     top = pq_extract_head(run->br_equeue);
@@ -1225,24 +1239,17 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval startti
   if (!top)
     BK_RETURN(B, 0);
 
-  if (delta)
-    {
-      /* Use the actual time to next event to allow for more accurate events */
-      gettimeofday(&curtime, NULL);
+  /* Use the actual time to next event to allow for more accurate events */
+  gettimeofday(&curtime, NULL);
 
-      BK_TV_SUB(delta,&top->bre_when,&curtime);
-      if (delta->tv_sec < 0 || delta->tv_usec < 0)
-	{
-	  delta->tv_sec = 0;
-	  delta->tv_usec = 0;
-	}
+  BK_TV_SUB(delta,&top->bre_when,&curtime);
+  if (delta->tv_sec < 0 || delta->tv_usec < 0)
+  {
+    delta->tv_sec = 0;
+    delta->tv_usec = 0;
+  }
 
-      if (!(ret = delta->tv_sec))
-	ret = 1;
-    }
-
-
-  BK_RETURN(B, ret);
+  BK_RETURN(B, 1);
 }
 
 
@@ -1258,7 +1265,7 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval startti
  * 	@return <br><i>0</i> on success
  */
 int
-bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle)
+bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_run_func *brfn=NULL;
@@ -1305,6 +1312,7 @@ bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *ru
  *	@param B BAKA thread/global state 
  *	@param run bk_run structure
  *	@param handle polling function to remove
+XXX - document return
  */
 int
 bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle)
@@ -1324,6 +1332,8 @@ bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle)
     BK_RETURN(B, 0);
   }
 
+  // XXX - Delete handle and free it here
+
   if (!brfl_minimum(run->br_poll_funcs))
   {
     BK_FLAG_CLEAR(run->br_flags,BK_RUN_FLAG_NEED_POLL);
@@ -1342,9 +1352,10 @@ bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle)
  * 	@param handle handle to use to remove this fun
  * 	@return <i>-1</i> on failure
  * 	@return <br><i>0</i> on success
+XXX - consolidate with poll_add
  */
 int
-bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle)
+bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_run_func *brfn=NULL;
@@ -1391,6 +1402,7 @@ bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *ru
  *	@param B BAKA thread/global state 
  *	@param run bk_run structure
  *	@param handle idle function to remove
+XXX - consolidate with poll_add
  */
 int
 bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle)
@@ -1485,7 +1497,7 @@ brfn_destroy(bk_s B, struct bk_run_func *brfn)
  * 	@return <br><i>0</i> on success
  */
 int
-bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime, bk_flags flags), void *opaque, volatile int *demand, void **handle)
+bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags), void *opaque, volatile int *demand, void **handle)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_run_ondemand_func *brof=NULL;
@@ -1552,6 +1564,8 @@ bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle)
     BK_RETURN(B, 0);
   }
 
+  // XXX - actually delete and free
+
   if (!brfl_minimum(run->br_ondemand_funcs))
   {
     BK_FLAG_CLEAR(run->br_flags,BK_RUN_FLAG_CHECK_DEMAND);
@@ -1615,6 +1629,9 @@ brof_destroy(bk_s B, struct bk_run_ondemand_func *brof)
 
 /** 
  * Turn of the run enviornment
+XXX documentation failure
+XXX naming failure _bk_run_run_run_finished
+XXX naming failure _bk_run_lola_run
  */
 int
 bk_run_set_run_over(bk_s B, struct bk_run *run)
@@ -1630,6 +1647,7 @@ bk_run_set_run_over(bk_s B, struct bk_run *run)
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_RUN_OVER);
   BK_RETURN(B,0);
 }
+
 
 
 /*

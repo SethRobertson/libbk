@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.4 2001/11/20 19:34:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.5 2001/11/28 18:24:09 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,6 +19,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  * All of the baka run public and private functions.
+ XXXX -- this is not bk_run.
  */
 
 #include <libbk.h>
@@ -26,17 +27,15 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-/**
- * @file
- */
-
 static struct bk_netaddr *bna_create(bk_s B);
 static void bna_destroy(bk_s B, struct bk_netaddr *bna);
 static int update_bna_pretty(bk_s B, struct bk_netaddr *bna);
 
 
+
 /**
  * Create a @a struct @a bk_netaddr instance
+ *
  *	@param B BAKA thread/global state.
  *	@returns <i>NULL</i> on failure. <br>
  *	@returns allocated @a struct @a bk_netaddr on success.
@@ -53,8 +52,9 @@ bna_create(bk_s B)
     goto error;
   }
 
-  bk_debug_printf_and(B,128,"bna allocate: %p\n", bna);
-  BK_RETURN(B,bna);
+  bk_debug_printf_and(B, 128, "bna allocate: %p\n", bna);
+
+  BK_RETURN(B, bna);
 
  error: 
   if (bna) bk_netaddr_destroy(B, bna);
@@ -64,6 +64,7 @@ bna_create(bk_s B)
 
 /**
  * Public interface to creating an empty @a bk_netaddr.
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_netaddr on success.
@@ -74,12 +75,12 @@ bk_netaddr_create(bk_s B)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_netaddr *bna;
 
-  if (!(bna=bna_create(B)))
+  if (!(bna = bna_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create bk_netaddr\n");
   }
 
-  BK_RETURN(B,bna);
+  BK_RETURN(B, bna);
 }
 
 
@@ -96,7 +97,7 @@ bna_destroy(bk_s B, struct bk_netaddr *bna)
 
   if (!bna)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
 
@@ -105,7 +106,7 @@ bna_destroy(bk_s B, struct bk_netaddr *bna)
   if (bna->bna_type == BK_NETINFO_TYPE_LOCAL && bna->bna_path) 
     free(bna->bna_path);
 
-  bk_debug_printf_and(B,128,"bna free: %p\n", bna);
+  bk_debug_printf_and(B, 128, "bna free: %p\n", bna);
 
   free(bna);
   BK_VRETURN(B);
@@ -115,6 +116,7 @@ bna_destroy(bk_s B, struct bk_netaddr *bna)
 
 /**
  * Public interface to destroy a @a netaddr.
+ *
  *	@param B BAKA thread/global state.
  *	@param bna The @a netaddr to nuke.
  *	@return <i>-1</i> on failure.<br>
@@ -132,13 +134,16 @@ bk_netaddr_destroy (bk_s B, struct bk_netaddr *bna)
   }
 
   bna_destroy(B, bna);
+
   BK_VRETURN(B);
 }
 
 
 
-/** Add an address to a @a struct @a netaddr. If @a len is 0, then @a len is
+/**
+ * Add an address to a @a struct @a netaddr. If @a len is 0, then @a len is
  * intuited from the type. Filename strings are bounded to MAXPATH.
+ *
  *	@param B BAKA thread/global state.
  *	@param type The address type. 
  *	@param addr The address data.
@@ -152,7 +157,7 @@ struct bk_netaddr *
 bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_netaddr *bna=NULL;
+  struct bk_netaddr *bna = NULL;
 
   if (!addr)
   {
@@ -165,9 +170,11 @@ bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags fl
   case BK_NETINFO_TYPE_INET:
     if (!len) len = sizeof(struct in_addr);
     break;
+
   case BK_NETINFO_TYPE_INET6:
     if (!len) len = sizeof(struct in6_addr);
     break;
+
   case BK_NETINFO_TYPE_LOCAL:
     if (!len) 
     {
@@ -183,27 +190,29 @@ bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags fl
 	bk_error_printf(B, BK_ERR_ERR, "Filename too long\n");
     }
     break;
+
   case BK_NETINFO_TYPE_ETHER:
     if (!len) len = sizeof(struct ether_addr);
     break;
+
   default:
     bk_error_printf(B, BK_ERR_ERR, "Unknown address type: %d\n", type);
     break;
   }
 
-  if (!(bna=bna_create(B)))
+  if (!(bna = bna_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could note create bna\n");
     goto error;
   }
 
-  bna->bna_type=type;
-  bna->bna_flags=flags;
-  bna->bna_len=len;
+  bna->bna_type = type;
+  bna->bna_flags = flags;
+  bna->bna_len = len;
 
   if (type == BK_NETINFO_TYPE_LOCAL)
   {
-    if (!(bna->bna_path=strdup(addr)))
+    if (!(bna->bna_path = strdup(addr)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not strdup filename: %s\n", strerror(errno));
       goto error;
@@ -214,7 +223,7 @@ bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags fl
     memmove(&(bna->bna_addr), addr, len);
   }
 
-  if (update_bna_pretty(B, bna)<0)
+  if (update_bna_pretty(B, bna) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not update pretty printing string\n");
     /* 
@@ -229,13 +238,13 @@ bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags fl
  error:
   if (!bna) bk_netaddr_destroy(B, bna);
   BK_RETURN(B,NULL);
-			  
 }
 
 
 
 /**
  * Create a @a netaddr from a network address. 
+ *
  *	@param B BAKA thread/global state.
  *	@param type The BK_NETINFO_TYPE_* of the address.
  *	@param addr The address to copy.
@@ -252,33 +261,35 @@ bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags)
   if (!addr)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_RETURN(B,NULL);
+    BK_RETURN(B, NULL);
   }
   
-  if (!(bna=bna_create(B)))
+  if (!(bna = bna_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bna: %s\n", strerror(errno));
     goto error;
   }
 
-  bna->bna_flags=flags;
-  bna->bna_type=type;
+  bna->bna_flags = flags;
+  bna->bna_type = type;
   
   
   switch (type)
   {
   case BK_NETINFO_TYPE_INET:
-    bk_debug_printf_and(B,1,"Copying INET\n");
+    bk_debug_printf_and(B, 1, "Copying INET\n");
     memmove(&bna->bna_inet, addr, sizeof(struct in_addr));
     bna->bna_len=sizeof(struct in_addr);
     break;
+
   case BK_NETINFO_TYPE_INET6:
-    bk_debug_printf_and(B,1,"Copying INET6\n");
+    bk_debug_printf_and(B, 1, "Copying INET6\n");
     memmove(&bna->bna_inet6, addr, sizeof(struct in6_addr));
     bna->bna_len=sizeof(struct in6_addr);
     break;
+
   case BK_NETINFO_TYPE_LOCAL:
-    bk_debug_printf_and(B,1,"Copying LOCAL\n");
+    bk_debug_printf_and(B, 1, "Copying LOCAL\n");
     if (!(bna->bna_path=strdup((char *)addr)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not strdup addr path: %s\n", strerror(errno));
@@ -286,18 +297,20 @@ bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags)
     }
     bna->bna_len=strlen((char *)addr);		/* XXX Should this be +1? */
     break;
+
   case BK_NETINFO_TYPE_ETHER:
-    bk_debug_printf_and(B,1,"Copying ETHER\n");
+    bk_debug_printf_and(B, 1, "Copying ETHER\n");
     memmove(&bna->bna_ether, addr, sizeof(struct ether_addr));
     bna->bna_len=sizeof(struct ether_addr);
     break;
+
   default: 
     bk_error_printf(B, BK_ERR_ERR, "Unsupported BK_NETINFO_TYPE: %d\n", type);
     goto error;
     break;
   }
   
-  if (update_bna_pretty(B,bna)<0)
+  if (update_bna_pretty(B, bna) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not update printable version of addr\n");
     goto error;
@@ -308,12 +321,13 @@ bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags)
  error:
   if (bna) bna_destroy(B,bna);
   BK_RETURN(B,NULL);
-
 }
+
 
 
 /**
  * Update the "pretty printing" string associated with a @a netaddr.
+ *
  *	@param B BAKA thread/global state.
  *	@param bna The @a netaddr to update.
  *	@returns <i>-1</i> on failure.<br>
@@ -339,6 +353,7 @@ update_bna_pretty(bk_s B, struct bk_netaddr *bna)
 
   memset(scratch, 0, SCRATCHLEN);
   memset(scratch2, 0, SCRATCHLEN2);
+
   switch (bna->bna_type)
   {
   case BK_NETINFO_TYPE_INET:
@@ -349,6 +364,7 @@ update_bna_pretty(bk_s B, struct bk_netaddr *bna)
     }
     snprintf(scratch, SCRATCHLEN,"<AF_INET:%s>", scratch2);
     break;
+
   case BK_NETINFO_TYPE_INET6:
     if (!inet_ntop(AF_INET6, &bna->bna_inet6, scratch2, SCRATCHLEN2))
     {
@@ -357,13 +373,16 @@ update_bna_pretty(bk_s B, struct bk_netaddr *bna)
     }
     snprintf(scratch, SCRATCHLEN,"<AF_INET6:%s>", scratch2);
     break;
+
   case BK_NETINFO_TYPE_LOCAL:
     snprintf(scratch, SCRATCHLEN,"<AF_LOCAL:%s>", bna->bna_path);
     break;
+
   case BK_NETINFO_TYPE_ETHER:
     /* XXX Finish this */
     snprintf(scratch, SCRATCHLEN,"<ETHER:%s>", "");
     break;
+
   default: 
     break;
   }
@@ -383,6 +402,7 @@ update_bna_pretty(bk_s B, struct bk_netaddr *bna)
 
 /**
  * Clone a @a netaddr. Allocates memory.
+ *
  *	@param B BAKA thread/global state.
  *	@param obna @a netaddr to copy.
  *	@return <i>NULL</i> on failure.<br>
@@ -400,15 +420,15 @@ bk_netaddr_clone (bk_s B, struct bk_netaddr *obna)
     BK_RETURN(B,NULL);
   }
 
-  if (!(nbna=bna_create(B)))
+  if (!(nbna = bna_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bna: %s\n", strerror(errno));
     goto error;
   }
 
-  nbna->bna_flags=obna->bna_flags;
-  nbna->bna_len=obna->bna_len;
-  nbna->bna_type=obna->bna_type;
+  nbna->bna_flags = obna->bna_flags;
+  nbna->bna_len = obna->bna_len;
+  nbna->bna_type = obna->bna_type;
   
   switch (obna->bna_type)
   {
@@ -424,13 +444,14 @@ bk_netaddr_clone (bk_s B, struct bk_netaddr *obna)
       bk_error_printf(B, BK_ERR_ERR, "Could not strdup netaddr path: %s\n", strerror(errno));
       goto error;
     }
+
   default:
     bk_error_printf(B, BK_ERR_ERR, "Unknown addr type: %d\n", obna->bna_type);
     goto error;
     break;
   }
   
-  if (update_bna_pretty(B,nbna)<0)
+  if (update_bna_pretty(B, nbna) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not update bna pretty string: %s\n", strerror(errno));
     goto error;
@@ -446,7 +467,8 @@ bk_netaddr_clone (bk_s B, struct bk_netaddr *obna)
 
 
 /**
- * Convert address family to netinfo type
+ * Convert address family to netinfo type.  Note this does not work for _TYPE_ETHER.
+ *
  *	@param B BAKA thread/global state.
  *	@param af The address family.
  *	@return <i>-1</i> on failure.<br>
@@ -457,18 +479,21 @@ bk_netaddr_af2nat(bk_s B, int af)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int type;
-  
+
   switch (af)
   {
   case AF_INET:
     type=BK_NETINFO_TYPE_INET;
     break;
+
   case AF_INET6:
     type=BK_NETINFO_TYPE_INET6;
     break;
+
   case AF_LOCAL:
     type=BK_NETINFO_TYPE_LOCAL;
     break;
+
   default:
     bk_error_printf(B, BK_ERR_ERR, "Unsupported address family: %d\n", af);
     type=-1;
@@ -480,7 +505,10 @@ bk_netaddr_af2nat(bk_s B, int af)
 
 
 /**
- * Convert netinfo type to address family.
+ * Convert netinfo type to address family.  Convert address family to
+ * netinfo type.  Note this does not work for _TYPE_ETHER.
+ *
+ *
  *	@param B BAKA thread/global state.
  *	@param af The address family.
  *	@return <i>-1</i> on failure.<br>
@@ -497,15 +525,20 @@ bk_netaddr_nat2af(bk_s B, int type)
   case BK_NETINFO_TYPE_INET:
     af=AF_INET;
     break;
+
   case BK_NETINFO_TYPE_INET6:
     af=AF_INET6;
     break;
+
   case BK_NETINFO_TYPE_LOCAL:
     af=AF_LOCAL;
     break;
+
   case BK_NETINFO_TYPE_ETHER:
     bk_error_printf(B, BK_ERR_ERR, "ETHER has not address family\n");
     af=-1;
+    break;
+
   default:
     bk_error_printf(B, BK_ERR_ERR, "Unsupported netaddr type: %d\n", type);
     af=-1;

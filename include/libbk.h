@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.70 2001/11/27 00:58:41 seth Exp $
+ * $Id: libbk.h,v 1.71 2001/11/28 18:24:09 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -232,7 +232,7 @@ typedef enum
  * File descriptor handler type.
  */
 struct bk_run;
-typedef void (*bk_fd_handler_t)(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, struct timeval starttime);
+typedef void (*bk_fd_handler_t)(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, const struct timeval *starttime);
 
 /**
  * @name bk_addrgroup structure.
@@ -288,6 +288,7 @@ struct bk_addrgroup
 
 
 #define BK_ADDRGROUP_FLAG_DIVIDE_TIMEOUT	0x1 ///< Timeout should be divided among all addresses
+//XXXX Always give addrgroup. User may clone if he wishes to hang on to it 
 #define BK_ADDRGROUP_FLAG_WANT_ADDRGROUP	0x2 ///< I want a filled out addrgroup on my callback. If you take this you want it on both newconnection and server ready. You must destroy with bk_addrgroup_destroy()
 
 
@@ -536,8 +537,8 @@ struct bk_netaddr
 struct bk_netinfo
 {
   bk_flags		bni_flags;		///< Everyone needs flags
-  struct bk_netaddr *	bni_addr;		///< Primary address
-  struct bk_netaddr *	bni_addr2;		///< Secondary address
+  struct bk_netaddr *	bni_addr;		///< Primary address -- pointer into addrs CLC
+  struct bk_netaddr *	bni_addr2;		///< Secondary address -- pointer into addrs CLC
   dict_h		bni_addrs;		///< dll of addrs
   struct bk_servinfo *	bni_bsi;		///< Service info
   struct bk_protoinfo *	bni_bpi;		///< Protocol info
@@ -644,6 +645,7 @@ extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen,
 #define BK_ERROR_CONFIG_SYSLOGTHRESHHOLD	0x4 ///< Syslog threshhold is being set
 #define BK_ERROR_CONFIG_QUEUELEN		0x8 ///< Queue length is being set
 extern void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
+extern void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 extern void bk_error_imark(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 extern void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf);
 extern void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *format, ...) __attribute__ ((format (printf, 4,5)));
@@ -687,13 +689,13 @@ extern int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags
 /* b_run.c */
 extern struct bk_run *bk_run_init(bk_s B, bk_flags flags);
 extern void bk_run_destroy(bk_s B, struct bk_run *run);
-extern int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B, struct bk_run *run, int signum, void *opaque, struct timeval starttime), void *opaque, bk_flags flags);
+extern int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B, struct bk_run *run, int signum, void *opaque), void *opaque, bk_flags flags);
 #define BK_RUN_SIGNAL_CLEARPENDING		0x01	///< Clear pending signal count for this signum for @a bk_run_signal
 #define BK_RUN_SIGNAL_INTR			0x02	///< Interrupt system calls for @a bk_run_signal
 #define BK_RUN_SIGNAL_RESTART			0x04	///< Restart system calls for @a bk_run_signal
-extern int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
-extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
-extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
 extern int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags);
 #define BK_RUN_DEQUEUE_EVENT			0x01	///< Normal event to dequeue for @a bk_run_dequeue
 #define BK_RUN_DEQUEUE_CRON			0x02	///< Cron event to dequeue for @a bk_run_dequeue
@@ -706,18 +708,17 @@ extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t han
 #define BK_RUN_CLOSE				0x08	///< user handler is notified by bk_run that bk_run is in process of closing this fd
 #define BK_RUN_DESTROY				0x10	///< user handler is notified by bk_run that bk_run is in process of destroying
 extern int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags);
-#define BK_RUN_NOTIFYANYWAY			1	///< Notify user callback that this fd is going away from bk_run, even though user is telling us
 extern u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wantmask, bk_flags flags);
 #define BK_RUN_WANTREAD				0x01	///< Specify to bk_run_setpref that we want read notification for this fd
 #define BK_RUN_WANTWRITE			0x02	///< Specify to bk_run_setpref that we want write notification for this fd
 #define BK_RUN_WANTXCPT				0x04	///< Specify to bk_run_setpref that we want exceptional notification for this fd
 #define BK_RUN_WANTALL				(BK_RUN_WANTREAD|BK_RUN_WANTWRITE|BK_RUN_WANTXCPT|) ///< Specify to bk_run_setpref that we want *all* notifcations.
-extern int bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
+extern int bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
 extern int bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle);
-extern int bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
+extern int bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
 extern int bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle);
-extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime, bk_flags flags), void *opaque, volatile int *demand, void **handle);
+extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags), void *opaque, volatile int *demand, void **handle);
 extern int bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
 
@@ -859,13 +860,13 @@ extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obs
 extern int bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa);
 extern int bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char **servicestr,  char *defservicestr, char **protostr, char *defprotostr);
 extern int bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags);
-extern int bk_netutils_make_conn(bk_s B, struct bk_run *run, char *rurl, char *defrhost, char *defrserv, char *lurl, char *deflhost, char *deflserv, char *defproto, char *sercurenets, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags );
+extern int bk_netutils_make_conn(bk_s B, struct bk_run *run, char *rurl, char *defrhost, char *defrserv, char *lurl, char *deflhost, char *deflserv, char *defproto, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags );
 
 
 
 /* b_signal.c */
 typedef void (*bk_sighandler)(int);
-extern bk_sighandler bk_signal(bk_s B, int signo, bk_sighandler handler, bk_flags flags);
+extern int bk_signal(bk_s B, int signo, bk_sighandler handler, bk_flags flags);
 
 
 /* b_relay.c */

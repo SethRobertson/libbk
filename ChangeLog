@@ -1,3 +1,9 @@
+2001-11-27  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_addrgroup.c lib/b_getbyfoo.c lib/b_netaddr.c
+	lib/b_netinfo.c lib/b_netutils.c lib/b_protoinfo.c
+	lib/b_servinfo.c lib/b_run.c lib/b_stdfun.c:
+
 2001-11-28  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* test/test_getbyfoo.c (progrun): Fix up to conform to new API.

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.24 2001/11/18 20:42:44 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.25 2001/11/28 18:24:09 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,7 +27,15 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-#define CALLBACK(B, ioh,data, state) do { BK_FLAG_SET((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK); bk_debug_printf_and(B, 2, "Calling user callback for ioh %p with state %d\n",(ioh),(state)); ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state))); BK_FLAG_CLEAR((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK); } while (0) ///< Function to evaluate user callback with new data/state information
+#define CALLBACK(B, ioh,data, state)								\
+ do												\
+ {												\
+   BK_FLAG_SET((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK);					\
+   bk_debug_printf_and(B, 2, "Calling user callback for ioh %p with state %d\n",(ioh),(state));	\
+   ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state)));			\
+   BK_FLAG_CLEAR((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK);					\
+ } while (0)					///< Function to evaluate user callback with new data/state information
+
 #define IOH_DEFAULT_DATA_SIZE	128		///< Default read size
 #define IOH_VS			2		///< Number of vectors to hold length and msg
 #define IOH_EOLCHAR		'\n'		///< End of line character
@@ -120,7 +128,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, u_int32_t cmds, bk_flags
 static void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, u_int32_t *cmd, bk_flags flags);
 #define IOH_FLUSH_DESTROY	1		///< Notify that queue is being destroyed
 static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t allocated, u_int32_t inuse, u_int32_t used, bk_vptr *vptr, bk_flags msgflags, bk_flags flags);
-static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, struct timeval starttime);
+static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, const struct timeval *starttime);
 static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags);
 #define IOH_FDCTL_SET		1		///< Set the fd set to the ioh normal version
 #define IOH_FDCTL_RESET		1		///< Set the fd set to the original defaults
@@ -938,7 +946,7 @@ int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *ou
  *		actual time.  Useful to save system calls when you don't care
  *		that much, or want to avoid starvation.
  */
-static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, struct timeval starttime)
+static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, const struct timeval *starttime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *ioh = opaque;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.13 2001/11/26 18:12:28 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.14 2001/11/28 18:24:09 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,9 +16,6 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
-#include <libbk.h>
-#include "libbk_internal.h"
-
 /**
  * @file 
  * This file contains all the getbyFOO functions. These functions provide
@@ -32,6 +29,10 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * simply pass the string along to @a bk_gethostbyfoo and it takes care
  * of everything.
  */
+
+#include <libbk.h>
+#include "libbk_internal.h"
+
 
 
 /**
@@ -49,11 +50,13 @@ struct bk_gethostbyfoo_state
   void 			(*bgs_callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni , void *args); ///< Caller's callback
   void *		bgs_args;		///< Caller's argument to @a callback
   bk_flags		bgs_flags;		///< Everyone needs flags
-  void *		bgs_event;		///< Callback event 
+  void *		bgs_event;		///< Timeout event to delay returning result to enforce async in future
 };
 
+
+
 static int copy_hostent(bk_s B, struct hostent **ih, struct hostent *h);
-static void gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval starttime, bk_flags flags);
+static void gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags);
 static struct bk_gethostbyfoo_state *bgs_create(bk_s B);
 static void bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs);
 
@@ -66,6 +69,7 @@ static void bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs);
  *	@param B BAKA thread/global state.
  *	@param protostr The string containing the protocol name or number.
  *	@param ip Optional copyout version of the protocol structure.
+XXX - ip is a really bad name
  *	@param bni Optional @a netinfo structure which will have its proto
  *	field filled out on a successful conclusion.
  *	@return <i>-1</i> on failure.
@@ -105,6 +109,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo
   if (bk_string_atoi(B,protostr,&num,0)==0)
   {
     /* This is a number so only do search if forced */
+// XXX - also intuit on whether ip is set
     if (BK_FLAG_ISSET(flags, BK_GETPROTOBYFOO_FORCE_LOOKUP))
     {
       if (!(p=getprotobynumber(num)))
@@ -133,7 +138,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo
 
   if (ip)
   {
-    if (!(n->p_name=strdup(p->p_name)))
+    if (p->p_name && !(n->p_name=strdup(p->p_name)))
     {
       /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not dup protocol name: %s\n", strerror(errno));
@@ -145,7 +150,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo
       for(s=p->p_aliases; *s; s++)
 	alias_count++;
     
-      if (!(n->p_aliases=calloc((alias_count+1),sizeof(n->p_aliases))))
+      if (!(n->p_aliases=calloc((alias_count+1),sizeof(*(n->p_aliases)))))
       {
 	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate proto alias buffer: %s\n", strerror(errno));
@@ -167,18 +172,14 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo
   
   /* Sigh have to save this to automatic so we can unlock before return */
   ret=p->p_proto;
-  if (bni) bk_netinfo_update_protoent(B,bni,p);
+
+  if (bni)
+    bk_netinfo_update_protoent(B,bni,p);
 
   /* MUTEX_UNLOCK */
   
   if (ip) 
-  {
     *ip=n;
-  }
-  else
-  {
-    if (n) bk_protoent_destroy(B,n);
-  }
 
   BK_RETURN(B,ret);
 
@@ -226,13 +227,19 @@ bk_protoent_destroy(bk_s B, struct protoent *p)
 
 /** 
  * Get a service number no matter which type string you have. This function
- * is really blocking
+ * is really blocking (in the presense of NIS)
+ *
+XXX - bsi_protostr should be deleted (use protoinfo when necessary)
+XXX - getservbyfoo should fill out bni->protoinfo if it is set
+XXX - getservbyfoo, iff iproto is not set, should attempt to use bni->protoinfo
+XXX - iff iproto and !bni->protoinfo, then default it to "tcp"
  *
  *	@param B BAKA thread/global state.
  *	@param servstr The string containing the service name or number.
+XXX - iproto and others not documented
  *	@param is Option copyout version of the service structure.
  *	@return <i>-1</i> on failure.
- *	@return <br><i>port_num</i> (in <em>host</em> order) on success.
+ *	@return <br><i>port_num</i> (in <em>network</em> order) on success.
  */
 int
 bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni, bk_flags flags)
@@ -292,7 +299,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
    * ARGGHH!! First you have to resolve the protobyfoo. Furthermore you
    * have to go all the way as it were.
    */
-  if (bk_getprotobyfoo(B, proto, &lproto,NULL,BK_GETPROTOBYFOO_FORCE_LOOKUP)<0)
+  if (bk_getprotobyfoo(B, proto, &lproto, NULL, BK_GETPROTOBYFOO_FORCE_LOOKUP)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not convert proto string: %s\n", proto);
     goto error;
@@ -309,9 +316,10 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
   
   
   /* MUTEX_LOCK */
-  if (bk_string_atoi(B,servstr,&num,0)==0)
+  if (bk_string_atoi(B, servstr, &num, 0)==0)
   {
     /* This a a number so only do seach if forced */
+// XXX - if "is" is not set, also do not force lookup
     if (BK_FLAG_ISSET(flags, BK_GETSERVBYFOO_FORCE_LOOKUP))
     {
       if (!(s=getservbyport(num, proto)))
@@ -353,7 +361,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
       for(s1=s->s_aliases; *s1; s1++)
 	alias_count++;
     
-      if (!(n->s_aliases=calloc((alias_count+1),sizeof(n->s_aliases))))
+      if (!(n->s_aliases=calloc((alias_count+1),sizeof(*n->s_aliases))))
       {
 	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate service alias buffer: %s\n", strerror(errno));
@@ -391,14 +399,10 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
   {
     *is=n;
   }
-  else
-  {
-    if (n) bk_servent_destroy(B,n);
-  }
+
   if (lproto) bk_protoent_destroy(B,lproto);
 
-  /* Return the port (in host order) since this is what folks want */
-  BK_RETURN(B,ntohs(ret));
+  BK_RETURN(B,ret);
 
  error: 
   if (lproto) bk_protoent_destroy(B,lproto);
@@ -450,32 +454,39 @@ bk_servent_destroy(bk_s B, struct servent *s)
  * family is not 0, queries will be restricted to that address family,
  * otherwise @a bk_gethostbyfoo will attempt to intuit the address
  * family. @a ih is <em>required</em> in this functions (unlike @a
+XXX - ih or bni is required, not ih.  Documentation failure.
  * bk_getservbyfoo and @a bk_getprotobyfoo). @a *ih will be pointing at an
  * <em>allocated</em> @a struct @a hostent when query completes. You should
- * free this data with @a bk_destroy_hostent when finished. <br> Since this
- * function may take quite a long time to complete, and we shall at some
- * time in the near future be integrating it with a nonblocking libresolv,
- * you must supply both a @a bk_run structure and a @a callback. @a
- * callback will be called when the answer arrives. If succesfull, @a *ih
- * will be (as mentioned previously) at the @a struct @a hostent; if not,
- * @a *ih will be NULL. <br><em>HACK ALERT:</em> In order to make sure that
- * callers do not abuse this function while it still uses blocking queries,
- * @a *ih is <em>guarenteed</em> to be NULL on the return from @a
- * bk_gethostbyfoo. @a callback will be invoked (and @a *ih set) on the
- * <em>subsequent</em> @a bk_run_once pass. If BK_GETHOSTBYFOO_FLAG_FQDN
- * flags is set, then the fully qualified name is return. This of course
- * really only makes sens on an addr ==> name lookup.
+ * free this data with @a bk_destroy_hostent when finished.
+ *
+ * <br> Since this function may take quite a long time to complete,
+ * and we shall at some time in the near future be integrating it with
+ * a nonblocking libresolv, you must supply both a @a bk_run structure
+ * and a @a callback. @a callback will be called when the answer
+ * arrives. If successful, @a *ih will be (as mentioned previously) at
+ * the @a struct @a hostent; if not, @a *ih will be NULL.
+ *
+ * <br><em>HACK ALERT:</em> In order to make sure that callers do not
+ * abuse this function while it still uses blocking queries, @a *ih is
+ * <em>guarenteed</em> to be NULL on the return from @a
+ * bk_gethostbyfoo. @a callback will be invoked (and @a *ih set) on
+ * the <em>subsequent</em> @a bk_run_once pass. If
+ * BK_GETHOSTBYFOO_FLAG_FQDN flags is set, then the fully qualified
+ * name is return. This of course really only makes sens on an addr
+ * ==> name lookup.
  * 
  * On success the caller gets back an opaque handle which is useful
- * <em>only</em> useful as an argument to @a
- * bk_gethostbyfoo_info_destroy(). This function should be called iff an
- * error occurs which makes the callback for gethostbyfoo a bad idea.
+ * <em>only</em> as an argument to @a
+ * bk_gethostbyfoo_info_destroy(). This function should be called iff
+ * an error occurs which makes the callback for gethostbyfoo a bad
+ * idea.
  *
  *
  *	@param B BAKA thread/global state.
  *	@param name String to lookup.
  *	@param family Address family to which to restrict queries.
  *	@param ih Copyout @a struct @a hostent pointer.
+XXX - no copyout--it is not a copyout, so should be nuked
  *	@param run @a bk_run structure.
  *	@param callback Function to invoke when answer is arrives.
  *	@param args User args to return to @a callback when invoked.
@@ -485,6 +496,8 @@ bk_servent_destroy(bk_s B, struct servent *s)
  */
 void *
 bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args, bk_flags user_flags)
+     // XXX - hostent **h will then be a *h, iff FLAG_FQDN otherwise NULL
+     // XXX - callback needs to be modified with success state
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int flags=0;					/* 1 == Is an address */
@@ -496,6 +509,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
   struct hostent fake_hostent;			/* Fake hostent */
   char **buf[2];				/* Buf. for addrs of fake */
   char *buf2[400];				/* Buf. for addrs of fake */
+// XXX - documentation failure
   void *addr=NULL;				/*  */
   struct hostent *tmp_h=NULL;			/* Temporary version. */
   struct in_addr inaddr_any;			/* Pretty self explanatory */
@@ -507,8 +521,11 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
   if (!name || (!ih && !bni) || !callback) 
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    // XXX - goto error to call the callback
     BK_RETURN(B, NULL);
   }
+
+  /// Detect !flagFQDN && !bni
 
   /* Make sure this is initialized right away (see error section) */
   if (ih) *ih=NULL; 
@@ -676,6 +693,8 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
   bgs->bgs_bni=bni;
   bgs->bgs_run=br;
 
+// XXX - use SYSD_GWD() to allow non-delay callback
+
   if (bk_run_enqueue_delta(B, br, 0, gethostbyfoo_callback, bgs, &bgs->bgs_event, 0)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not enqueue gethostbyfoo callback\n");
@@ -685,6 +704,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
   BK_RETURN(B,bgs);
 
  error:
+// XXX - call the callback
   if (tmp_h) bk_destroy_hostent(B, tmp_h);
   if (bgs) bgs_destroy(B,bgs);
   if (ih) *ih=NULL;
@@ -703,17 +723,19 @@ static struct bk_gethostbyfoo_state *
 bgs_create(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_gethostbyfoo_state *bgs=NULL;
+  struct bk_gethostbyfoo_state *bgs = NULL;
 
   if (!(BK_CALLOC(bgs)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bgs: %s\n", strerror(errno));
     goto error;
   }
-  BK_RETURN(B,bgs);
+
+  BK_RETURN(B, bgs);
+
  error:
   if (bgs) bgs_destroy(B, bgs);
-  BK_RETURN(B,NULL);
+  BK_RETURN(B, NULL);
 }
 
 
@@ -734,8 +756,11 @@ bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs)
     BK_VRETURN(B);
   }
   
-  if (bgs->bgs_event) bk_run_dequeue(B, bgs->bgs_run, bgs->bgs_event, 0);
+  if (bgs->bgs_event)
+    bk_run_dequeue(B, bgs->bgs_run, bgs->bgs_event, 0);
+
   free(bgs);
+
   BK_VRETURN(B);
 }
 
@@ -743,6 +768,10 @@ bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs)
 
 /**
  * Public interface for bgs_destroy
+ *
+
+ XXX - call this gethostbyfoo_abort
+ 
  *	@param B BAKA thread/global state.
  *	@param bgs @a bk_gethostbyfoo_state to destroy
  */
@@ -887,27 +916,28 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
       goto error;
     }
 
-    /*if (!(n->h_addr_list=calloc(count+1,h->h_length)))*/
-    if (!(n->h_addr_list=calloc(count+1,sizeof(*n->h_addr_list))))
+    if (!(n->h_addr_list = calloc(count+1, sizeof(*n->h_addr_list))))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate addr_list: %s\n", strerror(errno));
       goto error;
     }
+
     /* We *should* be able to do this one memmove, but this is safer. */
     for(c=0; c<count; c++)
     {
-      if (!(n->h_addr_list[c]=malloc(h->h_length)))
+      if (!(n->h_addr_list[c] = malloc(h->h_length)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for addr: %s\n", strerror(errno));
 	goto error;
       }
-      memmove(n->h_addr_list[c],h->h_addr_list[c], h->h_length);
+      memmove(n->h_addr_list[c], h->h_addr_list[c], h->h_length);
     }
   }
 
   *ih=n;
 
   BK_RETURN(B,0);
+
  error:
   if (n) bk_destroy_hostent(B, n);
   BK_RETURN(B,-1);
@@ -931,7 +961,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
  *	@param flags Random flags.
  */
 static void
-gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval starttime, bk_flags flags)
+gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_gethostbyfoo_state *bgs;
@@ -959,15 +989,8 @@ gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval sta
 
   }
 
-  if (bgs->bgs_callback)
-  {
-    /* 
-     * In *theory* the user doesn't have to have a callback, he can just
-     * "poll" his data structures waiting for the info to show up. Rather
-     * stupid in general, but might be reasonable in "quick hacks".
-     */
-    (*bgs->bgs_callback)(B, run, bgs->bgs_user_copyout, bgs->bgs_bni, bgs->bgs_args);
-  }
+  /* We're insisting on a callback */
+  (*bgs->bgs_callback)(B, run, bgs->bgs_user_copyout, bgs->bgs_bni, bgs->bgs_args);
 
   if (!bgs->bgs_user_copyout)
   {
