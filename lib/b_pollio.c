@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.28 2003/05/15 21:51:51 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.29 2003/05/15 23:01:32 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,6 +26,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+
+#define POLLIO_ALREADY_LOCKED		0x1000	///< Tell function we are already locked
 
 
 
@@ -55,7 +58,8 @@ struct bk_polling_io
 #define BPI_FLAG_IOH_DEAD		0x20	///< Bpi not destroyed, ioh was
 #define BPI_FLAG_THREADED		0x40	///< Don't worry about recursively calling bk_run
 #define BPI_FLAG_SYNC			0x80	///< Synchronous write
-#define BPI_FLAG_LINGER			0x100	///< Synchronous write
+#define BPI_FLAG_LINGER			0x100	///< Want to wait for write data to drain
+#define BPI_FLAG_SELF_THROTTLE		0x200	///< Throttled due to queue filling up
   u_int			bpi_size;		///< Amount of data I'm buffering.
   dict_h		bpi_data;		///< Queue of data vptrs.
   struct bk_ioh *	bpi_ioh;		///< Ioh structure.
@@ -600,6 +604,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
      */
     if (ioh->ioh_readq.biq_queuemax && bpi->bpi_size >= ioh->ioh_readq.biq_queuemax)
     {
+      BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_SELF_THROTTLE);
       bk_polling_io_throttle(B, bpi, 0);
     }
   }
@@ -770,6 +775,12 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
       bpi->bpi_size -= pid->pid_data->len;
       *datap = pid->pid_data;
       pid->pid_data = NULL;
+
+      if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_SELF_THROTTLE) && bpi->bpi_size <= bpi->bpi_ioh->ioh_readq.biq_queuemax/2)
+      {
+	BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_SELF_THROTTLE);
+	bk_polling_io_unthrottle(B, bpi, POLLIO_ALREADY_LOCKED);
+      }
     }
     else
     {
@@ -1107,7 +1118,7 @@ bk_polling_io_unthrottle(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
   }
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, POLLIO_ALREADY_LOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -1117,7 +1128,7 @@ bk_polling_io_unthrottle(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
       actual = 1;
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, POLLIO_ALREADY_LOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
