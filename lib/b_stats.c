@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.10 2003/06/18 03:57:31 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.11 2004/02/11 23:40:20 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,6 +19,15 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  * All of the support routines for dealing with performance statistic tracking
+ *
+ * Note, we should take a careful look at
+ * http://sourceforge.net/projects/high-res-timers/ which would get us
+ * sub-microsecond timer resolution.  This requires a kernel patch and
+ * a runtime library.  Inside this routine you would do everything in
+ * timespec instead of timeval, and use clock_gettime instead of
+ * gettimeofday.  Of course, falling back to gettimeofday if either
+ * the configure-time (no library) or run-time tests (no kernel)
+ * indicate problems.
  */
 
 #include <libbk.h>
