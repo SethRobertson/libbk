@@ -1,19 +1,20 @@
 2003-12-10  James Tanis  <jtt@pearl.sysdetect.com>
 
 	* include/libbkxml.h (BKXML_CHECK_NEXT_NODE_NAME_CHECK_THIS_NODE):
-	Resist the name police. Strike a blow for personal freedom.
+	Resist the name police. Strike a blow for personal BAKA.
 
-	* xml/b_search.c (bkxml_check_next_node_name): Avoid core dump
-	from recent fix. [valgrind is stupid. How can *nodep be
-	uninitialized if we've already checked for nodep?].
-
+	* xml/b_search.c (bkxml_check_next_node_name): Avoid core dump from
+	recent fix. [How can *nodep be uninitialized if we've already checked
+	for nodep?].  Answer: because *nodep is a copy-out; unless it is also
+	a copy-in, there is no requirement that the caller has initialized it.
+	
 2003-12-10  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbkxml.h (BKXML_CHECK_THIS_NODE): stop the
 	BKXML_CHECK_NEXT_NODE_NAME_CHECK_THIS_NODE_NULL_NULL_SPAM_SPAM_INSANITY
 
 	* xml/b_search.c (bkxml_check_next_node_name): if nodep is an optional
-	copyout, then don't compare it [uninitialized] node -- sez valgrind
+	copyout, then don't compare it to [uninitialized] node -- sez valgrind
 
 2003-12-09  Alexander Dupuy  <dupuy@sysdetect.com>
 
