@@ -1,7 +1,12 @@
+2002-03-01  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk_oscompat.h (BK_INIT_FUN, BK_FINISH_FUN) [__INSURE__]:
+	use asm() to set up ctors/dtors since that doesn't offend insure++
+	
 2002-02-27  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_time.c (bk_time_ntp_parse): Parse ntp time into struct
-	timespec (reverse function still needed).
+	timespec [format function still needed].
 
 2002-02-25  James Tanis  <jtt@saint.sysdetect.com>
 

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.15 2002/02/22 07:09:38 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.16 2002/03/01 06:23:50 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -81,9 +81,19 @@
 #define BK_INIT_FUN(mod) static void mod ## _init (void)
 #define BK_FINISH_FUN(mod) static void mod ## _finish (void)
 #else
+#ifdef __INSURE__
+// insure doesn't like __attribute__((__constructor__)) so we use asm instead
+#define BK_INIT_FUN(mod) \
+asm ("	.section	.ctors,\"aw\""); BK_INSURE_FUN(mod)
+#define BK_FINISH_FUN(mod) \
+asm ("	.section	.dtors,\"aw\""); BK_INSURE_FUN(mod)
+#define BK_INSURE_FUN(mod) \
+asm (".long	" #mod "_init"); static void mod ## _init (void)
+#else
 // no linker support for init functions; we'll need to use libtool to get name
 #define BK_INIT_FUN(mod) void mod ## _LTX_init (void)
 #define BK_FINISH_FUN(mod) void mod ## _LTX_finish (void)
+#endif /* !HAVE_INSURE */
 #endif /* !HAVE_INIT_PRAGMA */
 #endif /* !HAVE_CONSTRUCTOR_ATTRIBUTE */
 
