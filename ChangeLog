@@ -1,3 +1,16 @@
+2002-03-05  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h (CONVERT_SUBSECSNTP2TIMEVAL): for completeness
+	(CONVERT_SUBSECSNTP2TIMESPEC): use argument to macro, not "secs"
+	(CONVERT_SUBSECSTIMESPEC2NTP): renamed, use 1LL for left shift
+
+	* lib/b_time.c (bk_time_iso_format): use correct MICROSEC for
+	proper determination of desired precision
+	(bk_time_ntp_format): generate ntp stamps, too
+	(bk_time_ntp_parse): simplify, eliminate malloc, use strtoul, not baka
+
+	* lib/b_string.c (bk_decode_base64): don't NUL terminate vptr buf
+
 2002-03-05  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_addrgroup.c (do_net_init_af_inet_tcp_listen): Add

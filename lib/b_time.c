@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_time.c,v 1.5 2002/02/28 18:46:00 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_time.c,v 1.6 2002/03/05 22:24:09 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -29,9 +29,9 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define RESOLUTION BK_SECSTONSEC(1)
 #define LOG10_RES  9
 // must adjust if converting to struct timeval 
-#define MICROSEC   (RESOLUTION/1000)
+#define MICROSEC   (1000)
 // need no adjustment
-#define MILLISEC   (MICROSEC/1000)
+#define MILLISEC   (MICROSEC*1000)
 
 #define MONTHS	   12
 
@@ -49,6 +49,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  *
  *	@param B BAKA thread/global state.
  *	@param str buffer to use on output
+ *	@param max size of buffer (including space for NUL)
  *	@param timep struct timespec pointer to use.
  *	@param flags Flags for the future.
  *	@return <i>0</i> on failure.<br>
@@ -72,26 +73,26 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
     BK_RETURN(B, 0);
   }
 
+  /*
+   * <TRICKY>Don't use BK_TS_RECTIFY here; tv_nsec <em>must</em> be
+   * non-negative for correct output.</TRICKY>
+   */
+  if (timep->tv_nsec >= RESOLUTION)
+  {
+    timep->tv_sec += timep->tv_nsec / RESOLUTION;
+    timep->tv_nsec %= RESOLUTION;
+  }
+  else if (timep->tv_nsec < 0)
+  {
+    int add = 1 - (timep->tv_nsec / RESOLUTION);
+    timep->tv_sec += add;
+    timep->tv_nsec += add * RESOLUTION;
+  }
+
   if (timep->tv_nsec == 0)			// omitted entirely
     precision = 0;
   else
   {
-    /*
-     * <TRICKY>Don't use BK_TS_RECTIFY here; tv_nsec <em>must</em> be
-     * non-negative for correct output.</TRICKY>
-     */
-    if (timep->tv_nsec >= RESOLUTION)
-    {
-      timep->tv_sec += timep->tv_nsec / RESOLUTION;
-      timep->tv_nsec %= RESOLUTION;
-    }
-    else if (timep->tv_nsec < 0)
-    {
-      int add = 1 - (timep->tv_nsec / RESOLUTION);
-      timep->tv_sec += add;
-      timep->tv_nsec += add * RESOLUTION;
-    }
-
     if (timep->tv_nsec % MICROSEC)
     {
       fraction = timep->tv_nsec;
@@ -284,9 +285,9 @@ extern char *strptime (const char *s, const char *fmt, struct tm *tp);
  *	@param flags Flags for the future.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
- *	@return <br><i>>0</i> on non-NUL terminated date/time (conversion
+ *	@return <br><i>positive</i> on non-NUL terminated date/time (conversion
  *	still performed).
- *	@return <br>Copy-out <i>timep</i>
+ *	@return <br>Copy-out <i>date</i>
  */
 int
 bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags flags)
@@ -401,75 +402,90 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
 
 
 
-
 /**
- * Parse an NTP style number and insert it in a timespec
+ * Format an "NTP-style" date and time specification.
+ *
+ * Generates IDMEF ntpstamp format "0x12345678.0x12345678" for the struct
+ * timespec pointed to by @a timep, and places it in in the character array @a
+ * str of size @max.
  *
  *	@param B BAKA thread/global state.
- *	@param string The string with the ntp time.
- *	@param tsp A copout pointer to a timespec (to be filled in).
+ *	@param str buffer to use on output
+ *	@param max size of buffer (including space for NUL)
+ *	@param timep struct timespec pointer to use.
+ *	@param flags Flags for the future.
+ *	@return <i>0</i> on failure.<br>
+ *	@return number of bytes (not including terminating NUL) on success.
+ */
+size_t
+bk_time_ntp_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  static const size_t NTPBUFSIZE = sizeof("0x12345678.0x12345678");
+
+  if (!timep || !str)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, 0);
+  }
+
+  if (max < NTPBUFSIZE) // check space in advance
+    BK_RETURN(B, 0);
+
+  BK_RETURN(B, sprintf(str, "0x%08lx.0x%08lx",
+		       (u_long)CONVERT_SECSTIMESPEC2NTP(timep->tv_sec),
+		       (u_long)CONVERT_SUBSECSTIMESPEC2NTP(timep->tv_nsec)));
+}
+
+
+
+/**
+ * Parses an "NTP-style" date and time specification.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param string NTP format time string to parse.
+ *	@param date Copy-out struct timespec pointer for parsed time.
  *	@param Flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
+ *	@return <br><i>positive</i> on non-NUL terminated date/time (conversion
+ *	still performed).
+ *	@return <br>Copy-out <i>date</i>
  */
 int
-bk_time_ntp_parse(bk_s B, const char *string, struct timespec *tsp, bk_flags flags)
+bk_time_ntp_parse(bk_s B, const char *string, struct timespec *date, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char *subsec;
-  char *tmpstr = NULL;
-  u_int64_t secs;
-  u_int64_t nsecs;
-  int len;
+  const char *subsec;
+  char *end;
+  unsigned secs;
+  unsigned frac;
 
-  if (!string || !tsp)
+  if (!string || !date)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
   
-  len = strlen(string);
-
-  if (!(tmpstr = malloc(len+1)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate tempory copy string: %s\n", strerror(errno));
+  if (!(subsec = strchr(string, '.')))
     goto error;
-  }
 
-  memcpy(tmpstr, string, len);
-  tmpstr[len+1]='\0';
-
-  if (!(subsec = strchr(tmpstr, '.')))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Improperlly formated NTP time string\n");
+  errno = 0;					// clear for error detection
+  secs = strtoul(string, &end, 16);
+  if (errno == ERANGE || end != subsec || strncmp(string, "0x", 2))
     goto error;
-  }
 
-  *subsec++ = '\0';
-  
-  if (bk_string_atoill(B, tmpstr, &secs, 0) != 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not convert ntp string seconds to integer\n");
+  subsec++;					// skip past '.'
+  frac = strtoul(subsec, &end, 16);
+  if (errno == ERANGE || strncmp(subsec, "0x", 2))
     goto error;
-  }
 
-  tsp->tv_sec = (u_int64_t)CONVERT_SECSNTP2TIMESPEC(secs);
+  date->tv_sec = CONVERT_SECSNTP2TIMESPEC(secs);
+  date->tv_nsec = CONVERT_SUBSECSNTP2TIMESPEC(frac);
 
-  if (bk_string_atoill(B, subsec, &nsecs, 0) != 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not convert ntp string seconds to integer\n");
-    goto error;
-  }
-
-  tsp->tv_nsec = (u_int64_t)CONVERT_SECSNTP2TIMESPEC(nsecs);
-
-  free(tmpstr);
-  BK_RETURN(B,0);  
+  BK_RETURN(B, *end);
 
  error:
-  
-  if (tmpstr)
-    free(tmpstr);
-
+  bk_error_printf(B, BK_ERR_ERR, "Improperly formatted NTP time string\n");
   BK_RETURN(B,-1);  
 }

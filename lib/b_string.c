@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.28 2002/03/05 01:23:22 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.29 2002/03/05 22:24:09 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -205,7 +205,8 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *    	@see bk_string_atoull_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
- *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
+ *	@return <br><i>positive</i> on non-null terminated number--best effort
+ *	number conversion still performed
  */
 int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags)
 {
@@ -239,7 +240,8 @@ int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags)
  *    	@see bk_string_atoull_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
- *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
+ *	@return <br><i>positive</i> on non-null terminated number--best effort
+ *	number conversion still performed
  */
 int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags)
 {
@@ -273,7 +275,8 @@ int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags)
  *    	@see bk_string_atoull_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
- *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
+ *	@return <br><i>positive</i> on non-null terminated number--best effort
+ *	number conversion still performed
  */
 int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flags)
 {
@@ -306,7 +309,8 @@ int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flag
  *    	@see bk_string_atoull_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
- *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
+ *	@return <br><i>positive</i> on non-null terminated number--best effort
+ *	number conversion still performed
  */
 int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags)
 {
@@ -341,7 +345,8 @@ int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags)
  *    	@see bk_string_atoull_int
  *	@return <i>-1</i> on call failure
  *	@return <br><i>0</i> on success
- *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
+ *	@return <br><i>positive</i> on non-null terminated number--best effort
+ *	number conversion still performed
  */
 static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, int *sign, bk_flags flags)
 {
@@ -365,7 +370,7 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
   for(tmp='a';tmp<='z';tmp++)
     decode[tmp] = tmp - 'a' + 10;
 
-  /* Skip over leadings space */
+  /* Skip over leading space */
   for(;*string && isspace(*string);string++)
     ; // Void
 
@@ -1249,7 +1254,8 @@ char *bk_encode_base64(bk_s B, const bk_vptr *src, const char *eolseq)
  *	@param src Source memory to convert
  *	@param eolseq End of line sequence.
  *	@return <i>NULL</i> on error
- *	@return <br><i>decoded buffer</i> on success which caller must free (both bk_vptr and embedded string)
+ *	@return <br><i>decoded buffer</i> on success which caller must free
+ *	(both bk_vptr and allocated buffer ptr) 
  */
 bk_vptr *bk_decode_base64(bk_s B, const char *str)
 {
@@ -1306,7 +1312,7 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
 	    bk_error_printf(B, BK_ERR_WARN, "Premature end of base64 data\n");
 
 	  if (i < 2)
-	    goto thats_it;
+	    goto done;				// break outer loop
 
 	  if (i == 2)
 	    c[2] = EQ;
@@ -1339,10 +1345,7 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
     ret->len++;
   }
 
- thats_it:
-  *r = '\0';
-  //ret->len = strlen(ret->ptr);
-
+ done:
   BK_RETURN(B, ret);
 }
 // @}

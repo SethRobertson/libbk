@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_time.c,v 1.2 2002/01/19 13:15:37 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: test_time.c,v 1.3 2002/03/05 22:24:09 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2002";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -178,8 +178,40 @@ void progrun(bk_s B, struct program_config *pconfig)
   t.tv_sec = tv.tv_sec;
   t.tv_nsec = tv.tv_usec * 1000;
 
+  if (!(bk_time_ntp_format(B, inputline, sizeof(inputline), &t, 0)))
+    fprintf(stderr,"Could not ntp format current time: %ld.%ld\n",
+	    (long) t.tv_sec, (long) t.tv_nsec);
+  else
+  {
+    fprintf(stdout, "current ntp time = \"%s\"\n", inputline);
+
+    switch (bk_time_ntp_parse(B, inputline, &t, 0))
+    {
+    case -1:
+      fprintf(stderr,"Could not convert time: %s\n", inputline);
+      break;
+
+    default:
+      fprintf(stderr,"[Trailing junk for following time]\n");
+      // fallthrough
+
+    case 0:
+      fprintf(stdout, "input = \"%s\"\n", inputline);
+      if (!(bk_time_ntp_format(B, scratch, sizeof(scratch), &t, 0)))
+	fprintf(stderr,"Could not format converted time: %ld.%ld\n",
+		(long) t.tv_sec, (long) t.tv_nsec);
+      else
+	fprintf(stdout, "formatted = \"%s\"\n", scratch);
+      if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, 0)))
+	fprintf(stderr,"Could not format converted time: %ld.%ld\n",
+		(long) t.tv_sec, (long) t.tv_nsec);
+      else
+	fprintf(stdout, "formatted = \"%s\"\n", scratch);
+    }
+  }
+
   if (!(bk_time_iso_format(B, inputline, sizeof(inputline), &t, 0)))
-    fprintf(stderr,"Could not format current time: %ld.%ld\n",
+    fprintf(stderr,"Could not iso format current time: %ld.%ld\n",
 	    (long) t.tv_sec, (long) t.tv_nsec);
   else
     fprintf(stdout, "current time = \"%s\"\n", inputline);
@@ -203,25 +235,44 @@ void progrun(bk_s B, struct program_config *pconfig)
     }
     if (inputline[0] == '\0')
       continue;
+    if (!strncmp(inputline, "0x", 2))
+      switch (bk_time_ntp_parse(B, inputline, &t, 0))
+      {
+      case -1:
+	fprintf(stderr,"Could not convert time: %s\n", inputline);
+	break;
 
-    switch (bk_time_iso_parse(B, inputline, &t, 0))
-    {
-    case -1:
-      fprintf(stderr,"Could not convert time: %s\n", inputline);
-      continue;
+      default:
+	fprintf(stderr,"[Trailing junk for following time]\n");
+	// fallthrough
 
-    default:
-      fprintf(stderr,"[Trailing junk for following time]\n");
-      // fallthrough
+      case 0:
+	fprintf(stdout, "input = \"%s\"\n", inputline);
+	if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, 0)))
+	  fprintf(stderr,"Could not format converted time: %ld.%ld\n",
+		  (long) t.tv_sec, (long) t.tv_nsec);
+	else
+	  fprintf(stdout, "formatted = \"%s\"\n", scratch);
+      }
+    else
+      switch (bk_time_iso_parse(B, inputline, &t, 0))
+      {
+      case -1:
+	fprintf(stderr,"Could not convert time: %s\n", inputline);
+	break;
 
-    case 0:
-      fprintf(stdout, "input = \"%s\"\n", inputline);
-      if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, 0)))
-	fprintf(stderr,"Could not format converted time: %ld.%ld\n",
-		(long) t.tv_sec, (long) t.tv_nsec);
-      else
-	fprintf(stdout, "formatted = \"%s\"\n", scratch);
-    }
+      default:
+	fprintf(stderr,"[Trailing junk for following time]\n");
+	// fallthrough
+
+      case 0:
+	fprintf(stdout, "input = \"%s\"\n", inputline);
+	if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, 0)))
+	  fprintf(stderr,"Could not format converted time: %ld.%ld\n",
+		  (long) t.tv_sec, (long) t.tv_nsec);
+	else
+	  fprintf(stdout, "formatted = \"%s\"\n", scratch);
+      }
   }
   while(fgets(inputline, 1024, stdin));
   

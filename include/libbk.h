@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.117 2002/02/28 18:46:00 jtt Exp $
+ * $Id: libbk.h,v 1.118 2002/03/05 22:24:09 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -263,13 +263,15 @@ struct bk_general
 #define CONVERT_SECS_NTP2UNIX(secs)	((secs) - 2208988800UL) ///< Convert secs from ntp to unix.
 #define CONVERT_SECS_UNIX2NTP(secs)	((secs) + 2208988800UL) ///< Concver secs from unix to ntp.
 
-#define CONVERT_SECSNTP2TIMEVAL(secs) 	(CONVERT_SECS_NTP2UNIX(secs)) ///< Convenience function
-#define CONVERT_SECSTIMEVAL2NTP(secs) 	(CONVERT_SECS_UNIX2NTP(secs)) ///< Convenience function
-#define CONVERT_SECSNTP2TIMESPEC(secs) 	(CONVERT_SECS_NTP2UNIX(secs)) ///< Convenience function
-#define CONVERT_SECSTIMESPEC2NTP(secs) 	(CONVERT_SECS_UNIX2NTP(secs)) ///< Convenience function
+#define CONVERT_SECSNTP2TIMEVAL(secs) 	CONVERT_SECS_NTP2UNIX(secs) ///< Convenience function
+#define CONVERT_SECSTIMEVAL2NTP(secs) 	CONVERT_SECS_UNIX2NTP(secs) ///< Convenience function
+#define CONVERT_SUBSECSNTP2TIMEVAL(subsecs)	((((((u_int64_t)(subsecs))*1000000)/(1<<31))+1)/2)
+#define CONVERT_SUBSECSTIMEVAL2NTP(subsecs)	((((((u_int64_t)(subsecs))*(1LL<<32))/500000)+1)/2)
 
-#define CONVERT_SUBSECSNTP2TIMESPEC(subsecs)	((((2*((u_int64_t)secs))-1)*500000000)/(2<<32))
-#define CONVERT_SUBTIMESPEC2SUBSECS(subsecs)	((((((u_int64_t)secs)*(2<<32))/500000000)+1)/2)
+#define CONVERT_SECSNTP2TIMESPEC(secs) 	CONVERT_SECS_NTP2UNIX(secs) ///< Convenience function
+#define CONVERT_SECSTIMESPEC2NTP(secs) 	CONVERT_SECS_UNIX2NTP(secs) ///< Convenience function
+#define CONVERT_SUBSECSNTP2TIMESPEC(subsecs)	((((((u_int64_t)(subsecs))*1000000000)/(1<<31))+1)/2)
+#define CONVERT_SUBSECSTIMESPEC2NTP(subsecs)	((((((u_int64_t)(subsecs))*(1LL<<32))/500000000)+1)/2)
 // @}
 
 
@@ -1367,7 +1369,8 @@ time_t bk_timegm(bk_s B, struct tm *timeptr, bk_flags flags);
 #else
 #define bk_gmtime_r(t,tm) ((tm) ? gmtime(t) : 0)
 #endif  
-extern int bk_time_ntp_parse(bk_s B, const char *string, struct timespec *tsp, bk_flags flags);
+size_t bk_time_ntp_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags flags);
+extern int bk_time_ntp_parse(bk_s B, const char *src, struct timespec *dst, bk_flags flags);
 
 
 /* b_url.c */
