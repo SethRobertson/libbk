@@ -1,3 +1,7 @@
+2003-02-13  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* include/libbk.h: Added BK_MIN and MK_MAX.
+
 2003-02-11  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_memx.c (bk_memx_addstr): Wrapper around bk_memx_get to

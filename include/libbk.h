@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.208 2003/02/11 06:22:38 seth Exp $
+ * $Id: libbk.h,v 1.209 2003/02/13 22:05:24 lindauer Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -58,6 +58,12 @@ struct bk_polling_io;
  * Swap two arbitrary values
  */
 #define BK_SWAP(a,b) do { typeof(a) __bk_hold = (a); (a) = (b); (b) = __bk_hold; } while(0)
+
+/**
+ * Min/max macros
+ */
+#define BK_MIN(a,b) ((a) > (b) ? (b) : (a))
+#define BK_MAX(a,b) ((a) < (b) ? (b) : (a))
 
 
 #if defined(__GNUC__) && !defined(__INSURE__)
