@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_vptr.c,v 1.5 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_vptr.c,v 1.6 2004/08/21 04:39:40 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -153,7 +153,8 @@ extern int bk_vptr_ntrimleft(bk_s B, bk_vptr *vptr, size_t n)
  */
 int bk_vptr_cmp(bk_vptr *v1, bk_vptr *v2)
 {
-  bk_vptr *shortv, *longv;
+  int v1short = 0;
+  u_int shortlen = 0;
   int r;
 
   if (v1->len == v2->len)
@@ -161,19 +162,19 @@ int bk_vptr_cmp(bk_vptr *v1, bk_vptr *v2)
 
   if (v1->len < v2->len)
   {
-    shortv = v1;
-    longv = v2;
+    v1short = 1;
+    shortlen = v1->len;
   }
   else
   {
-    shortv = v2;
-    longv = v1;
+    v1short = 0;
+    shortlen = v2->len;
   }
 
-  r = memcmp(shortv->ptr, longv->ptr, shortv->len);
+  r = memcmp(v1->ptr, v2->ptr, shortlen);
 
   if (r == 0)
-    return (shortv == v1) ? -1 : 1;
+    return v1short?-1:1;
   else
     return r;
 }

@@ -1,13 +1,19 @@
+2004-08-21  Seth Robertson  <seth@sampson.sysdetect.com>
+
+	* lib/b_vptr.c (bk_vptr_cmp): When comparing keys of unequal length,
+	we lost track of what (pos/neg)value to return when the keys were
+	unequal in the raw data.
+
 2004-08-16  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk_internal.h (struct bk_ioh): track max iov len here
-	
+
 	* lib/b_ioh.c (bk_ioh_init): compute max iov len
 	(bk_ioh_stdwrfun): don't try to exceed max iov len for writev
 
 	* lib/b_netinfo.c (bni2sin, bni2sin6, bni2un): inet4 sockaddr len is
 	16, not just the 4 bytes of IP address [similarly for IPv6/unix]
-	
+
 2004-08-12  James Tanis  <jtt@outpost.tanis.org>
 
 	* src/bttcp.c (connect_complete): Close out correct server handle.
@@ -22,7 +28,7 @@
 	* src/bttcp.c (set_run_over): Set the run over flag if it has not
 	already been set.
 	(do_cancel_relay): Function to cancel relay on ^C (needed for
-	udp). 
+	udp).
 
 	* lib/b_relay.c (bk_relay_cancel): Function for allowing users to
 	cancel the relay in medias res.
