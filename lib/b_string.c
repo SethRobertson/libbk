@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.116 2005/01/11 22:36:31 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.117 2005/01/20 21:31:37 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -453,12 +453,14 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *		number (of variable length up to length 3) to be
  *		interpreted as, and converted to, an ASCII character;
  *		otherwise, that sequence is not treated
- *		specially. BK_STRING_TOKENIZE_BACKSLASH, if set, will
- *		cause a backslash to be a general quoting character
- *		which will quote the next character (aside from NUL)
- *		appearing in the source string (BACKSLASH_INTERPOLATE
- *		will override this); otherwise BACKSLASH is not
- *		treated specially (modulo BACKSLASH_INTERPOLATE).
+ *		specially. 
+ *
+ *		BK_STRING_TOKENIZE_BACKSLASH, if set, will cause a
+ *		backslash to be a general quoting character which will
+ *		quote the next character (aside from NUL) appearing in the
+ *		source string (BACKSLASH_INTERPOLATE will override this);
+ *		otherwise BACKSLASH is not treated specially (modulo
+ *		BACKSLASH_INTERPOLATE).
  *
  *		BK_STRING_TOKENIZE_SINGLEQUOTE, if set, will cause
  *		single quotes to create a string in which the

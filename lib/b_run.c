@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.76 2004/08/27 02:10:15 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.77 2005/01/20 21:31:37 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -168,6 +168,7 @@ struct bk_run
 #define BK_RUN_FLAG_FD_CANCEL		0x080	///< At least 1 fd on cancel list
 #define BK_RUN_FLAG_FD_CLOSED		0x100	///< At least 1 fd on cancel list is closed
 #define BK_RUN_FLAG_SIGNAL_THREAD	0x200	///< Only one thread should receive signals
+#define BK_RUN_FLAG_ALLOW_DEAD_SELECT	0x400	///< Allow select with no descriptors or events (ie only signals can interrupt).
   dict_h		br_canceled;		///< List of canceled descriptors.
 #ifdef BK_USING_PTHREADS
   pthread_t		br_signalthread;	///< Specify thread to receive signals
@@ -1453,7 +1454,22 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
       sigprocmask(SIG_UNBLOCK, &run->br_runsignals, NULL);
 
     if (!br_beensignaled)
-      ret = select(run->br_selectn, &readset, &writeset, &xcptset, selectarg ? &timeout : NULL);
+    {
+      struct timeval *tp = selectarg ? &timeout : NULL;
+      if ((run->br_selectn == 0) && !tp && 
+	  BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_ALLOW_DEAD_SELECT))
+      {
+	if (bk_run_set_run_over(B, run) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not stop run after losing all descriptors and events\n");
+	  goto error;
+	}
+      }
+      else
+      {
+	ret = select(run->br_selectn, &readset, &writeset, &xcptset, tp);
+      }
+    }
 
     if (wantsignals)
       sigprocmask(SIG_BLOCK, &run->br_runsignals, NULL);

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.23 2005/01/18 20:29:27 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.24 2005/01/20 21:31:37 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -419,7 +419,7 @@ bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags 
   {
     if (execve(proc, args, env) < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "exec failed: %s\n", strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "exec failed of \"%s\": %s\n", proc, strerror(errno));
       goto error;
     }
   }
@@ -427,7 +427,7 @@ bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags 
   {
     if ((*execptr)(proc, args) < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "exec failed: %s\n", strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "exec failed of \"%s\": %s\n", proc, strerror(errno));
       goto error;
     }
   }
@@ -511,7 +511,7 @@ bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, con
 
   if (bk_exec(B, *args, args, env, flags) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "exec failed: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "execution of \"%s\" failed\n", cmd);
     goto error;
   }
 
