@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_search.c,v 1.7 2003/07/07 22:11:18 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_search.c,v 1.8 2003/10/29 00:16:43 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -187,7 +187,7 @@ char *bkxml_attrnode_data(bk_s B, xmlDocPtr doc, xmlNodePtr attrnode, bk_flags f
   if (BK_FLAG_ISCLEAR(flags, BKXML_MISSING_TEXT_ARE_NULL) && !attrnode->children)
     BK_RETURN(B, calloc(1, 1));
 
-  if (!(str = (char *)xmlNodeListGetString(doc, attrnode->children, 0)))
+  if (!(str = (char *)xmlNodeListGetString(doc, attrnode->children, 1)))
   {
     bk_error_printf(B, BK_ERR_ERR, "XML refused to give me the attribute or node contents for %s\n", attrnode->name);
     BK_RETURN(B, NULL);

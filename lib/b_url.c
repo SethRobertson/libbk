@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_url.c,v 1.34 2003/06/17 06:07:17 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_url.c,v 1.35 2003/10/29 00:16:44 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -511,7 +511,7 @@ bk_url_destroy(bk_s B, struct bk_url *bu)
  *	@param B BAKA thread/global state.
  *	@param component The url component string (may be NULL)
  *	@return <i>NULL</i> on failure<br>
- *	@return unescaped, NUL-terminated, string on success
+ *	@return unescaped, NUL-terminated, string on success (caller must free)
  */
 char *
 bk_url_unescape(bk_s B, const char *component)
@@ -541,7 +541,7 @@ bk_url_unescape(bk_s B, const char *component)
  *	@param component The url component string (may be NULL)
  *	@param len Length of url component string
  *	@return <i>NULL</i> on failure<br>
- *	@return unescaped, NUL-terminated, string on success
+ *	@return unescaped, NUL-terminated, string on success (caller must free)
  */
 char *
 bk_url_unescape_len(bk_s B, const char *component, size_t len)

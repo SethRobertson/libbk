@@ -1,3 +1,8 @@
+2003-10-28  James Tanis  <jtt@pearl.sysdetect.com>
+
+	* xml/b_search.c (bkxml_attrnode_data): Make libxml to xml escape
+	processing on extracted strings.
+
 2003-10-21  James Tanis  <jtt@pearl.sysdetect.com>
 
 	* src/bdtee.c (out_file_handler): Continue relaying in the face of

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_config.c,v 1.36 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_config.c,v 1.37 2003/10/29 00:16:44 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -225,7 +225,7 @@ static int check_for_double_include(bk_s B, struct bk_config *bc, struct bk_conf
 /**
  * <KLUDGE>The baka program template uses a big structure to hold all global
  * "Information of international importance to everyone which cannot be passed
- * around."  Some Hawkeye plugins reference this variable (which is only
+ * around."  Some Antura plugins reference this variable (which is only
  * defined in programs, not in libraries) and when these plugins are in
  * LD_PRELOAD, it causes runtime linkage problems for innocent programs that
  * don't define a Global variable, like bash, which is started by gdb (for some
