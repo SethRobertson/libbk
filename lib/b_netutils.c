@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.19 2002/08/12 15:04:46 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.20 2002/08/31 04:05:07 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1026,5 +1026,5 @@ bk_inet_ntoa(bk_s B, struct in_addr addr, char *buf)
     BK_RETURN(B, NULL);
   }
   
-  BK_RETURN(B, strncpy(buf, inet_ntoa(addr), BK_MAX_INET_ADDR_LEN));
+  BK_RETURN(B, strncpy(buf, inet_ntoa(addr), BK_MAX_INET_ADDR_LEN+1));
 }
