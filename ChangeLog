@@ -1,6 +1,7 @@
 2003-06-03  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* ssl/b_ssl.c (bk_ssl_create_context): Support authentication.
+	(ssl_threads_init): Provide OpenSSL locking callback.
 
 2003-06-02  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.2 2003/06/03 17:47:38 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.3 2003/06/03 18:44:09 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,6 +24,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include <libbkssl.h>
 #include <openssl/ssl.h>
+#include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/err.h>
@@ -101,7 +102,20 @@ static int ssl_readfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t
 static int ssl_writefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags);
 static void ssl_closefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int fdout, bk_flags flags);
 static void ssl_shutdown_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, void *opaque, const struct timeval *startime);
+#ifdef BK_USING_PTHREADS
+static int ssl_threads_init(bk_s B);
+static void ssl_threads_destroy(bk_s B);
+static unsigned long pthreads_thread_id(void);
+static void pthreads_locking_callback(int mode, int type, const char *file, int line);
+#endif // BK_USING_PTHREADS
 static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
+
+
+
+#ifdef BK_USING_PTHREADS
+static pthread_mutex_t *lock_cs = NULL;
+static long *lock_count = NULL;
+#endif // BK_USING_PTHREADS
 
 
 
@@ -144,6 +158,14 @@ bk_ssl_env_init(bk_s B)
   bk_truerand_destroy(B, randinfo);
   randinfo = NULL;
 
+#ifdef BK_USING_PTHREADS
+  if (ssl_threads_init(B) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Failed to initialize SSL threads.\n");
+    goto error;
+  }
+#endif // BK_USING_PTHREADS
+
   BK_RETURN(B, 0);
 
  error:
@@ -152,6 +174,10 @@ bk_ssl_env_init(bk_s B)
     bk_truerand_destroy(B, randinfo);
     randinfo = NULL;
   }
+
+#ifdef BK_USING_PTHREADS
+  ssl_threads_destroy(B);
+#endif // BK_USING_PTHREADS
 
   BK_RETURN(B, -1);
 }
@@ -217,8 +243,6 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
 
   if (BK_FLAG_ISSET(flags, BK_SSL_REJECT_V2))
     BK_FLAG_SET(ssl_options, SSL_OP_NO_SSLv2);
-
-  // <TODO>See threads(3) and provide locking callbacks</TODO>
 
   if (BK_FLAG_ISSET(flags, BK_SSL_NOCERT))
   {
@@ -1090,8 +1114,6 @@ int ssl_writefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iovec 
 /**
  * Standard close() functionality in IOH API
  *
- * THREADS: MT-SAFE
- *
  *	@param B BAKA Thread/global state
  *	@param ioh The ioh to use (may be NULL for those not including libbk_internal.h)
  *	@param opaque Common opaque data for read and write funs
@@ -1253,6 +1275,129 @@ ssl_shutdown_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, void *op
   if (bs)
     bk_ssl_destroy(B, bs, 0);
 }
+
+
+
+#ifdef BK_USING_PTHREADS
+/**
+ * Initialize global objects for SSL threading.
+ *
+ * This and other threading code based on (or downright copied from) 
+ * openssl/crypto/threads/mttest.c.
+ *
+ * @param B BAKA Thread/global state
+ * @return <i>0</i> on success
+ * @return <i>-1</i> on failure
+ */
+int ssl_threads_init(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
+  int i;
+
+  if (!(lock_count = OPENSSL_malloc(CRYPTO_num_locks() * sizeof(long))))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Malloc failed.\n");
+    goto error;
+  }
+
+  if (!(lock_cs = OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t))))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Malloc failed.\n");
+    goto error;
+  }
+
+  /* <WARNING> Don't go to error until after the pthread_mutex_init loop.
+   * Nothing too bad will happen, but you'll spew errors at the user.</WARNING>
+   */
+
+  for (i=0; i<CRYPTO_num_locks(); i++)
+  {
+    lock_count[i]=0;
+    pthread_mutex_init(&(lock_cs[i]),NULL);
+  }
+
+  CRYPTO_set_id_callback(pthreads_thread_id);
+  CRYPTO_set_locking_callback(pthreads_locking_callback);
+
+  BK_RETURN(B, 0);
+
+ error:
+  ssl_threads_destroy(B);
+  BK_RETURN(B, -1);
+}
+
+
+
+/**
+ * Cleanup global objects for SSL threading.
+ *
+ * @param B BAKA Thread/global state
+ */
+void ssl_threads_destroy(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
+  int i;
+
+  CRYPTO_set_locking_callback(NULL);
+
+  if (lock_cs)
+  {
+    for (i=0; i<CRYPTO_num_locks(); i++)
+    {
+      if (pthread_mutex_destroy(&(lock_cs[i])) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Failed to destroy mutex: %s.\n", strerror(errno));
+	goto error;
+      }
+    }
+
+    OPENSSL_free(lock_cs);
+    lock_cs = NULL;
+  }
+
+  if (lock_count)
+  {
+    OPENSSL_free(lock_count);
+    lock_count = NULL;
+  }
+
+  BK_VRETURN(B);
+
+ error:
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * See threads(3).
+ */
+void pthreads_locking_callback(int mode, int type, const char *file, int line)
+{
+  if (mode & CRYPTO_LOCK)
+  {
+    pthread_mutex_lock(&(lock_cs[type]));
+    lock_count[type]++;
+  }
+  else
+  {
+    pthread_mutex_unlock(&(lock_cs[type]));
+  }
+}
+
+
+
+/**
+ * See threads(3).
+ */
+unsigned long pthreads_thread_id(void)
+{
+  unsigned long ret;
+
+  ret = (unsigned long) pthread_self();
+  return ret;
+}
+#endif // BK_USING_PTHREADS
 
 
 
