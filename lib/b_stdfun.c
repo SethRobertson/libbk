@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.4 2001/11/06 00:41:54 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.5 2001/11/07 21:35:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -50,7 +50,7 @@ void bk_die(bk_s B, u_char retcode, FILE *output, char *reason, bk_flags flags)
 
 
 
-/*
+/**
  * Warn -- print a strong warning message of major problems
  * Intentional lack of BK_ENTRY et al.
  *

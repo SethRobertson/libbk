@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.7 2001/11/07 21:35:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.8 2001/11/07 21:35:49 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -127,20 +127,6 @@ struct bk_run_ondemand_func
   volatile int *	brof_demand;
   bk_flags		brof_flags;
   dict_h		brof_backptr;
-};
-
-
-/**
- * Process title information--saved arguments, environment, and current title
- */
-struct bk_proctitle
-{
-  int		bp_argc;			///< Number of program arguments
-  char		**bp_argv;			///< Program and arguments
-  char		**bp_envp;			///< Environment
-  bk_vptr	bp_title;			///< Original vector for overwriting
-  bk_flags	bp_flags;			///< Flags
-#define BK_PROCTITLE_OFF	1		///< Process title is disabled
 };
 
 
