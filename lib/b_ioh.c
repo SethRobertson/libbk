@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.58 2002/05/21 20:02:48 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.59 2002/06/14 20:37:05 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1484,7 +1484,7 @@ static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t al
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh_data *bid;
 
-  if (!iohq)
+  if (!iohq || ((!data || !allocated) && cmd == IohDataCmdNone))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B,-1);
