@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.57 2002/08/14 21:37:04 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.58 2002/08/19 20:23:12 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -67,26 +67,17 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
 
 
 /**
- * Hash a string
+ * Hash a string into tiny little bits.
  *	
- * Not covered under the normal BK license
+ * Not covered under the normal BK license.
  * 
- * hash() -- hash a variable-length key into a 32-bit value
- *   k       : the key (the unaligned variable-length array of bytes)
- *   len     : the length of the key, counting by bytes
- *   initval : can be any 4-byte value
  * Returns a 32-bit value.  Every bit of the key affects every bit of
  * the return value.  Every 1-bit and 2-bit delta achieves avalanche.
  * About 6*len+35 instructions.
- * 
+ *
  * The best hash table sizes are powers of 2.  There is no need to do
- * mod a prime (mod is sooo slow!).  If you need less than 32 bits,
- * use a bitmask.  For example, if you need only 10 bits, do
- *   h = (h & hashmask(10));
- * In which case, the hash table should have hashsize(10) elements.
- * 
- * If you are hashing n strings (ub1 **)k, do it like this:
- *   for (i=0, h=0; i<n; ++i) h = hash( k[i], len[i], h);
+ * mod by a prime (mod is sooo slow!).  If you need less than 32 bits,
+ * use a bitmask.
  * 
  * By Bob Jenkins, 1996.  bob_jenkins@burtleburtle.net.  You may use this
  * code any way you wish, private, educational, or commercial.  It's free.
@@ -95,8 +86,8 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
  * Use for hash table lookup, or anything where one collision in 2^^32 is
  * acceptable.  Do NOT use for cryptographic purposes.
  * 
- *	@param a The string to be hashed
- *	@param flags Whether we want this value to be modulo a large prime
+ *	@param k The string to be hashed
+ *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function
  *	@return <i>hash</i> of number
  */
 u_int 
@@ -178,7 +169,7 @@ bk_strhash(const char *k, bk_flags flags)
   }
   mix(a,b,c);
 
-  if (BK_FLAG_ISSET(flags, BK_STRHASH_NOMODULUS))
+  if (BK_FLAG_ISSET(flags, BK_HASH_NOMODULUS))
     return(c);
   else
     return(c % P);
@@ -190,17 +181,17 @@ bk_strhash(const char *k, bk_flags flags)
 
 
 /**
- * Hash a string
+ * Hash a string.
  *	
  * The Practice of Programming: Kernighan and Pike: 2.9 (i.e. not covered
  * under LGPL)
  *
  * Note we may not be applying modulus in this function since this is
- * normally used by CLC functions, CLC will supply its own modulus and
+ * often used by CLC functions, CLC will supply its own modulus and
  * it is bad voodoo to double modulus if the moduli are different.
  *
  *	@param a The string to be hashed
- *	@param flags Whether we want this value to be modulo a large prime
+ *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function
  *	@return <i>hash</i> of number
  */
 u_int 
@@ -213,7 +204,36 @@ bk_oldstrhash(const char *a, bk_flags flags)
   for (h = 17; *a; a++)
     h = h * M + *a;
 
-  if (BK_FLAG_ISSET(flags, BK_STRHASH_NOMODULUS))
+  if (BK_FLAG_ISSET(flags, BK_HASH_NOMODULUS))
+    return(h);
+  else
+    return(h % P);
+}
+
+
+
+/**
+ * Hash a buffer.
+ *	
+ * Equivalent to bk_oldstrhash() except that it works on bk_vptr buffers.
+ *
+ *	@param b The buffer to be hashed
+ *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function
+ *	@return <i>hash</i> of number
+ */
+u_int 
+bk_bufhash(const struct bk_vptr *b, bk_flags flags)
+{
+  const u_int M = 37U;				// Multiplier
+  const u_int P = 2147486459U;			// Arbitrary large prime
+  u_int h;
+  size_t i;
+  const char *p = (const char *)b->ptr;
+
+  for (h = 17, i = 0; i < b->len; p++, i++)
+    h = h * M + *p;
+
+  if (BK_FLAG_ISSET(flags, BK_HASH_NOMODULUS))
     return(h);
   else
     return(h % P);
