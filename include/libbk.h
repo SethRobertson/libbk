@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.42 2001/11/07 22:45:02 seth Exp $
+ * $Id: libbk.h,v 1.43 2001/11/08 23:02:46 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -566,7 +566,7 @@ extern char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags)
 #define BK_NULLSTR			"NULL"  ///< During bk_string_quote: String rep of NULL
 char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags);
 extern int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags);
-
+extern ssize_t bk_strlen(bk_s B, char *s, ssize_t max);
 
 
 /* getbyfoo.c */
@@ -577,5 +577,13 @@ extern void bk_servent_destroy(bk_s B, struct servent *s);
 extern int bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, void *args), void *args);
 extern void bk_destroy_hostent(bk_s B, struct hostent *h);
 
+/* b_netinfo.c */
+extern struct bk_netaddr *bk_netaddr_create(bk_s B);
+extern void bk_netaddr_destroy(bk_s B, struct bk_netaddr *bna);
+extern struct bk_netinfo *bk_netinfo_create(bk_s B);
+extern void bk_netinfo_destroy(bk_s B, struct bk_netinfo *bni);
+extern int bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct bk_netaddr **obna);
+extern int bk_netaddr_delete_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna);
+extern int bk_netinfo_set_primary_address(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna);
 
 #endif /* _BK_h_ */

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.6 2001/11/05 20:41:57 jtt Exp $
+ * $Id: libbk_include.h,v 1.7 2001/11/08 23:02:46 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -54,6 +54,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#include <net/ethernet.h>
 #endif /* !_WIN32 || __CYGWIN32__ */
 
 #ifdef REALLY_NEEDED

@@ -1,3 +1,13 @@
+2001-11-08  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_netinfo.c: New file dealing with various aspects of
+	network information. All utility functions (perhaps should be
+	broken out into two files).
+
+	* lib/b_getbyfoo.c: Port to new BK_MALLOC(CALLOC) semantics.
+
+	* lib/b_string.c (bk_strlen): Acts like strlen, but bounded.
+
 2001-11-07  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* b_run.c: Add function to turn off run. If the run is over make

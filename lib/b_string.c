@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.8 2001/11/07 00:02:19 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.9 2001/11/08 23:02:46 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1017,4 +1017,36 @@ int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags)
   }
 
   BK_RETURN(B, 0);
+}
+
+
+
+/**
+ * Bounded strlen. Return the length the of a string but go no further than
+ * the bound. NB: This function return a @a ssize_t not a @a size_t as per
+ * @a strlen(3). This is so we can return <i>-1</i>.`
+ *	@param B BAKA Thread/global state.
+ *	@param s The string to check.
+ *	@param max The maximum string size to check.
+ *	@returns The <i>length</i> of the string on success. 
+ *	@returns <i>-1</i> on failure (including string too long).
+ * 	@bugs Does not return the same type as @a strlen(3). See description.
+ */
+ssize_t /* this is not an error. See description */
+bk_strlen(bk_s B, char *s, ssize_t max)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  ssize_t c=0;
+  if (!s)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  for(c=0; *s && c<max; s++,c++);
+
+  if (c==max && *s)
+    BK_RETURN(B,-1);
+
+  BK_RETURN(B,c);
 }

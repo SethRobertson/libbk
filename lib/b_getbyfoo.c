@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.5 2001/11/07 23:33:25 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.6 2001/11/08 23:02:46 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -84,8 +84,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip)
   if (ip)
   {
     *ip=NULL;
-    BK_MALLOC(n);
-    if (!n)
+    if (!BK_CALLOC(n))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate ip: %s\n", strerror(errno));
       goto error;
@@ -228,8 +227,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
   if (is)
   {
     *is=NULL;
-    BK_MALLOC(n);
-    if (!n)
+    if (!BK_CALLOC(n))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate is: %s\n", strerror(errno));
       goto error;
@@ -490,8 +488,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_r
    * code can survive returning to at least one select loop run without the
    * hostname info.
    */
-  BK_MALLOC(bgs);
-  if (!bgs)
+  if (!BK_CALLOC(bgs))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bgs: %s\n", strerror(errno));
     goto error;
@@ -580,8 +577,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
     BK_RETURN(B, -1);
   }
 
-  BK_MALLOC(n);
-  if (!n)
+  if (!BK_CALLOC(n))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate hostent: %s\n", strerror(errno));
     goto error;
