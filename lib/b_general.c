@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.8 2001/07/08 04:50:00 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.9 2001/07/09 07:08:18 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -53,7 +53,11 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int
   if (!(BK_GENERAL_REINIT(B) = bk_funlist_init(B)))
     goto error;
 
+#if 0
   if (!(BK_GENERAL_CONFIG(B) = bk_config_init(B, configfile, 0)))
+    goto error;
+#endif
+  if (bk_config_init(B, configfile, 0)<0)
     goto error;
 
   if (!(BK_GENERAL_PROCTITLE(B) = bk_general_proctitle_init(B, argc, argv, envp, &BK_GENERAL_PROGRAM(B), 0)))
@@ -92,8 +96,12 @@ void bk_general_destroy(bk_s B)
       if (BK_GENERAL_PROCTITLE(B))
 	bk_general_proctitle_destroy(B,BK_GENERAL_PROCTITLE(B), 0);
 
+#if 0
       if (BK_GENERAL_CONFIG(B))
 	bk_config_destroy(B, BK_GENERAL_CONFIG(B));
+#endif
+      if (BK_GENERAL_CONFIG(B))
+	bk_config_destroy(B);
 
       if (BK_GENERAL_REINIT(B))
 	bk_funlist_destroy(B,BK_GENERAL_REINIT(B));

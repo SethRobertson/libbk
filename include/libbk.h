@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.14 2001/07/08 23:20:20 jtt Exp $
+ * $Id: libbk.h,v 1.15 2001/07/09 07:08:17 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -41,6 +41,10 @@
 #define BK_FLAG_ISSET(var,bit) ((var) & (bit))
 #define BK_FLAG_CLEAR(var,bit) (var) &= ~(bit)
 #define BK_FLAG_ISCLEAR(var,bit) (!((var) & (bit)))
+
+#define BK_STREQ(a,b) ((a) && (b) && !strcmp((a),(b)))
+#define BK_STREQN(a,b,n) ((a) && (b) && ((int)n>=0) && !strncmp(a,b,n))
+
 
 
 
@@ -180,12 +184,21 @@ extern void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, 
 #define BK_SYSLOG_FLAG_NOLEVEL 2		/* Don't want error level included */
 extern const char *bk_general_errorstr(bk_s B, int level);
 
+struct bk_config
+{
+  bk_flags			bc_flags;	/* Everyone needs flags */
+  struct bk_config_fileinfo *	bc_files;	/* Files of conf data */
+  dict_h			bc_kv;	/* Hash of value dlls */
+  int				bc_kv_error;/* clc errno for bc_kv */
+};
 
 
 /* b_config.c */
-extern struct bk_config *bk_config_init(bk_s B, char *filename, bk_flags flags);
+/*extern struct bk_config *bk_config_init(bk_s B, char *filename, bk_flags flags);*/
+extern int bk_config_init(bk_s B, char *filename, bk_flags flags);
 extern int bk_config_reinit(bk_s B, struct bk_config *config);
-extern void bk_config_destroy(bk_s B, struct bk_config *config);
+/*extern void bk_config_destroy(bk_s B, struct bk_config *config);*/
+extern void bk_config_destroy(bk_s B);
 extern void bk_config_write(bk_s B, struct bk_config *config, char *outfile);
 extern int bk_config_insert(bk_s B, struct bk_config *config, char *key, char *value);
 extern char *bk_config_first(bk_s B, struct bk_config *config, char *key);
@@ -268,5 +281,7 @@ extern void bk_run_close(bk_s B, struct bk_run *run, bk_flags flags);
 extern void bk_run_destroy(bk_s B, struct bk_run *run);
 
 
+/* b_string.c */
+extern u_int bk_strhash(char *a);
 
 #endif /* _BK_h_ */

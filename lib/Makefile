@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.6 2001/07/08 05:09:08 jtt Exp $
+# $Id: Makefile,v 1.7 2001/07/09 07:08:17 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -21,6 +21,7 @@ BK_LARGE_LIBSRC=		       		\
 		b_config.c			\
 		b_fun.c 			\
 		b_general.c			\
+		b_string.c			\
 
 GROUPTOP=..
 GROUPSUBDIR=lib
