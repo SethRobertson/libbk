@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.47 2002/07/23 15:10:08 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.48 2002/07/23 16:18:22 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,7 +24,16 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 #include <math.h>
+#include <limits.h>
 
+
+#ifndef NAN
+#define NAN acosh(0.0)				// 0.0/0.0 causes gcc warnings
+#endif
+
+#ifndef INFINITY
+#define INFINITY (1.0/0.0)
+#endif
 
 #define TOKENIZE_FIRST		8		///< How many we will start with 
 #define TOKENIZE_INCR		4		///< How many we will expand if we need more 

@@ -1,11 +1,14 @@
 2002-07-23  Alexander Dupuy  <dupuy@sysdetect.com>
 
+	* include/libbk_oscompat.h (UINT64_MAX): portability
+
 	* lib/b_string.c (bk_string_flagtoa, bk_string_atoflag): revised to
 	support symbolic flag i/o with kernel %b / printb style flag names
 	(bk_string_atoull_int, bk_sting_ato[ui], bk_sting_ato[ui]ll): better
 	error checking, including: overflow, garbage with no digits, negative
 	signs in unsigned parse; correct handling of INT_MIN, LLONG_MIN
-	
+	(NAN, INFINITY): portability
+
 2002-07-22  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (BK_STRING_ATOD_FLAG_ALLOW_INF, NAN): new flags,

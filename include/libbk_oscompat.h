@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.25 2002/07/13 04:40:54 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.26 2002/07/23 16:18:22 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -277,18 +277,30 @@ __attribute__ ((__packed__))
 # define INT8_MIN               (-128)
 # define INT16_MIN              (-32767-1)
 # define INT32_MIN              (-2147483647-1)
-# define INT64_MIN              (-__INT64_C(9223372036854775807)-1)
+# ifdef __INT64_C
+#  define INT64_MIN             (-__INT64_C(9223372036854775807)-1)
+# else
+#  define INT64_MIN             LLONG_MIN
+# endif
 /* Maximum of signed integral types.  */
 # define INT8_MAX               (127)
 # define INT16_MAX              (32767)
 # define INT32_MAX              (2147483647)
-# define INT64_MAX              (__INT64_C(9223372036854775807))
+# ifdef __INT64_C
+#  define INT64_MAX             (__INT64_C(9223372036854775807))
+# else
+#  define INT64_MAX             LLONG_MAX
+# endif
 
 /* Maximum of unsigned integral types.  */
 # define UINT8_MAX              (255)
 # define UINT16_MAX             (65535)
 # define UINT32_MAX             (4294967295U)
-# define UINT64_MAX             (__UINT64_C(18446744073709551615))
+# ifdef __INT64_C
+#  define UINT64_MAX             (__UINT64_C(18446744073709551615))
+# else
+#  define UINT64_MAX             ULLONG_MAX
+# endif
 #endif /* INT8_MIN */
 
 // GZIP Needs to have this OS_CODE thingy for some reason.
