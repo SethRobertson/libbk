@@ -1,3 +1,8 @@
+2001-11-20  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_config.c (bk_config_get): Provide method to access config
+	configuration parameters.
+
 2001-11-20  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* src/bttcp.c: Convert to use new service start interface.

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.60 2001/11/20 19:34:56 jtt Exp $
+ * $Id: libbk.h,v 1.61 2001/11/20 19:51:57 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -596,6 +596,7 @@ extern int bk_in_cksum(register struct bk_vptr **m, register int len);
 
 /* b_config.c */
 extern struct bk_config *bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, bk_flags flags);
+extern int bk_config_get(bk_s B, struct bk_config *config, const char **filename, struct bk_config_user_pref **bcup, bk_flags *getflags);
 extern int bk_config_reinit(bk_s B, struct bk_config *config);
 extern void bk_config_destroy(bk_s B, struct bk_config *config);
 extern void bk_config_write(bk_s B, struct bk_config *config, char *outfile);

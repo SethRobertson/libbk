@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.18 2001/11/20 19:34:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.19 2001/11/20 19:51:57 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -576,6 +576,50 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
     bck_destroy(B, bck);
   }
   BK_RETURN(B, -1);
+}
+
+
+
+/**
+ * Retrieve a value based on the key.  If @a ovalue is NULL, then get first
+ * value, else get successor of @a ovalue.
+ *	@param B BAKA thread/global state.
+ *	@param ibc The baka config structure to use. If NULL, the structure
+ *	is extracted from @a B.
+ *	@param filename Copyout the filename configured as the initial config file
+ *	@param userpref Copyout the user prefernces configured as the initial value
+ *	@param getflags Copyout the config flags
+ *	@return <i>-1</i> on call failure, config location failure
+ *	@return <br><i>0</i> on success.
+ */
+int bk_config_get(bk_s B, struct bk_config *ibc, const char **filename, struct bk_config_user_pref **bcup, bk_flags *getflags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_config *bc;
+  
+  SET_CONFIG(bc, B, ibc);
+
+  if (!bc)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not find config\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (filename)
+  {
+    if (bc->bc_bcf)
+      *filename = bc->bc_bcf->bcf_filename;
+    else	
+      *filename = NULL;
+  }
+
+  if (bcup)
+    *bcup = &bc->bc_bcup;
+
+  if (getflags)
+    *getflags = bc->bc_flags;
+
+  BK_RETURN(B, 0);
 }
 
 
