@@ -1,5 +1,8 @@
 2003-03-25  Alexander Dupuy  <dupuy@sysdetect.com>
 
+	* lib/b_url.c (bk_url_parse): distinguish scheme:/// from scheme:/
+	(bk_url_reconstruct): better handling for non-generic URLs
+
 	* include/libbk.h (BK_RUN_HANDLE_TIME): flag for handlers to get time
 	add flags to bk_run_{poll,idle,on_demand}_add
 

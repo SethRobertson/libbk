@@ -37,3 +37,8 @@ paramparse:path;ONE=TWO;zero=;
 queryparse:stuff?a&b
 queryparse:stuff?a&b&C
 queryparse:stuff?a&b&c
+
+pcap:eth0
+pcap:///eth0
+pcap:/eth0
+pcap:?icmp

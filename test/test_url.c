@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_url.c,v 1.15 2002/08/15 04:16:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_url.c,v 1.16 2003/03/25 23:25:17 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -211,6 +211,7 @@ void progrun(bk_s B, struct program_config *pconfig)
   u_int nextstart;
   char *params;
   char *parampath;
+  char *frankenurl;
   static char *numbers[] =
     {
       "zero",
@@ -307,6 +308,10 @@ void progrun(bk_s B, struct program_config *pconfig)
     PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_fragment);
     printf("\tFragment: %s\n", scratch);
     
+    frankenurl = bk_url_reconstruct(B, bu, BK_URL_FLAG_ALL, 0);
+    printf("\treconstructed URL=%s\n", frankenurl);
+    free(frankenurl);
+
     bk_url_destroy(B, bu);
 
   }
