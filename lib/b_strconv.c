@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.16 2003/12/25 06:27:17 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.17 2003/12/29 06:42:17 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -912,7 +912,7 @@ bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
 /**
  * Numeric magnitude representation.  Transform a number into a
  * numeric approximation giving the order of magnitude in the SI
- * scale.  E.g. 1532 -> 1.53 Kb/s
+ * scale.  E.g. 1532 -> 1.49 Kb/s  1532 -> 1.53 kb/s
  *
  * Valid from 0 -> 10^27-1 or 0 -> 2^90-1
  *
@@ -1020,4 +1020,68 @@ char *bk_string_magnitude(bk_s B, double number, u_int precision, char *units, c
  error:
   free(buffer);
   BK_RETURN(B, NULL);
+}
+
+
+
+/**
+ * Numeric magnitude decoding.  Transform a number from a
+ * numeric approximation giving the order of magnitude in the SI
+ * scale.  E.g. 1.53K->1566 1.53k->1530
+ *
+ * Valid from 0 -> 10^27-1 or 0 -> 2^90-1
+ *
+ *
+ * @param B BAKA Thread/Global environment
+ * @param number Number to transform
+ * @param flags For future reference
+ * @return <i>Number</i> on success
+ * @return <br><i>NaN</i> on failure
+ */
+double bk_string_demagnify(bk_s B, const char *number, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *power2 = "KMGTPEZY*";			// Ignore manditory trailing fodder
+  char *power10 = "kmgtpezy*";			// Ignore manditory trailing fodder
+  char *power;
+  char *endptr;
+  double ret;
+
+  if (!number)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, FP_NAN);
+  }
+
+  ret = strtod(number, &endptr);
+  if (endptr == number)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "No number foun d in %s\n", number);
+    BK_RETURN(B, FP_NAN);
+  }
+
+  // Allow one space between number and scale
+  if (*endptr == ' ')
+    endptr++;
+
+  // More than one is right out
+  if (isspace(*endptr) || !*endptr)
+    BK_RETURN(B, ret);
+
+  // Is this a power of 2 magnifier?
+  if (power = strchr(power2, *endptr))
+  {
+    ret *= pow(2, (power-power2+1)*10);
+    BK_RETURN(B, ret);
+  }
+
+  // Is this a power of 10 magnifier?
+  if (power = strchr(power10, *endptr))
+  {
+    ret *= pow(10, (power-power10+1)*3);
+    BK_RETURN(B, ret);
+  }
+
+  bk_error_printf(B, BK_ERR_ERR, "No valid magnitude found in %s (%c)\n", number, *endptr);
+  BK_RETURN(B, FP_NAN);
 }

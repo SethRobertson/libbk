@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.269 2003/12/25 06:27:16 seth Exp $
+ * $Id: libbk.h,v 1.270 2003/12/29 06:42:16 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1719,6 +1719,7 @@ extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags fla
 
 extern char *bk_string_magnitude(bk_s B, double number, u_int precision, char *units, char *buffer, u_int buflen, bk_flags flags);
 #define BK_STRING_MAGNITUDE_POWER10		0x01		// Request power of 10 (instead of power of two) magnitude
+extern double bk_string_demagnify(bk_s B, const char *number, bk_flags flags);
 
 
 /* b_string.c */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.40 2003/12/28 06:30:18 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.41 2003/12/29 06:42:18 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,11 +27,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * (Stupidities of connected UDP).
  *
  * TODO:
- *	--transmit-limit bytes Limit transmission to this number bytes (e.g. -s)
  *	--execute command   Instead of I/O to stdio, execute this program w/pipes
- *	--execute-with-stderr Dup stderr of --execute to stdout
+ *	--execute-with-stderr Dup stderr of --execute to stdout (e.g. send over net)
  *	--execute-in-pty    Execute subprogram in a pty
- *	--server
  *	--socks w/bind support?
  *	--proxy (http proxy support?)
  *	* Verify bidirectional SSL authentication, encryption w/keygen ex *
@@ -88,6 +86,7 @@ struct program_config
 #define PC_SSL				0x080	///< Want SSL
 #define PC_NODELAY			0x100	///< Set nodelay socket buffer option
 #define PC_KEEPALIVE			0x200	///< Set keepalive preference
+#define PC_SERVER			0x400	///< Server mode
   u_int			pc_multicast_ttl;	///< Multicast ttl
   char *		pc_proto;		///< What protocol to use
   char *		pc_remoteurl;		///< Remote "url".
@@ -101,6 +100,8 @@ struct program_config
   int			pc_buffer;		///< Buffer sizes
   int			pc_len;			///< Input size hints
   int			pc_sockbuf;		///< Socket buffer size
+  int			pc_fdin;		///< Input fd for artificial EOF (HACK)
+  u_quad_t		pc_translimit;		///< Transmit limit
   struct bk_relay_ioh_stats	pc_stats;	///< Statistics about relay
   struct timeval	pc_start;		///< Starting time
   const char	       *pc_filein;		///< Set input filename
@@ -149,15 +150,17 @@ main(int argc, char **argv, char **envp)
     {"transmit", 't', POPT_ARG_STRING, NULL, 't', "Transmit to host", "proto://ip:port" },
     {"receive", 'r', POPT_ARG_NONE, NULL, 'r', "Receive", NULL },
     {"local-name", 'l', POPT_ARG_STRING, NULL, 'l', "Local address to bind", "proto://ip:port" },
+#ifdef NOTYET
     {"address-family", 0, POPT_ARG_INT, NULL, 1, "Set the address family", "address_family" },
+#endif /* NOTYET */
     {"udp", 'u', POPT_ARG_NONE, NULL, 2, "Use UDP", NULL },
     {"multicast", 0, POPT_ARG_NONE, NULL, 3, "Multicast UDP packets", NULL },
     {"broadcast", 0, POPT_ARG_NONE, NULL, 4, "Broadcast UDP packets", NULL },
     {"multicast-loop", 0, POPT_ARG_NONE, NULL, 5, "Loop multicast packets to local machine", NULL },
     {"multicast-ttl", 0, POPT_ARG_INT, NULL, 6, "Set nondefault multicast ttl", "ttl" },
     {"multicast-nomembership", 0, POPT_ARG_NONE, NULL, 7, "Don't want multicast membership management", NULL },
-    {"buffersize", 0, POPT_ARG_INT, NULL, 8, "Size of I/O queues", "buffer size" },
-    {"length", 'L', POPT_ARG_INT, NULL, 9, "Default I/O chunk size", "default length" },
+    {"buffersize", 0, POPT_ARG_STRING, NULL, 8, "Size of I/O queues", "buffer size" },
+    {"length", 'L', POPT_ARG_STRING, NULL, 9, "Default I/O chunk size", "default length" },
     {"close-after-one", 'c', POPT_ARG_NONE, NULL, 10, "Shut down relay after only one side closes", NULL },
 #ifndef NO_SSL
     {"ssl", 's', POPT_ARG_NONE, NULL, 's', "Use SSL", NULL },
@@ -167,12 +170,14 @@ main(int argc, char **argv, char **envp)
     {"ssl-dhparams", 0, POPT_ARG_STRING, NULL, 14, "Use DH param file (PEM format) instead of certificate & private key", "filename"},
 #endif // NO_SSL
     {"timeout", 'T', POPT_ARG_INT, NULL, 'T', "Set the connection timeout", "timeout" },
-    {"sockbuf", 'B', POPT_ARG_INT, NULL, 15, "Socket snd/rcv buffer size", "length in bytes" },
+    {"sockbuf", 'B', POPT_ARG_STRING, NULL, 15, "Socket snd/rcv buffer size", "length in bytes" },
     {"nodelay", 0, POPT_ARG_NONE, NULL, 16, "Set TCP NODELAY", NULL },
     {"keepalive", 0, POPT_ARG_NONE, NULL, 17, "Set TCP KEEPALIVE", NULL },
     {"file-io", 0, POPT_ARG_STRING, NULL, 18, "Use file instead of stdio", "filename"},
     {"file-in", 0, POPT_ARG_STRING, NULL, 19, "Use file instead of stdin", "filename"},
     {"file-out", 0, POPT_ARG_STRING, NULL, 20, "Use file instead of stdout", "filename"},
+    {"server", 0, POPT_ARG_NONE, NULL, 21, "Set server (multiple connection) mode", NULL },
+    {"transmit-limit", 0, POPT_ARG_STRING, NULL, 22, "Limit maximum transmit size (approx)", "bytes"},
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -283,11 +288,21 @@ main(int argc, char **argv, char **envp)
       break;
 
     case 8:					// Buffer size
-      pc->pc_buffer = atoi(poptGetOptArg(optCon));
+      {
+	double tmplimit = bk_string_demagnify(B, poptGetOptArg(optCon), 0);
+	if (isnan(tmplimit))
+	  getopterr++;
+	pc->pc_buffer = tmplimit;
+      }
       break;
 
     case 9:					// Default I/O chunks
-      pc->pc_len = atoi(poptGetOptArg(optCon));
+      {
+	double tmplimit = bk_string_demagnify(B, poptGetOptArg(optCon), 0);
+	if (isnan(tmplimit))
+	  getopterr++;
+	pc->pc_len = tmplimit;
+      }
       break;
 
     case 10:					// Close after one
@@ -311,7 +326,12 @@ main(int argc, char **argv, char **envp)
       break;
 
     case 15:
-      pc->pc_sockbuf = atoi(poptGetOptArg(optCon));
+      {
+	double tmplimit = bk_string_demagnify(B, poptGetOptArg(optCon), 0);
+	if (isnan(tmplimit))
+	  getopterr++;
+	pc->pc_sockbuf = tmplimit;
+      }
       break;
 
     case 16:
@@ -338,6 +358,19 @@ main(int argc, char **argv, char **envp)
 
     case 20:
       pc->pc_fileout = poptGetOptArg(optCon);
+      break;
+
+    case 21:
+      BK_FLAG_SET(pc->pc_flags, PC_SERVER);
+      break;
+
+    case 22:
+      {
+	double tmplimit = bk_string_demagnify(B, poptGetOptArg(optCon), 0);
+	if (isnan(tmplimit))
+	  getopterr++;
+	pc->pc_translimit = tmplimit;
+      }
       break;
     }
   }
@@ -515,6 +548,21 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     goto done;
     break;
   case BkAddrGroupStateConnected:
+    if (BK_FLAG_ISSET(pc->pc_flags, PC_SERVER))
+    {
+      switch (fork())
+      {
+      case -1:
+	bk_error_printf(B, BK_ERR_ERR, "Could not create child process to handle accepted fd: %s\n", strerror(errno));
+	bk_die(B, 1, stderr, "Fork failure--assuming worst case and going away\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+	break;
+      case 0:					// Child
+	break;					// Continue on with normal path
+      default:					// Parent
+	close(sock);
+	goto done;
+      }
+    }
     if (pc->pc_server /* && ! serving_conintuously */)
     {
       BK_FLAG_SET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
@@ -620,8 +668,8 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
       goto error;
     }
   }
-      
 
+  pc->pc_fdin = infd;
   if (!(std_ioh = bk_ioh_init(B, infd, outfd, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on stdin/stdout\n");
@@ -697,13 +745,38 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
   char speedin[128];
   char speedout[128];
 
-  // We only care about shutdown
-  if (data)
-    BK_VRETURN(B);
-
   if (!(pc = args))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  // We only care about shutdown
+  if (data && !pc->pc_translimit)
+    BK_VRETURN(B);
+
+  if (data)
+  {
+    // <TRICKY>Assumption about data read and callback order</TRICKY>
+    if (pc->pc_stats.side[0].birs_readbytes >= pc->pc_translimit)
+    {						// Implement artificial EOF
+      // This is a stupid hack to get an EOF in there...switch the FD from underneath the IOH
+      close(pc->pc_fdin);
+      int newfd = open(_PATH_DEVNULL, O_RDONLY, 0666);
+      if (newfd < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Good grief!  %s is missing or bad: %s\n", _PATH_DEVNULL, strerror(errno));
+	BK_VRETURN(B);
+      }
+      if (newfd != pc->pc_fdin)
+      {
+	dup2(newfd, pc->pc_fdin);
+	close(newfd);
+      }
+
+      // Pretend we read exactly the right amount
+      data->len -= pc->pc_stats.side[0].birs_readbytes - pc->pc_translimit;
+    }
     BK_VRETURN(B);
   }
 
@@ -715,8 +788,8 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
     bk_string_magnitude(B, (double)pc->pc_stats.side[0].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedin, sizeof(speedin), 0);
     bk_string_magnitude(B, (double)pc->pc_stats.side[1].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedout, sizeof(speedout), 0);
 
-    fprintf(stderr, "%s%s: %lld bytes transmitted in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[0].birs_writebytes, delta.tv_sec, delta.tv_usec, speedin);
-    fprintf(stderr, "%s%s: %lld bytes received in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[1].birs_writebytes, delta.tv_sec, delta.tv_usec, speedout);
+    fprintf(stderr, "%s%s: %lld bytes received in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[0].birs_writebytes, delta.tv_sec, delta.tv_usec, speedin);
+    fprintf(stderr, "%s%s: %lld bytes transmitted in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[1].birs_writebytes, delta.tv_sec, delta.tv_usec, speedout);
   }
 
   bk_run_set_run_over(B,pc->pc_run);

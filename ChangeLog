@@ -1,3 +1,14 @@
+2003-12-29  Seth Robertson  <seth@buscemi.sysdetect.com>
+
+	* lib/b_relay.c (bk_relay_iohhandler): Allow user callback to
+	modify outgoing buffer, not discarding buffer.
+
+	* src/bttcp.c (relay_finish): Implement transmit limits.
+	(main): Allow major numeric arguments to use kKmM etc notation.
+
+	* lib/b_strconv.c (bk_string_demagnify): Go in other direction
+	(from 1.5k -> 1530)
+
 2003-12-28  Seth Robertson  <seth@buscemi.sysdetect.com>
 
 	* src/bttcp.c: Raise default bttcp ioh buffer size.  Implement
