@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.11 2001/11/18 19:04:39 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.12 2001/11/18 20:00:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -365,7 +365,8 @@ static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sig
     decode[tmp] = tmp - 'a' + 10;
 
   /* Skip over leadings space */
-  for(;*string && isspace(*string);string++) ;
+  for(;*string && isspace(*string);string++)
+    ; // Void
 
   /* Sign determination */
   switch(*string)
@@ -1043,7 +1044,8 @@ bk_strnlen(bk_s B, char *s, ssize_t max)
     BK_RETURN(B, -1);
   }
   
-  for(c=0; *s && c<max; s++,c++);
+  for(c=0; *s && c<max; s++,c++)
+    ; // Void
 
   if (c==max && *s)
     BK_RETURN(B,-1);

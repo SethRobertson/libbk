@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.6 2001/11/16 22:26:16 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.7 2001/11/18 20:00:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -849,10 +849,6 @@ bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_u
   snprintf(sun->sun_path,sizeof(sun->sun_path),"%s", bna->bna_path);
 
   BK_RETURN(B,0);
-
- error:
-  BK_RETURN(B,-1);
-
 }
 
 

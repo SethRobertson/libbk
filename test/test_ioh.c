@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.9 2001/11/16 19:16:17 seth Exp $";
+static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.10 2001/11/18 20:00:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -307,7 +307,6 @@ void rmt_acceptor(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaq
   struct program_config *pconfig = opaque;
   int sockaddrsize, newfd = -1;
   struct sockaddr throwaway;
-  struct bk_ioh *ioh;
 
   if (!pconfig || !run)
   {

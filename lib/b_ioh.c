@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.22 2001/11/18 20:00:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.23 2001/11/18 20:02:37 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -631,6 +631,7 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int cmds = 0;
+  int ret = 0;
  
   if (!ioh || (how != SHUT_RD && how != SHUT_WR && how != SHUT_RDWR))
   {
@@ -658,7 +659,7 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   if (cmds)
     ret = ioh_execute_cmds(B, ioh, cmds, 0);
 
-  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
+  if (ret != 2 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
   {
     BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
     bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg);
@@ -824,7 +825,6 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  u_int pref;
  
   if (!ioh)
   {

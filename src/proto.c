@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.16 2001/11/16 22:26:16 jtt Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.17 2001/11/18 20:00:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -149,6 +149,7 @@ main(int argc, char **argv, char **envp)
   progrun(B, pconfig);
   bk_exit(B,0);
   abort();
+  return(255);
 }
 
 

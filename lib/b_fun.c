@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fun.c,v 1.13 2001/11/18 20:00:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.14 2001/11/18 20:02:37 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -140,7 +140,8 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
   if (!B)
     goto freeme;
 
-  for(cur = (struct bk_funinfo *)funstack_minimum(BK_BT_FUNSTACK(B)); cur && cur != fh; cur = (struct bk_funinfo *)funstack_successor(BK_BT_FUNSTACK(B), cur)) ;
+  for(cur = (struct bk_funinfo *)funstack_minimum(BK_BT_FUNSTACK(B)); cur && cur != fh; cur = (struct bk_funinfo *)funstack_successor(BK_BT_FUNSTACK(B), cur))
+    ; // Intentionally void
 
   if (cur)
   {

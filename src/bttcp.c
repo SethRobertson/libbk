@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.3 2001/11/16 23:42:42 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.4 2001/11/18 20:00:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -356,7 +356,6 @@ parse_host_specifier(bk_s B, const char *url, char **name, char **port, char **p
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   char *tmp;
-  char *p,*q;
   char *tmp_name;
   
   if (!url || !name || !port || !proto)
@@ -519,7 +518,6 @@ remote_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *b
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   struct program_config *pc;
-  struct timeval tv;
 
   /* h should be null */
   if (!run || h || !bni || !(pc=args))
@@ -549,7 +547,6 @@ local_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bn
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   struct program_config *pc;
-  struct timeval tv;
 
   /* h should be null */
   if (!run || h || !bni || !(pc=args))
