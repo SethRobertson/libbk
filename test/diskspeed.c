@@ -1,23 +1,24 @@
 /*
-** Find the speed of a disk (through the filesystem)
-**
-** Seth Robertson, <seth@ctr.columbia.edu>
-** Copyright (c) 1993 Seth Robertson
-** All rights reserved
-**
-**
-** gcc -O -o diskspeed diskspeed.c
-**
-** Symbols which I define below:
-**
-** -DHRTIME	(if the OS has gethrtime())
-** -DTIMEOFDAY	(if we have BSDish gettimeofday())
-** -DRUSAGE	(if we have BSDish getrusage())
-** -DTIMES	(if we have SYSVish times())
-** -DTIME	(if we have SYSVish time() -- XXX only second resolution)
-**
-** If you wish to override my defaults provide below, use:
-** -DOVERRIDE
+ * Find the speed of a disk (through the filesystem)
+ *
+ * Seth Robertson, <seth@ctr.columbia.edu>
+ * Copyright (c) 1993 Seth Robertson
+ * All rights reserved
+ *
+ * <TODO>This should be updated to use autoconf settings</TODO>
+ *
+ * gcc -O -o diskspeed diskspeed.c
+ *
+ * Symbols which I define below:
+ *
+ * -DHRTIME	(if the OS has gethrtime())
+ * -DTIMEOFDAY	(if we have BSDish gettimeofday())
+ * -DRUSAGE	(if we have BSDish getrusage())
+ * -DTIMES	(if we have SYSVish times())
+ * -DTIME	(if we have SYSVish time() -- XXX only second resolution)
+ *
+ * If you wish to override my defaults provide below, use:
+ * -DOVERRIDE
 */
 
 #if !defined(OVERRIDE)
@@ -51,9 +52,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
-#ifndef __bsdi__		/*  */
-#include <malloc.h>
-#endif
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -309,7 +307,7 @@ int main(int argc,char *argv[])
 }
 
 /*
-** Timing routines
+ * Timing routines
 */
 
 /*
@@ -361,7 +359,7 @@ read_timer(struct timer_info *diffT)
 }
 
 /*
-** Zero timer
+ * Zero timer
 */
 void
 zero_timer(struct timer_info *timer)
@@ -382,7 +380,7 @@ zero_timer(struct timer_info *timer)
 }  
 
 /*
-** Add two timers together
+ * Add two timers together
 */
 void
 add_timer(struct timer_info *sum, struct timer_info *x, struct timer_info *y)
@@ -402,7 +400,7 @@ add_timer(struct timer_info *sum, struct timer_info *x, struct timer_info *y)
 
 
 /*
-** Subtract two timers
+ * Subtract two timers
 */
 void
 sub_timer(struct timer_info *sum, struct timer_info *x, struct timer_info *y)
@@ -421,7 +419,7 @@ sub_timer(struct timer_info *sum, struct timer_info *x, struct timer_info *y)
 }
 
 /*
-** Add two timevals together
+ * Add two timevals together
 */
 void timeval_add(struct timeval *sum, struct timeval *x, struct timeval *y)
 {
@@ -436,7 +434,7 @@ void timeval_add(struct timeval *sum, struct timeval *x, struct timeval *y)
 }
 
 /*
-** Subtract two timevals
+ * Subtract two timevals
 */
 void timeval_sub(struct timeval *sum, struct timeval *x, struct timeval *y)
 {
