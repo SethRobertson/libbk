@@ -1,5 +1,9 @@
 2001-11-06  James Tanis  <jtt@winwood.sysdetect.com>
 
+	* lib/b_getbyfoo.c (bk_getprotobyfoo): Get protocol entry by
+	anything (not yet mutex'ed).
+	(bk_protoent_destroy): Destroy a protoent created by above.
+
 	* lib/b_config.c (bk_config_init): All user to pass in preferences.
 	(bk_config_print): print config file.
 	(load_config_from_file): Support for included files.

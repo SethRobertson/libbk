@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.7 2001/11/06 22:56:04 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.8 2001/11/07 00:02:19 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,6 +24,10 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
+/**
+ * @file
+ * String utilites
+ */
 
 #define TOKENIZE_FIRST		8		/**< How many we will start with */
 #define TOKENIZE_INCR		4		/**< How many we will expand if we need more */
