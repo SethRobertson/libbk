@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.15 2002/10/04 21:11:43 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.16 2002/11/05 11:02:37 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -30,7 +30,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 static void bnbio_timeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *stattime, bk_flags flags);
-static int bnbio_set_timeout(bk_s B, struct bk_iohh_bnbio *bib, time_t usecs, bk_flags flags);
+static int bnbio_set_timeout(bk_s B, struct bk_iohh_bnbio *bib, time_t msecs, bk_flags flags);
 
 
 /**
@@ -126,7 +126,7 @@ bk_iohh_bnbio_destroy(bk_s B, struct bk_iohh_bnbio *bib)
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio structure to use.
  *	@param datap Copyout data pointer to use.
- *	@param timeout The timeout for the read in usecs.
+ *	@param timeout The timeout for the read in milliseconds.
  *	@param B BAKA thread/global state.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>size of read</i> on success (0 means EOF).
@@ -450,13 +450,13 @@ bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
  *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to use.
- *	@param usec The timeout in useconds.
+ *	@param msecs The timeout in milliseconds.
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 static int
-bnbio_set_timeout(bk_s B, struct bk_iohh_bnbio *bib, time_t usecs, bk_flags flags)
+bnbio_set_timeout(bk_s B, struct bk_iohh_bnbio *bib, time_t msecs, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -474,7 +474,7 @@ bnbio_set_timeout(bk_s B, struct bk_iohh_bnbio *bib, time_t usecs, bk_flags flag
 
   bib->bib_read_to_handle = NULL;
 
-  if (usecs && (bk_run_enqueue_delta(B, POLLING_IOH_RUN(bib->bib_bpi), usecs, bnbio_timeout, bib, &bib->bib_read_to_handle, 0) < 0))
+  if (msecs && (bk_run_enqueue_delta(B, POLLING_IOH_RUN(bib->bib_bpi), msecs, bnbio_timeout, bib, &bib->bib_read_to_handle, 0) < 0))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not enqueue new bnbio timeout event\n");
     goto error;

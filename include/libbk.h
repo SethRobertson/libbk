@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.184 2002/10/20 05:17:53 jtt Exp $
+ * $Id: libbk.h,v 1.185 2002/11/05 11:02:36 dupuy Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1327,8 +1327,8 @@ extern int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)
 #define BK_RUN_SIGNAL_INTR			0x02 ///< Interrupt system calls for @a bk_run_signal
 #define BK_RUN_SIGNAL_RESTART			0x04 ///< Restart system calls for @a bk_run_signal
 extern int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
-extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
-extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t msecs, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msecs, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
 extern int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags);
 #define BK_RUN_DEQUEUE_EVENT			0x01 ///< Normal event to dequeue for @a bk_run_dequeue
 #define BK_RUN_DEQUEUE_CRON			0x02 ///< Cron event to dequeue for @a bk_run_dequeue
@@ -1457,7 +1457,7 @@ extern int bk_polling_io_cancel(bk_s B, struct bk_polling_io *bpi, bk_flags flag
 /* b_bnbio.c */
 extern struct bk_iohh_bnbio *bk_iohh_bnbio_create(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern void bk_iohh_bnbio_destroy(bk_s B, struct bk_iohh_bnbio *bib);
-extern int bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t usecs, bk_flags flags);
+extern int bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t msecs, bk_flags flags);
 extern int bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags flags);
 extern int bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, bk_flags flags);
 extern int64_t bk_iohh_bnbio_tell(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);

@@ -1,5 +1,9 @@
 2002-11-05  Alexander Dupuy  <dupuy@sysdetect.com>
 
+	* include/libbk.h: name millisecond timeout parameters msecs, not usec
+
+	* lib/b_bnbio.c (bnbio_set_timeout): document timeout as milliseconds
+
 	* include/libbk_oscompat.h: don't need GMTIME_R_PROTOTYPE, just do it
 
 2002-10-11  James Tanis  <jtt@hawking.sysdetect.com>
