@@ -6,3 +6,4 @@ genrand
 tmp.c
 tmp
 *.LTB
+timeout
