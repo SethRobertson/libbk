@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_cksum.c,v 1.2 2001/09/08 19:13:52 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_cksum.c,v 1.3 2001/11/06 18:25:24 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,20 +16,31 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
+/**
+ * @file
+ * Checksum routines.
+ */
+
 #include <libbk.h>
+
+
 
 #define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
 #define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
 
 
 
-/*
+/**
  * Checksum routine for Internet Protocol family headers (Portable Version).
  *
  * This routine is very heavily used in the network
  * code and should be modified for each CPU to be as fast as possible.
  *
  * This function is from Net4 BSD, and is NOT licensed under LGPL.
+ *
+ * 	@param m Null terminated array of vectored pointers to data
+ *	@param len Total length of data encoded by m which should be checkpointed
+ *	@return <i>checksum</i> of data of size 16 bits
  */
 int bk_in_cksum(register struct bk_vptr **m, register int len)
 {

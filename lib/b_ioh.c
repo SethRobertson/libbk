@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.2 2001/11/06 00:41:54 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.3 2001/11/06 18:25:24 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -758,7 +758,9 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *ioh = opaque;
  
-  /* XXX */
+  switch (gottypes)
+  {
+  }
 
   BK_VRETURN(B);
 }

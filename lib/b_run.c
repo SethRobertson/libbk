@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.4 2001/11/06 00:41:54 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.5 2001/11/06 18:25:24 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -38,10 +38,11 @@ static void brof_destroy(bk_s B, struct bk_run_ondemand_func *brof);
 
 
 /**
- * @group fdassocclc File Descriptor assocations CLC definitions.
- * CLC indirection to hide fd association CLC choice. 
- * @{
+ * @name Defines: fdassoc_clc
+ * File Descriptor association CLC definitions
+ * to hide CLC choice.
  */
+// @{
 #define fdassoc_create(o,k,f,a)		ht_create((o),(k),(f),(a))
 #define fdassoc_destroy(h)		ht_destroy(h)
 #define fdassoc_insert(h,o)		ht_insert((h),(o))
@@ -63,8 +64,16 @@ static int fa_ko_cmp(int *a, struct bk_run_fdassoc *b);
 static ht_val fa_obj_hash(struct bk_run_fdassoc *a);
 static ht_val fa_key_hash(int *a);
 static struct ht_args fa_args = { 128, 1, (ht_func)fa_obj_hash, (ht_func)fa_key_hash };
-/*@}*/
+// @}
 
+
+
+/**
+ * @name Defines: fdassoc_clc
+ * baka-run function (poll, idle) association CLC definitions
+ * to hide CLC choice.
+ */
+// @{
 #define brfl_create(o,k,f)		dll_create((o),(k),(f))
 #define brfl_destroy(h)			dll_destroy(h)
 #define brfl_insert(h,o)		dll_insert((h),(o))
@@ -83,7 +92,16 @@ static struct ht_args fa_args = { 128, 1, (ht_func)fa_obj_hash, (ht_func)fa_key_
 #define brfl_error_reason(h,i)		dll_error_reason((h),(i))
 static int brfl_oo_cmp(struct bk_run_func *a, struct bk_run_func *b);
 static int brfl_ko_cmp(void *a, struct bk_run_func *b);
+// @}
 
+
+
+/**
+ * @name Defines: brofl_clc
+ * baka run on-demand function association CLC definitions
+ * to hide CLC choice.
+ */
+// @{
 #define brofl_create(o,k,f)		dll_create((o),(k),(f))
 #define brofl_destroy(h)		dll_destroy(h)
 #define brofl_insert(h,o)		dll_insert((h),(o))
@@ -102,6 +120,7 @@ static int brfl_ko_cmp(void *a, struct bk_run_func *b);
 #define brofl_error_reason(h,i)		dll_error_reason((h),(i))
 static int brofl_oo_cmp(struct bk_run_ondemand_func *a, struct bk_run_ondemand_func *b);
 static int brofl_ko_cmp(void *a, struct bk_run_ondemand_func *b);
+// @}
 
 
 
@@ -1474,4 +1493,3 @@ static int brofl_ko_cmp(void *a, struct bk_run_ondemand_func *b)
 {
   return ((char *)a)-((char *)b->brof_key);
 }
-

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bits.c,v 1.5 2001/10/20 13:48:30 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_bits.c,v 1.6 2001/11/06 18:25:24 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,15 +16,26 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
+/**
+ * @file
+ * Bitfield fundamental routines (creation, destruction, import, export)
+ */
+
 #include <libbk.h>
 #include "libbk_internal.h"
 
 
 
-/*
- * Create the bitfield of a certain size
+/**
+ * Create the bitfield of a certain size.
  *
  * Pretty dumb and simple, but clean
+ *
+ *	@param B BAKA thread/global state 
+ *	@param size Size of bitfield.
+ *	@param flags Fun for the future.
+ *	@return <i>NULL</i> on allocation failure.
+ *	@return <BR><i>bitarray</i> on success.
  */
 char *bk_bits_create(bk_s B, size_t size, bk_flags flags)
 {
@@ -44,8 +55,11 @@ char *bk_bits_create(bk_s B, size_t size, bk_flags flags)
 
 
 
-/*
+/**
  * Destroy the bitfield
+ *
+ *	@param B BAKA thread/global state 
+ *	@param base The created bitfield
  */
 void bk_bits_destroy(bk_s B, char *base)
 {
@@ -64,8 +78,15 @@ void bk_bits_destroy(bk_s B, char *base)
 
 
 
-/*
+/**
  * Save bitfield to a character string for storage
+ *
+ *	@param B BAKA thread/global state 
+ *	@param base The bitfield we are converting to ascii format
+ *	@param size The size of the bitfield in question
+ *	@param flags Fun for the future.
+ *	@return <i>NULL</i> on call failure, allocation failure, other failure
+ *	@return <BR><i>string</i> representing @a base for saving.
  */
 char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
 {
@@ -127,11 +148,18 @@ char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
 
 
 
-/*
- * Restore a saved bitfield back to memory representation
+/**
+ * Restore a saved bitfield back to memory representation.
  *
  * Note string must be exactly as it was given during _save, specifically,
  * the bitfield must be null terminated.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param saved The ascii data previously created by @a bk_bits_save
+ *	@param size The size of the bitfield in question
+ *	@param flags Fun for the future.
+ *	@return <i>NULL</i> on call failure, allocation failure, other failure
+ *	@return <BR><i>bitfield</i> on success
  */
 char *bk_bits_restore(bk_s B, char *saved, size_t *size, bk_flags flags)
 {
