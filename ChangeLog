@@ -1,3 +1,14 @@
+2004-03-25  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_string.c (bk_string_registry_insert): support for
+	BK_STR_REGISTRY_FLAG_FORCE
+
+2004-02-21  Seth Robertson  <seth@sysdetect.com>
+
+	* src/genrand.c: Generate random powerball numbers:
+	{ ./genrand -s 5 -n 52 | sort -n; ./genrand -s 1 -n 52; } |
+	awk '{sum=;sum++; print	sum;}'
+
 2004-02-16  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_rand.c (USE_MEM_ENTROPY): enable use of uninitialized memory

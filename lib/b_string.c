@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.102 2004/02/06 01:42:00 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.103 2004/03/25 10:59:31 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -32,9 +32,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 struct bk_str_registry
 {
-  bk_flags				bsr_flags; ///< EVeryone needs flags. (NB Shares flags space with bk_str_registry_element
+  bk_flags				bsr_flags; ///< Everyone needs flags. (NB Shares flags space with bk_str_registry_element
   struct bk_str_registry_element **	bsr_registry; ///< Array of registry items.
-  u_int				bsr_next_index;	///< The next registry index to assign.
+  u_int					bsr_next_index;	///< The next registry index to assign.
   u_int					bsr_registrysz;	///< The current allocated size of the registry.
 #ifdef BK_USING_PTHREADS
   pthread_mutex_t			bsr_lock; ///< Insert lock
@@ -2115,7 +2115,9 @@ bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, b
  *	@param handle The registry to search within.
  *	@param str The string to search for.
  *	@param id The id to use.
- *	@param flags Flags for future use.
+ *	@param flags BK_STR_REGISTRY_FLAG_COPY_STR to copy string arg<br>
+ *	BK_STR_REGISTRY_FLAG_FORCE to force insertion when string is already
+ *	present in, or if non-zero id is absent from, registry
  *	@return <i>0</i> on FAILURE (!! NB THIS IS NOT NORMAL FOR LIBBK !!).<br>
  *	@return <i>positive</i> on success.
  */
@@ -2136,32 +2138,44 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
   BK_SIMPLE_LOCK(B, &bsr->bsr_lock);
   locked = 1;
 
+  // if forced and non-zero id, set next index to one more than that
+  if (id && BK_FLAG_ISSET(flags, BK_STR_REGISTRY_FLAG_FORCE))
+    bsr->bsr_next_index = id + 1;
+
   /*
-   * Assuming that we're not just updating an existing node and chaging
+   * Assuming that we're not just updating an existing node and charging
    * right ahead with allocating more space for an insert if needed may be
    * touch aggressive, but it results in at *most* one extra realloc(3).
    */
-  if (bsr->bsr_next_index == bsr->bsr_registrysz)
+  if (bsr->bsr_next_index >= bsr->bsr_registrysz)
   {
     struct bk_str_registry_element **tmp;
-    if (!(tmp = realloc(bsr->bsr_registry, sizeof(*bsr->bsr_registry) * (bsr->bsr_registrysz + 1024))))
+    if (!(tmp = realloc(bsr->bsr_registry, sizeof(*bsr->bsr_registry)
+			* (bsr->bsr_next_index + 1024))))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not expand string registry: %s\n", strerror(errno));
       goto error;
     }
     bsr->bsr_registry = tmp;
-    bsr->bsr_registrysz += 1024;
+    bsr->bsr_registrysz = bsr->bsr_next_index + 1024;
   }
 
   if (!id)
   {
     u_int cnt;
-    for(cnt = 0; cnt < bsr->bsr_next_index; cnt++)
+
+    // search for existing entry (unless forced)
+    if (BK_FLAG_ISCLEAR(flags, BK_STR_REGISTRY_FLAG_FORCE))
     {
-      bsre = bsr->bsr_registry[cnt];
-      if (bsre && BK_STREQ(str, bsre->bsre_str))
-	break;
+      for(cnt = 0; cnt < bsr->bsr_next_index; cnt++)
+      {
+	bsre = bsr->bsr_registry[cnt];
+	if (bsre && BK_STREQ(str, bsre->bsre_str))
+	  break;
+      }
     }
+    else			// allocate next id if FORCE flag is passed
+      cnt = bsr->bsr_next_index;
 
     if (cnt == bsr->bsr_next_index)
     {
@@ -2177,11 +2191,26 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
       bk_debug_printf_and(B, 1, "%d ==> %s\n", bsre->bsre_id, bsre->bsre_str);
     }
   }
-  else if (id >= bsr->bsr_next_index || !(bsre = bsr->bsr_registry[id]))
+  else if (id >= bsr->bsr_next_index ||
+	   (!(bsre = bsr->bsr_registry[id]) &&
+	    BK_FLAG_ISCLEAR(flags, BK_STR_REGISTRY_FLAG_FORCE)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Registry object %d does not exist or has been deleted\n", id);
     BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
     BK_RETURN(B,0);
+  }
+  else if (BK_FLAG_ISSET(flags, BK_STR_REGISTRY_FLAG_FORCE))
+  {
+    if (!(bsre = bsre_create(B, str, flags)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create string registry element\n");
+      goto error;
+    }
+    bsre->bsre_id = id;
+    bsr->bsr_registry[id] = bsre;
+    bsr->bsr_next_index++;
+
+    bk_debug_printf_and(B, 1, "%d ==> %s\n", bsre->bsre_id, bsre->bsre_str);
   }
 
   // Lock the bsre before releasing the bsr which contains it.

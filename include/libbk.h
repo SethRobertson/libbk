@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.275 2004/01/29 18:28:57 seth Exp $
+ * $Id: libbk.h,v 1.276 2004/03/25 10:59:30 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1772,6 +1772,7 @@ extern bk_str_registry_t bk_string_registry_init(bk_s B);
 extern void bk_string_registry_destroy(bk_s B, bk_str_registry_t handle);
 extern bk_str_id_t bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_str_id_t id, bk_flags flags);
 #define BK_STR_REGISTRY_FLAG_COPY_STR	0x1	///< strdup(3) this string instead of just copying the pointer.
+#define BK_STR_REGISTRY_FLAG_FORCE	0x2	///< force insertion even if string present or non-zero id is missing
 extern const char *bk_string_registry_register_by_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags);
 extern int bk_string_registry_delete_str(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags);
 extern int bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags);
