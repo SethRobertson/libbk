@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.62 2002/09/05 19:20:54 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.63 2002/09/17 16:23:52 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -503,6 +503,7 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
   }
 
   bk_debug_printf_and(B, 1, "Writing %d bytes to IOH %p\n",data->len, ioh);
+  
 
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_CLOSING | IOH_FLAGS_SHUTDOWN_DESTROYING | IOH_FLAGS_ERROR_OUTPUT | IOH_FLAGS_SHUTDOWN_OUTPUT | IOH_FLAGS_SHUTDOWN_OUTPUT_PEND))
   {
@@ -990,6 +991,8 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
     bk_run_dequeue(B, ioh->ioh_run, ioh->ioh_readallowedevent, BK_RUN_DEQUEUE_EVENT);
     ioh->ioh_readallowedevent = NULL;
   }
+
+  bk_ioh_cancel_unregister(B, ioh, 0);
 
   if (BK_FLAG_ISCLEAR(ioh->ioh_intflags, IOH_FLAGS_DONTCLOSEFDS))
   {						// Close FDs if we can
@@ -3662,4 +3665,106 @@ bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_al
 
  error:
   BK_RETURN(B,-1);  
+}
+
+
+
+
+/**
+ * Register an ioh for cancellation. NB: this only does input.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ioh The ioh to register.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ioh_cancel_register(bk_s B, struct bk_ioh *ioh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  BK_RETURN(B,bk_run_fd_cancel_register(B, ioh->ioh_run, ioh->ioh_fdin));  
+}
+
+
+
+
+/**
+ * Unregister an ioh for cancellation. NB: this only does input.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ioh The ioh to unregister.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ioh_cancel_unregister(bk_s B, struct bk_ioh *ioh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  BK_RETURN(B,bk_run_fd_cancel_unregister(B, ioh->ioh_run, ioh->ioh_fdin));  
+}
+
+
+
+
+/**
+ * Check to see if an ioh has been canceled.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ioh The @a bk_ioh to use.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success and <b>not</b> registered.
+ *	@return <i>1</i> on success and registered.
+ */
+int
+bk_ioh_is_canceled(bk_s B, struct bk_ioh *ioh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  BK_RETURN(B,bk_run_fd_is_canceled(B, ioh->ioh_run, ioh->ioh_fdin));  
+}
+
+
+
+
+/**
+ * Cancel an ioh
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ioh The @a bk_ioh to cancel.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ioh_cancel(bk_s B, struct bk_ioh *ioh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  BK_RETURN(B,bk_run_fd_cancel(B, ioh->ioh_run, ioh->ioh_fdin, flags));  
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.13 2002/09/10 21:53:26 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.14 2002/09/17 16:23:52 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -820,4 +820,109 @@ polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     pid = npid;
   }
   BK_RETURN(B,0);
+}
+
+
+
+
+
+/**
+ * Register a bpi for cacellation.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bpi The @a bk_polling_io struct to register.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_polling_io_cancel_register(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bpi)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  BK_RETURN(B,bk_ioh_cancel_register(B, bpi->bpi_ioh, 0));  
+}
+
+
+
+
+
+/**
+ * Unregister a bpi for cacellation.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bpi The @a bk_polling_io struct to unregister.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_polling_io_cancel_unregister(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bpi)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  BK_RETURN(B,bk_ioh_cancel_unregister(B, bpi->bpi_ioh, 0));  
+}
+
+
+
+
+
+/**
+ * Check if a @a bk_polling_io has been registered for cancellation.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bpi The @a bk_polling_io to use.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success and <b>not</b> registered.
+ *	@return <i>0</i> on success and registered.
+ */
+int
+bk_polling_io_is_canceled(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bpi)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_RETURN(B,bk_ioh_is_canceled(B, bpi->bpi_ioh, 0));  
+}
+
+
+
+
+/**
+ * Cancel a bpi.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bpi The @a bk_polling_io to cancel.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_polling_io_cancel(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bpi)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  BK_RETURN(B,bk_ioh_cancel(B, bpi->bpi_ioh, flags));  
 }

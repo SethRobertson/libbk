@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.174 2002/09/10 21:53:25 jtt Exp $
+ * $Id: libbk.h,v 1.175 2002/09/17 16:23:52 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -156,7 +156,6 @@ struct bk_iohh_bnbio
 #define BK_IOHH_BNBIO_FLAG_LINGER	0x1	///< Linger on close untill all write data flushed.
 #define BK_IOHH_BNBIO_FLAG_SYNC		0x2	///< Linger on write until write completes.
 #define BK_IOHH_BNBIO_FLAG_NO_LINGER	0x4	///< Turn off LINGER or SYNC.
-#define BK_IOHH_BNBIO_FLAG_CANCEL	0x8	///< Cancel blocking call
 #define BK_IOHH_BNBIO_FLAG_TIMEDOUT	0x10	///< This bnbio has timed out (not set by user).
   time_t			bib_read_to;	/// Timeout for reading.
   // Not implementing write timeout 'till we know we need them (space considerations).
@@ -1313,9 +1312,11 @@ extern int bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *opaque, volatile int *demand, void **handle);
 extern int bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
-extern int bk_run_register_bnbio(bk_s B, struct bk_iohh_bnbio *bib);
-extern int bk_run_unregister_bnbio(bk_s B, struct bk_iohh_bnbio *bib);
-extern int bk_run_bnbio_cancel(bk_s B, struct bk_run *run);
+extern void bk_run_set_dont_block_run_once(bk_s B, struct bk_run *run);
+extern int bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd);
+extern int bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd);
+extern int bk_run_fd_is_canceled(bk_s B, struct bk_run *run, int fd);
+extern int bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 
 
 
@@ -1380,6 +1381,11 @@ extern bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flag
 extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str);
 extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, const char *format, ...);
 extern int bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_alg, struct bk_vptr auth_key, char *auth_name , int encrypt_alg, struct bk_vptr encrypt_key, bk_flags flags);
+extern int bk_ioh_cancel_register(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+extern int bk_ioh_cancel_unregister(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+extern int bk_ioh_is_canceled(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+extern int bk_ioh_cancel(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+
 
 /* b_pollio.c */
 extern struct bk_polling_io *bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags);
@@ -1393,6 +1399,10 @@ extern void bk_polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flag
 extern int bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_status_e *status, bk_flags flags);
 extern int bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, bk_flags flags);
 extern int bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_status_e *status, bk_flags flags);
+extern int bk_polling_io_cancel_register(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
+extern int bk_polling_io_cancel_unregister(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
+extern int bk_polling_io_is_canceled(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
+extern int bk_polling_io_cancel(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
 
 
 
@@ -1406,7 +1416,10 @@ extern int64_t bk_iohh_bnbio_tell(bk_s B, struct bk_iohh_bnbio *bib, bk_flags fl
 extern void bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 extern int bk_iohh_bnbio_cancel_bnbio(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 extern int bk_iohh_bnbio_is_timedout(bk_s B, struct bk_iohh_bnbio *bib);
-extern int bk_iohh_bnbio_is_canceled(bk_s B, struct bk_iohh_bnbio *bib);
+extern int bk_iohh_bnbio_cancel_register(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
+extern int bk_iohh_bnbio_cancel_unregister(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
+extern int bk_iohh_bnbio_is_canceled(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
+extern int bk_iohh_bnbio_cancel(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 
 
 /* b_stdfun.c */

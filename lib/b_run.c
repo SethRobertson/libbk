@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.28 2002/09/16 19:22:37 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.29 2002/09/17 16:23:52 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,6 +23,17 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+
+/**
+ * File descriptor cancel information
+ */
+struct bk_fd_cancel
+{
+  int		bfc_fd;				///< The file descriptor in question.
+  bk_flags	bfc_flags;			///< Everyone needs flags.
+#define BK_FD_CANCEL_FLAG_IS_CANCELED	0x1	///< This file descriptor has been canceled.
+};
 
 
 
@@ -102,6 +113,9 @@ struct bk_run
 #define BK_RUN_FLAG_HAVE_IDLE		0x08	///< Run idle task
 #define BK_RUN_FLAG_IN_DESTROY		0x10	///< In the middle of a destroy
 #define BK_RUN_FLAG_ABORT_RUN_ONCE	0x20	///< Return now from run_once
+#define BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE	0x40	///< Don't block on current run once
+#define BK_RUN_FLAG_FD_CANCEL		0x80	///< There exists at least 1 desc. on the cancel lsit.
+  dict_h		br_canceled;		///< List of canceled descriptors.
 };
 
 
@@ -171,6 +185,34 @@ static int fa_ko_cmp(int *a, struct bk_run_fdassoc *b);
 static ht_val fa_obj_hash(struct bk_run_fdassoc *a);
 static ht_val fa_key_hash(int *a);
 static struct ht_args fa_args = { 128, 1, (ht_func)fa_obj_hash, (ht_func)fa_key_hash };
+// @}
+
+
+
+/**
+ * @name Defines: List of canceled desciprtors This data structure allows
+ * administrative shutdown of a descriptor. It's up to interested parties
+ * to check if their descriptor is on the list.
+ */
+// @{
+#define fd_cancel_create(o,k,f)	dll_create((o),(k),(f))
+#define fd_cancel_destroy(h)		dll_destroy(h)
+#define fd_cancel_insert(h,o)		dll_insert((h),(o))
+#define fd_cancel_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
+#define fd_cancel_append(h,o)		dll_append((h),(o))
+#define fd_cancel_append_uniq(h,n,o)	dll_append_uniq((h),(n),(o))
+#define fd_cancel_search(h,k)		dll_search((h),(k))
+#define fd_cancel_delete(h,o)		dll_delete((h),(o))
+#define fd_cancel_minimum(h)		dll_minimum(h)
+#define fd_cancel_maximum(h)		dll_maximum(h)
+#define fd_cancel_successor(h,o)	dll_successor((h),(o))
+#define fd_cancel_predecessor(h,o)	dll_predecessor((h),(o))
+#define fd_cancel_iterate(h,d)	dll_iterate((h),(d))
+#define fd_cancel_nextobj(h,i)	dll_nextobj(h,i)
+#define fd_cancel_iterate_done(h,i)	dll_iterate_done(h,i)
+#define fd_cancel_error_reason(h,i)	dll_error_reason((h),(i))
+static int fd_cancel_oo_cmp(struct bk_fd_cancel *a, struct bk_fd_cancel *b);
+static int fd_cancel_ko_cmp(int *a, struct bk_fd_cancel *b);
 // @}
 
 
@@ -335,6 +377,13 @@ struct bk_run *bk_run_init(bk_s B, bk_flags flags)
     goto error;
   }
 
+  if (!(run->br_canceled = fd_cancel_create((dict_function)fd_cancel_oo_cmp, (dict_function)fd_cancel_ko_cmp, DICT_UNORDERED)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create bnbio list: %s\n", fd_cancel_error_reason(NULL, NULL));
+    goto error;
+  }
+
+
   BK_RETURN(B, run);
 
  error:
@@ -358,6 +407,7 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
   struct bk_run_func *brfn;
   struct bk_run_ondemand_func *brof;
   struct timeval curtime;
+  struct bk_fd_cancel *bfc;
 
   if (!run)
   {
@@ -427,6 +477,12 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
     brof_destroy(B, brof);
   }
   brofl_destroy(run->br_ondemand_funcs);
+
+  while(bfc = fd_cancel_minimum(run->br_canceled))
+  {
+    bk_run_fd_cancel_unregister(B, run, bfc->bfc_fd);
+  }
+  fd_cancel_destroy(run->br_canceled);
   
   // bnbios are destroyed elsewhere
   bnbiol_destroy(run->br_bnbios);
@@ -906,7 +962,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
    * the run), we don't block forever owing to lack of descriptors in the
    * select set.
    */
-  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_RUN_OVER) || 
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_RUN_OVER | BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE) || 
       BK_FLAG_ISSET(flags, BK_RUN_ONCE_FLAG_DONT_BLOCK))
   {
     selectarg = &zero; 
@@ -1047,10 +1103,12 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
  abort_run_once:
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE);
+  BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE);
   BK_RETURN(B, 0);
 
  error:
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE);
+  BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE);
   BK_RETURN(B,-1);
   
 }
@@ -1376,7 +1434,6 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeue *top;
   struct timeval curtime;
-  int executed_one_event = 0;
 
   if (!run || !delta)
   {
@@ -1392,27 +1449,11 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *
     top = pq_extract_head(run->br_equeue);
 
     (*top->bre_event)(B, run, top->bre_opaque, starttime, 0);
-    executed_one_event = 1;
     free(top);
   }
 
   if (!top)
-  {
-    if (!executed_one_event)
-      BK_RETURN(B, 0);
-    else
-    {
-      /*
-       * <TODO>Eliminate this hack in favor of some method for someone
-       * to set non-blocking for the run to optimize the common
-       * case</TODO>
-       */
-      // Allow the execution of an event to cause bk_run_once to return.
-      delta->tv_sec = 0;
-      delta->tv_usec = 0;
-      BK_RETURN(B,1);      
-    }
-  }
+    BK_RETURN(B,0);    
 
   /* Use the actual time to next event to allow for more accurate events */
   gettimeofday(&curtime, NULL);
@@ -1751,109 +1792,6 @@ bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle)
 
 
 
-/**
- * Register a bnbio for notification when 
- * bk_run_bnbio_cancel is called.
- *
- *	@param B BAKA Thread/global state
- *	@param bib pointer to bnbio struct
- *	@return <i>0</i> on success
- *	@return <i>-1</i> on error
- */
-int 
-bk_run_register_bnbio(bk_s B, struct bk_iohh_bnbio *bib)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");  
-
-  if (!bib)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
-    goto error;
-  }
-
-  if (bnbiol_insert(bib->bib_bpi->bpi_ioh->ioh_run->br_bnbios, bib) != DICT_OK)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Failed to insert bnbio into list\n");
-    goto error;
-  }
-
-  BK_RETURN(B, 0);
-  
- error:
-  BK_RETURN(B, -1);
-}
-
-
-
-/**
- * Unregister a bnbio when it no longer needs notification
- * from bk_run_bnbio_cancel.  Also resets the cancellation
- * flag.
- *
- *	@param B BAKA Thread/global state
- *	@param bib pointer to bnbio struct
- *	@return <i>0</i> on success
- *	@return <i>-1</i> on error
- */
-int 
-bk_run_unregister_bnbio(bk_s B, struct bk_iohh_bnbio *bib)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-
-  if (!bib)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
-    goto error;
-  }
-
-  // reset flag
-  BK_FLAG_CLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL);
-
-  if (bnbiol_delete(bib->bib_bpi->bpi_ioh->ioh_run->br_bnbios, bib) != DICT_OK)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Failed to delete bnbio from list\n");
-    goto error;
-  }
-
-  BK_RETURN(B, 0);
-  
- error:
-  BK_RETURN(B, -1);
-}
-
-
-
-/**
- * Notify all registered bnbios that they should 
- * stop blocking
- */
-int
-bk_run_bnbio_cancel(bk_s B, struct bk_run *run)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  dict_iter it;
-  struct bk_iohh_bnbio *bib = NULL;
-
-  if (!run)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
-    goto error;
-  }
-
-  it = bnbiol_iterate(run->br_bnbios, DICT_FROM_END);
-
-  while (bib = (struct bk_iohh_bnbio *) bnbiol_nextobj(run->br_bnbios, it))
-  {
-    BK_FLAG_SET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL);
-  }
-
-  bnbiol_iterate_done(run->br_bnbios, it);
-
-  BK_RETURN(B, 0);
-
- error:
-  BK_RETURN(B, -1);
-}
 
 
 
@@ -1932,6 +1870,223 @@ bk_run_set_run_over(bk_s B, struct bk_run *run)
 
 
 
+/**
+ * Set the BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE flag in the run structure. This
+ * flag behaves <b>exactly</b> like the @a bk_run_once() flag
+ * BK_RUN_ONCE_FLAG_DONT_BLOCK. The only difference is that, owing to the
+ * fact that it is set in the run structure and not an argument flag, it is
+ * available to asychronous events. It is cleared (only) by @a
+ * bk_run_once(), so the only public interface is the one to set it (since
+ * there's no reference count, you may not clear
+ * BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE if you decide that you set in in error
+ * because you cannot know that someone else has not <b>also</b> set it).
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The @a bk_run structure in which to set flag.
+ */
+void
+bk_run_set_dont_block_run_once(bk_s B, struct bk_run *run)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  if (!run)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+
+  BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE);
+  BK_VRETURN(B);  
+}
+
+
+
+
+/**
+ * Add a descriptor to the cancel list.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The @a bk_run structure to use.
+ *	@param fd The descriptor to add.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_fd_cancel *bfc = NULL;
+
+  if (!run)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  if (!(BK_CALLOC(bfc)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate space to store fd on cancel list: %s\n", strerror(errno));
+    goto error;
+  }
+
+  bfc->bfc_fd = fd;
+
+  if (fd_cancel_insert(run->br_canceled, bfc) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert fd on cancel list: %s\n", fd_cancel_error_reason(run->br_canceled, NULL));
+    goto error;
+  }
+  
+  BK_RETURN(B,0);  
+
+ error:
+  if (bfc)
+    bk_run_fd_cancel_unregister(B, run, fd);
+  BK_RETURN(B,-1);  
+}
+
+
+
+/**
+ * Unregister a descriptor on the cancel list.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The @a bk_run to use.
+ *	@param fd The descriptor to unregister.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_fd_cancel *bfc = NULL;
+  int at_least_one_is_canceled = 0;
+
+
+  if (!run)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  // It's common not to have the fd registered.
+  if (!(bfc = fd_cancel_search(run->br_canceled, &fd)))
+    BK_RETURN(B,0);    
+
+  if (fd_cancel_delete(run->br_canceled, bfc) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not delete descriptor from cancel list: %s\n", fd_cancel_error_reason(run->br_canceled, NULL));
+    goto error;
+  }
+
+  free(bfc); 
+  bfc = NULL;
+
+  for(bfc = fd_cancel_minimum(run->br_canceled);
+      bfc;
+      bfc = fd_cancel_successor(run->br_canceled, bfc))
+  {
+    if (BK_FLAG_ISSET(bfc->bfc_flags, BK_FD_CANCEL_FLAG_IS_CANCELED))
+      at_least_one_is_canceled = 1;
+  }
+
+  if (!at_least_one_is_canceled)
+    BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_FD_CANCEL);
+
+  BK_RETURN(B,0);  
+  
+ error:
+  if (bfc)
+    free(bfc);
+
+  BK_RETURN(B,-1);  
+}
+
+
+
+
+
+/**
+ * Cancel a filed descriptor.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The run structure to use.
+ *	@param fd The file desc. to cancel.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_fd_cancel *bfc = NULL;
+
+  if (!run)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  
+  if (!(bfc = fd_cancel_search(run->br_canceled, &fd)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "could not locate fd: %d to cancel\n", fd);
+    goto error;
+  }
+
+  BK_FLAG_SET(bfc->bfc_flags, BK_FD_CANCEL_FLAG_IS_CANCELED);
+  BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_FD_CANCEL);
+
+  BK_RETURN(B,0);  
+  
+ error:
+  BK_RETURN(B,1);  
+}
+
+
+
+/**
+ * Check if the given desciptor has been canceled.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The @a bk_run structure to use.
+ *	@param fd The descriptor to search for.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success and @a fd is not on the list.
+ *	@return <i>1</i> on success and @a fd is on the list.
+ */
+int
+bk_run_fd_is_canceled(bk_s B, struct bk_run *run, int fd)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_fd_cancel *bfc = NULL;
+  
+  if (!run)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  /*
+   * The BK_RUN_FLAG_FD_CANCEL flag is set only when there are one or
+   * more descriptors on the list. Since the overwhelming majority of the
+   * time the list will be empty, but, if it's checked at all, will be
+   * checked *many* times, this flag prevents us from doing the somewhat
+   * expensive and unnecessary fd_cancel_search() operation.
+   */
+  if (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_FD_CANCEL) || 
+      !(bfc = fd_cancel_search(run->br_canceled, &fd)) ||
+      BK_FLAG_ISCLEAR(bfc->bfc_flags, BK_FD_CANCEL_FLAG_IS_CANCELED))
+    BK_RETURN(B,0); 
+
+
+  BK_RETURN(B,1);
+}
+
+
+
 /*
  * fd association CLC routines
  */
@@ -1988,4 +2143,18 @@ static int bnbiol_oo_cmp(struct bk_iohh_bnbio *a, struct bk_iohh_bnbio *b)
 static int bnbiol_ko_cmp(void *a, struct bk_iohh_bnbio *b)
 {
   return (((struct bk_iohh_bnbio*) a) - b);
+}
+
+
+/*
+ * Cancel list routines.
+ */
+static int fd_cancel_oo_cmp(struct bk_fd_cancel *a, struct bk_fd_cancel *b)
+{
+  return (a->bfc_fd - b->bfc_fd);
+}
+
+static int fd_cancel_ko_cmp(int *a, struct bk_fd_cancel *b)
+{
+  return (*a - b->bfc_fd);
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.12 2002/09/10 21:53:26 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.13 2002/09/17 16:23:52 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -137,6 +137,7 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t ti
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_ioh_status_e status;
   int ret = 0;
+  int is_canceled = 0;
 
   if (!bib || !datap)
   {
@@ -145,33 +146,21 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t ti
   }
 
  reread:
-  // register so that the blocking call can be cancelled
-  if (bk_run_register_bnbio(B, bib) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not register blocking call\n");
-    BK_RETURN(B, -1);
-  }
-
   bnbio_set_timeout(B, bib, timeout, 0);
 
   BK_FLAG_CLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT);
 
   // first, generate *some* form of useful information
-  while (BK_FLAG_ISCLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL) &&
-	 BK_FLAG_ISCLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT) &&
+  while (BK_FLAG_ISCLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT) &&
+	 (!(is_canceled = bk_iohh_bnbio_is_canceled(B, bib, 0))) && 
 	 (ret = bk_polling_io_read(B, bib->bib_bpi, datap, &status, 0)) == 1)
     /* void */;
 
-  if (bk_run_unregister_bnbio(B, bib) < 0)
+  if (BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT) || is_canceled)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not unregister blocking call\n");
-    BK_RETURN(B, -1);
-  }
-
-  if (BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL) || 
-      BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT))
-  {
-    //bk_error_printf(B, BK_ERR_ERR, "blocking read cancelled or timedout\n");
+    if (is_canceled)
+      bk_error_printf(B, BK_ERR_ERR, "Blocking NBIO read aborted by external request\n");
+      
     BK_RETURN(B, -1);
   }
 
@@ -247,7 +236,7 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
   bk_ioh_status_e status;
   bk_vptr *ddata = NULL;
   int linger = 0;
-  int cancelled_call = 0;
+  int is_canceled = 0;
 
   if (!bib || !data)
   {
@@ -270,13 +259,6 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
     linger = 1;
   }
 
-  // register so that the blocking call can be cancelled
-  if (bk_run_register_bnbio(B, bib) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not register blocking call\n");
-    BK_RETURN(B, -1);
-  }
-
   // Do at least one poll to clean up the state from this write under normal conditions.
   do
   {
@@ -293,23 +275,12 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
      * quite possible for us to make forward progress in terms of *writing*
      * out data without the poll subsystem really knowing it.
      */
-  } while (linger && BK_FLAG_ISCLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL) && 
+  } while (linger && (!(is_canceled = bk_iohh_bnbio_is_canceled(B, bib, 0))) && 
 	   (bib->bib_bpi->bpi_ioh->ioh_writeq.biq_queuelen > 0));
 
-  if (BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL))
+  if (is_canceled)
   {
-    cancelled_call = 1;
-  }
-
-  if (bk_run_unregister_bnbio(B, bib) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not unregister blocking call\n");
-    BK_RETURN(B, -1);
-  }
-
-  if (cancelled_call)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "blocking read cancelled\n");
+    bk_error_printf(B, BK_ERR_ERR, "Blocking NBIO write aborted by external request\n");
     BK_RETURN(B, -1);
   }
 
@@ -471,27 +442,6 @@ bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
 
 
 /**
- *	@param B BAKA Thread/global state
- *	@param bib The @a bk_iohh_bnbio structure to use.
- *	@param flags Reserved
- *	@return <i>0</i> on success
- *	@return <i>-1</i> on failure
- */
-int
-bk_iohh_bnbio_cancel_bnbio(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-
-  BK_FLAG_SET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL);
-
-  BK_RETURN(B, 0);
-}
-
-
-
-
-
-/**
  * Set a read timeout for a bnbio (0 means clear timeout).
  *
  *	@param B BAKA thread/global state.
@@ -591,16 +541,16 @@ bk_iohh_bnbio_is_timedout(bk_s B, struct bk_iohh_bnbio *bib)
 
 
 /**
- * Is this bnbio struct in a cancel state.
+ * Regiester a @a bnbio for cancellation
  *
  *	@param B BAKA thread/global state.
- *	@param bnbio The bk_iohh_bnbio to check
+ *	@param bib The @a bk_iohh_bnbio to use.
+ *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success and not in timeout.
- *	@return <i>0</i> on success and in timeout.
+ *	@return <i>0</i> on success.
  */
 int
-bk_iohh_bnbio_is_canceled(bk_s B, struct bk_iohh_bnbio *bib)
+bk_iohh_bnbio_cancel_register(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -609,6 +559,82 @@ bk_iohh_bnbio_is_canceled(bk_s B, struct bk_iohh_bnbio *bib)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
+  BK_RETURN(B,bk_polling_io_cancel_register(B, bib->bib_bpi, 0));  
+}
 
-  BK_RETURN(B,BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL));  
+
+
+
+/**
+ * Unregiester a @a bnbio for cancellation
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bib The @a bk_iohh_bnbio to unregister.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_iohh_bnbio_cancel_unregister(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bib)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  BK_RETURN(B,bk_polling_io_cancel_unregister(B, bib->bib_bpi, 0));  
+}
+
+
+
+
+/**
+ * Check if a bnbio has been regiestered for cancellation.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bib The @a bk_iohh_bnbio to use.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success and <b>not</b> registered.
+ *	@return <i>1</i> on success and registered.
+ */
+int
+bk_iohh_bnbio_is_canceled(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bib)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  BK_RETURN(B,bk_polling_io_is_canceled(B, bib->bib_bpi, 0));  
+}
+
+
+
+
+/**
+ * Cancel a bib
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bib The @a bk_iohh_bnbio to cancel
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_iohh_bnbio_cancel(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bib)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  BK_RETURN(B,bk_polling_io_cancel(B, bib->bib_bpi, flags));  
 }

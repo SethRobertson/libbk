@@ -2,6 +2,13 @@
 
 	* lib/b_time.c (bk_time_iso_format): Fixed minor bug in BK_TIME_FORMAT_FLAG_NO_TZ.
 
+2002-09-12  James Tanis  <jtt@hawking.sysdetect.com>
+
+	* lib/b_run.c (bk_run_set_dont_block_run_once): Add flag so that
+	asynchronous events can cause the current bk_run_once() not to
+	block, just as callers of bk_run_once() may with
+	BK_RUN_ONCE_FLAG_DONT_BLOCK. 
+
 2002-09-10  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_run.c (bk_run_checkeventq): Don't allow bk_run_once to
