@@ -1,6 +1,6 @@
 2005-02-15  James Tanis  <jtt@cheviot.sysdetect.com>
 
-	* lib/b_time.c (bk_time_iso_format): Failue diagnostic and core
+	* lib/b_time.c (bk_time_iso_format): Failure diagnostic and core
 	dump avoidence.
 
 2005-02-07  Brian Lindauer  <jbl@localhost.localdomain>
