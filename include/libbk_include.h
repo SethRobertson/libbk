@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.21 2002/03/18 21:40:18 jtt Exp $
+ * $Id: libbk_include.h,v 1.22 2002/03/20 20:18:11 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -79,16 +79,13 @@
 #include <fcntl.h>
 #include <memory.h>
 #include <sys/stat.h>
-#include <libintl.h>
 #include <limits.h>
 #include <popt.h>
-#include <paths.h>
 #include <assert.h>
 #include <dirent.h>
-#ifdef BK_MINGW
-#include <winsock.h>		/* for fd_set, etc. */
-#include <process.h>		/* for getpid, etc. */
-#else  /* !BK_MINGW */
+#ifndef BK_MINGW32
+#include <libintl.h>
+#include <paths.h>
 #include <syslog.h>
 #include <termios.h>
 #include <pwd.h>
@@ -106,24 +103,10 @@
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#ifdef HAVE_NET_ETHERNET_H
-#include <net/ethernet.h>
-#else
-#ifdef HAVE_NETINET_IF_ETHER_H
-#include <net/if.h>
-#include <netinet/if_ether.h>
-#else  /* no struct ether_addr */
-struct ether_addr
-{
-  u_int8_t ether_addr_octet[6];
-}
-#ifdef __GNUC__
-__attribute__ ((__packed__))
-#endif /* __GNUC__ */
-;
-#endif /* HAVE_NETINET_IF_ETHER_H */
-#endif /* HAVE_NET_ETHERNET_H */
-#endif /* !BK_MINGW */
+#else  /* BK_MINGW32 */
+#include <winsock.h>		/* for fd_set, etc. */
+#include <process.h>		/* for getpid, etc. */
+#endif /* BK_MINGW32 */
 
 #if defined(USING_DMALLOC)
 #include <dmalloc.h>
@@ -154,18 +137,5 @@ __attribute__ ((__packed__))
 #include "dll.h"
 #include "ht.h"
 #include "pq.h"
-
-/*
- * The GNU C library <sys/select.h> uses some GNU asm stuff for FD_ISSET
- * that causes Insure to generate DEAD_CODE(noeffect), which we suppress
- * by using the non-asm definition.
- */
-#if defined(__INSURE__) && defined(__linux__)
-#if defined(__FD_ISSET) && defined(__FDS_BITS) && defined(__FDELT) && defined(__FDMASK)
-#undef __FD_ISSET
-#define __FD_ISSET(d, set)  (__FDS_BITS (set)[__FDELT (d)] & __FDMASK (d)) 
-#endif /* __FD_ISSET */
-#endif /* __INSURE__ */
-
 
 #endif /* _libbk_include_h_ */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.9 2002/01/11 10:14:30 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.10 2002/03/20 20:18:12 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -177,7 +177,7 @@ bk_netaddr_user(bk_s B, bk_netaddr_type_e type, void *addr, int len, bk_flags fl
   case BkNetinfoTypeLocal:
     if (!len) 
     {
-      if ((len=bk_strnlen(B, addr, MAXPATHLEN))<0)
+      if ((len=bk_strnlen(B, addr, PATH_MAX))<0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not determine the length of the AF_LOCAL address\n");
 	goto error;
@@ -185,7 +185,7 @@ bk_netaddr_user(bk_s B, bk_netaddr_type_e type, void *addr, int len, bk_flags fl
     }
     else
     {
-      if (len > MAXPATHLEN)
+      if (len > PATH_MAX)
 	bk_error_printf(B, BK_ERR_ERR, "Filename too long\n");
     }
     break;

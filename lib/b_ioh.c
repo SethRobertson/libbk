@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.46 2002/03/18 19:08:44 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.47 2002/03/20 20:18:12 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -43,7 +43,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif
 
 
-#define CALLBACK(B, ioh, data, state)								\
+#define CALL_BACK(B, ioh, data, state)								\
  do												\
  {												\
    BK_FLAG_SET((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK);					\
@@ -495,7 +495,7 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
   if (!ioh || !data)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    if (ioh) CALLBACK(B, ioh, data, BkIohStatusWriteAborted);
+    if (ioh) CALL_BACK(B, ioh, data, BkIohStatusWriteAborted);
     BK_RETURN(B, -1);
   }
 
@@ -526,14 +526,14 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
   else
   {
     bk_error_printf(B, BK_ERR_ERR, "Unknown message format type %x\n",ioh->ioh_extflags);
-    CALLBACK(B, ioh, data, BkIohStatusWriteAborted);
+    CALL_BACK(B, ioh, data, BkIohStatusWriteAborted);
     BK_RETURN(B, -1);
   }
 
   if (ret < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not append user data to outgoing message queue\n");
-    CALLBACK(B, ioh, data, BkIohStatusWriteAborted);
+    CALL_BACK(B, ioh, data, BkIohStatusWriteAborted);
     BK_RETURN(B, -1);
   }
 
@@ -992,7 +992,7 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
   ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, IOH_FLUSH_DESTROY);
 
   // Notify user
-  CALLBACK(B, ioh, NULL, BkIohStatusIohClosing);
+  CALL_BACK(B, ioh, NULL, BkIohStatusIohClosing);
 
   free(ioh);
 
@@ -1163,7 +1163,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
       {
 	// Error
 	ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
-	CALLBACK(B, ioh, NULL, BkIohStatusIohReadError);
+	CALL_BACK(B, ioh, NULL, BkIohStatusIohReadError);
 	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_INPUT);
 	bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read from select
       }
@@ -1171,7 +1171,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
       {
 	// EOF
 	ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
-	CALLBACK(B, ioh, NULL, BkIohStatusIohReadEOF);
+	CALL_BACK(B, ioh, NULL, BkIohStatusIohReadEOF);
 	/*
 	 * <TODO>don't set ERROR_INPUT here, since seek could be used to undo
 	 * EOF-ness.  use FLAGS_EOF_SEEN instead?</TODO>
@@ -1422,7 +1422,7 @@ static int ioh_dequeue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *iohq, st
 
   if (bid->bid_vptr && ioh)
   {						// Either give the data back to the user to free
-    CALLBACK(B, ioh, bid->bid_vptr, BK_FLAG_ISSET(flags, IOH_DEQUEUE_ABORT)?BkIohStatusWriteAborted:BkIohStatusWriteComplete);
+    CALL_BACK(B, ioh, bid->bid_vptr, BK_FLAG_ISSET(flags, IOH_DEQUEUE_ABORT)?BkIohStatusWriteAborted:BkIohStatusWriteComplete);
   }
   else
   {						// Or free the data yourself
@@ -1742,7 +1742,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 	cnt = (*ioh->ioh_writefun)(B, ioh->ioh_opaque, ioh->ioh_fdout, &iov, 1, 0);
 
-	if (cnt == 0 || cnt < 0 && IOH_EBLOCKING)
+	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
 	{
 	  // Not quite ready for writing yet
 	  cnt = 0;
@@ -1751,7 +1751,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	{
 	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
 	  ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
-	  CALLBACK(B, ioh, NULL, BkIohStatusIohWriteError);
+	  CALL_BACK(B, ioh, NULL, BkIohStatusIohWriteError);
 	}
 	else
 	{
@@ -1800,7 +1800,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
       // Find out how many data segments we have
       iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-      while (bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter))
+      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
       {
 	if (bid->bid_data && bid->bid_inuse > 0)
 	  cnt++;
@@ -1819,7 +1819,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
       // Actually fill out the data list
       cnt = 0;
       iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-      while (bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter))
+      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
       {
 	if (bid->bid_data)
 	{
@@ -1830,7 +1830,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
       }
       biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
-      CALLBACK(B, ioh, sendup, BkIohStatusReadComplete);
+      CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
       // Nuke vector list
       free(sendup);
@@ -1958,7 +1958,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 
       bk_debug_printf_and(B, 2, "Post-write, cnt %d, size %d\n", cnt, size);
 
-      if (cnt == 0 || cnt < 0 && IOH_EBLOCKING)
+      if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
       {
 	// Not quite ready for writing yet
 	cnt = 0;
@@ -1968,7 +1968,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
       {
 	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
 	ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
-	CALLBACK(B, ioh, NULL, BkIohStatusIohWriteError);
+	CALL_BACK(B, ioh, NULL, BkIohStatusIohWriteError);
       }
       else
       {
@@ -2064,7 +2064,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	}
 	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
-	CALLBACK(B, ioh, sendup, BkIohStatusReadComplete);
+	CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
 	// Nuke vector list
 	free(sendup);
@@ -2184,7 +2184,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
       {
 	cnt = (*ioh->ioh_writefun)(B, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
 
-	if (cnt == 0 || cnt < 0 && IOH_EBLOCKING)
+	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
 	{
 	  // Not quite ready for writing yet
 	  cnt = 0;
@@ -2193,7 +2193,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	{
 	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
 	  ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
-	  CALLBACK(B, ioh, NULL, BkIohStatusIohWriteError);
+	  CALL_BACK(B, ioh, NULL, BkIohStatusIohWriteError);
 	}
 	else
 	{					// Some (cnt) data written
@@ -2276,7 +2276,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Incoming message is greater than the maximum allowed size (%d > %d)\n", room, ioh->ioh_readq.biq_queuemax);
 	  ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, 0);
-	  CALLBACK(B, ioh, NULL, BkIohStatusIohReadError);
+	  CALL_BACK(B, ioh, NULL, BkIohStatusIohReadError);
 	  /**
 	   * @bug
 	   * <BUG>This is very very "bugus", since ioh_readallowed has no
@@ -2369,7 +2369,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
       }
       biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
-      CALLBACK(B, ioh, sendup, BkIohStatusReadComplete);
+      CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
       // Nuke vector list
       free(sendup);
@@ -2473,7 +2473,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
       // Find number of segments
       size = cnt = 0;
       iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-      while (bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter))
+      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
       {
 	if (bid->bid_data && bid->bid_inuse > 0)
 	{
@@ -2520,7 +2520,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
       }
       biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
-      CALLBACK(B, ioh, sendup, BkIohStatusReadComplete);
+      CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
       // Nuke vector list
       free(sendup);
@@ -2574,7 +2574,7 @@ void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, dic
 
   if (cmdsp) *cmdsp = NULL;
 
-  while (data = biq_minimum(queue->biq_queue))
+  while ((data = biq_minimum(queue->biq_queue)))
   {
     if (data->bid_idc.idc_type != IohDataCmdNone && cmdsp)
     {
@@ -2755,7 +2755,7 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
 
   // Find out how many data segments we have
   iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-  while (bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter))
+  while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
   {
     bk_debug_printf_and(B, 1, "Checking %p for incomplete %d (%p,%d) -- cnt %d\n", bid, bid->bid_flags, bid->bid_data, bid->bid_inuse, cnt);
     if (filter && BK_FLAG_ISCLEAR(bid->bid_flags, filter))
@@ -2782,7 +2782,7 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
   // Actually fill out the data list
   cnt = 0;
   iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-  while (bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter))
+  while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
   {
     if (filter && BK_FLAG_ISCLEAR(bid->bid_flags, filter))
       continue;
@@ -2796,7 +2796,7 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
   biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
   bk_debug_printf_and(B, 1, "We have %d incomplete reads we are sending up\n", cnt);
-  CALLBACK(B, ioh, sendup, BkIohStatusIncompleteRead);
+  CALL_BACK(B, ioh, sendup, BkIohStatusIncompleteRead);
 
   // Nuke vector list
   free(sendup);
@@ -2839,7 +2839,7 @@ static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue
 
   bk_debug_printf_and(B, 1, "Execute first items on stack if they are special for IOH %p queue %p\n", ioh, queue);
 
-  while (bid=biq_minimum(queue->biq_queue))
+  while ((bid = biq_minimum(queue->biq_queue)))
   {
     bk_debug_printf_and(B, 2, "Checking bid %p (data-%p/%d/%d, flags-%x)\n", bid, bid->bid_data, bid->bid_inuse, bid->bid_used, bid->bid_flags);
     if (bid->bid_data)
@@ -2923,7 +2923,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
     BK_RETURN(B,-1);
   }
 
-  while(idc = cmd_list_minimum(cmds))
+  while((idc = cmd_list_minimum(cmds)))
   {
     bk_debug_printf_and(B, 1, "Execute cmds %d for IOH %p\n", idc->idc_type, ioh);
 
@@ -2966,7 +2966,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
 	bk_ioh_readallowed(B, ioh, 1, 0);
 	free(isa);
 
-	CALLBACK(B, ioh, NULL, ret==0?BkIohStatusIohSeekSuccess:BkIohStatusIohSeekFailed);
+	CALL_BACK(B, ioh, NULL, ret==0?BkIohStatusIohSeekSuccess:BkIohStatusIohSeekFailed);
 
 	break;
     

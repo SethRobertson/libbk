@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.20 2002/03/19 06:33:09 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.21 2002/03/20 20:18:11 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -125,6 +125,7 @@ asm (".long	" #mod "_init"); static void mod ## _init (void)
  * Attempt to make things work on windows without cygwin
  */
 #ifdef BK_MINGW32
+typedef int ssize_t;
 typedef unsigned char u_int8_t;
 typedef unsigned short u_int16_t;
 typedef unsigned int u_int32_t;
@@ -132,6 +133,12 @@ typedef unsigned long long u_int64_t;
 typedef int int32_t;
 typedef long long int64_t;
 typedef char *caddr_t;
+
+struct timespec
+{
+  time_t tv_sec;
+  long tv_nsec;
+};
 
 #define LOG_EMERG	0
 #define LOG_ALERT	1
@@ -168,6 +175,24 @@ typedef char *caddr_t;
 #endif /* !HAVE_SA_LEN_MACRO */
 #endif /* !HAVE_SOCKADDR_SA_LEN */
 
+#ifdef HAVE_NET_ETHERNET_H
+#include <net/ethernet.h>
+#else
+#ifdef HAVE_NETINET_IF_ETHER_H
+#include <net/if.h>
+#include <netinet/if_ether.h>
+#else  /* no struct ether_addr */
+struct ether_addr
+{
+  u_int8_t ether_addr_octet[6];
+}
+#ifdef __GNUC__
+__attribute__ ((__packed__))
+#endif /* __GNUC__ */
+;
+#endif /* HAVE_NETINET_IF_ETHER_H */
+#endif /* HAVE_NET_ETHERNET_H */
+
 /*
  * No OS has ntohll/htonll yet, but it probably will be added
  */
@@ -197,7 +222,19 @@ typedef char *caddr_t;
 #define AF_LOCAL AF_UNIX
 #endif
 
-/* 
+/*
+ * The GNU C library <sys/select.h> uses some GNU asm stuff for FD_ISSET
+ * that causes Insure to generate DEAD_CODE(noeffect), which we suppress
+ * by using the non-asm definition.
+ */
+#if defined(__INSURE__) && defined(__linux__)
+#if defined(__FD_ISSET) && defined(__FDS_BITS) && defined(__FDELT) && defined(__FDMASK)
+#undef __FD_ISSET
+#define __FD_ISSET(d, set)  (__FDS_BITS (set)[__FDELT (d)] & __FDMASK (d)) 
+#endif /* __FD_ISSET */
+#endif /* __INSURE__ */
+
+/*
  * This is a Linux thing which allows you to open large files on fs which
  * might not otherwise support them. For OS's which do not support this
  * natively, defining it to 0 makes it an "identity" flag (ie has no
