@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.99 2003/11/26 03:52:53 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.100 2004/01/29 00:22:35 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -468,6 +468,8 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *		quotes are not treated specially.  See @a libbk.h for
  *		details. You should call @a bk_string_tokenize_destroy
  *		to free up the generated array.
+ *		BK_STRING_TOKENIZE_CONF_EXPAND if set will allow you to
+ *		expand keys using values from you bk_conf.
  *	@return <i>NULL</i> on call failure, allocation failure, other failure
  *	@return <br><i>null terminated array of token strings</i> on success.
  */
@@ -707,6 +709,11 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	    environ = (char **)variabledb;
 	    replace = bk_getenv(B, varspace);
 	    environ = tmpenv;
+	  }
+
+	  if (!replace && BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_CONF_EXPAND))
+	  {
+	    replace = BK_GWD(B, varspace, NULL);
 	  }
 
 	  if (replace && (len = strlen(replace)))
@@ -2257,8 +2264,8 @@ bk_string_registry_register_by_id(bk_s B, bk_str_registry_t handle, bk_str_id_t 
 
 
 /**
- * Return string with variables expanded, optionally freed.  Allows backslash quoting ala
- * BK_STRING_TOKENIZE_BACKSLASH.
+ * Return string with variables expanded from both enviornment and bk_conf,
+ * optionally freed.  Allows backslash quoting ala BK_STRING_TOKENIZE_BACKSLASH.
  *
  * THREADS: MT-SAFE
  *
@@ -2282,7 +2289,7 @@ char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **
     goto error;
   }
 
-  if (!(tokens = bk_string_tokenize_split(B, src, 1, NULL, kvht_vardb, envdb, BK_STRING_TOKENIZE_BACKSLASH)) ||
+  if (!(tokens = bk_string_tokenize_split(B, src, 1, NULL, kvht_vardb, envdb, BK_STRING_TOKENIZE_BACKSLASH | BK_STRING_TOKENIZE_CONF_EXPAND)) ||
       !(ret = tokens[0]))
   {
     bk_error_printf(B, BK_ERR_ERR, "Tokenization couldn't perform actual expansion\n");

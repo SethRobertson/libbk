@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.273 2004/01/08 06:22:26 seth Exp $
+ * $Id: libbk.h,v 1.274 2004/01/29 00:22:36 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1742,6 +1742,7 @@ extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, con
 #define BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR	0x020	///< During bk_string_tokenize_split: Convert \n et al
 #define BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT	0x040	///< During bk_string_tokenize_split: Convert \010 et al
 #define BK_STRING_TOKENIZE_SKIPLEADING			0x080   ///< During bk_string_tokenize_split: Bypass leading split chars
+#define BK_STRING_TOKENIZE_CONF_EXPAND			0x100   ///< Allow variable expansion from bk_conf.
 #define BK_STRING_TOKENIZE_SIMPLE	(BK_STRING_TOKENIZE_MULTISPLIT)
 #define BK_STRING_TOKENIZE_NORMAL	(BK_STRING_TOKENIZE_MULTISPLIT|BK_STRING_TOKENIZE_DOUBLEQUOTE)
 #define BK_STRING_TOKENIZE_CONFIG	(BK_STRING_TOKENIZE_DOUBLEQUOTE)
