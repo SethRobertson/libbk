@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.10 2001/11/15 22:19:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.11 2001/11/16 23:42:42 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -464,7 +464,10 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
   char *buf2[400];				/* Buf. for addrs of fake */
   void *addr=NULL;				/*  */
   struct hostent *tmp_h=NULL;			/* Temporary version. */
+  struct in_addr inaddr_any;			/* Pretty self explanatory */
   
+
+  inaddr_any.s_addr=INADDR_ANY;
 
   /* No point to using *this* func. without copyout, so we check ih */
   if (!name || (!ih && !bni) || !callback) 
@@ -483,7 +486,44 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
   fake_hostent.h_addr_list=(char **)buf;
   buf[0]=buf2;
 
-  if (inet_pton(AF_INET, name, &in_addr))
+  /*
+   * First check if we are trything to deal with ANY address
+   */
+  if (BK_STREQ(name, BK_ADDR_ANY))
+  {
+    if (!family)
+    {
+      /* 
+       * XXX What do we do here/ Error or progress with a warning. Since
+       * it's overwhelmingly likey that the caller means AF_INET, we will
+       * issue a warning and carry on.
+       */
+      bk_error_printf(B, BK_ERR_WARN, "Address family for ANY addres unset. Assuming AF_INET and forging on.\n");
+      family=AF_INET;
+    }
+      
+    switch (family)
+    {
+    case AF_INET:
+      len=sizeof(struct in_addr);
+      BK_FLAG_SET(flags,0x1);
+      addr=&inaddr_any;
+      break;
+    case AF_INET6:
+      /* 
+       * XXX This is *bogus* AF_INET6 doesn't define an "any address"
+       * only an "any sockaddr" which is not what we want. Well we should
+       * hack something together here and return it, but for the moment
+       * we just call it unsupported.
+       */
+      /* Intentional fallthrough */
+    default:
+      bk_error_printf(B, BK_ERR_ERR, "ANY address is not (yet?) supported in address family %d\n", family);
+      goto error;	
+      break;
+    }
+  }
+  else if (inet_pton(AF_INET, name, &in_addr))
   {
     if (family) 
     {

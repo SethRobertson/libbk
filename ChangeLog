@@ -1,5 +1,20 @@
 2001-11-16  James Tanis  <jtt@winwood.sysdetect.com>
 
+	* src/bttcp.c (main): If using -r without -l make the local name
+	BK_ADDR_ANY.
+	(proginit): Don't create remote bk_netinfo if we're receiving.
+	Listening transfers now working.
+
+	* lib/b_getbyfoo.c (bk_gethostbyfoo): support for "resolving" the
+	special token BK_ADDR_ANY ("resolves" to the ANY address for the
+	given address family).
+
+	* lib/b_addrgroup.c (do_net_init_af_inet_tcp_listen): Some copy
+	paste errors copied from connect section.
+	(net_init_check_sanity): Correct sanity checking. Was doing
+	*everything* under if (remote && local) condition which was
+	patently wrong
+
 	* test/test_getbyfoo.c (main): Better usage message.
 
 	* src/proto.c (main): Example of how to configure pOpt to print

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.56 2001/11/16 22:26:16 jtt Exp $
+ * $Id: libbk.h,v 1.57 2001/11/16 23:42:42 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -389,6 +389,8 @@ do {						\
 // @}
 
 
+/** @brief Special symbol which means resolve to "any" address. */
+#define BK_ADDR_ANY "bk_addr_any"
 
 /**
  * General vectored pointer

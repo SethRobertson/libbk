@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.4 2001/11/16 22:26:16 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.5 2001/11/16 23:42:42 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1005,18 +1005,11 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
 
   bag=&as->as_bag;
 
-  /* Make sure that this is not set before we begin to make connection */
-  if (bk_netinfo_reset_primary_address(B, as->as_bag.bag_local)<0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not reset primary address\n");
-    BK_RETURN(B,-1);
-  }
-
   af=bk_netaddr_nat2af(B,bag->bag_type); 
   
-  BK_FLAG_SET(as->as_flags, ADDRGROUP_STATE_FLAG_CONNECTING);
+  BK_FLAG_SET(as->as_flags, ADDRGROUP_STATE_FLAG_ACCEPTING);
 
-  if ((s=socket(af,SOCK_DGRAM, bag->bag_proto))<0)
+  if ((s=socket(af,SOCK_STREAM, bag->bag_proto))<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
     goto error;
@@ -1182,6 +1175,7 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
     bk_error_printf(B, BK_ERR_ERR, "netinfo structs *must* contain protocol information\n");
     goto error;
   }
+  bag->bag_proto = local->bni_bpi->bpi_proto;		/* Cache the proto */
 
   if (local && remote)
   { 
@@ -1192,43 +1186,41 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
 		      remote->bni_bpi->bpi_proto);
       goto error;
     }
-
-    bag->bag_proto = local->bni_bpi->bpi_proto;		/* Cache the proto */
+  }
     
-    /*
-     * Check on address family sanity, but this is more complicated than
-     * above. If both netinfo's have adresses then make sure that the
-     * address families match (the insertion routines should ensure that no
-     * netinfo contains a heterogenous set of addrs); if only one or the
-     * other of netinfo's have netaddr's, then use that value; if both
-     * netinfo's *lack* addresses, then flag a fatal error and return.
-     */
-    if ((bna=bk_netinfo_get_addr(B, local)))
+  /*
+   * Check on address family sanity, but this is more complicated than
+   * above. If both netinfo's have adresses then make sure that the
+   * address families match (the insertion routines should ensure that no
+   * netinfo contains a heterogenous set of addrs); if only one or the
+   * other of netinfo's have netaddr's, then use that value; if both
+   * netinfo's *lack* addresses, then flag a fatal error and return.
+   */
+  if (local && (bna=bk_netinfo_get_addr(B, local)))
+  {
+    bag->bag_type=bna->bna_type;
+  }
+
+  if (remote && (bna=bk_netinfo_get_addr(B, remote)))
+  {
+    if (bag->bag_type)
+    {
+      if (bag->bag_type != bna->bna_type)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Address family mismatch: (%d != %d)\n", bag->bag_type, bna->bna_type);
+	goto error;
+      }
+    }
+    else
     {
       bag->bag_type=bna->bna_type;
     }
+  }
 
-    if ((bna=bk_netinfo_get_addr(B, remote)))
-    {
-      if (bag->bag_type)
-      {
-	if (bag->bag_type != bna->bna_type)
-	{
-	  bk_error_printf(B, BK_ERR_ERR, "Address family mismatch: (%d != %d)\n", bag->bag_type, bna->bna_type);
-	  goto error;
-	}
-      }
-      else
-      {
-	bag->bag_type=bna->bna_type;
-      }
-    }
-
-    if (bag->bag_type == BK_NETINFO_TYPE_UNKNOWN)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Address family not determinable\n");
-      goto error;
-    }
+  if (bag->bag_type == BK_NETINFO_TYPE_UNKNOWN)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Address family not determinable\n");
+    goto error;
   }
 
   BK_RETURN(B,0);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.2 2001/11/16 22:26:16 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.3 2001/11/16 23:42:42 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -160,6 +160,10 @@ main(int argc, char **argv, char **envp)
 	exit(1);
       }
       pc->pc_role=BTTCP_ROLE_RECEIVE;
+      if (!pc->pc_remname)
+      {
+	parse_host_specifier(B, BK_ADDR_ANY, (char **)&pc->pc_locname, (char **)&pc->pc_locport, (char **)&pc->pc_locproto);
+      }
       break;
     case 't':
       if (pc->pc_role)
@@ -243,12 +247,11 @@ proginit(bk_s B, struct program_config *pc)
     goto error;
   }
 
-  if (!(pc->pc_remote=bk_netinfo_create(B)))
+  if (pc->pc_remname && (!(pc->pc_remote=bk_netinfo_create(B))))
   {
     fprintf(stderr,"Could not create remote bk_netaddr structure\n");
     goto error;
   }
-
   /* Set protocol before starting */
   if (!pc->pc_remproto)
   {
@@ -556,7 +559,6 @@ local_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bn
   }
 
   bk_netinfo_set_primary_address(B, bni, NULL);
-  printf("Local name: %s\n", bni->bni_pretty);
   pc->pc_init_next_state=BDTTCP_INIT_STATE_CONNECT;
   init_state(B, pc);
   BK_VRETURN(B);
