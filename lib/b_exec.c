@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.19 2004/01/05 19:26:38 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.20 2004/06/25 00:30:48 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,12 +25,17 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 // Declaration of openpty
+#ifdef HAVE_OPENPTY
 #ifdef HAVE_PTY_H
 #include <pty.h>
 #endif /* HAVE_PTY_H */
 #ifdef HAVE_UTIL_H
 #include <util.h>
 #endif /* HAVE_UTIL_H */
+#ifdef HAVE_LIBUTIL_H
+#include <libutil.h>
+#endif /* HAVE_LIBUTIL_H */
+#endif /* HAVE_OPENPTY */
 
 
 #ifdef BK_USING_PTHREADS
@@ -75,16 +80,24 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
   pid_t pid = 0;
 
   if (BK_FLAG_ISSET(flags, BK_PIPE_FLAG_USE_PTY))
+#ifdef HAVE_OPENPTY
   {
     if (openpty(&p2c[1], &p2c[0], NULL, NULL, NULL) < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not create communication pty: %s\n", strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not get pseudo-tty: %s\n",
+		      strerror(errno));
       goto error;
     }
     c2p[0] = dup(p2c[1]);
     c2p[1] = dup(p2c[0]);
   }
   else
+#else  /* !HAVE_OPENPTY */
+  {
+    bk_error_printf(B, BK_ERR_ERR, "No openpty support; using a pipe\n");
+  }
+  // <TRICKY>no "else" if no openpty support; use a pipe - don't fail</TRICKY>
+#endif /* !HAVE_OPENPTY */
   {
     if (fdinp)
     {

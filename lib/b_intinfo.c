@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_intinfo.c,v 1.1 2004/06/23 23:32:42 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_intinfo.c,v 1.2 2004/06/25 00:30:48 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,12 +19,13 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  *
- * b_intinfo.c: Routines for creatng and processing network interface lists.
+ * b_intinfo.c: Routines for creating and processing network interface lists.
  */
 
 #include <libbk.h>
 #include "libbk_internal.h"
 #include "libbk_net.h"
+#include <net/if.h>
 
 #define MAX_NUM_IFREQ 512
 
@@ -204,7 +205,7 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
       goto error;
     }
 
-    if (!(bii->bii_name = strndup(ifr->ifr_name, IF_NAMESIZE)))
+    if (!(bii->bii_name = bk_strndup(B, ifr->ifr_name, IF_NAMESIZE)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not copy interface name: %s\n", strerror(errno));
       goto error;
@@ -235,8 +236,12 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
     }
 
     IF_GET_INFO(B, s, SIOCGIFNETMASK, ifr);
-    
+
+#ifdef ifr_netmask
     bii->bii_netmask = ifr->ifr_netmask;
+#else
+    bii->bii_netmask = ifr->ifr_addr;
+#endif
     
     IF_GET_INFO(B, s, SIOCGIFMTU, ifr);
     

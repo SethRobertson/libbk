@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.26 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.27 2004/06/25 00:30:48 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -500,7 +500,7 @@ void bk_debug_config(bk_s B, struct bk_debug *bdinfo, FILE *fh, int sysloglevel,
 
   if (!(bdinfo->bd_leveldb = debug_create((dict_function)debug_oo_cmp, (dict_function)debug_ko_cmp, DICT_HT_STRICT_HINTS|DICT_THREAD_NOCOALESCE, &debug_args)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "%s: Could not creat debug queue: %s\n",
+    bk_error_printf(B, BK_ERR_ERR, "%s: Could not create debug queue: %s\n",
 		    BK_FUNCNAME, debug_error_reason(NULL, NULL));
     return;
   }

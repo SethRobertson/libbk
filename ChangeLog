@@ -1,3 +1,12 @@
+2004-06-24  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_intinfo.c (bk_intinfo_list_create): FreeBSD fixes
+
+	* lib/b_exec.c (bk_pipe_to_process): work on systems without openpty,
+	get openpty definition on FreeBSD systems
+	
+	* include/libbk_oscompat.h (strnlen, nearbyint, trunc): FreeBSD fixes
+
 2004-06-21  Seth Robertson  <seth@cheviot.sysdetect.com>
 
 	* lib/b_pollio.c (bk_polling_io_write): Time is a timeout, even on

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.44 2004/01/05 19:26:37 seth Exp $
+ * $Id: libbk_oscompat.h,v 1.45 2004/06/25 00:30:48 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -369,8 +369,8 @@ extern struct tm *gmtime_r(const time_t *timenow, struct tm *buffer);
  *
  *   char **environ;
  *
- * (and even on the ones where we don't need to do so, it may suppress warnings
- * about unresolved references, e.g. *BSD).
+ * (this is done in bk_general.c so that we don't have to suppress warnings
+ * about unresolved references for *BSD).
  *
  * Theoretically, on some platforms, this might need to be declared as a
  * array rather than a pointer.  It might be const-ified in various ways as
@@ -385,6 +385,33 @@ extern char **environ;
 # define BK_SETENV(B, variable, value, overwrite)	(bk_setenv_with_putenv(B, variable, value, overwrite))
 # define BK_UNSETENV(B, variable)			(putenv(variable))
 #endif /* HAVE_SETENV */
+
+#ifndef HAVE_NEARBYINT
+#define nearbyint rint
+#endif	/* !HAVE_NEARBYINT */
+
+#ifndef HAVE_TRUNC
+/*
+ * Simple replacement for C99 trunc using C89 fmod
+ */
+static inline double trunc(double x)
+{
+  return x - fmod(x, 1.0);
+}
+#endif /* !HAVE_TRUNC */
+
+#ifndef HAVE_STRNLEN
+/*
+ * Simple replacement for GNU extension using only standard ANSI API.
+ */
+static inline size_t strnlen(const char *s, size_t maxlen)
+{
+  char *end = memchr(s, '\0', maxlen);
+  if (!end)
+    return maxlen;
+  return end - s;
+}
+#endif	/* !HAVE_STRNLEN */
 
 // Old versions of popt.  Sigh.
 #ifndef POPT_TABLEEND

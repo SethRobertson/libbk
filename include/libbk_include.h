@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.38 2004/04/13 17:54:28 jtt Exp $
+ * $Id: libbk_include.h,v 1.39 2004/06/25 00:30:48 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -16,9 +16,6 @@
 #ifndef _libbk_include_h_
 #define _libbk_include_h_
 
-#ifndef __STDC_VERSION__			// if not specified (Linux)
-#define __STDC_VERSION__ 199901L		// turn on ISO C99 extensions
-#endif
 #define _GNU_SOURCE				// turn on all GNU extensions
 
 #if defined(__INSURE__) && defined(__linux__)
