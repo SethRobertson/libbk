@@ -1,3 +1,9 @@
+2003-02-23  James Tanis  <jtt@hawking.sysdetect.com>
+
+	* lib/b_string.c (bk_string_unique_string): Avoid placing EOS
+	marker in middle of string (snprintf(3) *guarentees* an EOS at the
+	end).
+
 2003-02-22  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_error.c (bk_error_iprintbuf): Don't go through

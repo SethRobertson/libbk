@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.77 2003/02/01 05:38:41 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.78 2003/02/24 16:55:43 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1533,7 +1533,7 @@ bk_vstr_cat(bk_s B, bk_flags flags, bk_vstr *dest, const char *src_fmt, ...)
  *	@param B BAKA thread/global state.
  *	@param buf The buffer to fill.
  *	@param len The length of the buffer (we will fill it all).
- *	@param Flags flags for future use.
+ *	@param Flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
@@ -1559,11 +1559,23 @@ bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
 
   while(len)
   {
-    int curlen = MIN(len, sizeof(val)*2);
+    int curlen;
+    int eos_space;
+
+    if (len > sizeof(val)*2)
+    {
+      curlen = sizeof(val)*2;
+      eos_space = 1;
+    }
+    else
+    {
+      curlen = MIN(len, sizeof(val)*2);
+      eos_space = 0;
+    }
     
     val = bk_rand_getword(B, ri, NULL, 0);
 
-    snprintf(p, curlen, "%08x", val);
+    snprintf(p, curlen + eos_space, "%08x", val);
     
     len -= curlen;
     p += curlen;
