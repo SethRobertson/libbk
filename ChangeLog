@@ -1,3 +1,15 @@
+2003-06-17  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_ioh.c (IOH_COMPRESS_SUPPORT): conditionalize unused compression
+	support in libbk; this isn't used, is mostly untested, and introduces
+	an unnecessary dependency on -lz for *all* SysD programs
+	(ioht_raw_other): writev all iov buffers for BK_IOH_WRITE_ALL
+
+	* lib/b_pollio.c (bk_polling_io_write, bk_polling_io_read): run flags
+
+	* lib/b_strcode.c (bk_string_str2xml, bk_encode_base64): integer
+	overflow checks
+	
 2003-06-16  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_fun.c (bk_fun_exit): Allow for stats tracking of functions

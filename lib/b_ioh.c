@@ -1,12 +1,12 @@
-#if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.88 2003/06/17 06:07:16 seth Exp $";
+#if !defined(lint)
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.89 2003/06/17 15:43:22 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
  *
- * Copyright (c) 2003 The Authors. All rights reserved.
+ * Copyright (c) 2001-2003 The Authors.  All rights reserved.
  *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
@@ -25,10 +25,17 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+/*
+ * Feel free to turn this back on if you find a use for it - awb doesn't use it
+ * and it is unclear how well tested it is.
+ */
+#if 0
+#define IOH_COMPRESS_SUPPORT
 #include <zlib.h>
+#endif
 
 
-#define IOH_VECTOR_WRITE_BATCH_SIZE	64	///< Write this many buffers at a time (writev)
 #define IOH_FLAG_ALREADYLOCKED		0x80000	///< Signal functions that ioh is already locked
 
 
@@ -2162,10 +2169,6 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
   case IOHT_HANDLER:
     if (aux == BK_RUN_WRITEREADY)
     {
-      int cnt = 0;
-      struct iovec iov[IOH_VECTOR_WRITE_BATCH_SIZE];
-      int vectors_in_use = 0;
-
       // find first non-cmd bid
       bid = biq_minimum(ioh->ioh_writeq.biq_queue);
       while (bid && !bid->bid_data)
@@ -2173,12 +2176,32 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	bid = biq_successor(ioh->ioh_writeq.biq_queue, bid);
       }
 
-      // process up to the next cmd bid <TODO>Make message boundry aware?</TODO>
+      // process up to the next cmd bid <TODO>Make message boundary aware?</TODO>
       while(bid && bid->bid_data)
       {
-	// Process first IOH_VECTOR_WRITE_BATCH_SIZE in one write
-	for (vectors_in_use = 0; vectors_in_use < IOH_VECTOR_WRITE_BATCH_SIZE && bid && bid->bid_data; vectors_in_use++)
+	int cnt = 0;
+	int vectors_in_use;
+	struct iovec *iov;
+
+	while (bid && bid->bid_data)
 	{
+	  cnt++;
+	  if (BK_FLAG_ISCLEAR(ioh->ioh_extflags, BK_IOH_WRITE_ALL))
+	    break;
+	  bid = biq_successor(ioh->ioh_writeq.biq_queue, bid);
+	}
+
+	if (!BK_MALLOC_LEN(iov, sizeof(*iov)*(cnt)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate writev iovec\n");
+	  BK_RETURN(B, -1);
+	}
+
+	// fill out iovec with ptrs from user buffers
+	for (vectors_in_use = 0, bid = biq_minimum(ioh->ioh_writeq.biq_queue);
+	     vectors_in_use < cnt && bid && bid->bid_data;
+	     bid = biq_successor(ioh->ioh_writeq.biq_queue, bid))
+	{	
 	  iov[vectors_in_use].iov_base = bid->bid_data + bid->bid_used;
 	  iov[vectors_in_use].iov_len = bid->bid_inuse;
 	  if (bk_debug_and(B, 0x20))
@@ -2188,7 +2211,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	    dbuf.len = MIN((u_int)iov[vectors_in_use].iov_len, 128U);
 	    bk_debug_printbuf_and(B, 0x20, "Buffer ready to write:", "\t", &dbuf);
 	  }
-	  bid = biq_successor(ioh->ioh_writeq.biq_queue, bid);
+	  vectors_in_use++;
 	}
 	bk_debug_printf_and(B, 64, "Stopped enqueueing data, vectors %d, bid %p, bid->data %p, bid->flags %x, bid->idc_type %d\n", vectors_in_use, bid, bid?bid->bid_data:NULL, bid?bid->bid_flags:0, bid?bid->bid_idc.idc_type:0);
 
@@ -2214,6 +2237,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 #endif /* BK_USING_PTHREADS */
 
 	ioh->ioh_errno = errno;
+	free(iov);
 
 	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
 	{
@@ -2231,6 +2255,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	}
 	else
 	{
+	  // figure out what buffers have been fully written
 	  ioh_dequeue_byte(B, ioh, &ioh->ioh_writeq, (u_int32_t)cnt, 0);
 
 	  if (ioh->ioh_writeq.biq_queuelen < 1)
@@ -2241,6 +2266,8 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 	  if (BK_FLAG_ISCLEAR(ioh->ioh_extflags, BK_IOH_WRITE_ALL))
 	    break;
+
+	  bid = biq_minimum(ioh->ioh_writeq.biq_queue);
 	}
       }
     }
@@ -2254,7 +2281,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 	if (!(data = malloc(size)))
 	{
-	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer for ioh %p of size %d: %s\n",ioh,size,strerror(errno));
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer for ioh %p of size %u\n", ioh, size);
 	  BK_RETURN(B, -1);
 	}
 
@@ -2745,7 +2772,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	{					// We still need to allocate storage for same
 	  if (!(data = malloc(sizeof(lengthfromwire) - size)))
 	  {
-	    bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer for ioh %p of size %d: %s\n",ioh,(unsigned int)sizeof(lengthfromwire) - size,strerror(errno));
+	    bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer for ioh %p of size %u: %s\n",ioh,(unsigned int)sizeof(lengthfromwire) - size,strerror(errno));
 	    BK_RETURN(B, -1);
 	  }
 
@@ -2769,7 +2796,6 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	    room = MIN(room,lengthfromwire+sizeof(lengthfromwire)-size);
 	  else
 	    room = MIN(room,sizeof(lengthfromwire)-size);
-
 	}
 
 	/*
@@ -3258,7 +3284,7 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
     BK_RETURN(B,-1);
   }
 
-  bk_debug_printf_and(B, 1, "Internal read IOH %p (filedes: %d) of %d bytes\n", ioh, fd, (unsigned int)len);
+  bk_debug_printf_and(B, 1, "Internal read IOH %p (filedes: %d) of %u bytes\n", ioh, fd, (unsigned int)len);
 
   if (bk_run_fd_is_closed(B, ioh->ioh_run, ioh->ioh_fdin))
   {
@@ -3471,13 +3497,13 @@ static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue
 
 
 /**
- * Execute the commands indicated by the bitfield cmds.
+ * Execute the commands on the cmds list.
  *
  * THREADS: REENTRANT (ioh must already be locked)
  *
  *	@param B BAKA Thread/global state
  *	@param ioh IOH state handle
- *	@param cmds Bitfield containing _CLOSE _SHUTDOWN commands
+ *	@param cmds list of _CLOSE/_SHUTDOWN/etc. commands
  *	@param flags Flags
  *	@return <i>-1</i> on call failure
  *	@return <br><i>0</i> on success
@@ -3714,6 +3740,7 @@ compress_write(bk_s B, struct bk_ioh *ioh, bk_iowfunc_f writefun, void *opaque, 
 
   if (ioh && ioh->ioh_compress_level)
   {
+#ifdef IOH_COMPRESS_SUPPORT
     char *src = NULL;
     char *dst = NULL;
     u_int cnt;
@@ -3727,7 +3754,7 @@ compress_write(bk_s B, struct bk_ioh *ioh, bk_iowfunc_f writefun, void *opaque, 
     {
       if (!(q = realloc(src, len + buf[cnt].iov_len)))
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not allocate compress source buffer: %s\n", strerror(errno));
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocat compress source"));
 	free(src);
 	src = NULL;
 	break;
@@ -3741,7 +3768,7 @@ compress_write(bk_s B, struct bk_ioh *ioh, bk_iowfunc_f writefun, void *opaque, 
       new_len = BK_COMPRESS_SWELL(len);
       if (!(BK_MALLOC_LEN(dst, new_len)))
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not allocate compress dest buffer: %s\n", strerror(errno));
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate compress dest");
       }
       else
       {
@@ -3763,6 +3790,9 @@ compress_write(bk_s B, struct bk_ioh *ioh, bk_iowfunc_f writefun, void *opaque, 
       if (dst)
 	free(dst);
     }
+#else
+    ret = -1;
+#endif
   }
   else
   {
@@ -4318,7 +4348,9 @@ static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, cons
 
 
 /**
- * Set various and sudry "extras" available to the ioh. NB Not everything may be fully supported
+ * Set various and sundry "extras" available to the ioh.
+ *
+ * NB Not everything may be fully supported
  *
  * THREADS: MT-SAFE (assuming different ioh)
  * THREADS: THREAD-REENTRANT (otherwise)
@@ -4347,9 +4379,10 @@ bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_al
 
   if (compression_level)
   {
+#ifdef IOH_COMPRESS_SUPPORT
     if (ioh->ioh_compress_level && ioh->ioh_compress_level != compression_level)
     {
-      bk_error_printf(B, BK_ERR_ERR, "May not alter compression level during run\n");
+      bk_error_printf(B, BK_ERR_ERR, "Compression cannot be changed once set\n");
       goto error;
     }
     ioh->ioh_compress_level = compression_level;
@@ -4360,10 +4393,14 @@ bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_al
     }
     if (!ioh->ioh_inbuf_hint)
       ioh->ioh_inbuf_hint = IOH_COMPRESS_BLOCK_SIZE;
+#else
+    bk_error_printf(B, BK_ERR_ERR, "Compression is not enabled - recompile\n");
+    goto error;
+#endif    
   }
   else if (ioh->ioh_compress_level)
   {
-    bk_error_printf(B, BK_ERR_ERR, "May not turn of compression once it's started\n");
+    bk_error_printf(B, BK_ERR_ERR, "Compression cannot be changed once set\n");
     goto error;
   }
 
@@ -4577,9 +4614,7 @@ check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags)
       goto error;
     }
 
-    /*
-     * Enqueue event to recheck after a short delay.
-     */
+    // Enqueue event to recheck after a short delay.
     if (bk_run_enqueue_delta(B, ioh->ioh_run, BK_SECS_TO_EVENT(ioh->ioh_follow_pause), recheck_follow, ioh, &ioh->ioh_recheck_event, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not enqueue event to recheck the file size in follow mode\n");

@@ -1,12 +1,12 @@
-#if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.40 2003/06/17 06:07:16 seth Exp $";
+#if !defined(lint)
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.41 2003/06/17 15:43:22 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
  *
- * Copyright (c) 2003 The Authors. All rights reserved.
+ * Copyright (c) 2001-2003 The Authors.  All rights reserved.
  *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
@@ -128,7 +128,7 @@ static void bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi);
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The BAKA ioh structure to use.
- *	@param flags BK_POLLING_THREADED if callee is guarenteed in a seperate thread from bk_run_run
+ *	@param flags BK_POLLING_THREADED if callee is guaranteed in a separate thread from bk_run_run
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_polling_io on success.
  */
@@ -215,7 +215,9 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The on demand state to close.
- *	@param flags Flags for the future.
+ *	@param flags BK_POLLING_LINGER so that pending data is written<br>
+ *	BK_POLLING_DONT_LINGER to return immediately, regardless of pending
+ *	output.
  */
 void
 bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
@@ -690,9 +692,9 @@ bk_polling_io_data_destroy(bk_s B, bk_vptr *data)
  *	@param B BAKA thread/global state.
  *	@param bpi The polling state to use.
  *	@param datap Data to pass up to the user (copyout).
- *	@param statusp Status to pass up to the user (copyout).
+ *	@param statup Status to pass up to the user (copyout).
  *	@param timeout Maximum time to wait in milliseconds (0->forever, -1->no wait)
- *	@param flags Fun for the future
+ *	@param flags flags for bk_run_once (e.g. BK_RUN_ONCE_FLAG_DONT_BLOCK)
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success (with data).
  *	@return <i>positive</i> on no progress.
@@ -787,7 +789,7 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
       if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
 	abort();
 #endif /* BK_USING_PTHREADS */
-      if (bk_run_once(B, bpi->bpi_ioh->ioh_run, 0) < 0)
+      if (bk_run_once(B, bpi->bpi_ioh->ioh_run, flags) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
 	ret = -1;
@@ -860,9 +862,9 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io struct to use.
- *	@param data The data to wirte out.
+ *	@param data The data to write out.
  *	@param timeout Maximum time to wait in milliseconds (0->forever, -1->no wait)
- *	@param flags Flags for future use.
+ *	@param flags flags for bk_run_once (e.g. BK_RUN_ONCE_FLAG_DONT_BLOCK)
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  *	@return <i>1</i> on timeout/cancel
@@ -896,7 +898,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
    * other cases the data is not queued and the write returns 1. So as long
    * as we get > 0 as a return code we try to drain the queue. Eventually
    * the queue *will* drain (or we will fail miserably) and no matter how
-   * large ddata is, the next bk_ioh_write will succeed.
+   * large data is, the next bk_ioh_write will succeed.
    */
 
 #ifdef BK_USING_PTHREADS
@@ -965,7 +967,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
       if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
 	abort();
 #endif /* BK_USING_PTHREADS */
-      if (bk_run_once(B, bpi->bpi_ioh->ioh_run, 0) < 0)
+      if (bk_run_once(B, bpi->bpi_ioh->ioh_run, flags) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
 	ret = -1;
@@ -1017,7 +1019,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
       // <BUG>This might wait for more time than necessary, since other writes can come in..</BUG>
       while (bpi->bpi_wroutstanding > 0)
       {
-	if (bk_run_once(B, bpi->bpi_ioh->ioh_run, 0) < 0)
+	if (bk_run_once(B, bpi->bpi_ioh->ioh_run, flags) < 0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
 	  ret = -1;
@@ -1072,7 +1074,7 @@ pid_create(bk_s B)
 
 
 /**
- * Destroy an pid.
+ * Destroy a pid.
  *
  * THREADS: MT-SAFE
  *

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.15 2003/06/17 06:07:17 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.16 2003/06/17 15:43:22 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -102,12 +102,13 @@ static const unsigned char index_64[256] = {
 char *bk_encode_base64(bk_s B, const bk_vptr *src, const char *eolseq)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char *str;					/* string to encode */
-  ssize_t len;					/* length of the string */
-  const char *eol;				/* the end-of-line sequence to use */
-  ssize_t eollen;				/* length of the EOL sequence */
-  char *r, *ret;				/* result string */
-  ssize_t rlen;					/* length of result string */
+  char *str;					// string to encode
+  ssize_t len;					// length of the string
+  const char *eol;				// end-of-line sequence
+  ssize_t eollen;				// length of the EOL sequence
+  char *r, *ret;				// result string
+  int32_t rlen;					// length of result string
+  uint64_t elen;
   unsigned char c1, c2, c3;
   int chunk;
 
@@ -131,25 +132,25 @@ char *bk_encode_base64(bk_s B, const bk_vptr *src, const char *eolseq)
   }
   eollen = strlen(eol);
 
-  /* calculate the length of the result */
-  rlen = (len+2) / 3 * 4;			/* encoded bytes */
-  if (rlen)
+  /*
+   * <WARNING>integer overflow security, be sure rlen is large enough: due to
+   * complexity and multiplication of vptr len by eolseq len, we use 64-bit
+   * math to check for 32-bit overflow.</WARNING>
+   */
+  rlen = 4 * (1 + len / 3);			// encoded bytes
+  elen = ((rlen-1) / MAX_LINE + 1) * (int64_t) eollen;
+  if (rlen < 0 || rlen + elen + 1 > INT_MAX)
   {
-    /* add space for EOL */
-    rlen += ((rlen-1) / MAX_LINE + 1) * eollen;
-  }
-  rlen++;					// Add space for null termination
-
-  if (rlen < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Overflow situation, length is %d bytes\n", rlen);
+    bk_error_printf(B, BK_ERR_ERR, "Overflow, length is %lld bytes\n",
+		    rlen + elen + 1);
     BK_RETURN(B, NULL);
   }
+  rlen += elen + 1;
 
   /* allocate a result buffer */
   if (!(ret = BK_MALLOC_LEN(r, rlen)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory(%d) for result: %s\n", (int) rlen, strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory for result");
     BK_RETURN(B, NULL);
   }
 
@@ -194,13 +195,13 @@ char *bk_encode_base64(bk_s B, const bk_vptr *src, const char *eolseq)
   }
 
   if (rlen)
-  {						/* append eol to the result string */
+  {						// append eol to result string
     const char *c = eol;
     const char *e = eol + eollen;
     while (c < e)
       *r++ = *c++;
   }
-  *r = '\0';					/* NULL terminate */
+  *r = '\0';					// NUL terminate
 
   BK_RETURN(B, ret);
 }
@@ -242,12 +243,14 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
   }
 
   len = strlen(str);
-  rlen = len * 3 / 4;				// Might be too much, but always enough
-  rlen++;					// Add space for null termination
-
+  /*
+   * <WARNING>integer overflow security, be sure rlen is large enough: divide
+   * before multiply, round up, and 1 for NUL termination.</WARNING>
+   */
+  rlen = 3 * (1 + len / 4) + 1;
   if (rlen < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Overflow situation, length is %d bytes\n", rlen);
+    bk_error_printf(B, BK_ERR_ERR, "Overflow, length is %d bytes\n", rlen);
     free(ret);
     BK_RETURN(B, NULL);
   }
@@ -376,9 +379,16 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
   len += chunk;
   left = len;
 
-  if (!(xml = malloc(len)))
+  // <WARNING>integer overflow security, be sure len is positive.</WARNING>
+  if (len < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate xml string: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Overflow, length is %d bytes\n", len);
+    BK_RETURN(B, NULL);
+  }
+
+  if (!BK_MALLOC_LEN(xml, len))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate xml string\n");
     goto error;
   }
 
@@ -445,9 +455,15 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
 
       len += chunk;
       left += chunk;
+      // <WARNING>integer overflow security, be sure len is positive.</WARNING>
+      if (len < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Overflow, length is %d bytes\n", len);
+	goto error;
+      }
       if (!(tmp = realloc(xml, len)))
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not realloc xml string: %s\n", strerror(errno));
+	bk_error_printf(B, BK_ERR_ERR, "Could not realloc xml string\n");
 	goto error;
       }
       xml = tmp;
