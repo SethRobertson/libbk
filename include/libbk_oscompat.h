@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.27 2002/08/27 23:13:38 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.28 2002/09/27 19:37:14 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -306,6 +306,10 @@ __attribute__ ((__packed__))
 #  define UINT64_MAX             ULLONG_MAX
 # endif
 #endif /* INT8_MIN */
+
+#ifndef ULLONG_MAX				// ISO C99, but not ANSI C87
+#define ULLONG_MAX ((unsigned long long) -1)
+#endif
 
 // GZIP Needs to have this OS_CODE thingy for some reason.
 #ifdef BK_MINGW32

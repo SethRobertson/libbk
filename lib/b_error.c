@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.27 2002/09/27 19:00:57 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.28 2002/09/27 19:37:15 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -701,10 +701,11 @@ char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, const char *mark, int m
     goto error;
   }
 
-  if (!BK_CALLOC_LEN(str->ptr, 1024))
+  if (!BK_MALLOC_LEN(str->ptr, 1024))
   {
     goto error;
   }
+  ((char*) str->ptr)[0] = '\0';
   str->cur = 1;
   str->max = 1024;
 
@@ -949,6 +950,7 @@ static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *nod
     {
       //strcpy((char*) str->ptr + str->cur - 1, "\n");
       *((char *)(str->ptr) + str->cur - 1) = '\n';
+      *((char *)(str->ptr) + str->cur) = '\0';
       str->cur++;
     }
   }
