@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.9 2002/01/20 03:19:11 seth Exp $
+# $Id: Makefile,v 1.10 2002/08/16 19:09:07 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -25,6 +25,7 @@ BK_SIMPLE_PROGS=			\
 GROUPTOP=..
 GROUPSUBDIR=src
 
+
 ##################################################
 ## BEGIN BKSTANDARD MAKEFILE
 -include ./Make.preinclude
@@ -36,3 +37,4 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 -include ./Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
+
