@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.140 2002/05/01 16:53:13 jtt Exp $
+ * $Id: libbk.h,v 1.141 2002/05/01 23:46:28 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1082,12 +1082,12 @@ extern void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, char *format, va_
 
 
 /* b_error.c */
-extern struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogthreshhold, bk_flags flags);
+extern struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogthreshold, bk_flags flags);
 extern void bk_error_destroy(bk_s B, struct bk_error *beinfo);
-extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, int syslogthreshhold, int hilo_pivot, bk_flags flags);
+extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, int syslogthreshold, int hilo_pivot, bk_flags flags);
 #define BK_ERROR_CONFIG_FH			0x1 ///< File handle is being set
 #define BK_ERROR_CONFIG_HILO_PIVOT		0x2 ///< Hilo_pivot is being set
-#define BK_ERROR_CONFIG_SYSLOGTHRESHHOLD	0x4 ///< Syslog threshhold is being set
+#define BK_ERROR_CONFIG_SYSLOGTHRESHOLD		0x4 ///< Syslog threshold is being set
 #define BK_ERROR_CONFIG_QUEUELEN		0x8 ///< Queue length is being set
 extern void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 extern void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);

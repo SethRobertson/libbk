@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.18 2002/04/26 14:46:39 lindauer Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.19 2002/05/01 23:46:29 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -105,12 +105,12 @@ static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *nod
  *	@param B BAKA thread/global state 
  *	@param queuelen The number of messages that will be kept in the each (high and low priority message) queue
  *	@param fh The stdio file handle to print error messages to when errors occur (typically for debugging)
- *	@param syslogthreshhold The syslog level which high priority error messages will be logged at (BK_ERR_NONE to disable logging)
+ *	@param syslogthreshold The syslog level which high priority error messages will be logged at (BK_ERR_NONE to disable logging)
  *	@param flags Flags for future expansion--saved through run structure.
  *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
  *	@return <br><i>Error structure</i> if successful, which has been initialized.
  */
-struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogthreshhold, bk_flags flags)
+struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogthreshold, bk_flags flags)
 {
   struct bk_error *beinfo;
 
@@ -124,7 +124,7 @@ struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogt
   beinfo->be_fh = fh;
   beinfo->be_seqnum = 0;
   beinfo->be_hilo_pivot = BK_ERROR_PIVOT;
-  beinfo->be_sysloglevel = syslogthreshhold;
+  beinfo->be_sysloglevel = syslogthreshold;
   beinfo->be_curHiSize = 0;
   beinfo->be_curLowSize = 0;
   beinfo->be_maxsize = queuelen;
@@ -196,11 +196,11 @@ void bk_error_destroy(bk_s B, struct bk_error *beinfo)
  *	@param beinfo The error state structure. 
  *	@param queuelen The number of messages that will be kept in the each (high and low priority message) queue
  *	@param fh The stdio file handle to print error messages to when errors occur (typically for debugging)
- *	@param syslogthreshhold The syslog level which high priority error messages will be logged at (NONE to disable logging)
+ *	@param syslogthreshold The syslog level which high priority error messages will be logged at (NONE to disable logging)
  *	@param hilo_pivot The BK_ERR level which seperates messages into the high and low error queues (default BK_ERR_ERR which means BK_ERR_WARN messages and less important go into the low priority queue).
- *	@param flags Controls which of the previous configuration values are set (BK_ERROR_(FH, HILO_PIVOT, SYSLOGTHRESHHOLD, QUEUELEN))
+ *	@param flags Controls which of the previous configuration values are set (BK_ERROR_(FH, HILO_PIVOT, SYSLOGTHRESHOLD, QUEUELEN))
 */
-void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, int syslogthreshhold, int hilo_pivot, bk_flags flags)
+void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, int syslogthreshold, int hilo_pivot, bk_flags flags)
 {
   if (!beinfo)
   {
@@ -212,8 +212,8 @@ void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *
     beinfo->be_fh = fh;
   if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_HILO_PIVOT))
     beinfo->be_hilo_pivot = hilo_pivot;
-  if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_SYSLOGTHRESHHOLD))
-    beinfo->be_sysloglevel = syslogthreshhold;
+  if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_SYSLOGTHRESHOLD))
+    beinfo->be_sysloglevel = syslogthreshold;
   if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_QUEUELEN))
     beinfo->be_maxsize = queuelen;
 
