@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_chill.c,v 1.1 2003/07/03 01:58:25 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_chill.c,v 1.2 2003/07/08 21:00:19 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,7 +24,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include <libbk_i18n.h>
 
-#define BLOCKSIZE 32768
+#define BLOCKSIZE 1048576
 
 
 #define STD_LOCALEDIR_KEY     "LOCALEDIR"	///< Key in bkconfig to find the locale translation files
