@@ -1,3 +1,14 @@
+2001-11-28  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* test/test_getbyfoo.c (progrun): Fix up to conform to new API.
+
+	* lib/b_addrgroup.c (do_net_init_af_inet_tcp_listen): Don't free
+	bag.
+
+2001-11-27  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* src/bttcp.c: Eliminate useless function.
+
 2001-11-26  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_bits.c lib/b_general.c lib/b_config.c lib/b_debug.c

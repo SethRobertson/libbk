@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.14 2001/11/26 18:12:28 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.15 2001/11/28 14:58:44 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -75,7 +75,6 @@ struct program_config
 
 static int proginit(bk_s B, struct program_config *pconfig);
 static void progrun(bk_s B, struct program_config *pconfig);
-static int parse_host_specifier(bk_s B, const char *url, char **name, char **port, char **proto);
 static void connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_flags flags);
 static void relay_finish(bk_s B, void *args, u_int state);
 static void cleanup(bk_s B, struct program_config *pc);
@@ -288,91 +287,6 @@ progrun(bk_s B, struct program_config *pc)
   }
   
   BK_VRETURN(B);
-}
-
-
-
-
-
-#define PROTO_SEPARATOR "://"
-#define PORT_SEPARATOR ":"
-
-/**
- * Parse out a 'url'. 
- *	@param B BAKA thread/global state.
- *	@param url "URL" to parse.
- *	@param name copyout host name/ip string.
- *	@param port copyout port string.
- *	@param proto copyout protcol string.
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
- */
-static int
-parse_host_specifier(bk_s B, const char *url, char **name, char **port, char **proto)
-{
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
-  char *tmp;
-  char *p;
-  char *tmp_name;
-  
-  if (!url || !name || !port || !proto)
-  {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_RETURN(B, -1);
-  }
-
-  *name=NULL;
-  *port=NULL;
-  *proto=NULL;
-
-  if (!(tmp=strdup(url)))
-  {
-    perror("failed to strdup url");
-    exit(1);
-  }
-
-  if ((p=strstr(tmp,PROTO_SEPARATOR)))
-  {
-    *p='\0';
-    *proto=strdup(tmp);
-    tmp_name=p+strlen(PROTO_SEPARATOR);
-  }
-  else
-  {
-    *proto=strdup(DEFAULT_PROTO_STR);
-    tmp_name=tmp;
-  }
-  
-  if (!*proto)
-  {
-    perror("Could not strdup proto");
-    exit(1);
-  }
-  
-  if ((p=strstr(tmp_name,PORT_SEPARATOR)))
-  {
-    *p++='\0';
-    *port=strdup(p);
-  }
-  else
-  {
-    *port=strdup(DEFAULT_PORT_STR);
-  }
-
-  if (!*port)
-  {
-    perror("Could not strdup port");
-    exit(1);
-  }
-
-  if (!(*name=strdup(tmp_name)))
-  {
-    perror("Could not strdup host name/ip");
-    exit(1);
-  }
-  free(tmp);
-  BK_RETURN(B,0);
-  
 }
 
 

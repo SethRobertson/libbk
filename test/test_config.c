@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_config.c,v 1.2 2001/11/06 22:15:50 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_config.c,v 1.3 2001/11/28 14:58:45 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -57,13 +57,14 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
+#if 0
   if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, BK_ERR_ERR, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
   }
   bk_fun_reentry(B);
-
+#endif
   memset(&Global,0, sizeof(Global));
   optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0);
 
@@ -87,6 +88,11 @@ main(int argc, char **argv, char **envp)
     }
   }
 
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, BK_ERR_ERR, 0)))
+  {
+    fprintf(stderr,"Could not perform basic initialization\n");
+    exit(254);
+  }
 
   if (c < -1 || getopterr)
   {
@@ -134,6 +140,8 @@ void progrun(bk_s B)
   {
     bk_config_print(B,NULL,stderr);
   }
+
+  bk_config_destroy(B,NULL);
     
   BK_VRETURN(B);
 }

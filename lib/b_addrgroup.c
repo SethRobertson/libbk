@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.12 2001/11/26 18:12:28 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.13 2001/11/28 14:58:43 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1058,7 +1058,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int af;
   int s=-1;
-  struct bk_addrgroup *bag=NULL;
+  struct bk_addrgroup *bag;
 
   if (!as)
   {
@@ -1069,7 +1069,6 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
   bag=as->as_bag;
 
   af=bk_netaddr_nat2af(B,bag->bag_type); 
-  
   
   if ((s=socket(af,SOCK_STREAM, bag->bag_proto))<0)
   {
@@ -1145,7 +1144,6 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
   BK_RETURN(B,s);
 
  error:
-  if (bag) bag_destroy(B,bag);
   net_close(B, as);
   BK_RETURN(B,-1);
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.20 2001/11/27 00:58:41 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.21 2001/11/28 14:58:43 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -287,9 +287,7 @@ bk_config_destroy(bk_s B, struct bk_config *obc)
   {
     struct bk_config_key *bck;
 
-    DICT_NUKE_CONTENTS(bc->bc_kv, config_kv, bck, bk_error_printf(B, BK_ERR_ERR, "Could not delete minimum from list: %s",config_kv_error_reason(bc->bc_kv, NULL)), bck_destroy(B, bck));
-
-    bk_debug_printf_and(B,128,"KV free: %p\n", bc->bc_kv);
+    DICT_NUKE_CONTENTS(bc->bc_kv, config_kv, bck, bk_error_printf(B, BK_ERR_ERR, "Could not delete minimum from list: %s",config_kv_error_reason(bc->bc_kv, NULL)), bk_debug_printf_and(B,128,"KV free: %p (%s)\n", bc->bc_kv, bck->bck_key); bck_destroy(B, bck) );
     config_kv_destroy(bc->bc_kv);
   }
 

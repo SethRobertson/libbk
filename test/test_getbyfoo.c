@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.8 2001/11/16 22:26:16 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.9 2001/11/28 14:58:45 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -264,10 +264,10 @@ void progrun(bk_s B)
       printf("h is now %p\n", h);
     }
 
-    if (bk_gethostbyfoo(B, Global.gs_query, 0, 
+    if (!(bk_gethostbyfoo(B, Global.gs_query, 0, 
 			BK_FLAG_ISCLEAR(Global.gs_flags, TESTGETBYFOO_FLAG_NO_COPYOUT)?h:NULL, 
 			bni, run, host_callback, NULL,
-			((BK_FLAG_ISSET(Global.gs_flags,TESTGETBYFOO_FLAG_FQDN))?BK_GETHOSTBYFOO_FLAG_FQDN:0))<0)
+			  ((BK_FLAG_ISSET(Global.gs_flags,TESTGETBYFOO_FLAG_FQDN))?BK_GETHOSTBYFOO_FLAG_FQDN:0))))
     {
       fprintf(stderr,"Could not \"initiate\" gethostbyfoo call\n");
       exit(1);
