@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.72 2004/08/05 03:58:59 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.73 2004/08/07 04:43:21 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1513,7 +1513,10 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	  )
 	type |= BK_RUN_XCPTREADY;
 
-      bk_debug_printf_and(B,1,"Activity detected on %d: type: %d\n", x, type);
+      if (type)
+      {
+	bk_debug_printf_and(B,1,"Activity detected on %d: type: %d\n", x, type);
+      }
 
       if (type)
       {

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.31 2004/08/05 12:17:19 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.32 2004/08/07 04:43:21 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -668,6 +668,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
   struct start_service_state *sss = NULL;
   void *ghbf_info;
   struct bk_netaddr *bna = NULL;
+  char *af_local_file = NULL;
 
 
   if (!run || !rurl || !callback)
@@ -693,7 +694,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
 
   if (!deflhost) deflhost = BK_ADDR_ANY;
   if (!deflserv) deflserv = "0";
-  if (!defproto) defproto = rprotostr;
+  defproto = rprotostr;
 
   /* Convert NULL to a real empty url */
   if (!lurl)
@@ -702,12 +703,40 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
      * It is apparently acceptable to for AF_LOCAL to bind to one addr and
      * connect to another just like AF_INET. Seems a little weird, but why
      * not? At any rate make sure that if the lurl is *not* set and we're
-     * in AF_LOCAL, then lurl == rurl
+     * in AF_LOCAL, then create a temporary file and use it.
      */
     if (BK_STREQ(rprotostr, BK_AF_LOCAL_STREAM_PROTO_STR) || 
 	BK_STREQ(rprotostr, BK_AF_LOCAL_DGRAM_PROTO_STR))
     {
-      lurl = rurl;
+      const char *env_tmp = getenv("TMP");
+      char *tmp_str;
+
+      if (!(af_local_file = bk_string_alloc_sprintf(B, 0, 0, "%s/.dgram_XXXXXX", env_tmp?env_tmp:_PATH_TMP)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not creat temporary file name\n");
+	goto error;
+      }
+
+      if (mkstemp(af_local_file) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not create temp file from template: %s: %s\n", af_local_file, strerror(errno));
+	goto error;
+      }
+
+      if (unlink(af_local_file) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not remove temporary af local file for bind: %s\n", strerror(errno));
+	goto error;
+      }
+
+      if (!(tmp_str = bk_string_alloc_sprintf(B, 0, 0, "%s://%s", BK_STREQ(rprotostr, BK_AF_LOCAL_STREAM_PROTO_STR)?BK_AF_LOCAL_STREAM_PROTO_STR:BK_AF_LOCAL_DGRAM_PROTO_STR, af_local_file)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not create nonce local url for\n");
+	goto error;
+      }
+
+      free(af_local_file);
+      lurl = af_local_file = tmp_str;
     }
     else
     {
@@ -827,7 +856,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
 
     bna = NULL;
     
-    if (bk_net_init(B, run, NULL, sss->sss_rbni, sss->sss_timeout, sss->sss_flags, sss->sss_callback, sss->sss_args, sss->sss_backlog) < 0)
+    if (bk_net_init(B, run, sss->sss_lbni, sss->sss_rbni, sss->sss_timeout, sss->sss_flags, sss->sss_callback, sss->sss_args, sss->sss_backlog) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open service\n");
       goto error;
@@ -856,6 +885,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
   if (lhoststr) free(lhoststr);
   if (lservstr) free(lservstr);
   if (lprotostr) free(lprotostr);
+  if (af_local_file) free(af_local_file);
   BK_RETURN(B,0);
 
  error:
@@ -873,6 +903,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
   if (rbni) bk_netinfo_destroy(B, rbni);
   if (sss) sss_destroy(B, sss);
   if (bna) bk_netaddr_destroy(B, bna);
+  if (af_local_file) free(af_local_file);
   BK_RETURN(B,-1);
 }
 

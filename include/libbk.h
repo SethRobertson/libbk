@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.303 2004/08/05 12:17:20 jtt Exp $
+ * $Id: libbk.h,v 1.304 2004/08/07 04:43:19 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -411,6 +411,18 @@ do {										\
 
 // <TODO> Potential porting issue here. We assume that time_t is 4 bytes </TODO>
 #define BK_MAX_TIME_T 	(LONG_MAX)
+
+
+/**
+ * A union holding all the different types of sockaddrs we handle. Used mostly for its size.
+ */
+typedef union
+{
+  struct sockaddr	bs_sa;
+  struct sockaddr_in	bs_sin;
+  struct sockaddr_in6	bs_sin6;
+  struct sockaddr_un	bs_sun;
+} bk_sockaddr_t;
 
 
 
@@ -1878,7 +1890,7 @@ extern int bk_netinfo_update_servent(bk_s B, struct bk_netinfo *bni, struct serv
 extern int bk_netinfo_update_protoent(bk_s B, struct bk_netinfo *bni, struct protoent *p);
 extern int bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h);
 extern struct bk_netaddr *bk_netinfo_get_addr(bk_s B, struct bk_netinfo *bni);
-extern int bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_e type, struct sockaddr *sa, bk_flags flags);
+extern int bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_e type, bk_sockaddr_t *bs, bk_flags flags);
 #define BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY	0x1 ///< Allow bad address information to indicate ANY addresss.
 extern struct bk_netinfo *bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side);
 extern const char *bk_netinfo_info(bk_s B, struct bk_netinfo *bni);

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.43 2004/08/05 13:44:26 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.44 2004/08/07 04:43:20 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -28,6 +28,9 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 #define jtts stderr
+
+// Preamble sent in dgram service. If this changes *all* libbk dgram clients must change.
+#define DGRAM_PREAMBLE	"PjIRi6yAvs3r4BG1"
 
 
 /**
@@ -94,19 +97,19 @@ static int do_net_init_af_local(bk_s B, struct addrgroup_state *as);
 static int do_net_init_stream(bk_s B, struct addrgroup_state *as);
 static int do_net_init_dgram(bk_s B, struct addrgroup_state *as);
 static int do_net_init_dgram_connect(bk_s B, struct addrgroup_state *as);
-static int do_net_init_dgram_listen(bk_s B, struct addrgroup_state *as);
-static int do_net_init_stream_listen(bk_s B, struct addrgroup_state *as);
 static int do_net_init_stream_connect(bk_s B, struct addrgroup_state *as);
-static int stream_connect_start(bk_s B, struct addrgroup_state *as);
+static int do_net_init_listen(bk_s B, struct addrgroup_state *as);
 static int open_local(bk_s B, struct addrgroup_state *as);
 static void stream_end(bk_s B, struct addrgroup_state *as);
+static void dgram_end(bk_s B, struct addrgroup_state *as);
 static void stream_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags);
 static void stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime);
 static void net_close(bk_s B, struct addrgroup_state *as);
-static void stream_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime);
+static void listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime);
 static void net_init_end(bk_s B, struct addrgroup_state *as);
 static void net_init_abort(bk_s B, struct addrgroup_state *as);
 static struct addrgroup_state *as_server_copy(bk_s B, struct addrgroup_state *oas , int s);
+static int bag2socktype(bk_s B, struct bk_addrgroup *bag, bk_flags flags);
 
 
 
@@ -545,7 +548,7 @@ do_net_init_stream(bk_s B, struct addrgroup_state *as)
   }
   else
   {
-    ret = do_net_init_stream_listen(B, as);
+    ret = do_net_init_listen(B, as);
   }
 
   BK_RETURN(B, ret);
@@ -665,7 +668,7 @@ do_net_init_dgram(bk_s B, struct addrgroup_state *as)
      * lets just do it.
      */
     bk_error_printf(B, BK_ERR_WARN, "UDP listening support is not quite ready for prime time, at least as far as IOHs are concerned\n");
-    ret = do_net_init_dgram_listen(B, as);
+    ret = do_net_init_listen(B, as);
   }
 
   BK_RETURN(B, ret);
@@ -692,8 +695,10 @@ do_net_init_dgram_connect(bk_s B, struct addrgroup_state *as)
   struct bk_addrgroup *bag;
   struct bk_netinfo *local, *remote;
   struct bk_netaddr *bna;
-  struct sockaddr sa;
+  bk_sockaddr_t bs;
   int af;
+  u_int cnt;
+  socklen_t socklen;
 
   if (!as)
   {
@@ -729,12 +734,6 @@ do_net_init_dgram_connect(bk_s B, struct addrgroup_state *as)
      * before calling stream_end(), but why bother?
      */
     BK_RETURN(B, 0);
-  }
-
-  if (bk_netinfo_to_sockaddr(B, remote, bna, as->as_bag->bag_type, &sa, 0)<0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not remote local sockaddr\n");
-    goto error;
   }
 
   /* af can be either AF_INET of AF_INET6 */
@@ -767,89 +766,37 @@ do_net_init_dgram_connect(bk_s B, struct addrgroup_state *as)
     }
   }
 
+  if (bk_netinfo_to_sockaddr(B, remote, bna, as->as_bag->bag_type, &bs, 0)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not remote local sockaddr\n");
+    goto error;
+  }
+
+  BK_GET_SOCKADDR_LEN(B, &(bs.bs_sa), socklen);
+
   // Active connection -- UDP always succeeds immediately
-  if (connect(as->as_sock, &sa, sizeof(sa)) < 0 && errno != EINPROGRESS)
+  if ((connect(as->as_sock, &(bs.bs_sa), socklen) < 0) && (errno != EINPROGRESS))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not connect: %s\n", strerror(errno));
     goto error;
   }
 
-  as->as_state = BkAddrGroupStateConnected;
-  stream_end(B, as);
-
-  BK_RETURN(B, s);
-
- error:
-  net_close(B, as);
-  BK_RETURN(B, -1);
-}
-
-
-
-/**
- * Start a udp server socket (not really listen, but is parallel with TCP)
- *
- * THREADS: MT-SAFE (assuming different as)
- * THREADS: REENTRANT (otherwise)
- *
- *	@param B BAKA thread/global state.
- *	@param as @a addrgroup_state info.
- *	@return <i>-1</i> on failure.<br>
- *	@return a new socket on success.
- */
-static int
-do_net_init_dgram_listen(bk_s B, struct addrgroup_state *as)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int s = -1;
-  struct bk_addrgroup *bag;
-  static int one = 1;
-  int af;
-
-  if (!as)
+  cnt = 0;
+  while(cnt < sizeof(DGRAM_PREAMBLE))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_RETURN(B, -1);
-  }
+    int nbytes;
+    const char *dgram_preamble = DGRAM_PREAMBLE;
 
-  bag = as->as_bag;
-
-  /* af can be either AF_INET of AF_INET6 */
-  af = bk_netaddr_nat2af(B, bag->bag_type);
-
-  /* We *know* this is udp so we can assume SOCK_DGRAM */
-  if ((s = socket(af, SOCK_DGRAM, (bag->bag_proto == BK_GENERIC_DGRAM_PROTO)?0:bag->bag_proto)) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
-    goto error;
-  }
-
-  as->as_sock = s;
-
-  if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0)
-  {
-    bk_error_printf(B, BK_ERR_WARN, "Could not set reuseaddr on socket\n");
-    // Fatal? Nah...
-  }
-
-  if (as->as_callback)
-  {
-    if ((*(as->as_callback))(B, as->as_args, as->as_sock, bag, as->as_server, BkAddrGroupStateSocket) < 0)
+    if ((nbytes = write(as->as_sock, dgram_preamble + cnt, sizeof(DGRAM_PREAMBLE) - cnt)) < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "User complained about newly created socket\n");
+      bk_error_printf(B, BK_ERR_ERR, "Could not write out dgram pramble: %s\n", strerror(errno));
       goto error;
     }
+    cnt += nbytes;
   }
 
-  // Bind to local address
-  if (open_local(B, as) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not open the local side of the connection\n");
-    goto error;
-  }
-
-  as->as_state = BkAddrGroupStateReady;
-  stream_end(B, as);
+  as->as_state = BkAddrGroupStateConnected;
+  dgram_end(B, as);
 
   BK_RETURN(B, s);
 
@@ -861,7 +808,8 @@ do_net_init_dgram_listen(bk_s B, struct addrgroup_state *as)
 
 
 /**
- * Start a tcp connection
+ * Get a stream connection going. If there's no address to which to
+ * attach, then just call the finish up function.
  *
  * THREADS: MT-SAFE (assuming different as)
  * THREADS: REENTRANT (otherwise)
@@ -875,40 +823,13 @@ static int
 do_net_init_stream_connect(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-
-  if (!as)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_RETURN(B, -1);
-  }
-
-  BK_RETURN(B, stream_connect_start(B, as));
-}
-
-
-
-/**
- * Really get a tcp connection going. If there's no address to which to
- * attach, then just call the finish up function.
- *
- * THREADS: MT-SAFE (assuming different as)
- * THREADS: REENTRANT (otherwise)
- *
- *	@param B BAKA thread/global state.
- *	@param as @a addrgroup_state info.
- *	@return <i>-1</i> on failure.<br>
- *	@return a new socket on success.
- */
-static int
-stream_connect_start(bk_s B, struct addrgroup_state *as)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int s = -1;
   struct bk_addrgroup *bag;
   struct bk_netinfo *local, *remote;
   struct bk_netaddr *bna;
-  struct sockaddr sa;
+  bk_sockaddr_t bs;
   int af;
+  socklen_t socklen;
 
   if (!as)
   {
@@ -944,12 +865,6 @@ stream_connect_start(bk_s B, struct addrgroup_state *as)
      * before calling stream_end(), but why bother?
      */
     BK_RETURN(B, 0);
-  }
-
-  if (bk_netinfo_to_sockaddr(B, remote, bna, as->as_bag->bag_type, &sa, 0)<0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not remote local sockaddr\n");
-    goto error;
   }
 
   /* af can be either AF_INET of AF_INET6 */
@@ -997,8 +912,16 @@ stream_connect_start(bk_s B, struct addrgroup_state *as)
     }
   }
 
+  if (bk_netinfo_to_sockaddr(B, remote, bna, as->as_bag->bag_type, &bs, 0)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not remote local sockaddr\n");
+    goto error;
+  }
+
+  BK_GET_SOCKADDR_LEN(B, &(bs.bs_sa), socklen);
+
   // Active connection -- run through bk_run even if connect succeeds immediately
-  if (connect(as->as_sock, &sa, sizeof(sa)) < 0 && errno != EINPROGRESS)
+  if (connect(as->as_sock, &(bs.bs_sa), socklen) < 0 && errno != EINPROGRESS)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not connect: %s\n", strerror(errno));
     goto error;
@@ -1030,7 +953,7 @@ stream_connect_start(bk_s B, struct addrgroup_state *as)
  error:
   net_close(B, as);
   as->as_state = bk_net_init_sys_error(B, errno);
-  stream_connect_start(B, as);
+  do_net_init_stream_connect(B, as);
   BK_RETURN(B, -1);
 }
 
@@ -1053,8 +976,9 @@ open_local(bk_s B, struct addrgroup_state *as)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_netinfo *local;
   struct bk_addrgroup *bag;
-  struct sockaddr sa;
+  bk_sockaddr_t bs;
   int s;
+  socklen_t socklen;
 
   if (!as)
   {
@@ -1066,14 +990,16 @@ open_local(bk_s B, struct addrgroup_state *as)
   local = bag->bag_local;
   s = as->as_sock;
 
-  if (bk_netinfo_to_sockaddr(B, local, NULL, bag->bag_type, &sa, BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY) < 0)
+  if (bk_netinfo_to_sockaddr(B, local, NULL, bag->bag_type, &bs, BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create local sockaddr\n");
     goto error;
   }
 
+  BK_GET_SOCKADDR_LEN(B, &(bs.bs_sa), socklen);
+
   /* <TODO> Use SA_LEN macro here </TODO> */
-  if (bind(s, &sa, sizeof(sa)))
+  if (bind(s, &(bs.bs_sa), socklen) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not bind to local address: %s\n", strerror(errno));
     goto error;
@@ -1103,6 +1029,38 @@ open_local(bk_s B, struct addrgroup_state *as)
  */
 static void
 stream_end(bk_s B, struct addrgroup_state *as)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!as)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  net_init_end(B, as);
+
+  BK_VRETURN(B);
+}
+
+
+
+
+/**
+ * Completely finish up an successful dgram servuce. Prepare the addrgroup for the
+ * callback. Make the callback.
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state.
+ *	@param as @a addrgroup_state info.
+ *	@param state The state of the connection to pass on to the user.
+ *	@return <i>-1</ip> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static void
+dgram_end(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -1299,7 +1257,7 @@ stream_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct time
 
   /* Check for more addresses */
   as->as_state = BkAddrGroupStateTimeout;
-  if (stream_connect_start(B, as) < 0)
+  if (do_net_init_stream_connect(B, as) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to attempt connection to new address\n");
   }
@@ -1327,9 +1285,10 @@ static void
 stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct sockaddr sa;
+  bk_sockaddr_t bs;
   struct bk_addrgroup *bag;
   struct addrgroup_state *as;
+  socklen_t socklen;
 
   if (!run || !(as = args))
   {
@@ -1393,11 +1352,13 @@ stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void 
     bk_error_printf(B, BK_ERR_ERR, "Could not withdraw socket from run\n");
   }
 
-  if (bk_netinfo_to_sockaddr(B, bag->bag_remote, NULL, BkNetinfoTypeUnknown, &sa, 0 < 0))
+  if (bk_netinfo_to_sockaddr(B, bag->bag_remote, NULL, BkNetinfoTypeUnknown, &bs, 0 < 0))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not convert remote address to sockaddr any more\n");
     goto error;
   }
+
+  BK_GET_SOCKADDR_LEN(B, &(bs.bs_sa), socklen);
 
   /*
    * For network addrgroups, run a second connect to find out what has
@@ -1436,7 +1397,7 @@ stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void 
    *
    * I wonder what Windows does....
    */
-  if (bk_addrgroup_network(B, bag, 0) && (connect(fd, &sa, sizeof(sa)) < 0) && (errno != EISCONN))
+  if (bk_addrgroup_network(B, bag, 0) && (connect(fd, &(bs.bs_sa), socklen) < 0) && (errno != EISCONN))
   {
     // calls to bk_error_printf() can result in errno changing. Sigh...
     int connect_errno = errno;
@@ -1449,7 +1410,7 @@ stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void 
     else
       as->as_state = bk_net_init_sys_error(B, errno);
 
-    stream_connect_start(B, as);
+    do_net_init_stream_connect(B, as);
     BK_VRETURN(B);
   }
   as->as_state = BkAddrGroupStateConnected;
@@ -1480,7 +1441,7 @@ stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void 
  *	@return a new socket on success.
  */
 static int
-do_net_init_stream_listen(bk_s B, struct addrgroup_state *as)
+do_net_init_listen(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int af;
@@ -1488,6 +1449,8 @@ do_net_init_stream_listen(bk_s B, struct addrgroup_state *as)
   struct bk_addrgroup *bag = NULL;
   int one = 1;
   int ret;
+  int socktype; 
+  int sockproto;
 
   if (!as)
   {
@@ -1497,9 +1460,20 @@ do_net_init_stream_listen(bk_s B, struct addrgroup_state *as)
 
   bag = as->as_bag;
 
+  if ((socktype = bag2socktype(B, bag, 0)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not determine addrgroup socket type\n");
+    goto error;
+  }
+
+  if ((bag->bag_proto == BK_GENERIC_STREAM_PROTO) || (bag->bag_proto == BK_GENERIC_DGRAM_PROTO))
+    sockproto = 0;
+  else
+    sockproto = bag->bag_proto;
+
   af = bk_netaddr_nat2af(B, bag->bag_type);
 
-  if ((s = socket(af, SOCK_STREAM, (bag->bag_proto == BK_GENERIC_STREAM_PROTO)?0:bag->bag_proto)) < 0)
+  if ((s = socket(af, socktype, sockproto)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
     goto error;
@@ -1543,7 +1517,7 @@ do_net_init_stream_listen(bk_s B, struct addrgroup_state *as)
     goto error;
   }
 
-  if (listen(s, as->as_backlog) < 0)
+  if ((socktype == SOCK_STREAM) && listen(s, as->as_backlog) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "listen failed: %s\n", strerror(errno));
     goto error;
@@ -1552,10 +1526,21 @@ do_net_init_stream_listen(bk_s B, struct addrgroup_state *as)
   as->as_state = BkAddrGroupStateReady;
 
   /* Put the socket in the select loop waiting for *write* to come ready */
-  if (bk_run_handle(B, as->as_run, s, stream_listen_activity, as, BK_RUN_WANTREAD, 0) < 0)
+  if (socktype == SOCK_STREAM)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
-    goto error;
+    if (bk_run_handle(B, as->as_run, s, listen_activity, as, BK_RUN_WANTREAD, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
+      goto error;
+    }
+  }
+  else
+  {
+    if (bk_run_handle(B, as->as_run, s, listen_activity, as, BK_RUN_WANTREAD, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
+      goto error;
+    }
   }
 
   /*
@@ -1606,7 +1591,7 @@ do_net_init_stream_listen(bk_s B, struct addrgroup_state *as)
 
 
 /**
- * Activity detected on a TCP listening socket. Try to accept the
+ * Activity detected on a stream listening socket. Try to accept the
  * connection and do the right thing (now what *is* the Right Thing..?)
  *
  * THREADS: MT-SAFE (assuming different as/args)
@@ -1618,18 +1603,26 @@ do_net_init_stream_listen(bk_s B, struct addrgroup_state *as)
  *	@return <i>0</i> on success.
  */
 static void
-stream_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
+listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct addrgroup_state *as, *nas;
   struct sockaddr sa;
   int len = sizeof(sa);
   int newfd;
+  struct bk_addrgroup *bag = NULL;
+  int socktype;
 
-  if (!run || !(as = args))
+  if (!run || !(as = args) || !(bag = as->as_bag))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
+  }
+
+  if ((socktype = bag2socktype(B, bag, 0)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not determine scoket type of address group\n");
+    goto error;
   }
 
   if (BK_FLAG_ISSET(gottype, BK_RUN_WRITEREADY))
@@ -1663,31 +1656,69 @@ stream_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *
     BK_VRETURN(B);
   }
 
-  if ((newfd = accept(as->as_sock, &sa, &len)) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "accept failed: %s\n", strerror(errno));
-    as->as_state = bk_net_init_sys_error(B, errno);
-    goto error;
-  }
 
-  /*
-   * <WARNING>The linux man page says that accept():
-   *
-   *   creates a new connected socket with mostly the
-   *   same properties as s
-   *
-   * Gee, thanks Linux for clearing that up.  The question is, what
-   * properties are not copied?  Do we need to set keepalives et al?
-   * The "official" Linux LKML word is:
-   *
-   *   if you want a well-written, portable program, you
-   *   must set the file descriptor flags after an accept(2) call
-   *
-   * Note this says nothing about socket properties, though.  Should
-   * we call the user back with a socket to allow him to set
-   * properties again?  Or expect them to do it as part of connected?
-   * </WARNING>
-   */
+  if (socktype == SOCK_STREAM)
+  {
+    /*
+     * <WARNING>The linux man page says that accept():
+     *
+     *   creates a new connected socket with mostly the
+     *   same properties as s
+     *
+     * Gee, thanks Linux for clearing that up.  The question is, what
+     * properties are not copied?  Do we need to set keepalives et al?
+     * The "official" Linux LKML word is:
+     *
+     *   if you want a well-written, portable program, you
+     *   must set the file descriptor flags after an accept(2) call
+     *
+     * Note this says nothing about socket properties, though.  Should
+     * we call the user back with a socket to allow him to set
+     * properties again?  Or expect them to do it as part of connected?
+     * </WARNING>
+     */
+    if ((newfd = accept(as->as_sock, &sa, &len)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "accept failed: %s\n", strerror(errno));
+      as->as_state = bk_net_init_sys_error(B, errno);
+      goto error;
+    }
+  }
+  else
+  {
+    bk_sockaddr_t bs;
+    socklen_t bs_len;
+    char buf[sizeof(DGRAM_PREAMBLE)];
+
+    if ((newfd = dup(as->as_sock)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Failed to dup(2) dgram server socket: %s\n", strerror(errno));
+      goto error;
+    }
+
+    memset(&bs, 0, sizeof(bs));
+    memset(buf, sizeof(buf), 0);
+    bs_len = sizeof(bs);
+
+    // Receive the preamble and verify it. Then connect to peer so read/write work
+    if (recvfrom(newfd, buf, sizeof(buf), 0, &(bs.bs_sa), &bs_len) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not receive dgram preamble: %s\n", strerror(errno));
+      goto error;
+    }
+
+    if (!BK_STREQ(buf, DGRAM_PREAMBLE))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Did not receive proper dgram preamble\n");
+      goto error;
+    }
+
+    if (connect(newfd, &(bs.bs_sa), bs_len) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create server dgram connection: %s\n", strerror(errno));
+      goto error;
+    }
+  }
 
   if (!(nas = as_server_copy(B, as, newfd)))
   {
@@ -1708,6 +1739,7 @@ stream_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *
   net_init_abort(B, as);
   BK_VRETURN(B);
 }
+
 
 
 
@@ -1926,7 +1958,7 @@ bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, const char *se
     goto error;
   }
 
-  if (bk_run_handle(B, as->as_run, s, stream_listen_activity, as, BK_RUN_WANTREAD, 0)<0)
+  if (bk_run_handle(B, as->as_run, s, listen_activity, as, BK_RUN_WANTREAD, 0)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
     goto error;
@@ -2168,6 +2200,53 @@ bk_addrgroup_network(bk_s B, struct bk_addrgroup *bag, bk_flags flags)
     break;
   default:
     bk_error_printf(B, BK_ERR_ERR,"Unknown type: %d\n", type);
+    goto error;
+    break;
+  }
+
+  BK_RETURN(B, ret);  
+
+ error:
+  BK_RETURN(B, -1);  
+}
+
+
+
+/**
+ * Obtain the socket type of a bag based on the bag's proto
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bag The @a bk_addrgroup to check
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>>0</i> on success.
+ */
+static int
+bag2socktype(bk_s B, struct bk_addrgroup *bag, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret;
+
+  if (!bag)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  switch (bag->bag_proto)
+  {
+  case IPPROTO_UDP:
+  case BK_GENERIC_DGRAM_PROTO:
+    ret = SOCK_DGRAM;
+    break;
+
+  case IPPROTO_TCP:
+  case BK_GENERIC_STREAM_PROTO:
+    ret = SOCK_STREAM;
+    break;
+
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown addrgroup proto: %d\n", bag->bag_proto);
     goto error;
     break;
   }

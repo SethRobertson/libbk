@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.21 2004/08/05 12:17:19 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.22 2004/08/07 04:43:21 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -739,12 +739,12 @@ XXX - This should be nuked since the bni will have the netinfo type set
  *	@return <i>0</i> on success.
  */
 int
-bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_e type, struct sockaddr *sa, bk_flags flags)
+bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_e type, bk_sockaddr_t *bs, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret;
 
-  if (!bni || !sa)
+  if (!bni || !bs)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
@@ -773,17 +773,17 @@ bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, b
   switch (bk_netaddr_nat2af(B, type))
   {
   case AF_INET:
-    ret = bni2sin(B, bni, bna, (struct sockaddr_in *)sa, flags);
+    ret = bni2sin(B, bni, bna, &bs->bs_sin, flags);
     break;
 
 #ifdef HAVE_INET6
   case AF_INET6:
-    ret = bni2sin6(B, bni, bna, (struct sockaddr_in6 *)sa, flags);
+    ret = bni2sin6(B, bni, bna, &bs->bs_sin6, flags);
     break;
 #endif
 
   case AF_LOCAL:
-    ret = bni2un(B, bni, bna, (struct sockaddr_un *)sa, flags);
+    ret = bni2un(B, bni, bna, &bs->bs_sun, flags);
     break;
 
   default:

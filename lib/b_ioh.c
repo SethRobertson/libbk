@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.109 2004/08/05 03:58:59 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.110 2004/08/07 04:43:20 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3856,8 +3856,32 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
 
 
 
+#define UNLINK_AF_LOCAL_FILE(fdin)								\
+{												\
+  struct sockaddr_un __sun;									\
+  socklen_t __len = sizeof(__sun);								\
+												\
+  /* If this is an AF_LOCAL socket, then remove the associated file */				\
+  if (getsockname((fdin), (struct sockaddr *)(&__sun), &__len) > 0)				\
+  {												\
+    if (__sun.sun_family == AF_LOCAL && __sun.sun_path && 					\
+	(!BK_STREQ(__sun.sun_path, "")) && (unlink(__sun.sun_path) < 0))			\
+    {												\
+      if (errno != ENOENT)									\
+	bk_error_printf(B, BK_ERR_ERR, "Could not unlink AF_LOCAL file: %s\n", __sun.sun_path);	\
+    }												\
+  }												\
+}
+
+
+
 /**
- * Standard close() functionality in IOH API
+ * Standard close() functionality in IOH API. 
+ *
+ * It's totally bogus to check for the AF_LOCAL file here, but since it
+ * gets *created* automatically (by the kernel), it would be nice to have
+ * it disappear automatically too and this is sort of the place. NB: this
+ * function may be overridden by the user in which case he is on his own.
  *
  * THREADS: MT-SAFE
  *
@@ -3875,11 +3899,13 @@ void bk_ioh_stdclosefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int 
 
   if (fdin >= 0)
   {
+    UNLINK_AF_LOCAL_FILE(fdin);
     close(fdin);
   }
 
   if ((fdout >= 0) && (fdout != fdin))
   {
+    UNLINK_AF_LOCAL_FILE(ioh->ioh_fdout);
     close(ioh->ioh_fdout);
   }
 
