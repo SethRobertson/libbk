@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.148 2002/05/21 19:35:11 jtt Exp $
+ * $Id: libbk.h,v 1.149 2002/05/23 21:30:31 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1424,7 +1424,8 @@ extern int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (
 /* b_fileutils.c */
 extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_e action);
 extern void *bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char *admin_ext, const char *lock_ext, int *held, bk_flags flags);
-int bk_file_unlock(bk_s B, void *opaque, bk_flags flags);
+extern int bk_file_unlock(bk_s B, void *opaque, bk_flags flags);
+extern int bk_fileutils_match_extension(bk_s B, const char *path, const char * const *exts);
 
 
 /* b_addrgroup.c */
@@ -1436,9 +1437,9 @@ extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
 extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
 
 /* b_time.c */
-size_t bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags flags);
-int bk_time_iso_parse(bk_s B, const char *src, struct timespec *dst, bk_flags flags);
-time_t bk_timegm(bk_s B, struct tm *timeptr, bk_flags flags);
+extern size_t bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags flags);
+extern int bk_time_iso_parse(bk_s B, const char *src, struct timespec *dst, bk_flags flags);
+extern time_t bk_timegm(bk_s B, struct tm *timeptr, bk_flags flags);
 #define BK_TIMEGM_FLAG_NORMALIZE	0x1	///< Normalize struct tm fields
 /*
  * gmtime() is not reentrant, but if you don't have gmtime_r(), you probably
@@ -1514,6 +1515,6 @@ extern int bk_MD5_extract_printable(bk_s B, char *str, bk_MD5_CTX *ctx, bk_flags
 extern int bk_stdsock_multicast(bk_s B, int fd, u_char ttl, struct bk_netaddr *maddrgroup, bk_flags flags);
 #define BK_MULTICAST_WANTLOOP		0x01	///< Want multicasts to loop to local machine
 #define BK_MULTICAST_NOJOIN		0x02	///< Do not wish to join multicast group
-int bk_stdsock_broadcast(bk_s B, int fd, bk_flags flags);
+extern int bk_stdsock_broadcast(bk_s B, int fd, bk_flags flags);
 
 #endif /* _BK_h_ */

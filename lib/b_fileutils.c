@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.6 2001/12/20 21:03:13 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.7 2002/05/23 21:30:31 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -408,7 +408,7 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
 static struct file_lock_admin *
 lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *ilock_ext)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "file-plugin");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char admin[MAXNAMLEN];
   char lock[MAXNAMLEN];
   char tmpname[MAXNAMLEN];
@@ -552,7 +552,7 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
 static void
 unlock_admin_file(bk_s B, struct file_lock_admin *fla)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "file-plugin");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
   if (!fla)
   {
@@ -592,7 +592,7 @@ unlock_admin_file(bk_s B, struct file_lock_admin *fla)
 static struct file_lock *
 fl_create(bk_s B)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "file-plugin");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct file_lock *fl;
   
   if (!(BK_CALLOC(fl)))
@@ -613,7 +613,7 @@ fl_create(bk_s B)
 static void
 fl_destroy(bk_s B, struct file_lock *fl)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "file-plugin");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
   if (!fl)
   {
@@ -649,7 +649,7 @@ fl_destroy(bk_s B, struct file_lock *fl)
 static struct file_lock_admin *
 fla_create(bk_s B)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "file-plugin");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct file_lock_admin *fla;
 
   if (!(BK_CALLOC(fla)))
@@ -674,7 +674,7 @@ fla_create(bk_s B)
 static void
 fla_destroy(bk_s B, struct file_lock_admin *fla)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "file-plugin");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
   if (!fla)
   {
@@ -693,4 +693,49 @@ fla_destroy(bk_s B, struct file_lock_admin *fla)
 
   free(fla);
   BK_VRETURN(B);
+}
+
+
+
+
+/**
+ * Match a file name against a NULL terminated array of extensions.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param filename The filename to use.
+ *	@param ext_list The list of extensions.
+ *	@param flags Flags for the future.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success but no match.
+ *	@return <i>1</i> on success but with match.
+ */
+int
+bk_fileutils_match_extension(bk_s B, const char *path, const char * const *exts)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *ext;
+  const char **cur;
+
+  if (!path || !exts)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+
+  if (!(ext = strrchr(path, '.')))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "No extension charater located\n");
+    BK_RETURN(B,0);    
+  }
+  
+  ext++;
+  
+  for (cur = (const char **)exts; *cur; cur++)
+  {
+    if (BK_STREQ(ext, *cur))
+      BK_RETURN(B,1);      
+  }
+
+  BK_RETURN(B,0);  
 }
