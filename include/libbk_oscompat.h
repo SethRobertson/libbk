@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.24 2002/05/28 22:22:52 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.25 2002/07/13 04:40:54 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -61,7 +61,7 @@
  * @param mod module name
  */
 #define BK_INIT_FUN(mod) \
- static void __attribute__((__constructor__)) mod ## _init (void)
+ void __attribute__((__constructor__)) mod ## _init (void)
 
 /**
  * Define a finalization function.
@@ -82,21 +82,23 @@
  * @param mod module name
  */
 #define BK_FINISH_FUN(mod) \
- static void __attribute__((__destructor__)) mod ## _finish (void)
+ void __attribute__((__destructor__)) mod ## _finish (void)
 #else
 #ifdef HAVE_INIT_PRAGMA
 // better hope the developers remembered their pragmas
-#define BK_INIT_FUN(mod) static void mod ## _init (void)
-#define BK_FINISH_FUN(mod) static void mod ## _finish (void)
+#define BK_INIT_FUN(mod)  void mod ## _init (void)
+#define BK_FINISH_FUN(mod) void mod ## _finish (void)
 #else
 #ifdef __INSURE__
 // insure doesn't like __attribute__((__constructor__)) so we use asm instead
 #define BK_INIT_FUN(mod) \
-asm ("	.section	.ctors,\"aw\""); BK_INSURE_FUN(mod)
+asm ("	.section	.ctors,\"aw\""); BK_INSURE_INIT_FUN(mod)
 #define BK_FINISH_FUN(mod) \
-asm ("	.section	.dtors,\"aw\""); BK_INSURE_FUN(mod)
-#define BK_INSURE_FUN(mod) \
-asm (".long	" #mod "_init"); static void mod ## _init (void)
+asm ("	.section	.dtors,\"aw\""); BK_INSURE_FINISH_FUN(mod)
+#define BK_INSURE_INIT_FUN(mod) \
+asm (".long	" #mod "_init"); void mod ## _init (void)
+#define BK_INSURE_FINISH_FUN(mod) \
+asm (".long	" #mod "_finish"); void mod ## _finish (void)
 #else
 // no linker support for init functions; we'll need to use libtool to get name
 #define BK_INIT_FUN(mod) void mod ## _LTX_init (void)
