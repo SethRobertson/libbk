@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.8 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.9 2004/03/20 12:37:22 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -75,6 +75,32 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define BK_MAX_ROUNDS		100		///< Min rounds per byte
 #define BK_POOLSIZE		16		///< Size of pool in bytes (related to hash size)
 #define BK_MAJOR_REFRESH	12		///< How often to mix into a new full batch of entropy
+
+/**
+ * <TRICKY>Seth explicitly leaves data uninitialized to allow for potential
+ * additional randomness; however, this generates Insure/Valgrind warnings
+ * about uninitialized data, and if these random number generation functions
+ * are any good anyhow, it should not be necessary.  We get fancy and use
+ * special Valgrind/Insure macros to figure out what to do, so that we can get
+ * the extra entropy in regular operation.  The Insure macro is a compile-time
+ * feature, while the Valgrind macro is a run-time conditional defined in
+ * valgrind.h (since no special compilation is required).  Unfortunately,
+ * I can't find out how to get runtime information from a regular program
+ * running under Chaperon (Parasoft's run-time-only version of Insure for
+ * Linux) so you will get errors running "uninsured" code with it.</TRICKY>
+ */
+#ifdef __INSURE__
+#define USE_MEM_ENTROPY 0
+#else  /* !__INSURE__ */
+
+#ifdef HAVE_VALGRIND_MEMCHECK_H
+#include <valgrind/memcheck.h>
+#else  /* !HAVE_VALGRIND_MEMCHECK_H */ 
+#define RUNNING_ON_VALGRIND 0
+#endif /* !HAVE_VALGRIND_MEMCHECK_H */ 
+
+#define USE_MEM_ENTROPY !RUNNING_ON_VALGRIND
+#endif /* !__INSURE__ */ 
 
 
 
@@ -152,10 +178,10 @@ struct bk_truerandinfo *bk_truerand_init(bk_s B, int reinitbits, bk_flags flags)
 
   assert(sizeof(ctx.digest) == BK_POOLSIZE);
 
-  /*
-   * <TRICKY>Explicitly leave pool uninitialized to allow potential
-   * for addition randomness</TRICKY>
-   */
+  if (!USE_MEM_ENTROPY)
+    // Initialize the pool with 0xbe in order to be initialized.
+    memset(R->br_pool, 0xbe, BK_POOLSIZE);
+  // else leave it uninitialized in an attempt to get more entropy from stack
 
   BK_RETURN(B, R);
 }
@@ -385,14 +411,9 @@ static u_int bk_truerand_measuregen(bk_s B)
 static void bk_truerand_generate(bk_s B, bk_MD5_CTX *ctx, int rounds)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-#ifndef __INSURE__
-  // Seth specifically wants this variable uninitialized for entropy....
   volatile u_int32_t thisc;
-#else
-  // ... but that results in a pointless Insight error, so we initialize it in that case only.
-  volatile u_int32_t thisc = 0;
-#endif
-  struct timeval this,end;
+  struct timeval this;
+  struct timeval end;
 
   if (!ctx)
   {
@@ -400,8 +421,12 @@ static void bk_truerand_generate(bk_s B, bk_MD5_CTX *ctx, int rounds)
     BK_VRETURN(B);
   }
 
-  // Stupid uninitialized variable warnings...
-  memcpy((void *)&thisc, (void *)&thisc, 0);
+  // Seth specifically wants this variable uninitialized for entropy....
+  if (USE_MEM_ENTROPY)
+    // Stupid uninitialized variable warnings...
+    memcpy((void *)&thisc, (void *)&thisc, 0);
+  else
+    thisc = 0;					// avoid Insure/Valgrind errors
 
   // Double check sanity
   if (rounds < BK_MIN_ROUNDS)

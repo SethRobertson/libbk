@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.64 2004/01/29 02:16:59 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.65 2004/03/20 12:37:22 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -887,7 +887,8 @@ int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags)
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
-  pq_delete(run->br_equeue, bre);
+  if (run->br_equeue)				// avoid segfault on shutdown
+    pq_delete(run->br_equeue, bre);
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
     abort();

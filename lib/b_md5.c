@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_md5.c,v 1.11 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_md5.c,v 1.12 2004/03/20 12:37:22 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -187,6 +187,7 @@ void bk_MD5Update(bk_s B, bk_MD5_CTX *mdContext, const unsigned char *inBuf, uns
   }
 
 #ifdef __INSURE__
+  // Probably no longer needed with recent USE_MEM_ENTROPY changes to b_rand.c
   memset(in, 0, sizeof(in));
 #endif
 
