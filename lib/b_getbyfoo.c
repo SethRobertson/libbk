@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.17 2002/01/11 10:06:05 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.18 2002/05/16 22:32:54 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -471,22 +471,21 @@ bk_servent_destroy(bk_s B, struct servent *s)
  * Get a hostent using whatever string you might happen to have. If @a
  * family is not 0, queries will be restricted to that address family,
  * otherwise @a bk_gethostbyfoo will attempt to intuit the address
- * family. @a *ih will be pointing at an <em>allocated</em> @a struct @a
- * hostent when query completes. You should free this data with @a
- * bk_destroy_hostent when finished.
+ * family. When the callback is executed, it will be passed an
+ * <em>allocated</em> @a struct @a hostent (if successful, NULL if
+ * not).  You should free this data with @a bk_destroy_hostent when
+ * finished.
  *
  * <br> Since this function may take quite a long time to complete,
  * and we shall at some time in the near future be integrating it with
  * a nonblocking libresolv, you must supply both a @a bk_run structure
  * and a @a callback. @a callback will be called when the answer
- * arrives. If successful, @a *ih will be (as mentioned previously) at
- * the @a struct @a hostent; if not, @a *ih will be NULL.
+ * arrives.
  *
  * <br><em>HACK ALERT:</em> In order to make sure that callers do not
- * abuse this function while it still uses blocking queries, @a *ih is
- * <em>guarenteed</em> to be NULL on the return from @a
- * bk_gethostbyfoo. @a callback will be invoked (and @a *ih set) on
- * the <em>subsequent</em> @a bk_run_once pass. If
+ * abuse this function while it still uses blocking queries, we ensure
+ * that @a callback will be invoked on the
+ * <em>subsequent</em> @a bk_run_once pass. If
  * BK_GETHOSTBYFOO_FLAG_FQDN flags is set, then the fully qualified
  * name is return. This of course really only makes sens on an addr
  * ==> name lookup.
@@ -501,6 +500,7 @@ bk_servent_destroy(bk_s B, struct servent *s)
  *	@param B BAKA thread/global state.
  *	@param name String to lookup.
  *	@param family Address family to which to restrict queries.
+ *	@param bni @a bk_netinfo structure for netutils assistence
  *	@param run @a bk_run structure.
  *	@param callback Function to invoke when answer is arrives.
  *	@param args User args to return to @a callback when invoked.
@@ -527,9 +527,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   
   inaddr_any.s_addr = INADDR_ANY;
 
-  /* No point to using *this* func. without copyout, so we check ih */
-  if (!name || !(bni || BK_FLAG_ISSET(flags, BK_GETHOSTBYFOO_FLAG_FQDN)) ||
-      !callback) 
+  if (!name || !callback) 
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     goto error;

@@ -1,3 +1,8 @@
+2002-05-16  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_getbyfoo.c (bk_gethostbyfoo): Correct comments and illegal
+	arguments code for non-existance of ``*ih''
+
 2002-05-15  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_ioh.c (bk_ioh_write): No point in attempting to free data
