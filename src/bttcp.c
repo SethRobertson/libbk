@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.41 2003/12/29 06:42:18 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.42 2003/12/29 19:53:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,8 +27,6 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * (Stupidities of connected UDP).
  *
  * TODO:
- *	--execute command   Instead of I/O to stdio, execute this program w/pipes
- *	--execute-with-stderr Dup stderr of --execute to stdout (e.g. send over net)
  *	--execute-in-pty    Execute subprogram in a pty
  *	--socks w/bind support?
  *	--proxy (http proxy support?)
@@ -76,21 +74,24 @@ struct program_config
 {
   bttcp_role_e		pc_role;		///< What role do I play?
   bk_flags		pc_flags;		///< Everyone needs flags.
-#define BTTCP_FLAG_SHUTTING_DOWN_SERVER	0x001	///< We're shutting down a server
-#define PC_VERBOSE			0x002	///< Verbose output
-#define PC_MULTICAST			0x004	///< Multicast allowed
-#define PC_BROADCAST			0x008	///< Broadcast allowed
-#define PC_MULTICAST_LOOP		0x010	///< Multicast loopback
-#define PC_MULTICAST_NOMEMBERSHIP	0x020	///< Multicast w/o membership
-#define PC_CLOSE_AFTER_ONE		0x040	///< Close relay after one side closed
-#define PC_SSL				0x080	///< Want SSL
-#define PC_NODELAY			0x100	///< Set nodelay socket buffer option
-#define PC_KEEPALIVE			0x200	///< Set keepalive preference
-#define PC_SERVER			0x400	///< Server mode
+#define BTTCP_FLAG_SHUTTING_DOWN_SERVER	0x0001	///< We're shutting down a server
+#define PC_VERBOSE			0x0002	///< Verbose output
+#define PC_MULTICAST			0x0004	///< Multicast allowed
+#define PC_BROADCAST			0x0008	///< Broadcast allowed
+#define PC_MULTICAST_LOOP		0x0010	///< Multicast loopback
+#define PC_MULTICAST_NOMEMBERSHIP	0x0020	///< Multicast w/o membership
+#define PC_CLOSE_AFTER_ONE		0x0040	///< Close relay after one side closed
+#define PC_SSL				0x0080	///< Want SSL
+#define PC_NODELAY			0x0100	///< Set nodelay socket buffer option
+#define PC_KEEPALIVE			0x0200	///< Set keepalive preference
+#define PC_SERVER			0x0400	///< Server mode
+#define PC_EXECUTE			0x0800  ///< Execute command instead of stdio
+#define PC_EXECUTE_STDERR		0x1000  ///< Dup cmd stderr to stdout
   u_int			pc_multicast_ttl;	///< Multicast ttl
   char *		pc_proto;		///< What protocol to use
   char *		pc_remoteurl;		///< Remote "url".
   char *		pc_localurl;		///< Local "url".
+  char           *const*pc_args;		///< Arguments for execution
   struct bk_netinfo *	pc_local;		///< Local side info.
   struct bk_netinfo *	pc_remote;		///< Remote side info.
   struct bk_run	*	pc_run;			///< Run structure.
@@ -177,7 +178,9 @@ main(int argc, char **argv, char **envp)
     {"file-in", 0, POPT_ARG_STRING, NULL, 19, "Use file instead of stdin", "filename"},
     {"file-out", 0, POPT_ARG_STRING, NULL, 20, "Use file instead of stdout", "filename"},
     {"server", 0, POPT_ARG_NONE, NULL, 21, "Set server (multiple connection) mode", NULL },
-    {"transmit-limit", 0, POPT_ARG_STRING, NULL, 22, "Limit maximum transmit size (approx)", "bytes"},
+    {"transmit-limit", 0, POPT_ARG_STRING, NULL, 22, "Limit maximum transmit size", "bytes"},
+    {"execute", 0, POPT_ARG_NONE, NULL, 23, "Execute program and argument after '--'", NULL },
+    {"execute-with-stderr", 0, POPT_ARG_NONE, NULL, 24, "Execute program and argument after w/stderr on stdout '--'", NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -372,10 +375,29 @@ main(int argc, char **argv, char **envp)
 	pc->pc_translimit = tmplimit;
       }
       break;
+
+    case 23:
+      BK_FLAG_SET(pc->pc_flags, PC_EXECUTE);
+      break;
+
+    case 24:
+      BK_FLAG_SET(pc->pc_flags, PC_EXECUTE|PC_EXECUTE_STDERR);
+      break;
     }
   }
 
-  if (c < -1 || getopterr || !pc->pc_role)
+  /*
+   * Reprocess so that argc and argv contain the remaining command
+   * line arguments (note argv[0] is an argument, not the program
+   * name).  argc remains the number of elements in the argv array.
+   */
+  pc->pc_args = (char **)poptGetArgs(optCon);
+  argc = 0;
+  if (pc->pc_args)
+    for (; pc->pc_args[argc]; argc++)
+      ; // Void
+
+  if (c < -1 || getopterr || !pc->pc_role || (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE) && argc < 1))
   {
     if (c < -1)
     {
@@ -420,6 +442,9 @@ proginit(bk_s B, struct program_config *pc)
     bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
     BK_RETURN(B, -1);
   }
+
+  // SIGPIPE is just annoying
+  bk_signal(B, SIGPIPE, SIG_IGN, BK_RUN_SIGNAL_RESTART);
 
   if (!pc->pc_af)
     pc->pc_af = AF_INET;
@@ -665,6 +690,15 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     if ((outfd = open(pc->pc_fileout,O_WRONLY|O_CREAT|O_TRUNC,0666)) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open output file %s: %s\n", pc->pc_fileout, strerror(errno));
+      goto error;
+    }
+  }
+
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE))
+  {
+    if (bk_pipe_to_exec(B, &infd, &outfd, *pc->pc_args, pc->pc_args, NULL, BK_EXEC_FLAG_CLOSE_CHILD_DESC|BK_EXEC_FLAG_SEARCH_PATH|(BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE_STDERR)?BK_EXEC_FLAG_STDERR_ON_STDOUT:0)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not execute/pipe\n");
       goto error;
     }
   }

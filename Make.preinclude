@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Make.preinclude,v 1.4 2003/06/17 06:07:15 seth Exp $
+# $Id: Make.preinclude,v 1.5 2003/12/29 19:53:38 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -16,3 +16,6 @@
 #
 PKGTOP=..
 PKGSUBDIR=libbk
+GROUP_INCS=-I$(GROUPTOP)/include
+GROUP_LDS=-L$(GROUPTOP)/lib -L$(GROUPTOP)/ssl -L$(GROUPTOP)/xml
+GROUP_LIBS=

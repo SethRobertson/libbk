@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.16 2003/12/29 15:54:30 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.17 2003/12/29 19:53:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -148,6 +148,12 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
       bk_debug_printf_and(B,2,"Child: closing c2p read: %d\n", c2p[0]);
 
       if (dup2(c2p[1],fdout) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "dup failed: %s\n", strerror(errno));
+	goto error;
+      }
+
+      if (BK_FLAG_ISSET(flags, BK_PIPE_FLAG_STDERR_ON_STDOUT) && dup2(c2p[1],fderr) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "dup failed: %s\n", strerror(errno));
 	goto error;
@@ -421,7 +427,8 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
       *fdoutp = -1;
   }
 
-  pid = bk_pipe_to_process(B, fdinp, fdoutp, BK_FLAG_ISSET(flags, BK_EXEC_FLAG_CLOSE_CHILD_DESC)?BK_PIPE_TO_PROCESS_FLAG_CLOSE_EXTRANEOUS_DESC:0);
+  pid = bk_pipe_to_process(B, fdinp, fdoutp, ((BK_FLAG_ISSET(flags, BK_EXEC_FLAG_CLOSE_CHILD_DESC)?BK_PIPE_TO_PROCESS_FLAG_CLOSE_EXTRANEOUS_DESC:0) |
+					      (BK_FLAG_ISSET(flags, BK_EXEC_FLAG_STDERR_ON_STDOUT)?BK_PIPE_FLAG_STDERR_ON_STDOUT:0)));
 
   switch(pid)
   {
