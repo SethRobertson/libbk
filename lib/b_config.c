@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_config.c,v 1.33 2003/06/05 08:33:26 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_config.c,v 1.34 2003/06/11 01:43:21 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -243,6 +243,9 @@ static int check_for_double_include(bk_s B, struct bk_config *bc, struct bk_conf
  */
 struct global_structure
 {
+#ifdef BGCC_BOUNDS_CHECKING
+  int bgcc_is_very_very_stupid;
+#endif /* BGCC_BOUNDS_CHECKING */
 } Global; // __attribute__((weak));
 
 
