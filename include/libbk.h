@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.189 2002/11/18 19:17:02 lindauer Exp $
+ * $Id: libbk.h,v 1.190 2002/11/19 22:27:41 lindauer Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -953,6 +953,27 @@ struct bk_netinfo
   struct bk_protoinfo *	bni_bpi;		///< Protocol info
   char *		bni_pretty;		///< Printable forms
 };
+
+
+
+/**
+ * On Solaris and BSD, the IN6_IS_ADDR_MULTICAST macro takes a pointer to 
+ * a struct in6_addr.  This is useful since each operating system has 
+ * different names for the members of a struct in6_addr.  Unfortunately, 
+ * Linux decided to expose its internals and have IN6_IS_ADDR_MULTICAST 
+ * take as input a member from the structure.  Feh.
+ */
+#ifdef IN6_MULTICAST_TAKES_S6_ADDR // Linux ipv6 implementation
+#define BK_IN6_IS_ADDR_MULTICAST(a) IN6_IS_ADDR_MULTICAST(a.s6_addr)
+#else 
+#ifdef IN6_MULTICAST_TAKES_IN6_ADDR // Sane ipv6 implementation
+#define BK_IN6_IS_ADDR_MULTICAST(a) IN6_IS_ADDR_MULTICAST(&(a))
+#endif // IN6_MULTICAST_TAKES_IN6_ADDR
+#endif // IN6_MULTICAST_TAKES_S6_ADDR
+
+#define BK_IN_MULTICAST(ag) \
+    (((ag)->bna_type == BkNetinfoTypeInet && IN_MULTICAST(ntohl((ag)->bna_inet.s_addr))) || \
+     ((ag)->bna_type == BkNetinfoTypeInet6 && BK_IN6_IS_ADDR_MULTICAST((ag)->bna_inet6)))
 
 
 
