@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.118 2002/03/05 22:24:09 dupuy Exp $
+ * $Id: libbk.h,v 1.119 2002/03/06 22:51:46 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -76,12 +76,15 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_ENV_GWD(e,d)	BK_OR(getenv(e),(d)) ///< Get an environmental variable with a default if it does not work
 #define BK_GWD(B,k,d) BK_OR(bk_config_getnext(B, NULL, (k), NULL),(d)) ///< Get a value from the config file, or return a default
 #define BK_SYSLOG_MAXLEN 256			///< Length of maximum user message we will syslog
-#define BK_FLAG_SET(var,bit) ((var) |= (bit))	///< Set a bit in a simple bitfield
+// BK_FLAG_{SET,CLEAR} are statement macros to prevent inadvertent use as tests
+#define BK_FLAG_SET(var,bit) do { (var) |= (bit); } while (0) ///< Set a bit in a simple bitfield
+#define BK_FLAG_CLEAR(var,bit) do { (var) &= ~(bit); } while (0) ///< Clear a bit in a simple bitfield
 #define BK_FLAG_ISSET(var,bit) ((var) & (bit))	///< Test if bit is set in a simple bitfield
-#define BK_FLAG_CLEAR(var,bit) ((var) &= ~(bit)) ///< Clear a bit in a simple bitfield
 #define BK_FLAG_ISCLEAR(var,bit) (!((var) & (bit))) ///< Test of bit is clear in a simple bitfield
-#define BK_STREQ(a,b) ((a) && (b) && !strcmp((a),(b))) ///< Are two strings equivalent
-#define BK_STREQN(a,b,n) ((a) && (b) && ((int)n>=0) && !strncmp(a,b,n)) ///< Are two strings different?
+#define BK_STREQ(a,b) ((a) && (b) && !strcmp((a),(b))) ///< Are two strings equal
+#define BK_STREQN(a,b,n) ((a) && (b) && ((int)n>=0) && !strncmp(a,b,n)) ///< Are two strings equal for the first n characters?
+#define BK_STREQCASE(a,b) ((a) && (b) && !strcasecmp((a),(b))) ///< Are two strings equal (ignoring case)
+#define BK_STREQNCASE(a,b,n) ((a) && (b) && ((int)n>=0) && !strncasecmp(a,b,n)) ///< Are two strings equal (ignoring case) for the first n characters?
 
 #define BK_CALLOC(p) BK_CALLOC_LEN(p,sizeof(*(p))) ///< Structure allocation calloc with assignment and type cast
 #define BK_CALLOC_LEN(p,l) ((p) = (typeof(p))calloc(1,(l)))	///< Calloc with assignment and type cast
@@ -900,18 +903,23 @@ struct bk_url
 
 #define BK_URL_SCHEME_DATA(bu) (BK_URL_DATA((bu),(bu)->bu_scheme))
 #define BK_URL_SCHEME_LEN(bu) (BK_URL_LEN((bu),(bu)->bu_scheme))
+#define BK_URL_SCHEME_EQ(bu,str) ((BK_URL_IS_VPTR(bu))?BK_STREQNCASE(BK_URL_SCHEME_DATA(bu),(str),BK_URL_SCHEME_LEN(bu)):BK_STREQCASE(BK_URL_SCHEME_DATA(bu),(str)))
 
 #define BK_URL_AUTHORITY_DATA(bu) (BK_URL_DATA((bu),(bu)->bu_authority))
 #define BK_URL_AUTHORITY_LEN(bu) (BK_URL_LEN((bu),(bu)->bu_authority))
+#define BK_URL_AUTHORITY_EQ(bu,str) ((BK_URL_IS_VPTR(bu))?BK_STREQN(BK_URL_AUTHORITY_DATA(bu),(str),BK_URL_AUTHORITY_LEN(bu)):BK_STREQ(BK_URL_AUTHORITY_DATA(bu),(str)))
 
 #define BK_URL_PATH_DATA(bu) (BK_URL_DATA((bu),(bu)->bu_path))
 #define BK_URL_PATH_LEN(bu) (BK_URL_LEN((bu),(bu)->bu_path))
+#define BK_URL_PATH_EQ(bu,str) ((BK_URL_IS_VPTR(bu))?BK_STREQN(BK_URL_PATH_DATA(bu),(str),BK_URL_PATH_LEN(bu)):BK_STREQ(BK_URL_PATH_DATA(bu),(str)))
 
 #define BK_URL_QUERY_DATA(bu) (BK_URL_DATA((bu),(bu)->bu_query))
 #define BK_URL_QUERY_LEN(bu) (BK_URL_LEN((bu),(bu)->bu_query))
+#define BK_URL_QUERY_EQ(bu,str) ((BK_URL_IS_VPTR(bu))?BK_STREQN(BK_URL_QUERY_DATA(bu),(str),BK_URL_QUERY_LEN(bu)):BK_STREQ(BK_URL_QUERY_DATA(bu),(str)))
 
 #define BK_URL_FRAGMENT_DATA(bu) (BK_URL_DATA((bu),(bu)->bu_fragment))
 #define BK_URL_FRAGMENT_LEN(bu) (BK_URL_LEN((bu),(bu)->bu_fragment))
+#define BK_URL_FRAGMENT_EQ(bu,str) ((BK_URL_IS_VPTR(bu))?BK_STREQN(BK_URL_FRAGMENT_DATA(bu),(str),BK_URL_FRAGMENT_LEN(bu)):BK_STREQ(BK_URL_FRAGMENT_DATA(bu),(str)))
 
 // @}
 

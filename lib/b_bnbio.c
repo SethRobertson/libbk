@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.6 2002/01/15 20:21:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.7 2002/03/06 22:51:46 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -33,7 +33,9 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 /**
  * @file b_bnbio.c
- * All the routines required to handle "blocking" I/O in an asynchrnous enviornment.
+ *
+ * All the routines required to handle "blocking" I/O in an asynchronous
+ * environment.
  */
 
 
@@ -139,7 +141,7 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, bk_flags 
   }
 
  reread:
-  // First generating *some* form of usefull information
+  // first, generate *some* form of useful information
   while ((ret = bk_polling_io_read(B, bib->bib_bpi, datap, &status, 0)) == 1)
     /* void */;
 

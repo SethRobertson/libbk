@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_nvmap.c,v 1.2 2002/01/02 20:06:30 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_nvmap.c,v 1.3 2002/03/06 22:51:47 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -31,7 +31,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  *	@param B BAKA thread/global state.
  *	@param name The name to convert
  *	@return <i>-1</i> on failure.<br>
- *	@return <i>>0</i> on success.
+ *	@return value on success.
  */
 int64_t
 bk_nvmap_name2value(bk_s B,  struct bk_name_value_map nvmap[], const char *name)

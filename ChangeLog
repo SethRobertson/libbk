@@ -1,3 +1,12 @@
+2002-03-06  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h (BK_FLAG_SET, BK_FLAG_CLEAR): make these statement
+	macros to prevent inadvertent use in tests where BK_FLAG_IS* is meant
+	(BK_URL_SCHEME_EQ, BK_URL_AUTHORITY_EQ): use STR{N,}EQ as appropriate
+	(BK_STREQCASE, BK_STRNEQCASE): use str{n,}casecmp
+	(BK_URL_SCHEME_EQ, BK_URL_AUTHORITY_EQ, BK_URL_PATH_EQ): use correct
+	str{n,}{case,}cmp variant
+	
 2002-03-05  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (CONVERT_SUBSECSNTP2TIMEVAL): for completeness

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.21 2002/01/15 20:21:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.22 2002/03/06 22:51:47 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -858,7 +858,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
   /* 
    * If this is the final run then turn select(2) into a poll.  This
-   * ensures that should we turn of select in an envent (the final event of
+   * ensures that should we turn off select in an event (the final event of
    * the run), we don't block forever owing to lack of descriptors in the
    * select set.
    */

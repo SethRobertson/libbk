@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_debug.c,v 1.13 2002/01/09 06:26:38 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_debug.c,v 1.14 2002/03/06 22:51:46 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -286,7 +286,8 @@ int bk_debug_set(bk_s B, struct bk_debug *bdinfo, const char *name, u_int32_t le
  *	@see bk_debug_config
  *	@return <i>-1</i> on call failure
  *	@return <br><i>0</i> on total success
- *	@return <br><i>>0</i> on partial success--returning the number of non-fatal errors (misformatted debug lines)
+ *	@return <br><i>positive</i> on partial success--returning the number of
+ *	non-fatal errors (misformatted debug lines)
  */
 int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config, const char *program)
 {

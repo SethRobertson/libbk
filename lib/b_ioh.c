@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.41 2002/02/20 16:55:18 lindauer Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.42 2002/03/06 22:51:47 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2683,7 +2683,7 @@ static int ioh_getlastbuf(bk_s B, struct bk_ioh_queue *queue, u_int32_t *size, c
  *	@param flags Flags
  *	@return <i>-1</i> on call failure or read failure
  *	@return <br><i>0</i> on EOF
- *	@return <br><i>>0</i> indicating number of bytes read
+ *	@return <br><i>positive</i> indicating number of bytes read
  */
 static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, size_t len, bk_flags flags)
 {
@@ -3209,7 +3209,7 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
  * system frees the data it has read.
  *
  *	@param B BAKA global/thread state
- *	@param data NULL terminated array of vectored pointers--data is 'freed'
+ *	@param data NULL terminated array of vectored pointers
  *	@param curvptr Optional remaining data from previous call--user must free
  *	@param flags Fun for the future
  *	@return <i>NULL</i> on call failure, allocation failure

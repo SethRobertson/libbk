@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.17 2002/01/16 18:38:25 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.18 2002/03/06 22:51:47 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -151,7 +151,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
   // Search for scheme.
   start = url;
 
-  // The inclusion if [ is compliant with rfc2732 ipv6 literal address parsing
+  // The inclusion of [ is compliant with rfc2732 ipv6 literal address parsing
   end = strpbrk(start, ":/?#[");
   
   if (end && *end == ':')
@@ -497,8 +497,8 @@ bk_url_destroy(bk_s B, struct bk_url *bu)
  * arguments of bk_url_parse need to be rationalized.</TODO>
  *
  *	@param B BAKA thread/global state.
- *	@param component The url component string.
- *	@return <i>NULL</i> on failure.<br>
+ *	@param component The url component string (may be NULL)
+ *	@return <i>NULL</i> on failure<br>
  *	@return a new @a bk_url on success.
  */
 char *
@@ -508,11 +508,8 @@ bk_url_unescape(bk_s B, const char *component)
   char *expanded;
   char *copy;
 
-  if (!component)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_RETURN(B, NULL);
-  }
+  if (!component)				// handle this gracefully
+    BK_RETURN(B, calloc(1,1));
 
   if (!(expanded = malloc(strlen(component) + 1))) // may be a bit too big, ok
   {
