@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_memx.c,v 1.7 2001/12/06 00:17:47 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_memx.c,v 1.8 2002/05/28 22:22:53 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -212,3 +212,29 @@ int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags)
 
 
 
+/**
+ * Lop off the front of a memx and slide the contents down. This is expensive.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bm Buffer management handle
+ *	@param count The number of elements to lop
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_memx_lop(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bm)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  memcpy(bm->bm_array, (char *)bm->bm_array + count * bm->bm_unitsize, (bm->bm_curused - count) * bm->bm_unitsize);
+  bm->bm_curused -= count;
+
+  BK_RETURN(B,0);    
+}

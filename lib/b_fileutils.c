@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.7 2002/05/23 21:30:31 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.8 2002/05/28 22:22:53 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -725,7 +725,7 @@ bk_fileutils_match_extension(bk_s B, const char *path, const char * const *exts)
 
   if (!(ext = strrchr(path, '.')))
   {
-    bk_error_printf(B, BK_ERR_ERR, "No extension charater located\n");
+    // No extension marker so no match.
     BK_RETURN(B,0);    
   }
   

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.23 2002/04/26 21:26:32 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.24 2002/05/28 22:22:52 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -289,4 +289,10 @@ __attribute__ ((__packed__))
 # define UINT64_MAX             (__UINT64_C(18446744073709551615))
 #endif /* INT8_MIN */
 
+// GZIP Needs to have this OS_CODE thingy for some reason.
+#ifdef BK_MINGW32
+#define BK_GZIP_OS_CODE		0x0b
+#else /* Default assumes unix */
+#define BK_GZIP_OS_CODE		0x03
+#endif
 #endif /* _libbk_oscompat_h_ */
