@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.125 2002/03/19 05:29:31 seth Exp $
+ * $Id: libbk.h,v 1.126 2002/03/19 18:29:25 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -718,6 +718,9 @@ do {						\
 								\
     } while (0)
 #define BK_SECSTONSEC(x) ((x)*1000000000)	///< Convert seconds to nanoseconds
+
+#define BK_USECTONSEC(x) ((x)*1000000000/1000000) ///< Convert micro to nano.
+#define BK_NSECTOUSEC(x) ((x)*1000000/1000000000) ///< Conver nano to micro
 // @}
 
 
