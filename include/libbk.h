@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.109 2002/01/19 13:15:37 dupuy Exp $
+ * $Id: libbk.h,v 1.110 2002/01/20 03:19:11 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -889,6 +889,69 @@ struct bk_url
 
 
 
+/**
+ * @name MD5 routines
+ */
+// @{
+/*
+ ***********************************************************************
+ ** md5.h -- header file for implementation of MD5                    **
+ ** RSA Data Security, Inc. MD5 Message-Digest Algorithm              **
+ ** Created: 2/17/90 RLR                                              **
+ ** Revised: 12/27/90 SRD,AJ,BSK,JT Reference C version               **
+ ** Revised (for MD5): RLR 4/27/91                                    **
+ ***********************************************************************
+ */
+
+/*
+ ***********************************************************************
+ ** Copyright (C) 1990, RSA Data Security, Inc. All rights reserved.  **
+ **                                                                   **
+ ** License to copy and use this software is granted provided that    **
+ ** it is identified as the "RSA Data Security, Inc. MD5 Message-     **
+ ** Digest Algorithm" in all material mentioning or referencing this  **
+ ** software or this function.                                        **
+ **                                                                   **
+ ** License is also granted to make and use derivative works          **
+ ** provided that such works are identified as "derived from the RSA  **
+ ** Data Security, Inc. MD5 Message-Digest Algorithm" in all          **
+ ** material mentioning or referencing the derived work.              **
+ **                                                                   **
+ ** RSA Data Security, Inc. makes no representations concerning       **
+ ** either the merchantability of this software or the suitability    **
+ ** of this software for any particular purpose.  It is provided "as  **
+ ** is" without express or implied warranty of any kind.              **
+ **                                                                   **
+ ** These notices must be retained in any copies of any part of this  **
+ ** documentation and/or software.                                    **
+ ***********************************************************************
+ */
+
+/**
+ * Data structure for MD5 (Message-Digest) computation
+ */
+typedef struct
+{
+  u_int32_t i[2];					///< number of _bits_ handled mod 2^64
+  u_int32_t buf[4];					///< scratch buffer
+  unsigned char in[64];				///< input buffer
+  unsigned char digest[16];			///< actual digest after MD5Final call
+}  bk_MD5_CTX;
+
+void bk_MD5Init (bk_s B, bk_MD5_CTX *mdContext);
+void bk_MD5Update (bk_s B, bk_MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen);
+void bk_MD5Final (bk_s B, bk_MD5_CTX *mdContext);
+
+/*
+ ***********************************************************************
+ ** End of md5.h                                                      **
+ ******************************** (cut) ********************************
+ */
+// @}
+
+
+
+
 
 /* b_general.c */
 extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, struct bk_config_user_pref *bcup, int error_queue_length, int log_facility, bk_flags flags);
@@ -1296,6 +1359,13 @@ extern pid_t bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, 
 #define BK_EXEC_FLAG_USE_SUPPLIED_FDS		0x1 ///< Use the fd's supplied as copyu in args
 extern pid_t bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const env[], u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
 extern pid_t bk_pipe_to_cmd(bk_s B, int *fdin,int *fdout, const char *cmd, char *const env[], bk_flags flags);
+
+
+/* b_rand.c */
+extern struct bk_randinfo *bk_rand_init(bk_s B, u_int entropy, bk_flags flags);
+extern void bk_rand_destroy(bk_s B, struct bk_randinfo *R, bk_flags flags);
+extern u_int32_t bk_rand_getword(bk_s B, struct bk_randinfo *R, u_int32_t *co, bk_flags flags);
+extern int bk_rand_getbuf(bk_s B, struct bk_randinfo *R, u_char *buf, u_int len, bk_flags flags);
 
 
 #endif /* _BK_h_ */

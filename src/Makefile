@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.8 2001/11/18 19:04:39 seth Exp $
+# $Id: Makefile,v 1.9 2002/01/20 03:19:11 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -16,6 +16,7 @@
 #
 
 BK_SIMPLE_PROGS=			\
+	genrand				\
 	mmcat				\
 	proto				\
 	bttcp				\

@@ -1,3 +1,14 @@
+2002-01-19  Seth Robertson  <seth@yeah.baka.org>
+
+	* src/genrand.c: Random number production program.  Suitable for
+	password generation!
+
+	* lib/b_md5.c: MD5 hash algorithm
+	* lib/b_rand.c: Random number generation
+
+	* test/testhashspeed.c: Hashing tests
+	* test/testrandidea.c: Update with results
+
 2002-01-19  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h: declare bk_time_iso_{parse,format}, bk_timegm
