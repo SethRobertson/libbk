@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.27 2003/12/29 06:42:17 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.28 2003/12/29 06:58:01 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -36,6 +36,7 @@ struct bk_relay
 #define BR_IOH_READCLOSE	0x1		///< Read side is no longer available
 #define BR_IOH_CLOSED		0x2		///< Entire IOH is no longer available
 #define BR_IOH_THROTTLED	0x4		///< Read is throttled because of output queue size
+#define BR_IOH_SEIZEOK		0x8		///< Carpe Data
   struct bk_ioh *	br_ioh2;		///< Another of the IOHs
   bk_flags		br_ioh2_state;		///< State of one IOH
   bk_relay_cb_f		br_callback;		///< Callback on reads and shutdown
@@ -76,6 +77,7 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
   struct bk_relay *relay;
+  bk_flags flags1, flags2;
 
   if (!ioh1 || !ioh2)
   {
@@ -105,7 +107,15 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f
   bk_ioh_readallowed(B, ioh2, 1, 0);
 
   //<TODO> Alter interface to permit caller to specify hints (though they can specify them in the IOH up front) </TODO>
-  //<TODO> Allow the caller to specify a callback which gets called in each read/write (why?) </TODO>
+
+  if (bk_ioh_get(B, ioh1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL< NULL, NULL, NULL, &flags1) < 0)
+    goto error;
+
+  if (bk_ioh_get(B, ioh2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL< NULL, NULL, NULL, &flags2) < 0)
+    goto error;
+
+  if (BK_FLAG_ISCLEAR(flags1, BK_IOH_LINE) && BK_FLAG_ISCLEAR(flags2, BK_IOH_LINE))
+    BK_FLAG_SET(relay->br_flags, BR_IOH_SEIZEOK);
 
   if (bk_ioh_update(B, ioh1, NULL, NULL, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
     goto error;
@@ -171,10 +181,24 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   case BkIohStatusIncompleteRead:
   case BkIohStatusReadComplete:
     // Coalesce into one buffer for output
-    if (!(newcopy = bk_ioh_coalesce(B, data, NULL, BK_IOH_COALESCE_FLAG_MUST_COPY, NULL)))
+    if (!data[1].ptr && BK_FLAG_ISSET(relay->br_flags, BR_IOH_SEIZEOK))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
-      goto error;
+      // Only one buffer, let's seize it!!
+      if (!BK_MALLOC(newcopy))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate for seize: %s\n", strerror(errno));
+	goto error;
+      }
+      *newcopy = data[0];
+      data[0].ptr = NULL;
+    }
+    else
+    {
+      if (!(newcopy = bk_ioh_coalesce(B, data, NULL, BK_IOH_COALESCE_FLAG_MUST_COPY, NULL)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
+	goto error;
+      }
     }
 
     if (relay->br_stats)

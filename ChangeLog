@@ -2,6 +2,8 @@
 
 	* lib/b_relay.c (bk_relay_iohhandler): Allow user callback to
 	modify outgoing buffer, not discarding buffer.
+	(bk_relay_iohhandler): Carpe Data -- seize the data instead of
+	copying it when possible.
 
 	* src/bttcp.c (relay_finish): Implement transmit limits.
 	(main): Allow major numeric arguments to use kKmM etc notation.
