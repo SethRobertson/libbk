@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_time.c,v 1.1 2002/01/19 12:42:34 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_time.c,v 1.2 2002/01/19 13:15:37 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,14 +25,13 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 
-// must adjust if converting to struct timespec 
-#define RESOLUTION BK_SECSTOUSEC(1)
-#define LOG10_RES  6
-// must adjust if converting to struct timespec 
-#define MILLISEC   (RESOLUTION/1000)
+// must adjust if converting to struct timeval 
+#define RESOLUTION BK_SECSTONSEC(1)
+#define LOG10_RES  9
+// must adjust if converting to struct timeval 
+#define MICROSEC   (RESOLUTION/1000)
 // need no adjustment
-#define TENTH	   (MILLISEC/10)
-#define HUNDREDTH  (TENTH/10)
+#define MILLISEC   (MICROSEC/1000)
 
 #define MONTHS	   12
 
@@ -41,7 +40,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * Format an ISO date and time specification.
  *
- * Generates ISO extended complete Calendar date format for the struct timeval
+ * Generates ISO extended complete Calendar date format for the struct timespec
  * pointed to by @a timep, and places it in in the character array @a str
  * of size @max.
  *
@@ -50,13 +49,13 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  *
  *	@param B BAKA thread/global state.
  *	@param str buffer to use on output
- *	@param timep struct timeval pointer to use.
+ *	@param timep struct timespec pointer to use.
  *	@param flags Flags for the future.
  *	@return <i>0</i> on failure.<br>
  *	@return number of bytes (not including terminating NUL) on success.
  */
 size_t
-bk_time_iso_format(bk_s B, char *str, size_t max, struct timeval *timep, bk_flags flags)
+bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   // the size of the array is that of base output "YYYY-mm-ddTHH:MM:SSZ\0"
@@ -73,44 +72,39 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timeval *timep, bk_flag
     BK_RETURN(B, 0);
   }
 
-  if (timep->tv_usec == 0)			// omitted entirely
+  if (timep->tv_nsec == 0)			// omitted entirely
     precision = 0;
   else
   {
     /*
-     * <TRICKY>Don't use BK_TV_RECTIFY here; tv_usec <em>must</em> be
+     * <TRICKY>Don't use BK_TS_RECTIFY here; tv_nsec <em>must</em> be
      * non-negative for correct output.</TRICKY>
      */
-    if (timep->tv_usec >= RESOLUTION)
+    if (timep->tv_nsec >= RESOLUTION)
     {
-      timep->tv_sec += timep->tv_usec / RESOLUTION;
-      timep->tv_usec %= RESOLUTION;
+      timep->tv_sec += timep->tv_nsec / RESOLUTION;
+      timep->tv_nsec %= RESOLUTION;
     }
-    else if (timep->tv_usec < 0)
+    else if (timep->tv_nsec < 0)
     {
-      int add = 1 - (timep->tv_usec / RESOLUTION);
+      int add = 1 - (timep->tv_nsec / RESOLUTION);
       timep->tv_sec += add;
-      timep->tv_usec += add * RESOLUTION;
+      timep->tv_nsec += add * RESOLUTION;
     }
 
-    if (timep->tv_usec % HUNDREDTH)
+    if (timep->tv_nsec % MICROSEC)
     {
-      fraction = timep->tv_usec;
+      fraction = timep->tv_nsec;
+      precision = 9;
+    }
+    else if (timep->tv_nsec % MILLISEC)
+    {
+      fraction = timep->tv_nsec / MICROSEC;
       precision = 6;
-    }
-    else if (timep->tv_usec % TENTH)
-    {
-      fraction = timep->tv_usec / HUNDREDTH;
-      precision = 5;
-    }
-    else if (timep->tv_usec % MILLISEC)
-    {
-      fraction = timep->tv_usec / TENTH;
-      precision = 4;
     }
     else
     {
-      fraction = timep->tv_usec / MILLISEC;
+      fraction = timep->tv_nsec / MILLISEC;
       precision = 3;				// what Java wants to see
     }
   }
@@ -286,7 +280,7 @@ extern char *strptime (const char *s, const char *fmt, struct tm *tp);
  *
  *	@param B BAKA thread/global state.
  *	@param string ISO format time string to parse.
- *	@param date Copy-out struct timeval pointer for parsed time.
+ *	@param date Copy-out struct timespec pointer for parsed time.
  *	@param flags Flags for the future.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
@@ -295,7 +289,7 @@ extern char *strptime (const char *s, const char *fmt, struct tm *tp);
  *	@return <br>Copy-out <i>timep</i>
  */
 int
-bk_time_iso_parse(bk_s B, const char *string, struct timeval *date, bk_flags flags)
+bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct tm t;
@@ -381,7 +375,8 @@ bk_time_iso_parse(bk_s B, const char *string, struct timeval *date, bk_flags fla
 
   if (precision)
   {
-    static const int factors[] = { 0, 10, 100, 1000, 10000, 100000 };
+    static const int factors[] =
+      { 0, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000 };
 
     if (precision > LOG10_RES)
       while (precision > LOG10_RES)
@@ -393,10 +388,10 @@ bk_time_iso_parse(bk_s B, const char *string, struct timeval *date, bk_flags fla
     else if (precision < LOG10_RES)
       decimal *= factors[LOG10_RES - precision];
     
-    date->tv_usec = decimal;
+    date->tv_nsec = decimal;
   }
   else
-    date->tv_usec = 0;
+    date->tv_nsec = 0;
 
   BK_RETURN(B, *fraction ? 1 : 0);		// return 1 if last != NUL
 }

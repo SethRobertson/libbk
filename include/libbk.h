@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.108 2002/01/19 12:42:34 dupuy Exp $
+ * $Id: libbk.h,v 1.109 2002/01/19 13:15:37 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -606,6 +606,64 @@ do {						\
 // @}
 
 
+/**
+ * @name Basic Timespec Operations
+ * Perform basic timespec operations (add, subtract, compare, etc).
+ */
+// @{
+/** @brief Add two timespecs together--answer may be an argument */
+#define BK_TS_ADD(sum,a,b)				\
+    do							\
+    {							\
+      (sum)->tv_sec = (a)->tv_sec + (b)->tv_sec;	\
+      (sum)->tv_nsec = (a)->tv_nsec + (b)->tv_nsec;	\
+      BK_TS_RECTIFY(sum);				\
+    } while (0)
+/** @brief Subtract timespec a from b--anwser may be an argument */
+#define BK_TS_SUB(sum,a,b)				\
+    do							\
+    {							\
+      (sum)->tv_sec = (a)->tv_sec - (b)->tv_sec;	\
+      (sum)->tv_nsec = (a)->tv_nsec - (b)->tv_nsec;	\
+      BK_TS_RECTIFY(sum);				\
+    } while (0)
+/** @brief Compare two timespecs, return trinary value around zero */
+#define BK_TS_CMP(a,b) BK_OR((a)->tv_sec-(b)->tv_sec,(a)->tv_nsec-(b)->tv_nsec)
+/** @brief Convert a timespec to a float. */
+#define BK_TS2F(tv) ((double)(((double)((tv)->tv_sec)) + ((double)((tv)->tv_nsec))/1000000000.0))
+/** @brief Rectify timespec so that nsec value is within range of second, and that nsec value has same sign as sec.  Performed automatically on all BK_TS operations. */
+#define BK_TS_RECTIFY(sum)					\
+    do								\
+    {								\
+      if ((sum)->tv_nsec >= BK_SECSTONSEC(1))			\
+      {								\
+	(sum)->tv_sec += (sum)->tv_nsec / BK_SECSTONSEC(1);	\
+	(sum)->tv_nsec %= BK_SECSTONSEC(1);			\
+      }								\
+								\
+      if ((sum)->tv_nsec <= -BK_SECSTONSEC(1))			\
+      {								\
+	(sum)->tv_sec += (sum)->tv_nsec / BK_SECSTONSEC(1);	\
+	(sum)->tv_nsec %= -BK_SECSTONSEC(1);			\
+      }								\
+								\
+      if ((sum)->tv_nsec < 0 && (sum)->tv_sec > 0)		\
+      {								\
+	(sum)->tv_sec--;					\
+	(sum)->tv_nsec += BK_SECSTONSEC(1);			\
+      }								\
+								\
+      if ((sum)->tv_nsec > 0 && (sum)->tv_sec < 0)		\
+      {								\
+	(sum)->tv_sec++;					\
+	(sum)->tv_nsec -= BK_SECSTONSEC(1);			\
+      }								\
+								\
+    } while (0)
+#define BK_SECSTONSEC(x) ((x)*1000000000)	///< Convert seconds to nanoseconds
+// @}
+
+
 /** @brief Special symbol which means resolve to "any" address. */
 #define BK_ADDR_ANY "bk_addr_any"
 
@@ -1200,8 +1258,8 @@ extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
 extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
 
 /* b_time.c */
-size_t bk_time_iso_format(bk_s B, char *str, size_t max, struct timeval *timep, bk_flags flags);
-int bk_time_iso_parse(bk_s B, const char *src, struct timeval *dst, bk_flags flags);
+size_t bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags flags);
+int bk_time_iso_parse(bk_s B, const char *src, struct timespec *dst, bk_flags flags);
 time_t bk_timegm(bk_s B, struct tm *timeptr, bk_flags flags);
 #define BK_TIMEGM_FLAG_NORMALIZE	0x1	///< Normalize struct tm fields
 /*

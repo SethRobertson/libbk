@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_time.c,v 1.1 2002/01/19 12:42:34 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: test_time.c,v 1.2 2002/01/19 13:15:37 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2002";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -170,13 +170,17 @@ void progrun(bk_s B, struct program_config *pconfig)
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   char scratch[1024];
   char inputline[1024];
-  struct timeval t;
+  struct timeval tv;
+  struct timespec t;
   struct timezone z;
 
-  gettimeofday(&t, &z);
+  gettimeofday(&tv, &z);
+  t.tv_sec = tv.tv_sec;
+  t.tv_nsec = tv.tv_usec * 1000;
+
   if (!(bk_time_iso_format(B, inputline, sizeof(inputline), &t, 0)))
     fprintf(stderr,"Could not format current time: %ld.%ld\n",
-	    (long) t.tv_sec, (long) t.tv_usec);
+	    (long) t.tv_sec, (long) t.tv_nsec);
   else
     fprintf(stdout, "current time = \"%s\"\n", inputline);
 
@@ -214,7 +218,7 @@ void progrun(bk_s B, struct program_config *pconfig)
       fprintf(stdout, "input = \"%s\"\n", inputline);
       if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, 0)))
 	fprintf(stderr,"Could not format converted time: %ld.%ld\n",
-		(long) t.tv_sec, (long) t.tv_usec);
+		(long) t.tv_sec, (long) t.tv_nsec);
       else
 	fprintf(stdout, "formatted = \"%s\"\n", scratch);
     }
