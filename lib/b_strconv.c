@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.1 2002/08/27 23:03:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.2 2002/09/04 06:25:03 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -416,9 +416,7 @@ int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *n
     outlen = len;
   }
 
-  ret = snprintf(out, outlen, "0x%x", in);
-
-  if ((size_t)ret >= outlen)
+  if ((size_t) snprintf(out, outlen, "0x%x", in) >= outlen)
   {						// not enough room
     if (anybits)
     {
@@ -429,6 +427,8 @@ int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *n
     *dst = '\0';				// ensure reasonableness
     ret = -1;
   }
+  else
+    ret = 0;
 
   BK_RETURN(B, ret);
 }
