@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.16 2001/12/06 00:17:47 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.17 2001/12/11 01:34:26 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1343,3 +1343,68 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
 }
 // @}
 
+
+
+
+/**
+ * Return the position of the first location within @a s of character
+ * contained in @a delim.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param s The string within to search.
+ *	@param delim The string of deliminiating characters.
+ *	@return <i>NULL</i> if no @a delim chars located<br>
+ *	@return <i>ptr</i> within s on success.
+ */
+char *
+bk_strdelim(bk_s B, const char *s, const char *delim)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  
+  if (!s || !delim)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  while(*s)
+  {
+    if (strchr(delim,*s))
+      BK_RETURN(B,(char *)s);
+    s++;
+  }
+  BK_RETURN(B,NULL);
+}
+
+
+
+/**
+ * @a strdup at <em>most</em> @a n bytes of data. Returns NULL terminated.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param s Source string.
+ *	@param len maximum len;
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>duplicated</i> string on success.
+ */
+char *
+bk_strndup(bk_s B, const char *s, u_int len)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *new;
+
+  if (!s)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+  
+  if (!(BK_CALLOC_LEN(new, len)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not malloc: %s\n", strerror(errno));
+    BK_RETURN(B,NULL);
+  }
+  
+  snprintf(new,len, "%s", s);
+  BK_RETURN(B,new);
+}

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_url.c,v 1.1 2001/11/20 19:34:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_url.c,v 1.2 2001/12/11 01:34:26 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -183,17 +183,24 @@ int proginit(bk_s B, struct program_config *pconfig)
 void progrun(bk_s B, struct program_config *pconfig)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
-  char *host, *serv, *proto;
-
-  if (bk_parse_endpt_spec(B, url, &host, defhost, &serv, defserv, &proto, defproto)<0)
+  char line[1024];
+  struct bk_url *bu;
+  
+  while(fgets(line, 1024, stdin))
   {
-    fprintf(stderr,"Could not parse url\n");
-    exit(1);
-  }
-      
-  printf("host: %s\n", host);
-  printf("service: %s\n", serv);
-  printf("proto: %s\n", proto);
+    bk_string_rip(B, line, NULL, 0);
 
+    if (BK_STREQ(line,"quit") || BK_STREQ(line,"exit"))
+      BK_VRETURN(B);
+      
+
+    if (!(bu=bk_url_parse(B, line, 0)))
+    {
+      fprintf(stderr,"Could not convert url\n");
+      continue;
+    }
+    printf("%s://%s:%s%s\n", bu->bu_proto, bu->bu_host, bu->bu_serv, bu->bu_path);
+  }
+  
   BK_VRETURN(B);
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.1 2001/12/10 22:50:16 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.2 2001/12/11 01:34:26 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -30,42 +30,26 @@ static u_int count_colons(bk_s B, const char *str);
 
 
 /**
- * Baka internal representation of a URL. The char *'s are all NULL
- * terminated strings for convenience.
- */
-struct bk_url
-{
-  bk_flags		bu_flags;		///< Everyone needs flags.
-  char *		bu_proto;		///< Protocol specification
-  char *		bu_host;		///< Host specification
-  char *		bu_serv;		///< Service specification
-  char *		bu_path;		///< Path specification
-};
-
-
-
-
-/**
  * Parse a url
  *	@param B BAKA thread/global state.
- *	@param url Url to parse.
+ *	@param url_in Url to parse.
  *	@param flags Flags for the future.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_url on sucess.
  */
 struct bk_url *
-bk_url_parse(bk_s B, const char *url_in, bk_flags flags)
+bk_url_parse(bk_s B, const char *url, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char *url = NULL;
   struct bk_url *bu = NULL;
-  char *host = NULL;
-  char *proto = NULL;
-  char *serv = NULL;
-  char *path = NULL;
+  const char *host=NULL, *host_end;
+  const char *proto=NULL, *proto_end;
+  const char *serv=NULL, *serv_end=NULL;
+  const char *path=NULL, *path_end;
   u_int cnt;
+  u_int len;
 
-  if (!url_in)
+  if (!url)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, NULL);
@@ -77,100 +61,138 @@ bk_url_parse(bk_s B, const char *url_in, bk_flags flags)
     goto error;
   }
 
-  if (!(url = strdup(url_in)))
+  proto = url;
+  proto_end = bk_strdelim(B, proto,":/");	/* No : or / in proto */
+  if (!proto_end || strncmp(proto_end,":/", 2) != 0) /* Proto ends with ":/" (at a minimum) */
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup url: %s\n", strerror(errno));
-    goto error;
-  }
-
-  if (!(host = strstr(url, "://")))
-  {
-    /* There is no protocol specified */
-    host = url;
+    proto = NULL;				/* No protocol */
+    host = url;					/* Try host from begining */
   }
   else
   {
-    proto = url;
-    *host = '\0';
-    host += strlen("://");
-    if (!(bu->bu_proto = strdup(proto)))
+    host = proto_end+1;				/* Skip over : but *not* / */
+  }
+  
+  if (strncmp(host,"//",2) == 0) 		/* Skip over // */
+  {
+    host += 2;
+  }
+
+  if ((host_end = bk_strdelim(B, host,":/")))
+  {
+    if (*host_end == ':')			/* Host ends with : (or EOS) */
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not strdup protocol: %s\n", strerror(errno));
+      serv = host_end+1;			/* Skip over : */
+      serv_end = bk_strdelim(B, serv,":/");
+      if (serv_end && *serv_end == ':')
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Malfomed URL: <%s>\n", url);
+	goto error;
+      }
+      path = serv_end;
+    }
+    else
+    {
+      path = host_end;
+    }
+  }
+  else
+  {
+    path = host;
+  }
+
+  if (path)
+  {
+    if (*path != '/')
+    {
+      path=NULL;
+    }
+    else if (path == host)
+    {
+      if (serv)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "I seem have a service spec with no host spec. How can that happen\n");
+	goto error;
+      }
+      host = NULL;
+    }
+  }
+
+  if (host)
+  {
+    len=host_end-host+1;
+    if (!(bu->bu_host = bk_strndup(B, host, len)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy host: %s\n", strerror(errno));
       goto error;
     }
   }
-  
-  if ((path = strchr(host,'/')))
+  else
+  {
+    if (!(bu->bu_host = strdup("")))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy empty string to host: %s\n", strerror(errno));
+      goto error;
+    }
+  }
+
+  if (proto)
+  {
+    len=proto_end-proto+1;
+    if (!(bu->bu_proto = bk_strndup(B, proto, len)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy proto: %s\n", strerror(errno));
+      goto error;
+    }
+  }
+  else
+  {
+    if (!(bu->bu_proto = strdup("")))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy empty string to proto: %s\n", strerror(errno));
+      goto error;
+    }
+  }
+
+  if (serv)
+  {
+    len=serv_end-serv+1;
+    if (!(bu->bu_serv = bk_strndup(B, serv, len)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy serv: %s\n", strerror(errno));
+      goto error;
+    }
+  }
+  else
+  {
+    if (!(bu->bu_serv = strdup("")))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy empty string to serv: %s\n", strerror(errno));
+      goto error;
+    }
+  }
+
+  if (path)
   {
     if (!(bu->bu_path=strdup(path)))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not strdup pathd: %s\n", strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup path: %s\n", strerror(errno));
       goto error;
     }
-    *path='\0';
   }
-
-  /* 
-   * If path == host (ie there is no host/serv part), then host will
-   * pointing at an <em>empty</em> (ie not NULL) string, so the following
-   * code should all work as you would expect.
-   */
-  switch ((cnt = count_colons(B, host)))
+  else
   {
-    /* Case which includes service information */
-  case 1: /* AF_INET */
-  case 8: /* AF_INET6 */
-    if (!(serv = strrchr(host,':')))
+    if (!(bu->bu_path=strdup("")))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not locate service specifier in string where I *know* it exists\n");
+      bk_error_printf(B, BK_ERR_ERR, "Couldnot strdup empty string to path: %s\n", strerror(errno));
       goto error;
     }
-    *serv++ = '\0';
-    if (!(bu->bu_serv = strdup(serv)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not strdup service: %s\n", strerror(errno));
-      goto error;
-    }
-
-    /* Intentional fall through */
-
-    /* Case which does not include service information */
-  case 0: /* AF_INET */
-  case 7: /* AF_INET6 */
-    /* This *intentially* copies the empty string */
-    if (!(bu->bu_host = strdup(host)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Coulld not strdup host specifier: %s\n", strerror(errno));
-      goto error;
-    }
-    break;
-
-  default:
-    bk_error_printf(B, BK_ERR_ERR, "Illegal number of colons in host[:service] specifier: %d (only 0, 1, 7, or 8 allowed)\n", cnt);
-    goto error;
-    break;
   }
 
-  /* 
-   * Now "normalize" the structure by replacing NULLs with "" 
-   * NB The host part should already be copied if empty, but we check here
-   * too just to be safe.
-   */
-  if (!bu->bu_proto && !(bu->bu_proto = strdup("")) ||
-      !bu->bu_host && !(bu->bu_host = strdup("")) ||
-      !bu->bu_serv && !(bu->bu_serv = strdup("")) ||
-      !bu->bu_path && !(bu->bu_path = strdup("")))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not normalize structure by strdup'ing empty string for NULL's: %s\n", strerror(errno));
-    goto error;
-  }
-  
-  if (url) free(url);
   BK_RETURN(B,bu);
 
  error:
   if (bu) bk_url_destroy(B, bu);
-  if (url) free(url);
   BK_RETURN(B,NULL);
 }
 

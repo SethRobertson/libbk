@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.80 2001/12/10 22:50:15 jtt Exp $
+ * $Id: libbk.h,v 1.81 2001/12/11 01:34:26 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -227,6 +227,22 @@ typedef struct __bk_thread
 #define BK_BT_GENERAL(B)	((B)->bt_general)    ///< Access the global shared info
 #define BK_BT_FLAGS(B)		((B)->bt_flags)      ///< Access thread-specific flags
 // @}
+
+
+
+/**
+ * Baka internal representation of a URL. The char *'s are all NULL
+ * terminated strings for convenience.
+ */
+struct bk_url
+{
+  bk_flags		bu_flags;		///< Everyone needs flags.
+  char *		bu_proto;		///< Protocol specification
+  char *		bu_host;		///< Host specification
+  char *		bu_serv;		///< Service specification
+  char *		bu_path;		///< Path specification
+};
+
 
 
 
@@ -900,6 +916,8 @@ extern int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags);
 extern ssize_t bk_strnlen(bk_s B, char *s, ssize_t max);
 extern char *bk_encode_base64(bk_s B, bk_vptr *str, char *eolseq);
 extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
+extern char *bk_strdelim(bk_s B, const char *s, const char *delim);
+extern char *bk_strndup(bk_s B, const char *s, u_int len);
 
 
 /* getbyfoo.c */

@@ -1,6 +1,11 @@
 2001-12-10  James Tanis  <jtt@winwood.sysdetect.com>
 
+	* lib/b_string.c (bk_strdelim): new function to return first
+	position in s *not* in string s1.
+	(bk_strndup): Like strdup but only do n chars.
+
 	* lib/b_url.c: File for url munging.
+	(bk_url_parse): Seth's alg. (at least mostly done).
 
 	* include/libbk.h (struct bk_version): bk_version stuff added.
 
