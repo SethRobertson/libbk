@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.16 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.17 2002/08/19 22:12:38 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -204,6 +204,9 @@ void bk_fun_reentry_i(bk_s B, struct bk_funinfo *fh)
 void bk_fun_trace(bk_s B, FILE *out, int sysloglevel, bk_flags flags)
 {
   struct bk_funinfo *cur = NULL;
+
+  if (!B || !BK_BT_FUNSTACK(B))
+    return;
 
   for(cur = (struct bk_funinfo *)funstack_maximum(BK_BT_FUNSTACK(B)); cur; cur = (struct bk_funinfo *)funstack_predecessor(BK_BT_FUNSTACK(B), cur))
   {
