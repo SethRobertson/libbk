@@ -1,3 +1,14 @@
+2001-11-14  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_ioh.c (ioht_block_other): Line misordering causing
+	blocking to return invalid status codes, invalid command switch
+	variable (switching on flags instead).
+	(ioh_getlastbuf): Must offset for both inuse (read) and used
+	(write)
+	
+	* lib/b_error.c (bk_error_iprint): File handles is another legal
+	output source.
+
 2001-11-14  Seth Robertson  <seth@yeah.baka.org>
 
 	* lib/b_ioh.c (bk_ioh_close): Ah silly boy.  You must check for a

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.5 2001/11/14 01:10:19 seth Exp $";
+static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.6 2001/11/14 23:08:30 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -112,7 +112,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", CONFFILE), NULL, ERRORQUEUE_DEPTH, BK_ERR_ERR, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", CONFFILE), NULL, ERRORQUEUE_DEPTH, BK_ERR_NONE, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -135,7 +135,8 @@ main(int argc, char **argv, char **envp)
     switch (c)
     {
     case 'd':
-      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);
+      bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, BK_ERR_DEBUG, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
+      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);					// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       break;
     case 't':
