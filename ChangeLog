@@ -1,3 +1,8 @@
+2002-05-14  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_string.c (bk_string_atof): FLT_{MIN,MAX} work differently
+	than INT_{MIN,MAX} - you need to use appropriately signed versions
+
 2002-05-14  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_string.c (bk_mempbrk): strpbrk for vptrs (memory ranges)

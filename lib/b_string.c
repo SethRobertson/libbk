@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.40 2002/05/14 21:32:21 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.41 2002/05/14 23:00:20 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1974,7 +1974,8 @@ bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Could not convert string to float\n");
     ret = -1;
   }
-  else if (tmp < FLT_MIN || tmp > FLT_MAX)
+  else if (tmp < -FLT_MAX || tmp > FLT_MAX
+	   || (tmp != 0.0 && tmp < FLT_MIN && tmp > -FLT_MIN))
   {
     ret = -1;
   }
