@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.51 2004/06/21 04:23:36 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.52 2004/06/21 06:33:31 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -212,7 +212,7 @@ main(int argc, char **argv, char **envp)
   pc->pc_len=DEFAULT_BLOCK_SIZE;
   pc->pc_buffer=DEFAULT_BUFFER_SIZE;
 
-  if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0)))
+  if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, POPT_CONTEXT_POSIXMEHARDER)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not initialize options processing\n");
     bk_exit(B,254);
