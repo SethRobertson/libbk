@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.40 2003/05/15 19:45:29 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.41 2003/05/15 19:46:24 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -186,6 +186,8 @@ void bk_general_destroy(bk_s B)
 
 #ifdef __linux__
       pthread_kill_other_threads_np();
+#else
+#error "Need to call something like pthread_kill_other_threads_np()"
 #endif
 
       bk_threadlist_destroy(B, B->bt_general->bg_tlist, 0);
