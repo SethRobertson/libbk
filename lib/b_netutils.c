@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.3 2001/11/20 19:56:13 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.4 2001/11/20 20:07:14 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -248,7 +248,7 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhostst
     BK_RETURN(B, -1);
   }
 
-  if (bk_parse_endpt_spec(B, url, &hoststr, defhoststr, &servstr, defservstr, &protostr, defprotostr)<0)
+  if (bk_parse_endpt_spec(B, url, &hoststr, defhoststr?defhoststr:BK_ADDR_ANY, &servstr, defservstr, &protostr, defprotostr?defprotostr:"tcp")<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not convert endpoint specifier\n");
     goto error;
