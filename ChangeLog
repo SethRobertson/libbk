@@ -1,3 +1,8 @@
+2002-03-19  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk_oscompat.h (_PATH_DEVNULL): if not defined in unistd.h
+	(BK_RHS): force compile error when using ?: or , expression as lvalue
+
 2002-03-19  Seth Robertson  <seth@yeah.baka.org>
 
 	* lib/b_listnum.c: List of linked list heads.  Data structures for

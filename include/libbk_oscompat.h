@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.18 2002/03/09 21:40:45 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.19 2002/03/19 06:23:53 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -31,7 +31,15 @@
 # define BK_FUNCNAME (__FUNCTION__)
 #else
 # define BK_FUNCNAME (__FILE__ ":" BK_STRINGIFY(__LINE__))
+# define HAVE__FILE_LINE
 #endif
+
+#if !defined(__GNUC__) || defined(__INSURE__)	// should this be autoconf'ed?
+#define BK_RHS(expr) (expr)			// ISO C forbids ?: or , on lhs
+#else  /* __GNUC__ && !__INSURE__ */
+#define BK_RHS(expr) ({expr;})			// force GCC to forbid it also
+#endif /* __GNUC__ && !__INSURE__ */
+
 
 #ifdef HAVE_CONSTRUCTOR_ATTRIBUTE
 /**
@@ -98,13 +106,12 @@ asm (".long	" #mod "_init"); static void mod ## _init (void)
 #endif /* !HAVE_CONSTRUCTOR_ATTRIBUTE */
 
 
-
-#ifdef SOMETHING_FOR_CPLUSPLUS
+#ifdef __cplusplus
 #ifdef NULL
 #undef NULL
-#endif /* NULL */
+#endif
 #define NULL ((void *)0)
-#endif /* SOMETHING_FOR_CPLUSPLUS */
+#endif /* __cplusplus */
 
 #ifndef MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
@@ -200,10 +207,11 @@ typedef char *caddr_t;
 #define O_LARGEFILE 0
 #endif
 
-/*
- * While this makes us compat. w/ some really broken realloc()'s, this is
- * really more for keeping Insight happy.
- */
-// #define realloc(ptr,len)	((!(ptr))?malloc(len):realloc((ptr),(len)))
+#ifndef _PATH_DEVNULL
+#ifdef BK_MINGW
+#define _PATH_DEVNULL "NUL:"
+#else
+#define _PATH_DEVNULL "/dev/null"
+#endif
 
 #endif /* _libbk_oscompat_h_ */
