@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.41 2003/08/25 17:40:24 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.42 2003/08/25 18:14:06 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -314,7 +314,7 @@ void bk_error_irepeater_flush(bk_s B, struct bk_error *beinfo, bk_flags flags)
     }
     else
     {
-      static const int MSGSIZE = sizeof(repeated_fmt + 20);
+      static const int MSGSIZE = sizeof(repeated_fmt) + 20;
       char *repeat_err = malloc(MSGSIZE);
       if (!repeat_err)
 	goto error;
