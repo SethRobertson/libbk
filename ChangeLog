@@ -1,3 +1,7 @@
+2003-07-15  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_time.c (bk_time_iso_format): make struct timespec arg const
+
 2003-07-12  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_exec.c (bk_pipe_to_exec): Add option for tossing stdout

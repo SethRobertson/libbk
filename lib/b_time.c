@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.16 2003/06/17 06:07:17 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_time.c,v 1.17 2003/07/15 11:28:38 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -64,7 +64,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  *	@return number of bytes (not including terminating NUL) on success.
  */
 size_t
-bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags *out_flagsp, bk_flags flags)
+bk_time_iso_format(bk_s B, char *str, size_t max, const struct timespec *timep, bk_flags *out_flagsp, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   // the size of the array is that of base output "YYYY-mm-ddTHH:MM:SSZ\0" for no apparent reason
@@ -74,6 +74,7 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
   const char *Z;
   int precision;
   unsigned fraction = 0;
+  struct timespec ts;
   struct tm *tp;
   struct tm t;
   size_t len;
@@ -83,6 +84,8 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, 0);
   }
+
+  ts = *timep;
 
   if (out_flagsp)
     *out_flagsp = 0;
@@ -102,37 +105,37 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
    * <TRICKY>Don't use BK_TS_RECTIFY here; tv_nsec <em>must</em> be
    * non-negative for correct output.</TRICKY>
    */
-  if (timep->tv_nsec >= RESOLUTION)
+  if (ts.tv_nsec >= RESOLUTION)
   {
-    timep->tv_sec += timep->tv_nsec / RESOLUTION;
-    timep->tv_nsec %= RESOLUTION;
+    ts.tv_sec += ts.tv_nsec / RESOLUTION;
+    ts.tv_nsec %= RESOLUTION;
   }
-  else if (timep->tv_nsec < 0)
+  else if (ts.tv_nsec < 0)
   {
-    int add = 1 - (timep->tv_nsec / RESOLUTION);
-    timep->tv_sec += add;
-    timep->tv_nsec += add * RESOLUTION;
+    int add = 1 - (ts.tv_nsec / RESOLUTION);
+    ts.tv_sec += add;
+    ts.tv_nsec += add * RESOLUTION;
   }
 
-  if (timep->tv_nsec == 0)			// omitted entirely
+  if (ts.tv_nsec == 0)			// omitted entirely
     precision = 0;
   else
   {
     // <BUG ID="862">Guessing precision is stupid since even us/ms/sec boundries do occur </BUG>
 
-    if (timep->tv_nsec % BK_MICROSEC)
+    if (ts.tv_nsec % BK_MICROSEC)
     {
-      fraction = timep->tv_nsec;
+      fraction = ts.tv_nsec;
       precision = 9;
     }
-    else if (timep->tv_nsec % BK_MILLISEC)
+    else if (ts.tv_nsec % BK_MILLISEC)
     {
-      fraction = timep->tv_nsec / BK_MICROSEC;
+      fraction = ts.tv_nsec / BK_MICROSEC;
       precision = 6;
     }
     else
     {
-      fraction = timep->tv_nsec / BK_MILLISEC;
+      fraction = ts.tv_nsec / BK_MILLISEC;
       precision = 3;				// what Java wants to see
     }
   }
@@ -144,7 +147,7 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
     BK_RETURN(B, 0);
   }
 
-  tp = gmtime_r(&timep->tv_sec, &t);
+  tp = gmtime_r(&ts.tv_sec, &t);
 
   if (!(len = strftime(str, max - 1 - precision, format, tp)))
   {
