@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_general.c,v 1.55 2004/07/12 18:35:18 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_general.c,v 1.56 2004/07/12 19:07:48 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -28,7 +28,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***argv, char ***envp, char **program, bk_flags flags);
 static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_flags flags);
-#if #system(bsd)
+#if #system(bsd) && !defined(HAVE_NSGETENVIRON)
 char **environ __attribute__ ((weak));
 #endif /* #system(bsd) */
 
