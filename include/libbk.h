@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.252 2003/07/10 03:09:03 seth Exp $
+ * $Id: libbk.h,v 1.253 2003/07/13 01:33:16 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1893,8 +1893,9 @@ extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, 
 /* b_exec.c */
 
 #define BK_EXEC_FLAG_SEARCH_PATH	0x1	///< Search PATH for the process
-#define BK_EXEC_FLAG_TOSS_STDERR	0x2	///< Duplicate stderr to /dev/null.
-#define BK_EXEC_FLAG_USE_SUPPLIED_FDS	0x4	///< Use the fd's supplied as copyu in args
+#define BK_EXEC_FLAG_TOSS_STDOUT	0x2	///< Duplicate stdout to /dev/null.
+#define BK_EXEC_FLAG_TOSS_STDERR	0x4	///< Duplicate stderr to /dev/null.
+#define BK_EXEC_FLAG_USE_SUPPLIED_FDS	0x8	///< Use the fd's supplied as copyu in args
 
 #ifdef MISSING_PTHREAD_RWLOCK_INIT
 /* lock initialization only required on platforms where rwlock_t is not a pointer (Darwin) */

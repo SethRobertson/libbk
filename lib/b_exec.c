@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.13 2003/06/30 23:41:51 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.14 2003/07/13 01:33:16 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -403,6 +403,29 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
 	if (dup2(nullfd, fd) < 0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not dup stderr to %s: %s\n",
+			  path, strerror(errno));
+	}
+	close(nullfd);
+      }
+    }
+
+    if (BK_FLAG_ISSET(flags, BK_EXEC_FLAG_TOSS_STDOUT) && stdout)
+    {
+      int fd = fileno(stdout);
+      int nullfd;
+      char *path = _PATH_DEVNULL;
+
+      if ((nullfd = open(path, O_WRONLY)) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not open %s: %s\n",
+			path, strerror(errno));
+	// Whatever, forge on.
+      }
+      else
+      {
+	if (dup2(nullfd, fd) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not dup stdout to %s: %s\n",
 			  path, strerror(errno));
 	}
 	close(nullfd);

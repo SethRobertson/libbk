@@ -1,3 +1,8 @@
+2003-07-12  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_exec.c (bk_pipe_to_exec): Add option for tossing stdout
+	just like you could already toss stderr.
+
 2003-07-10  James Tanis  <jtt@wonder.sysdetect.com>
 
 	* include/libbk_inline.h (bk_dll_delete): Revamp delete.
