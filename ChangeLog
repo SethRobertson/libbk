@@ -1,3 +1,10 @@
+2002-02-11  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h (BK_OR): improve doxygenation
+
+	* include/libbk_oscompat.h: undef _CONSTRUCTOR_ATTRIBUTE,_INIT_PRAGMA
+	for Insure++ compilation
+	
 2002-02-11  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_string.c (bk_string_intcols): DOH Some real dumb errors.

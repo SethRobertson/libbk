@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.112 2002/02/07 22:31:09 jtt Exp $
+ * $Id: libbk.h,v 1.113 2002/02/12 00:46:24 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -39,15 +39,15 @@ struct bk_polling_io;
 
 #if defined(__GNUC__) && !defined(__INSURE__)
 /**
- * Non-boolean OR.  Returns first argument if nonzero, else second argument
- * (<em>Note:</em> may evaluate first argument multiple times).
+ * Short-circuit OR for non-boolean values.  Returns first argument if nonzero,
+ * else second argument.  (<em>Note:</em> may expand first arg multiple times).
  */
 #define BK_OR(a,b) ((a)?:(b))			
 #elif defined(__GNUC__)			// insure++ can handle this
 #define BK_OR(a,b) ({ typeof(a) x = (a); x = x ? x : (b); })
 #else
 #define BK_OR(a,b) ((a)?(a):(b))
-#endif
+#endif /* !__GNUC__ */
 
 
 

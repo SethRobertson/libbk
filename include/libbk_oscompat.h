@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.12 2002/01/30 17:56:41 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.13 2002/02/12 00:46:24 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -15,6 +15,12 @@
 
 #ifndef _libbk_oscompat_h_
 #define _libbk_oscompat_h_
+
+
+#ifdef __INSURE__
+#undef HAVE_CONSTRUCTOR_ATTRIBUTE
+#undef HAVE_INIT_PRAGMA
+#endif
 
 
 #ifdef HAVE_CONSTRUCTOR_ATTRIBUTE
