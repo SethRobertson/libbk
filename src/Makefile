@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.15 2003/06/03 17:47:37 lindauer Exp $
+# $Id: Makefile,v 1.16 2003/06/04 00:36:31 lindauer Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -35,8 +35,6 @@ BK_SIMPLE_PROGS=			\
 GROUPTOP=..
 GROUPSUBDIR=src
 
-LOCAL_LIBS=-lbkssl
-
 
 # This has to go here so we get the benefit of $(TEST) which is included by one of the above.
 BK_TMP_PROG:=$(shell if [ -f tmp.c ]; then echo tmp; fi)
@@ -52,6 +50,13 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 -include ./Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
+
+
+ifneq ($(strip $(HAVE_LIBSSL)),false)
+LOCAL_LIBS=-lbkssl
+else
+LOCAL_DEFINES+=-DNO_SSL
+endif # HAVE_LIBSSL
 
 ifneq ($(BK_WANT_LIBTOOL),false)
 

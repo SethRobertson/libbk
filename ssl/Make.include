@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Make.include,v 1.2 2003/06/03 17:47:38 lindauer Exp $
+# $Id: Make.include,v 1.3 2003/06/04 00:36:31 lindauer Exp $
 #
 # ++Copyright SYSDETECT++
 # 
@@ -23,5 +23,5 @@
 #
 # libbkssl group Makefile 
 #
-GROUP_INCS=-I$(GROUPTOP)/include -I/usr/local/ssl/include
-GROUP_LDS=-L$(GROUPTOP)/lib -L/usr/local/ssl/lib
+GROUP_INCS=-I$(GROUPTOP)/include -I$(BK_SSL_INC_PATH)
+GROUP_LDS=-L$(GROUPTOP)/lib -L$(BK_SSL_LIB_PATH)

@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.7 2003/06/03 17:47:36 lindauer Exp $
+# $Id: Makefile,v 1.8 2003/06/04 00:36:30 lindauer Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -15,15 +15,11 @@
 # libbk group Makefile 
 #
 BK_INCLUDE_DIRS=include
-BK_SUBDIR=lib xml 
-ifneq ($(strip $(HAVE_LIBSSL)),false)
-BK_SUBDIR+=ssl # This must come *after* lib in list
-endif # HAVE_LIBSSL
-BK_SUBDIR+=src man test
-
+BK_SUBDIR=Packages_Defined_Below
 
 GROUPTOP=.
 GROUPSUBDIR=.
+
 ##################################################
 ## BEGIN BKSTANDARD MAKEFILE
 -include ./Make.preinclude
@@ -35,3 +31,9 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 -include ./Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
+
+BK_SUBDIR=lib xml 
+ifneq ($(strip $(HAVE_LIBSSL)),false)
+BK_SUBDIR+=ssl # This must come *after* lib in list
+endif # HAVE_LIBSSL
+BK_SUBDIR+=src man test
