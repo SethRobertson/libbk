@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_inline.h,v 1.7 2003/06/24 21:33:00 jtt Exp $
+ * $Id: libbk_inline.h,v 1.8 2003/06/24 22:16:02 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -84,6 +84,13 @@ struct bk_generic_dll_element
 
 
 
+struct bk_dll_iterator
+{
+  struct bk_generic_dll_element *	di_current; ///< The currently returned element.
+  enum dict_direction 			di_direction; ///< The direction which we iterate.
+};
+
+
 static __inline__ bk_dll_h bk_dll_create(void);
 static __inline__ void bk_dll_destroy(bk_dll_h gdh);
 static __inline__ int bk_dll_insert(bk_dll_h header, void *obj);
@@ -93,6 +100,9 @@ static __inline__ void *bk_dll_minimum(bk_dll_h header);
 static __inline__ void *bk_dll_maximum(bk_dll_h header);
 static __inline__ void *bk_dll_successor(bk_dll_h header, void *obj);
 static __inline__ void *bk_dll_predecessor(bk_dll_h header, void *obj);
+static __inline__ dict_iter bk_dll_iterate(bk_dll_h header, enum dict_direction direction);
+static __inline__ void bk_dll_iterate_done(dict_iter iter);
+static __inline__ dict_obj bk_dll_nextobj(dict_h header, dict_iter iter);
 
 
 /**
@@ -101,7 +111,6 @@ static __inline__ void *bk_dll_predecessor(bk_dll_h header, void *obj);
  * replace dll_create in some code and the flags thus passed would be DICT
  * flags which have no meaning.
  *
- *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new generic dll handle on success.
  */
@@ -125,7 +134,6 @@ bk_dll_create(void)
 /**
  * Destroy a generic baka dll
  *
- *	@param B BAKA thread/global state.
  *	@param gdh The header of the geneneric list.
  */
 static __inline__ void
@@ -143,7 +151,6 @@ bk_dll_destroy(bk_dll_h gdh)
  * prepends. Again flags is supporessed to keep this in line with the CLC
  * APi.
  *
- *	@param B BAKA thread/global state.
  *	@param header The header of dll.
  *	@param obj The object to insert.
  *	@return !<i>DICT_ERR</i> on failure.<br>
@@ -175,7 +182,6 @@ bk_dll_insert(bk_dll_h header, void *obj)
  * prepends. Again flags is supporessed to keep this in line with the CLC
  * APi.
  *
- *	@param B BAKA thread/global state.
  *	@param header The header of dll.
  *	@param obj The object to insert.
  *	@return !<i>DICT_ERR</i> on failure.<br>
@@ -206,7 +212,6 @@ bk_dll_append(bk_dll_h header, void *obj)
 /**
  * Delete an element from the list.
  *
- *	@param B BAKA thread/global state.
  *	@param header The header of dll.
  *	@param obj The object to insert.
  *	@return <i>DICT_ERR</i> on failure.<br>
@@ -238,7 +243,6 @@ bk_dll_delete(bk_dll_h header, void *obj)
 /**
  * Find the minimum node in the dll.,
  *
- *	@param B BAKA thread/global state.
  *	@param header The header of dll.
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>node</i> on success.
@@ -256,7 +260,6 @@ bk_dll_minimum(bk_dll_h header)
 /**
  * Find the maximum node in the dll.,
  *
- *	@param B BAKA thread/global state.
  *	@param header The header of dll.
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>node</i> on success.
@@ -276,7 +279,6 @@ bk_dll_maximum(bk_dll_h header)
 /**
  * Find the successor of obj in the dll.
  *
- *	@param B BAKA thread/global state.
  *	@param header The header of dll (unneeded and declared for API matching)
  *	@param obj The current object.
  *	@return <i>NULL</i> on failure.<br>
@@ -296,7 +298,6 @@ bk_dll_successor(bk_dll_h header, void *obj)
 /**
  * Find the predecessor of obj in the dll.
  *
- *	@param B BAKA thread/global state.
  *	@param header The header of dll (unneeded and declared for API matching)
  *	@param obj The current object.
  *	@return <i>NULL</i> on failure.<br>
@@ -309,5 +310,91 @@ bk_dll_predecessor(bk_dll_h header, void *obj)
  
   return(gde->gde_prev);
 }
+
+
+/**
+ * Allocate a baka dll iterator
+ *
+ *	@param header The header of dll (unneeded and declared for API matching)
+ *	@param direction The direction for nextobj.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>node</i> on success.
+ */
+static __inline__ dict_iter 
+bk_dll_iterate(bk_dll_h header, enum dict_direction direction)
+{
+  struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
+  struct bk_dll_iterator *di = NULL;
+
+  if (!(di = malloc(sizeof(*di))))
+    return((dict_iter)NULL);
+
+  switch (direction)
+  {
+  case DICT_FROM_START:
+    di->di_current = gdh->gdh_head;
+    break;
+  case DICT_FROM_END:
+    di->di_current = gdh->gdh_tail;
+    break;
+  default:
+    return((dict_iter)NULL);
+  }
+  di->di_direction = direction;
+  return((dict_iter)di);
+}
+
+
+
+
+/**
+ * Destroy the iterator.
+ *
+ *	@param iter Iterator to destroy
+ */
+static __inline__ void
+bk_dll_iterate_done(dict_iter iter)
+{
+  // All seatbelts off..
+  free(iter);
+  return;
+}
+
+
+
+/**
+ * Get the next object in a list
+ *
+ *	@param header The bk_dll header
+ *	@param iter The iterator in use.
+ *	@return <i>NULL</i> when list is at the end.<br>
+ *	@return <i>obj</i> on success.
+ */
+static __inline__ dict_obj 
+bk_dll_nextobj(dict_h header, dict_iter iter)
+{
+  struct bk_dll_iterator *di = (struct bk_dll_iterator *)iter;
+  dict_obj cur;
+
+  // All seatbelts off;
+
+  if (!(cur = di->di_current))
+    return(cur);
+  
+  switch (di->di_direction)
+  {
+  case DICT_FROM_START:
+    di->di_current = bk_dll_successor(header, di->di_current);
+    break;
+  case DICT_FROM_END:
+    di->di_current = bk_dll_predecessor(header, di->di_current);
+    break;
+  default:
+    return((dict_obj)NULL);
+  }
+  
+  return(cur);
+}
+
 
 #endif /* _libbk_inline_h_ */
