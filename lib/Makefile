@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.4 2001/07/07 13:41:14 seth Exp $
+# $Id: Makefile,v 1.5 2001/07/08 04:50:00 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -15,7 +15,11 @@
 # libbk Makefile
 #
 BK_LARGE_LIB=libbk.a
-BK_LARGE_LIBSRC=b_debug.c b_fun.c b_general.c
+
+BK_LARGE_LIBSRC=		       		\
+		b_debug.c			\
+		b_fun.c 			\
+		b_general.c			\
 
 GROUPTOP=..
 GROUPSUBDIR=lib
