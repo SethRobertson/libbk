@@ -1,3 +1,9 @@
+2003-10-21  James Tanis  <jtt@pearl.sysdetect.com>
+
+	* src/bdtee.c (out_file_handler): Continue relaying in the face of
+	a write error to the tee file.
+	(relay_tee): Only write NEWLINE before direction indicator when needed.
+
 2003-10-20  James Tanis  <jtt@pearl.sysdetect.com>
 
 	* src/bttcp.c (relay_finish): Only execute when the relay is
