@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.29 2002/11/11 22:53:58 jtt Exp $
+ * $Id: libbk_include.h,v 1.30 2003/01/23 21:47:50 dupuy Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -17,7 +17,7 @@
 #define _libbk_include_h_
 
 
-// <TODO>This should probably be autoconf'd</TODO>
+// <TODO bugid="1000">Need autoconf for threading</TODO>
 #ifdef __linux__
 #define _XOPEN_SOURCE				// Autoconf - for linux only
 #endif
