@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.146 2002/05/15 02:21:32 seth Exp $
+ * $Id: libbk.h,v 1.147 2002/05/20 15:51:58 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -107,7 +107,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_BITS_VALUE(B,b)	(((B)[BK_BITS_BYTENUM(b)] & (1 << BK_BITS_BITNUM(b))) >> BK_BITS_BITNUM(b)) ///< Discover truth (0 or 1) value of a particular bit in a complex bitmap
 #define BK_BITS_SET(B,b,v)	(B)[BK_BITS_BYTENUM(b)] = (((B)[BK_BITS_BYTENUM(b)] & ~(1 << BK_BITS_BITNUM(b))) | ((v) & 1) << BK_BITS_BITNUM(b)); ///< Set a particular bit in a complex bitmap
 
-#ifdef __INSIGHT__
+#if defined (__INSIGHT__) || !defined(HAVE_ALLOCA)
 #define bk_alloca(l)		malloc(l)
 #define bk_alloca_free(p)	free(p)
 #else

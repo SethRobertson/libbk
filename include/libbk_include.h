@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.25 2002/05/01 16:53:13 jtt Exp $
+ * $Id: libbk_include.h,v 1.26 2002/05/20 15:51:58 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -116,6 +116,11 @@
 #endif /* BK_MINGW32 */
 
 #include <float.h>
+
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif /* HAVE_ALLOCA_H */
+
 
 #if defined(USING_DMALLOC)
 #include <dmalloc.h>
