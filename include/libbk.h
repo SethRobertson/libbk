@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.47 2001/11/12 06:53:16 seth Exp $
+ * $Id: libbk.h,v 1.48 2001/11/12 19:15:45 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -343,6 +343,116 @@ struct bk_funinfo
 
 
 
+/**
+ * @a bk_servinfo struct. Pretty much the same thing as a @a servent, but
+ * wth a few @a BAKAisms. For instance since the the protocol is often
+ * implied by the current conext, you may expect the @a bsi_protostr to be
+ * NULL in many cases.
+ */
+struct bk_servinfo
+{
+  bk_flags		bsi_flags;		/** Everyone needs flags */
+  u_int			bsi_port;		/** Port (network order) */
+  char *		bsi_servstr;		/** Service string  */
+  char *		bsi_protostr;		/** Proto str (NULL OK) */
+};
+
+
+
+/**
+ * @a servinfo struct. Pretty much the same thing as a @a servent, but wth
+ * a fiew @a BAKAisms. For instance the protocol is stored as a pointer to
+ * a @bk_protoent, but since proto is often implied by context, this value
+ * may indeed be NULL in many cases
+ */
+struct bk_protoinfo
+{
+  bk_flags		bpi_flags;		/** Everyone needs flags */
+  int			bpi_proto;		/** Protocol number */
+  char *		bpi_protostr;		/** Protocol string  */
+};
+
+
+
+/**
+ * Enum list of known network address types.
+ */
+typedef enum 
+{ 
+  BK_NETINFO_TYPE_INET,				/** IPv4 address */
+  BK_NETINFO_TYPE_INET6,				/** IPv6 address */
+  BK_NETINFO_TYPE_LOCAL,			/** AF_LOCAL/AF_UNIX address */
+  BK_NETINFO_TYPE_ETHER,			/** Ethernet address */
+} bk_netaddr_type_t;
+
+
+
+/** 
+ * Everything you ever wanted to know about a network address. 
+ */
+struct bk_netaddr
+{
+  bk_flags		bna_flags;		/** Everyone needs flags */
+  bk_netaddr_type_t	bna_type;		/** Type of address */
+  u_int			bna_len;		/** Length of address */
+  union
+  {
+    struct in_addr	bnaa_inet;		/** IPv4 address */
+    struct in6_addr	bnaa_inet6;		/** IPv6 address */
+    char *		bnaa_path;		/** AF_LOCAL/AF_UNIX address */
+    struct ether_addr	bnaa_ether;		/** Ethernet address */
+  } bna_addr;
+  char *		bna_pretty;		/** Printable form of addr */
+};
+
+
+#define bna_inet	bna_addr.bnaa_inet
+#define bna_inet6	bna_addr.bnaa_inet6
+#define bna_path	bna_addr.bnaa_path
+#define bna_ether	bna_addr.bnaa_ether
+
+/**
+ * Everything you ever wanted to know about networks (well not routing info)
+ */
+struct bk_netinfo
+{
+  bk_flags		bni_flags;		/** Everyone needs flags */
+  struct bk_netaddr *	bni_addr;		/** Primary address */
+  struct bk_netaddr *	bni_addr2;		/** Secondary address */
+  dict_h		bni_addrs;		/** dll of addrs */
+  struct bk_servinfo *	bni_bsi;		/** Service info */
+  struct bk_protoinfo *	bni_bpi;		/** Protocol info */
+  char *		bni_pretty;		/** Printable forms */
+};
+
+/**
+ * @name Defines: netinfo_addrs_clc
+ * list of addresses within a @a struct @bk_netinfo.
+ * which hides CLC choice.
+ */
+// @{
+#define netinfo_addrs_create(o,k,f)		dll_create((o),(k),(f))
+#define netinfo_addrs_destroy(h)		dll_destroy(h)
+#define netinfo_addrs_insert(h,o)		dll_insert((h),(o))
+#define netinfo_addrs_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
+#define netinfo_addrs_append(h,o)		dll_append((h),(o))
+#define netinfo_addrs_append_uniq(h,n,o)	dll_append_uniq((h),(n),(o))
+#define netinfo_addrs_search(h,k)		dll_search((h),(k))
+#define netinfo_addrs_delete(h,o)		dll_delete((h),(o))
+#define netinfo_addrs_minimum(h)		dll_minimum(h)
+#define netinfo_addrs_maximum(h)		dll_maximum(h)
+#define netinfo_addrs_successor(h,o)		dll_successor((h),(o))
+#define netinfo_addrs_predecessor(h,o)		dll_predecessor((h),(o))
+#define netinfo_addrs_iterate(h,d)		dll_iterate((h),(d))
+#define netinfo_addrs_nextobj(h,i)		dll_nextobj((h),(i))
+#define netinfo_addrs_iterate_done(h,i)		dll_iterate_done((h),(i))
+#define netinfo_addrs_error_reason(h,i)		dll_error_reason((h),(i))
+static int bna_oo_cmp(void *bck1, void *bck2);
+static int bna_ko_cmp(void *a, void *bck2);
+// @}
+
+
+
 /* b_general.c */
 extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, struct bk_config_user_pref *bcup, int error_queue_length, int log_facility, bk_flags flags);
 #define BK_GENERAL_NOPROCTITLE 1		///< Specify that proctitle is not desired during general baka initialization
@@ -573,20 +683,43 @@ extern ssize_t bk_strnlen(bk_s B, char *s, ssize_t max);
 
 
 /* getbyfoo.c */
-extern int bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip);
+extern int bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo *bni);
 extern void bk_protoent_destroy(bk_s B, struct protoent *p);
-extern int bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is);
+extern int bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni);
 extern void bk_servent_destroy(bk_s B, struct servent *s);
-extern int bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, void *args), void *args);
+extern int bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args);
 extern void bk_destroy_hostent(bk_s B, struct hostent *h);
 
 /* b_netinfo.c */
-extern struct bk_netaddr *bk_netaddr_create(bk_s B);
-extern void bk_netaddr_destroy(bk_s B, struct bk_netaddr *bna);
 extern struct bk_netinfo *bk_netinfo_create(bk_s B);
 extern void bk_netinfo_destroy(bk_s B, struct bk_netinfo *bni);
 extern int bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct bk_netaddr **obna);
-extern int bk_netaddr_delete_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna);
+extern int bk_netinfo_delete_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna);
 extern int bk_netinfo_set_primary_address(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna);
+extern struct bk_netinfo *bk_netinfo_clone(bk_s B, struct bk_netinfo *obni);
+extern int bk_netinfo_update_servent(bk_s B, struct bk_netinfo *bni, struct servent *s);
+extern int bk_netinfo_update_protoent(bk_s B, struct bk_netinfo *bni, struct protoent *p);
+extern int bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h);
+
+/* b_netaddr.c */
+extern void bk_netaddr_destroy(bk_s B, struct bk_netaddr *bna);
+extern struct bk_netaddr *bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags flags);
+extern struct bk_netaddr *bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags);
+extern struct bk_netaddr *bk_netaddr_clone (bk_s B, struct bk_netaddr *obna);
+extern int bk_netaddr_af2nat(bk_s B, int af);
+extern int bk_netaddr_nat2af(bk_s B, int type);
+
+
+
+/* b_servinfo.c */
+extern struct bk_servinfo *bk_servinfo_serventdup (bk_s B, struct servent *s, struct bk_protoinfo *bpi);
+extern struct bk_servinfo *bk_servinfo_user(bk_s B, char *servstr, u_short port, char *protostr);
+extern void bk_servinfo_destroy (bk_s B,struct bk_servinfo *bsi);
+extern struct bk_servinfo *bk_servinfo_clone (bk_s B, struct bk_servinfo *obsi);
+extern struct bk_protoinfo *bk_protoinfo_protoentdup (bk_s B, struct protoent *p);
+extern struct bk_protoinfo *bk_protoinfo_user(bk_s B, char *protoname, int proto);
+extern void bk_protoinfo_destroy (bk_s B,struct bk_protoinfo *bsi);
+extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obsi);
+
 
 #endif /* _BK_h_ */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.3 2001/11/07 22:24:12 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.4 2001/11/12 19:15:45 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -39,7 +39,7 @@ struct global_structure
 
 int proginit(bk_s B);
 void progrun(bk_s B);
-static void host_callback(bk_s B, struct bk_run *run, struct hostent **hp, void *args);
+static void host_callback(bk_s B, struct bk_run *run, struct hostent **hp, struct bk_netinfo *bni, void *args);
 
 
 
@@ -59,6 +59,7 @@ main(int argc, char **argv, char **envp)
     {"proto", 'p', POPT_ARG_STRING, &Global.gs_query, 'p', "Query protocols", NULL },
     {"hosts", 'h', POPT_ARG_STRING, &Global.gs_query, 'h', "Query hosts", NULL },
     {"serv", 's', POPT_ARG_STRING, &Global.gs_query, 's', "Query services", NULL },
+    {"seatbelts", 'S', POPT_ARG_NONE, NULL, 'S', "Query services", NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -92,6 +93,9 @@ main(int argc, char **argv, char **envp)
       break;
     case 's':
       BK_FLAG_SET(Global.gs_flags, TESTGETBYFOO_FLAG_QUERY_SERV);
+      break;
+    case 'S':
+      BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
       break;
     default:
       getopterr++;
@@ -145,10 +149,17 @@ void progrun(bk_s B)
   struct servent *s=NULL;
   char **s1;
   struct bk_run *run;
+  struct bk_netinfo *bni=NULL;
+
+  if (!(bni=bk_netinfo_create(B)))
+  {
+    fprintf(stderr,"Could not allocate bni\n");
+    exit(1);
+  }
 
   if (BK_FLAG_ISSET(Global.gs_flags, TESTGETBYFOO_FLAG_QUERY_PROTO))
   {
-    if (bk_getprotobyfoo(B, Global.gs_query, &p)<0)
+    if (bk_getprotobyfoo(B, Global.gs_query, &p, bni)<0)
     {
       fprintf(stderr, "Failed to query protocols\n");
       exit(1);
@@ -174,7 +185,7 @@ void progrun(bk_s B)
   }
   else if (BK_FLAG_ISSET(Global.gs_flags, TESTGETBYFOO_FLAG_QUERY_SERV))
   {
-    if (bk_getservbyfoo(B, Global.gs_query, "tcp", &s)<0)
+    if (bk_getservbyfoo(B, Global.gs_query, "tcp", &s, bni)<0)
     {
       fprintf(stderr, "Failed to query services\n");
       exit(1);
@@ -220,7 +231,7 @@ void progrun(bk_s B)
       printf("h is now %p\n", h);
     }
 
-    if (bk_gethostbyfoo(B, Global.gs_query, 0, h, run, host_callback, NULL)< 0)
+    if (bk_gethostbyfoo(B, Global.gs_query, 0, h, bni, run, host_callback, NULL)< 0)
     {
       fprintf(stderr,"Could not \"initiate\" gethostbyfoo call");
       exit(1);
@@ -235,17 +246,23 @@ void progrun(bk_s B)
     }
     bk_run_run(B,run,0);
   }
-    
+  
+  if (bni)
+  {
+    printf("bni wound up: %s\n", bni->bni_pretty);
+    bk_netinfo_destroy(B,bni);
+  }
   BK_VRETURN(B);
 }
 
 
 static void
-host_callback(bk_s B, struct bk_run *run, struct hostent **hp, void *args)
+host_callback(bk_s B, struct bk_run *run, struct hostent **hp, struct bk_netinfo *bni, void *args)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   struct hostent *h;
   char **s;
+  struct bk_netaddr *bna;
 
   if (!hp || !run || args) /* no args are expected */
   {
@@ -296,6 +313,15 @@ host_callback(bk_s B, struct bk_run *run, struct hostent **hp, void *args)
     }
     printf("\n");
 
+    if (!(bna=netinfo_addrs_minimum(bni->bni_addrs)))
+    {
+      fprintf(stderr, "No address was located in bni");
+    }
+    else
+    {
+      bk_netinfo_set_primary_address(B, bni, bna, NULL);
+      printf("Callback bni is: %s\n", bni->bni_pretty);
+    }
     bk_destroy_hostent(B, h);
     bk_run_set_run_over(B, run);
   }

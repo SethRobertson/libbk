@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.9 2001/11/07 22:23:57 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.10 2001/11/12 19:15:45 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -404,7 +404,7 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
  *	@param handler The function to call during the run event loop if a signal was received.
  *	@param opaque The opaque data for the handler.
  *	@param flags Flags for future expansion.
- *	@return <i><0</i> on call failure, system call failure, or other failure.
+ *	@return <i>-1</i> on call failure, system call failure, or other failure.
  *	@return <br><i>0</i> on success.
  */
 int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B, struct bk_run *run, int signum, void *opaque, struct timeval starttime), void *opaque, bk_flags flags)

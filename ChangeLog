@@ -1,3 +1,8 @@
+2001-11-12  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_getbyfoo.c (copy_hostent): Fencepost error in copying host
+	address list.
+
 2001-11-08  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_netinfo.c: New file dealing with various aspects of

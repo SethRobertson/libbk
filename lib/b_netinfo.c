@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.2 2001/11/08 23:11:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.3 2001/11/12 19:15:45 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,143 +24,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * Stuff having to do with network information
  */
 
-/**
- * Enum list of known network address types.
- */
-typedef enum 
-{ 
-  BK_NETINFO_TYPE_IPV4,				/** IPv4 address */
-  BK_NETINFO_TYPE_IPV6,				/** IPv6 address */
-  BK_NETINFO_TYPE_LOCAL,			/** AF_LOCAL/AF_UNIX address */
-  BK_NETINFO_TYPE_ETHER,			/** Ethernet address */
-} bk_netaddr_type_t;
-
-
-/** 
- * Everything you ever wanted to know about a network address. 
- */
-struct bk_netaddr
-{
-  bk_flags		bna_flags;		/** Everyone needs flags */
-  bk_netaddr_type_t	bna_type;		/** Type of address */
-  u_int			bna_len;		/** Length of address */
-  union
-  {
-    struct in_addr	bnau_ip;		/** IPv4 address */
-    struct in6_addr	bnau_ip6;		/** IPv6 address */
-    char *		bnau_filename;		/** AF_LOCAL/AF_UNIX address */
-    struct ether_addr	bnau_ether;		/** Ethernet address */
-  } bna_un;
-  char *		bna_pretty;		/** Printable form of addr */
-};
-
-
-#define bna_ip		bna_un.bnau_ip
-#define bna_ip6		bna_un.bnau_ip6
-#define bna_filename	bna_un.bnau_filename
-#define bna_ether	bna_un.bnau_ether
-
-/**
- * Everything you ever wanted to know about networks (well not routing info)
- */
-struct bk_netinfo
-{
-  bk_flags		bni_flags;		/** Everyone needs flags */
-  struct bk_netaddr *	bni_addr;		/** Primary address */
-  struct bk_netaddr *	bni_addr2;		/** Secondary address */
-  dict_h		bni_addrs;		/** dll of addrs */
-  u_short		bni_port;		/** Port */
-  char			bni_proto;		/** Protocol */
-  char *		bni_pretty;		/** Printable forms */
-};
-
-
-/**
- * @name Defines: netinfo_addrs_clc
- * list of addresses within a @a struct @bk_netinfo.
- * which hides CLC choice.
- */
-// @{
-#define netinfo_addrs_create(o,k,f)		dll_create((o),(k),(f))
-#define netinfo_addrs_destroy(h)		dll_destroy(h)
-#define netinfo_addrs_insert(h,o)		dll_insert((h),(o))
-#define netinfo_addrs_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
-#define netinfo_addrs_append(h,o)		dll_append((h),(o))
-#define netinfo_addrs_append_uniq(h,n,o)	dll_append_uniq((h),(n),(o))
-#define netinfo_addrs_search(h,k)		dll_search((h),(k))
-#define netinfo_addrs_delete(h,o)		dll_delete((h),(o))
-#define netinfo_addrs_minimum(h)		dll_minimum(h)
-#define netinfo_addrs_maximum(h)		dll_maximum(h)
-#define netinfo_addrs_successor(h,o)		dll_successor((h),(o))
-#define netinfo_addrs_predecessor(h,o)		dll_predecessor((h),(o))
-#define netinfo_addrs_iterate(h,d)		dll_iterate((h),(d))
-#define netinfo_addrs_nextobj(h,i)		dll_nextobj((h),(i))
-#define netinfo_addrs_iterate_done(h,i)		dll_iterate_done((h),(i))
-#define netinfo_addrs_error_reason(h,i)		dll_error_reason((h),(i))
-static int bna_oo_cmp(void *bck1, void *bck2);
-static int bna_ko_cmp(void *a, void *bck2);
-// @}
-
-static int update_bna_pretty(bk_s B, struct bk_netaddr *bna);
 static int update_bni_pretty(bk_s B, struct bk_netinfo *bni);
-
-/**
- * Create a @a struct @a bk_netaddr instance
- *	@param B BAKA thread/global state.
- *	@returns <i>NULL</i> on failure. <br>
- *	@returns allocated @a struct @a bk_netaddr on success.
- */
-struct bk_netaddr *
-bk_netaddr_create(bk_s B)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_netaddr *bna=NULL;
-
-  if (!BK_CALLOC(bna))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate bna: %s\n", strerror(errno));
-    goto error;
-  }
-
-  /* Make sure this is initialized to something free(2)'able */
-  if (!(bna->bna_pretty=strdup("")))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup netaddr pretty\n");
-    goto error;
-  }
-
-
-  BK_RETURN(B,bna);
-
- error: 
-  if (bna) bk_netaddr_destroy(B, bna);
-  BK_RETURN(B,NULL);
-}
-
-
-
-/**
- * Destroy a @a struct @a bk_netaddr
- *	@param B BAKA thread/global state 
- *	@param bna The @a struct @a bk_netaddr to destroy.
- */
-void
-bk_netaddr_destroy(bk_s B, struct bk_netaddr *bna)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-
-  if (bna)
-  {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_VRETURN(B);
-  }
-
-  if (bna->bna_pretty) free (bna->bna_pretty);
-  if (bna->bna_type == BK_NETINFO_TYPE_LOCAL && bna->bna_filename) 
-    free(bna->bna_filename);
-  free(bna);
-  BK_VRETURN(B);
-}
 
 
 
@@ -176,7 +40,7 @@ bk_netinfo_create(bk_s B)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_netinfo *bni=NULL;
 
-  if (BK_CALLOC(bni))
+  if (!BK_CALLOC(bni))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not calloc bni: %s\n", strerror(errno));
     goto error;
@@ -188,10 +52,9 @@ bk_netinfo_create(bk_s B)
     goto error;
   }
 
-  /* Make sure this is initialized to something free(2)'able */
-  if (!(bni->bni_pretty=strdup("")))
+  if (update_bni_pretty(B, bni)<0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup netinfo pretty\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not update bni pretty string\n");
     goto error;
   }
 
@@ -221,180 +84,24 @@ bk_netinfo_destroy(bk_s B, struct bk_netinfo *bni)
     BK_VRETURN(B);
   }
   
-  while((bna=netinfo_addrs_minimum(bni->bni_addrs)))
+  /* 
+   * If we aborted during bni allocation this dict header may be NULL.
+   * But that is the only case.
+   */
+  if (bni->bni_addrs)
   {
-    netinfo_addrs_delete(bni->bni_addrs, bna);
-    bk_netaddr_destroy(B, bna);
+    while((bna=netinfo_addrs_minimum(bni->bni_addrs)))
+    {
+      netinfo_addrs_delete(bni->bni_addrs, bna);
+      bk_netaddr_destroy(B, bna);
+    }
   }
   
+  if (bni->bni_bsi) bk_servinfo_destroy(B, bni->bni_bsi);
+  if (bni->bni_bpi) bk_protoinfo_destroy(B, bni->bni_bpi);
   if (bni->bni_pretty) free (bni->bni_pretty);
   free(bni);
   BK_VRETURN(B);
-}
-
-
-
-/** 
- * Add an address to a @a struct @a netaddr. If @a len is 0, then @a len is
- * intuited from the type. Filename strings are bounded to MAXPATH.
- *	@param B BAKA thread/global state.
- *	@param type The address type. 
- *	@param addr The address data.
- *	@param flags Everyone needs flags.
- *	@returns A new @a struct @a bk_netaddr pointer on success.<br>
- *	@returns <i>NULL</i> on failure.
- * 	@bug Why do we accept the caller's word on the len when we can
- * 	figure it out ourselves?
- */
-struct bk_netaddr *
-bk_netaddr_mkaddr(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_netaddr *bna=NULL;
-
-  if (!addr)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_RETURN(B, NULL);
-  }
-
-  switch (type)
-  {
-  case BK_NETINFO_TYPE_IPV4:
-    if (!len) len = sizeof(struct in_addr);
-    break;
-  case BK_NETINFO_TYPE_IPV6:
-    if (!len) len = sizeof(struct in6_addr);
-    break;
-  case BK_NETINFO_TYPE_LOCAL:
-    if (!len) 
-    {
-      if ((len=bk_strnlen(B, addr, MAXPATHLEN))<0)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not determine the length of the AF_LOCAL address\n");
-	goto error;
-      }
-    }
-    else
-    {
-      if (len > MAXPATHLEN)
-	bk_error_printf(B, BK_ERR_ERR, "Filename too long\n");
-    }
-    break;
-  case BK_NETINFO_TYPE_ETHER:
-    if (!len) len = sizeof(struct ether_addr);
-    break;
-  default:
-    bk_error_printf(B, BK_ERR_ERR, "Unknown address type: %d\n", type);
-    break;
-  }
-
-  if (!(bna=bk_netaddr_create(B)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could note create bna\n");
-    goto error;
-  }
-
-  bna->bna_type=type;
-  bna->bna_flags=flags;
-  bna->bna_len=len;
-
-  if (type == BK_NETINFO_TYPE_LOCAL)
-  {
-    if (!(bna->bna_filename=strdup(addr)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not strdup filename: %s\n", strerror(errno));
-      goto error;
-    }
-  }
-  else
-  {
-    memmove(&(bna->bna_un), addr, len);
-  }
-
-  if (update_bna_pretty(B, bna)<0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not update pretty printing string\n");
-    /* 
-     * While this might not seem like a good candidate for a fatal
-     * error. Currently the only ways in which this function can fail are
-     * sufficiently fatal
-     */
-    goto error;
-  }
-  BK_RETURN(B,bna);
-
- error:
-  if (!bna) bk_netaddr_destroy(B, bna);
-  BK_RETURN(B,NULL);
-			  
-}
-
-
-#define SCRATCHLEN (MAX(MAXPATHLEN,1024))
-#define SCRATCHLEN2 (SCRATCHLEN-100)
-/**
- * Update the "pretty printing" string associated with a @a netaddr.
- *	@param B BAKA thread/global state.
- *	@param bna The @a netaddr to update.
- *	@returns <i>-1</i> on failure.<br>
- *	@returns <i>0</i> on success.
- */
-static int 
-update_bna_pretty(bk_s B, struct bk_netaddr *bna)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char scratch[SCRATCHLEN];
-  char scratch2[SCRATCHLEN2];
-
-  if (!bna)
-  {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_RETURN(B, -1);
-  }
-  
-  if (bna->bna_pretty) free(bna->bna_pretty);
-  bna->bna_pretty=NULL;
-
-  memset(scratch, SCRATCHLEN, 0);
-  memset(scratch2, SCRATCHLEN2, 0);
-  switch (bna->bna_type)
-  {
-  case BK_NETINFO_TYPE_IPV4:
-    if (!inet_ntop(AF_INET, &bna->bna_ip, scratch2, SCRATCHLEN2))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not convert ip addr to string: %s\n", strerror(errno));
-      goto error;
-    }
-    snprintf(scratch, SCRATCHLEN,"<AF_INET,%s>", scratch2);
-    break;
-  case BK_NETINFO_TYPE_IPV6:
-    if (!inet_ntop(AF_INET6, &bna->bna_ip6, scratch2, SCRATCHLEN2))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not convert ip6 addr to string: %s\n", strerror(errno));
-      goto error;
-    }
-    snprintf(scratch, SCRATCHLEN,"<AF_INET6,%s>", scratch2);
-    break;
-  case BK_NETINFO_TYPE_LOCAL:
-    snprintf(scratch, SCRATCHLEN,"[AF_LOCAL,%s]", bna->bna_filename);
-    break;
-  case BK_NETINFO_TYPE_ETHER:
-    snprintf(scratch, SCRATCHLEN,"[]");
-    break;
-  default: 
-    break;
-  }
-
-  if (!(bna->bna_pretty=strdup(scratch)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup address info: %s\n", strerror(errno));
-    goto error;
-  }
-  BK_RETURN(B,0);
-
- error:
-  BK_RETURN(B,-1);
 }
 
 
@@ -473,7 +180,7 @@ bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, str
  *	@returns <i>0</i> on success.
  */ 
 int
-bk_netaddr_delete_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna)
+bk_netinfo_delete_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_netaddr *bna;
@@ -503,6 +210,12 @@ bk_netaddr_delete_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, 
    
   if (bna == bni->bni_addr) bni->bni_addr = NULL;
   if (bna == bni->bni_addr2) bni->bni_addr2 = NULL;
+
+  if (update_bni_pretty(B,bni)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not update a bni pretty string: %s\n", strerror(errno));
+    /* Whatever */
+  }
   
   if (obna) *obna = bna;
   BK_RETURN(B,0);
@@ -523,7 +236,7 @@ update_bni_pretty(bk_s B, struct bk_netinfo *bni)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char scratch[SCRATCHLEN];
 
-  if (bni)
+  if (!bni)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
@@ -532,7 +245,10 @@ update_bni_pretty(bk_s B, struct bk_netinfo *bni)
   if (bni->bni_pretty) free (bni->bni_pretty);
   bni->bni_pretty=NULL;
 
-  snprintf(scratch,SCRATCHLEN, "[%s:%u:%u]", (bni->bni_addr)?bni->bni_addr->bna_pretty:"UNSET",bni->bni_port, bni->bni_proto);
+  snprintf(scratch,SCRATCHLEN, "[%s:%s:%s]", 
+	   (bni->bni_addr && bni->bni_addr->bna_pretty)?bni->bni_addr->bna_pretty:"NO_ADDDR",
+	   (bni->bni_bsi && bni->bni_bsi->bsi_servstr)?bni->bni_bsi->bsi_servstr:"NO_SERV", 
+	   (bni->bni_bpi && bni->bni_bpi->bpi_protostr)?bni->bni_bpi->bpi_protostr:"NO_PROTO");
   if (!(bni->bni_pretty=strdup(scratch)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not strdup bni pretty: %s\n", strerror(errno));
@@ -600,6 +316,257 @@ bk_netinfo_set_primary_address(bk_s B, struct bk_netinfo *bni, struct bk_netaddr
   
 }
 
+
+
+/**
+ * Clone a @a netinfo structure.
+ *	@param B BAKA thread/global state.
+ *	@param bni The source @a netinfo.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a @a new bk_netaddr on success.
+ */
+struct bk_netinfo *
+bk_netinfo_clone (bk_s B, struct bk_netinfo *obni)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_netinfo *nbni=NULL;
+  struct bk_netaddr *obna, *nbna;
+
+  if (!obni)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+  
+  if (!(nbni=bk_netinfo_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate bni\n");
+    goto error;    
+  }
+
+  nbni->bni_flags=obni->bni_flags;
+
+  for (obna=netinfo_addrs_minimum(obni->bni_addrs);
+       obna;
+       obna=netinfo_addrs_successor(obni->bni_addrs, obna))
+  {
+    if (!(nbna=bk_netaddr_clone(B,obna)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not clone netaddr\n");
+      goto error;
+    }
+    if (netinfo_addrs_insert_uniq(nbni->bni_addrs, nbna, NULL) != DICT_OK)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not insert netaddr into list\n");
+      goto error;
+    }
+    if (obni->bni_addr == obna) nbni->bni_addr = nbna;
+    if (obni->bni_addr2 == obna) nbni->bni_addr2 = nbna;
+  }
+  
+  if (!(nbni->bni_bsi=bk_servinfo_clone(B,obni->bni_bsi)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not clone servinfo\n");
+    goto error;
+  }
+
+  if (!(nbni->bni_bpi=bk_protoinfo_clone(B,obni->bni_bpi)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not clone protoinfo\n");
+    goto error;
+  }
+
+  if (update_bni_pretty(B,nbni)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not update bni pretty string\n");
+    goto error;
+  }
+
+  BK_RETURN(B,nbni);
+
+ error:
+  if (nbni) bk_netinfo_destroy(B, nbni);
+  BK_RETURN(B,nbni);
+
+}
+
+
+/**
+ * Update the servinfo part of netinfo based on a servent. 
+ *	@param B BAKA thread/global state.
+ *	@param bni The @a bk_netinfo to update.
+ *	@param s The @a servent to copy.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_netinfo_update_servent(bk_s B, struct bk_netinfo *bni, struct servent *s)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  
+  if (!bni || !s)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (bni->bni_bsi) bk_servinfo_destroy(B,bni->bni_bsi);
+  if (!(bni->bni_bsi=bk_servinfo_serventdup(B, s, bni->bni_bpi)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not copy servent\n");
+    goto error;
+  }
+
+  if (update_bni_pretty(B,bni))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not update bni pretty string\n");
+    goto error;
+  }
+
+  BK_RETURN(B,0);
+
+ error:
+  BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Update the protoinfo part of netinfo based on a protoent. 
+ *	@param B BAKA thread/global state.
+ *	@param bni The @a bk_netinfo to update
+ *	@param p The @a protoent source.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_netinfo_update_protoent(bk_s B, struct bk_netinfo *bni, struct protoent *p)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  
+  if (!bni || !p)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (bni->bni_bpi) bk_protoinfo_destroy(B,bni->bni_bpi);
+  if (!(bni->bni_bpi=bk_protoinfo_protoentdup(B, p)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not clone protoent\n");
+    goto error;
+  }
+
+  if (update_bni_pretty(B,bni))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not update bni pretty string\n");
+    goto error;
+  }
+
+  BK_RETURN(B,0);
+
+ error:
+  BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Update a @a bk_netinfo based on a hostent
+ *	@param B BAKA thread/global state.
+ *	@param bni The @a bk_netinfo to update.
+ *	@param h The @a hostent source.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_netaddr *bna;
+  int type;
+
+  if (!bni || !h)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  if ((type=bk_netaddr_af2nat(B, h->h_addrtype))<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert af to netaddr type\n");
+    goto error;
+  }
+
+  /* 
+   * NB: in both of the following loops, we take the following the
+   * approach.  If we fail to allocate the bk_netaddr, we simply abort
+   * leaving the bni in an incomplete, but nonetheless consistent state. If
+   * we allocate the bna, but fail to *insert* it in the netinfo_addr list,
+   * then we must clean up *that* bna (or we will lose it and all of its
+   * memory) only.  What we're saying hers is that if we insert two
+   * successfully then fail, we will make no attempt to clean up those we
+   * have inserted.
+   */
+  switch (h->h_addrtype)
+  {
+  case AF_INET:
+    {
+      struct in_addr **ia;
+      for(ia=(struct in_addr **)(h->h_addr_list); *ia; ia++)
+      {
+	if (!(bna=bk_netaddr_addrdup(B, type, *ia, 0)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not create bna from addr\n");
+	  goto error;
+	}
+	if (netinfo_addrs_insert_uniq(bni->bni_addrs, bna, NULL) != DICT_OK)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not insert bna\n");
+	  bk_netaddr_destroy(B,bna);		/* Must clean up */
+	}
+      }
+    }
+    break;
+  case AF_INET6:
+    {
+      struct in6_addr **ia;
+      for(ia=(struct in6_addr **)(h->h_addr_list); *ia; ia++)
+      {
+	if (!(bna=bk_netaddr_addrdup(B, type, *ia, 0)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not create bna from addr\n");
+	  goto error;
+	}
+	if (netinfo_addrs_insert_uniq(bni->bni_addrs, bna, NULL) != DICT_OK)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not insert bna\n");
+	  bk_netaddr_destroy(B,bna);		/* Must clean up */
+	}
+      }
+    }
+    break;
+  default: 
+    bk_error_printf(B, BK_ERR_ERR, "Usupported address type: %d\n", h->h_addrtype);
+    goto error;
+    break;
+  }
+
+  /* This technically shouldn't do anything (here), but let's do it anyway */
+  if (update_bni_pretty(B, bni)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not update bni prett string\n");
+    goto error;
+  }
+
+  BK_RETURN(B,0);
+
+ error:
+  BK_RETURN(B,-1);
+
+}
+
+
 /*
  * CLC netaddr comparison routines. NB these are ==/!= only. We don't care
  * about sorting (wouldn't make too much sense anyway)
@@ -610,7 +577,7 @@ static int bna_oo_cmp(void *a, void *b)
   /* XXX Should we require that bna_flags be equal too? */
   return (bna1->bna_type == bna1->bna_type && 
 	  bna1->bna_len == bna1->bna_len &&
-	  memcmp(&(bna1->bna_un), &(bna2->bna_un), bna1->bna_len));
+	  memcmp(&(bna1->bna_addr), &(bna2->bna_addr), bna1->bna_len)==0);
 } 
 static int bna_ko_cmp(void *a, void *b)
 {

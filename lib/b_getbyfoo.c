@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.6 2001/11/08 23:02:46 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.7 2001/11/12 19:15:45 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -42,8 +42,9 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 struct bk_gethostbyfoo_state
 {
   struct hostent **	bgs_user_copyout;	/** Caller's pointer  */
+  struct bk_netinfo *	bgs_bni;		/** bk_netinfo from caller */
   struct hostent *	bgs_hostent;		/** Actual hostent info */
-  void 			(*bgs_callback)(bk_s B, struct bk_run *run, struct hostent **h, void *args); /** Caller's callback */
+  void 			(*bgs_callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni , void *args); /** Caller's callback */
   void *		bgs_args;		/* Caller's argument to @a callback */
   bk_flags		bgs_flags;		/* Everyone needs flags */
 };
@@ -59,12 +60,14 @@ static void gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct
  *
  *	@param B BAKA thread/global state.
  *	@param protostr The string containing the protocol name or number.
- *	@param ip Option copyout version of the protocol structure.
+ *	@param ip Optional copyout version of the protocol structure.
+ *	@param bni Optional @a netinfo structure which will have its proto
+ *	field filled out on a successful conclusion.
  *	@return <i>-1</i> on failure.
  *	@return <br><i>proto_num</i> on success.
  */
 int
-bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip)
+bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo *bni)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct protoent *p, *n=NULL;
@@ -148,6 +151,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip)
   
   /* Sigh have to save this to automatic so we can unlock before return */
   ret=p->p_proto;
+  if (bni) bk_netinfo_update_protoent(B,bni,p);
 
   /* MUTEX_UNLOCK */
   
@@ -207,7 +211,7 @@ bk_protoent_destroy(bk_s B, struct protoent *p)
  *	@return <br><i>port_num</i> (in <em>host</em> order) on success.
  */
 int
-bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
+bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct servent *s, *n=NULL;
@@ -216,13 +220,37 @@ bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
   int ret;
   int num;
   int count;
+  char *proto;
+  char *bni_proto=NULL;
   
-  if (!servstr || !proto)
+  /* If it is possible to extract the protostr from the bni, do so and cache*/
+  if (bni && bni->bni_bpi)
+    bni_proto=bni->bni_bpi->bpi_protostr;
+
+  /* We must have a servstr and *some* protostr */
+  if (!servstr || (!iproto && !bni_proto))
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
+  /* If both possible protostr's are set, they must be the same */
+  if (iproto && bni_proto && !BK_STREQ(iproto,bni_proto))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Protocol mismatch (%s != %s)\n", iproto, bni_proto);
+    goto error;
+  }
+
+  /* 
+   * At this point either both are the same or exactly one is set, so the
+   * the following correctly determines the protostr.
+   */
+  if (iproto)
+    proto=iproto;
+  else
+    proto=bni_proto;
+
+
   /* NB: if is is set then *is get initialized to *something* immediately */
   if (is)
   {
@@ -296,6 +324,8 @@ bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
     n->s_port=s->s_port;
   }
   
+  if (bni) bk_netinfo_update_servent(B, bni, s);
+
   /* Sigh have to save this to automatic so we can unlock before return */
   ret=s->s_port;
 
@@ -380,7 +410,7 @@ bk_servent_destroy(bk_s B, struct servent *s)
  *	@returns <i>0</i> on success.
  */
 int
-bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, void *args), void *args)
+bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int flags=0; /* 1 == Is an address */
@@ -500,6 +530,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_r
   bgs->bgs_callback=callback;
   bgs->bgs_args=args;
   bgs->bgs_flags=flags;
+  bgs->bgs_bni=bni;
 
   if (bk_run_enqueue_delta(B, br, 0, gethostbyfoo_callback, bgs, NULL, 0)<0)
   {
@@ -583,7 +614,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
     goto error;
   }
 
-  *ih=n;
+  *ih=NULL;
 
   if (!(n->h_name=strdup(h->h_name)))
   {
@@ -634,7 +665,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
       goto error;
     }
 
-    if (!(n->h_addr_list=calloc(count,h->h_length)))
+    if (!(n->h_addr_list=calloc(count+1,h->h_length)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate addr_list: %s\n", strerror(errno));
       goto error;
@@ -685,7 +716,16 @@ gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval sta
   /* Finally associate the user's pointer with the hostent data */
   *bgs->bgs_user_copyout=bgs->bgs_hostent;
 
-  (*bgs->bgs_callback)(B, run, bgs->bgs_user_copyout, bgs->bgs_args);
+  if (bgs->bgs_bni && bgs->bgs_hostent)
+  {
+    if (bk_netinfo_update_hostent(B, bgs->bgs_bni, bgs->bgs_hostent)<0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not update netinfo with hostent\n");
+    }
+
+  }
+
+  (*bgs->bgs_callback)(B, run, bgs->bgs_user_copyout, bgs->bgs_bni, bgs->bgs_args);
   free(bgs);
   BK_VRETURN(B);
 }
