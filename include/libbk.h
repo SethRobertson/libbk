@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.201 2003/01/23 22:15:15 dupuy Exp $
+ * $Id: libbk.h,v 1.202 2003/01/23 23:50:37 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -498,7 +498,7 @@ typedef enum
 struct bk_name_value_map
 {
   const char *		bnvm_name;		///< The name of pair
-  unsigned int		bnvm_val;		///< The value of the pair
+  int			bnvm_val;		///< The value of the pair
 };
 
 
