@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_url.c,v 1.22 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_url.c,v 1.23 2002/08/05 21:42:21 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -83,17 +83,21 @@ do {									  \
 
 
 /**
- * Parse a url in a roughly rfc2396 compliant way.  This is to say: what it
- * does is rfc2396 compliant; it doesn't go the whole 9 yards (interpreting
+ * Parse a url in a roughly RFC 2396 compliant way.  This is to say: what it
+ * does is Rfc 2396 compliant; it doesn't go the whole 9 yards (interpreting
  * relative paths w.r.t. path of base document).  Place results in returned
  * structure with any missing values set to NULL.  This function sets the
- * BK_URL_foo flag for each section foo which is actually located.  If
- * BK_URL_STRICT_PARSE is <em>not</em> set in the flags passed to this
- * function, it will attempt to apply some fuzzy (non-rfc2396 compliant) logic
- * to make URLs like "foobar.baka.org" come out more like you might expect in a
- * network environment.
+ * BK_URL_foo flag for each section foo which is actually located.
  *
- * <TODO> Explain modes, rationalize them w.r.t flags </TODO>
+ * If BK_URL_STRICT_PARSE is <em>not</em> set in the flags passed to this
+ * function, it will attempt to apply some fuzzy (non-RFC 2396 compliant) logic
+ * to make URLs like "wump:foobar.baka.org" come out more like James and Seth
+ * might expect in a network environment.  The only time you would <em>not</em>
+ * want BK_URL_STRICT_PARSE is if you are implementing a protocol like *UMP; if
+ * the URL is supposed to identify a resource object, rather than a server, you
+ * want strict RFC 2396 parsing.
+ *
+ * <TODO>Explain modes, rationalize them w.r.t flags</TODO>
  *
  * The regex (adapted from rfc2396) that this implements is:
  *	http://www.ics.uci.edu/pub/ietf/uri/#Related
@@ -131,7 +135,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
   const char *query = NULL, *query_end = NULL;
   const char *fragment = NULL, *fragment_end = NULL;
   const char *start, *end;
-  
+
 
   if (!url)
   {
@@ -342,62 +346,62 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 	}
       }
     }
+  }
 
-    // Build host/serv sections 
-    if (BK_FLAG_ISSET(bu->bu_flags, BK_URL_FLAG_AUTHORITY))
+  // Build host/serv sections 
+  if (BK_FLAG_ISSET(bu->bu_flags, BK_URL_FLAG_AUTHORITY))
+  {
+    const char *host = NULL, *host_end = NULL;
+    const char *serv = NULL, *serv_end = NULL;
+
+    host = BK_URL_AUTHORITY_DATA(bu);
+    if (*host == '[')
     {
-      const char *host = NULL, *host_end = NULL;
-      const char *serv = NULL, *serv_end = NULL;
-
-      host = BK_URL_AUTHORITY_DATA(bu);
-      if (*host == '[')
+      host++;
+      // ipv6 address (we're mandating square brackets around ipv6's).
+      if (!(host_end = strpbrk(host, "]/?#")) || *host_end != ']')
       {
-	host++;
-	// ipv6 address (we're mandating square brackets around ipv6's).
-	if (!(host_end = strpbrk(host, "]/?#")) || *host_end != ']')
-	{
-	  bk_error_printf(B, BK_ERR_ERR, "Malformed ipv6 address\n");
-	  goto error;
-	}
+	bk_error_printf(B, BK_ERR_ERR, "Malformed ipv6 address\n");
+	goto error;
       }
-      else
-      {
-	host_end = host;
-      }
+    }
+    else
+    {
+      host_end = host;
+    }
 
-      if ((serv = strpbrk(host_end, ":/?#")))
+    if ((serv = strpbrk(host_end, ":/?#")))
+    {
+      if (*serv == ':')
       {
-	if (*serv == ':')
+	if (host_end == host)
 	{
-	  if (host_end == host)
-	  {
-	    host_end = serv;
-	  }
-	  serv++;
-	  BK_FLAG_SET(bu->bu_flags, BK_URL_FLAG_SERV);
-	  serv_end = (BK_URL_AUTHORITY_DATA(bu) + BK_URL_AUTHORITY_LEN(bu));
+	  host_end = serv;
 	}
-	else
-	{
-	  if (host_end == host)
-	    host_end = serv;
-	  serv = NULL;
-	}
+	serv++;
+	BK_FLAG_SET(bu->bu_flags, BK_URL_FLAG_SERV);
+	serv_end = (BK_URL_AUTHORITY_DATA(bu) + BK_URL_AUTHORITY_LEN(bu));
       }
       else
       {
 	if (host_end == host)
-	  host_end = (BK_URL_AUTHORITY_DATA(bu) + BK_URL_AUTHORITY_LEN(bu));
+	  host_end = serv;
+	serv = NULL;
       }
-	
-      if (host_end != host)
-      {
-	BK_FLAG_SET(bu->bu_flags, BK_URL_FLAG_HOST);
-      }
-
-      STORE_URL_ELEMENT(B, mode, bu->bu_host, host, host_end);
-      STORE_URL_ELEMENT(B, mode, bu->bu_serv, serv, serv_end);
     }
+    else
+    {
+      if (host_end == host)
+	host_end = (BK_URL_AUTHORITY_DATA(bu) + BK_URL_AUTHORITY_LEN(bu));
+    }
+	
+    if (host_end != host)
+    {
+      BK_FLAG_SET(bu->bu_flags, BK_URL_FLAG_HOST);
+    }
+
+    STORE_URL_ELEMENT(B, mode, bu->bu_host, host, host_end);
+    STORE_URL_ELEMENT(B, mode, bu->bu_serv, serv, serv_end);
   }
 
   BK_RETURN(B,bu);

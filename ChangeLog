@@ -1,3 +1,8 @@
+2002-08-05  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_url.c (bk_url_parse): break out host/service from authority
+	even if BK_URL_FLAG_STRICT_PARSE is specified.
+	
 2002-07-24  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_string.c (bk_string_flagtoa, bk_string_atoflag): avoid using
