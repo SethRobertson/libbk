@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_inline.h,v 1.11 2003/06/26 21:14:07 jtt Exp $
+ * $Id: libbk_inline.h,v 1.12 2003/07/09 22:44:03 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -24,46 +24,48 @@
 /*
  * This file provides baka with a "light weight" form of dll's which can in
  * particular cases (outlined below) replace CLC's dll's with (we hope)
- * significant performance gains. The limitations on the use are that we
- * only support unordered lists without unique keys (ie in CLC speak there
- * are no object-object). Thus this is possible when you need only
- * insert/delete and iteratate. But this covers a surprising number of
- * cases. BAKA dll's also have the drawback in that it gains some its
- * performance at the cost of intruding on your datastructures. You *must*
- * have the first two fields of DS be pointers which will form the links in
- * the opposing directions. Finally they suffer from the fact that you can
- * only include any given object in (exactly) one list; if you need to
- * insert it in more than one than you have to use normal CLC dll's for all
- * but one.
+ * significant performance gains. These functions are optmized for
+ * unordered lists without unique keys, but this covers a surprising number
+ * of cases (and you *can* use the for any dll you want). BAKA dll's also
+ * have the drawback in that it gains some its performance at the cost of
+ * intruding on your datastructures. You *must* have the first two fields
+ * of DS be pointers which will form the links in the opposing
+ * directions. Finally they suffer from the fact that you can only include
+ * any given object in (exactly) one list; if you need to insert it in more
+ * than one than you have to use normal CLC dll's for all but one.
  *
  * You make BAKA dll's look "just like" CLC dll's via the usual #define
  * trickery. Indeed you should.
  *
  * For performance and API reasons these functions are intionally *not*
- * BAKAfied. In addition we maintain *full* CLCL compatibility in the sense
+ * BAKAfied. In addition we maintain *full* CLC bugability in the sense
  * that we also do not check arguments and therefore NULL args cause core
  * dumps. The reason for this is simple. In functions which basically do
  * nothing but but return an offset into its argument, checking for NULL
  * adds *considerable* overhead (probably close to doubling the
  * time). Since one of the primary purposes of these routines is for them
  * to be as fast as possible, we avoid the overhead of arg checking (and as
- * I noted above coincidently become core-dump compatible with CLCL
+ * I noted above coincidently become core-dump compatible with CLC.
  */
 
+extern int dict_errno;
+
 /*
- * Generic dll header
+ * Generic dll handle
  *
  * There are no flags here (and please avoid creating any if possible)
  * owing to the fact that to support flags we would have to "violate" the
  * "clean replacement of CLC" philosophy -- unless we supported the DICT_
  * flags, but that seems too grotty for words.
  */
-struct bk_generic_dll_header
+struct bk_generic_dll_handle
 {
   struct bk_generic_dll_element *	gdh_head; ///< The head of the list.
   struct bk_generic_dll_element *	gdh_tail; ///< The tail of the list.
   dict_function				gdh_oo_cmp; ///< The object-object function
   dict_function				gdh_ko_cmp; ///< The key object function.
+  int					gdh_flags; ///< Dict flags (hence not bk_flags type) 
+  int					gdh_errno; ///< Dict errno value.
 };
 
 
@@ -90,30 +92,34 @@ struct bk_dll_iterator
 
 
 static __inline__ dict_h 	bk_dll_create(dict_function oo_cmp, dict_function ko_cmp, int flags);
-static __inline__ void 		bk_dll_destroy(dict_h header);
-static __inline__ int 		bk_dll_insert(dict_h header, dict_obj obj);
-static __inline__ int 		bk_dll_append(dict_h header, dict_obj obj);
-static __inline__ int  		bk_dll_delete(dict_h header, dict_obj obj);
-static __inline__ dict_obj	bk_dll_minimum(dict_h header);
-static __inline__ dict_obj	bk_dll_maximum(dict_h header);
-static __inline__ dict_obj	bk_dll_successor(dict_h header, dict_obj obj);
-static __inline__ dict_obj 	bk_dll_predecessor(dict_h header, dict_obj obj);
-static __inline__ dict_obj	bk_dll_search(dict_h header, dict_key key);
-static __inline__ dict_iter 	bk_dll_iterate(dict_h header, enum dict_direction direction);
-static __inline__ void 		bk_dll_iterate_done(dict_h header, dict_iter iter);
-static __inline__ dict_obj 	bk_dll_nextobj(dict_h header, dict_iter iter);
+static __inline__ void 		bk_dll_destroy(dict_h handle);
+static __inline__ int 		bk_dll_insert(dict_h handle, dict_obj obj);
+static __inline__ int		bk_dll_insert_uniq(dict_h handle, dict_obj obj, dict_obj *oldp);
+static __inline__ int 		bk_dll_append(dict_h handle, dict_obj obj);
+static __inline__ int 		bk_dll_append_uniq(dict_h handle, dict_obj obj, dict_obj *oldp);
+static __inline__ int  		bk_dll_delete(dict_h handle, dict_obj obj);
+static __inline__ dict_obj	bk_dll_minimum(dict_h handle);
+static __inline__ dict_obj	bk_dll_maximum(dict_h handle);
+static __inline__ dict_obj	bk_dll_successor(dict_h handle, dict_obj obj);
+static __inline__ dict_obj 	bk_dll_predecessor(dict_h handle, dict_obj obj);
+static __inline__ dict_obj	bk_dll_search(dict_h handle, dict_key key);
+static __inline__ dict_iter 	bk_dll_iterate(dict_h handle, enum dict_direction direction);
+static __inline__ void 		bk_dll_iterate_done(dict_h handle, dict_iter iter);
+static __inline__ dict_obj 	bk_dll_nextobj(dict_h handle, dict_iter iter);
 static __inline__ char *	bk_dll_error_reason(dict_h handle, int *errnop);
+static __inline__ char *	bk_dll_error_reason(dict_h handle, int *errnop);
+static __inline__ int		bk_dll_insert_internal(struct bk_generic_dll_handle *gdh, struct bk_generic_dll_element *gde, struct bk_generic_dll_element **old_gdep, int flags, int append);
 
 
 /**
  * Destroy a generic baka dll
  *
- *	@param gdh The header of the geneneric list.
+ *	@param gdh The handle of the geneneric list.
  */
 static __inline__ void
-bk_dll_destroy(dict_h header)
+bk_dll_destroy(dict_h handle)
 {
-  struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
 
   if (gdh)
     free(gdh);
@@ -124,7 +130,7 @@ bk_dll_destroy(dict_h header)
 
 
 /**
- * Create the header for a BAKA dll. NB: the usually expected "flags"
+ * Create the handle for a BAKA dll. NB: the usually expected "flags"
  * argument is not set here since it is assumed that this function might
  * replace dll_create in some code and the flags thus passed would be DICT
  * flags which have no meaning.
@@ -138,15 +144,31 @@ bk_dll_destroy(dict_h header)
 static __inline__ dict_h
 bk_dll_create(dict_function oo_cmp, dict_function ko_cmp, int flags)
 {
-  struct bk_generic_dll_header *gdh = NULL;
+  struct bk_generic_dll_handle *gdh = NULL;
  
-  if (!(gdh = calloc(1, sizeof(*gdh))))
+  if (!(gdh = malloc(sizeof(*gdh))))
+  {
+    // Dict assumes (proabably correctly) that *any* malloc failure is ENOMEM
+    dict_errno = DICT_ENOMEM;
     goto error;
+  }
+
+  // Unlike normal CLC dll we assume *unordered* lists. 
+  // <TRICKY> and turn off all flags *except* the ones we deal with. </TRICKY>
+  flags &= (DICT_ORDERED | DICT_UNIQUE_KEYS);
 
   gdh->gdh_oo_cmp = oo_cmp;
   gdh->gdh_ko_cmp = ko_cmp;
-
-  // Flags are ignored.
+  gdh->gdh_flags = flags;
+  gdh->gdh_errno = 0;
+  gdh->gdh_head = NULL;
+  gdh->gdh_tail = NULL;
+  
+  if ((flags & (DICT_ORDERED || DICT_UNIQUE_KEYS)) && !oo_cmp)
+  {
+    dict_errno = DICT_ENOOOCOMP;
+    goto error;
+  }
 
   return((dict_h)gdh); 
  
@@ -157,33 +179,142 @@ bk_dll_create(dict_function oo_cmp, dict_function ko_cmp, int flags)
 }
 
 
+
+#define BK_DLL_INSERT_BEFORE(handle1,new1,cur1)				\
+do									\
+{									\
+  struct bk_generic_dll_handle *handle = handle1;			\
+  struct bk_generic_dll_element *new = new1;				\
+  struct bk_generic_dll_element *cur = cur1;				\
+									\
+  if (!cur)								\
+  {									\
+    handle->gdh_head = new;						\
+    handle->gdh_tail = new;						\
+  }									\
+  else									\
+  {									\
+    new->gde_next = cur;						\
+    if (cur->gde_prev)							\
+      cur->gde_prev->gde_next = new;					\
+    else								\
+      handle->gdh_head = new;						\
+    new->gde_prev = cur->gde_prev;					\
+    cur->gde_prev = new;						\
+  }									\
+} while(0)
+
+
+
+#define BK_DLL_INSERT_AFTER(handle1,new1,cur1)				\
+do									\
+{									\
+  struct bk_generic_dll_handle *handle = handle1;			\
+  struct bk_generic_dll_element *new = new1;				\
+  struct bk_generic_dll_element *cur = cur1;				\
+									\
+  if (!cur)								\
+  {									\
+    handle->gdh_head = new;						\
+    handle->gdh_tail = new;						\
+  }									\
+  else									\
+  {									\
+    new->gde_prev = cur;						\
+    if (cur->gde_next)							\
+      cur->gde_next->gde_prev = new;					\
+    else								\
+      handle->gdh_tail = new;						\
+    new->gde_next = cur->gde_next;					\
+    cur->gde_next = new;						\
+  }									\
+} while (0)
+
+
+
 /**
  * Insert a dll element onto the list. In keeping with CLC insert
  * prepends. Again flags is supporessed to keep this in line with the CLC
  * APi.
  *
- *	@param header The header of dll.
+ *	@param handle The handle of dll.
  *	@param obj The object to insert.
  *	@return !<i>DICT_ERR</i> on failure.<br>
  *	@return <i>DICT_OK</i> on success.
  */
 static __inline__ int
-bk_dll_insert(dict_h header, dict_obj obj)
+bk_dll_insert_internal(struct bk_generic_dll_handle *gdh, struct bk_generic_dll_element *gde, struct bk_generic_dll_element **old_gdep, int flags, int append)
 {
-  struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
-  struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
+  struct bk_generic_dll_element *g;
+  int ret = DICT_OK;
+  int compare;
 
-  gde->gde_prev = NULL;
-  gde->gde_next = gdh->gdh_head;
-
-  if (gdh->gdh_head)
-    gdh->gdh_head->gde_prev = gde;
+  if (!flags)
+  {
+    // General case where we want an unordered list and duplicates are fine.
+    if (append)
+      BK_DLL_INSERT_AFTER(gdh, gde, gdh->gdh_tail);
+    else
+      BK_DLL_INSERT_BEFORE(gdh, gde, gdh->gdh_head);
+  }
   else
-    gdh->gdh_tail = gde;
+  {
+    // This sections covers *both* ordering and unique keys, but at least one must be present.
+    int ordered = flags & DICT_ORDERED;
+    int unique_keys = flags & DICT_UNIQUE_KEYS;
 
-  gdh->gdh_head = gde;
+    if (old_gdep) 
+      *old_gdep = NULL;
 
-  return(DICT_OK); 
+    for (g = gdh->gdh_head; g; g = g->gde_next)
+    {
+      compare = (*gdh->gdh_oo_cmp)(g, gde);
+
+      if (compare == 0)
+      {
+	if (unique_keys)
+	{
+	  if (old_gdep)
+	    *old_gdep = g;
+	  gdh->gdh_errno = DICT_EEXISTS;
+	  ret = DICT_ERR;
+	}
+	else
+	{
+	  if (ordered)
+	  {
+	    BK_DLL_INSERT_BEFORE(gdh, gde, g);
+	    break;
+	  }
+	}
+      }
+      else if (compare > 0)
+      {
+	if (ordered)
+	{
+	  BK_DLL_INSERT_BEFORE(gdh, gde, g);
+	  break;
+	}
+      }
+    }
+    
+    if (ret == DICT_OK)
+    {
+      if (ordered && ret == DICT_OK)
+      {
+	BK_DLL_INSERT_AFTER(gdh, gde, gdh->gdh_tail);
+      }
+      else 
+      {
+	if (append)
+	  BK_DLL_INSERT_AFTER(gdh, gde, gdh->gdh_tail);
+	else
+	  BK_DLL_INSERT_BEFORE(gdh, gde, gdh->gdh_head);
+      }
+    }
+  }
+  
+  return(DICT_OK);
 }
 
 
@@ -193,28 +324,84 @@ bk_dll_insert(dict_h header, dict_obj obj)
  * prepends. Again flags is supporessed to keep this in line with the CLC
  * APi.
  *
- *	@param header The header of dll.
+ *	@param handle The handle of dll.
  *	@param obj The object to insert.
  *	@return !<i>DICT_ERR</i> on failure.<br>
  *	@return <i>DICT_OK</i> on success.
  */
 static __inline__ int
-bk_dll_append(dict_h header, dict_obj obj)
+bk_dll_insert(dict_h handle, dict_obj obj)
 {
-  struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
   struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
 
-  gde->gde_next = NULL;
-  gde->gde_prev = gdh->gdh_tail;
+  return(bk_dll_insert_internal(gdh, gde, NULL, gdh->gdh_flags, 0)); 
+}
 
-  if (gdh->gdh_tail)
-    gdh->gdh_tail->gde_next = gde;
-  else
-    gdh->gdh_head = gde;
 
-  gdh->gdh_tail = gde;
 
-  return(DICT_OK);
+/**
+ * Insert a dll element onto the list. In keeping with CLC insert
+ * prepends. Again flags is supporessed to keep this in line with the CLC
+ * APi.
+ *
+ *	@param handle The handle of dll.
+ *	@param obj The object to insert.
+ *	@return !<i>DICT_ERR</i> on failure.<br>
+ *	@return <i>DICT_OK</i> on success.
+ */
+static __inline__ int
+bk_dll_insert_uniq(dict_h handle, dict_obj obj, dict_obj *old_objp)
+{
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
+  struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
+  struct bk_generic_dll_element **old_gdep = (struct bk_generic_dll_element **)old_objp;
+
+  return(bk_dll_insert_internal(gdh, gde, old_gdep, (DICT_UNIQUE_KEYS | gdh->gdh_flags), 0)); 
+}
+
+
+
+/**
+ * Insert a dll element onto the list. In keeping with CLC insert
+ * prepends. Again flags is supporessed to keep this in line with the CLC
+ * APi.
+ *
+ *	@param handle The handle of dll.
+ *	@param obj The object to insert.
+ *	@return !<i>DICT_ERR</i> on failure.<br>
+ *	@return <i>DICT_OK</i> on success.
+ */
+static __inline__ int
+bk_dll_append(dict_h handle, dict_obj obj)
+{
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
+  struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
+
+  return(bk_dll_insert_internal(gdh, gde, NULL, gdh->gdh_flags, 1));
+}
+
+
+
+
+/**
+ * Insert a dll element onto the list. In keeping with CLC insert
+ * prepends. Again flags is supporessed to keep this in line with the CLC
+ * APi.
+ *
+ *	@param handle The handle of dll.
+ *	@param obj The object to insert.
+ *	@return !<i>DICT_ERR</i> on failure.<br>
+ *	@return <i>DICT_OK</i> on success.
+ */
+static __inline__ int
+bk_dll_append_uniq(dict_h handle, dict_obj obj, dict_obj *old_objp)
+{
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
+  struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
+  struct bk_generic_dll_element **old_gdep = (struct bk_generic_dll_element **)old_objp;
+
+  return(bk_dll_insert_internal(gdh, gde, old_gdep, (DICT_UNIQUE_KEYS | gdh->gdh_flags), 1));
 }
 
 
@@ -223,15 +410,15 @@ bk_dll_append(dict_h header, dict_obj obj)
 /**
  * Delete an element from the list.
  *
- *	@param header The header of dll.
+ *	@param handle The handle of dll.
  *	@param obj The object to insert.
  *	@return <i>DICT_ERR</i> on failure.<br>
  *	@return <i>DICT_OK</i> on success.
  */
 static __inline__ int
-bk_dll_delete(dict_h header, dict_obj obj)
+bk_dll_delete(dict_h handle, dict_obj obj)
 {
-  struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
   struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
 
   if (gde->gde_next)
@@ -254,14 +441,14 @@ bk_dll_delete(dict_h header, dict_obj obj)
 /**
  * Find the minimum node in the dll.,
  *
- *	@param header The header of dll.
+ *	@param handle The handle of dll.
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>node</i> on success.
  */
 static __inline__ dict_obj 
-bk_dll_minimum(dict_h header)
+bk_dll_minimum(dict_h handle)
 {
-  struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
  
   return(gdh->gdh_head);
 }
@@ -271,14 +458,14 @@ bk_dll_minimum(dict_h header)
 /**
  * Find the maximum node in the dll.,
  *
- *	@param header The header of dll.
+ *	@param handle The handle of dll.
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>node</i> on success.
  */
 static __inline__ dict_obj 
-bk_dll_maximum(dict_h header)
+bk_dll_maximum(dict_h handle)
 {
-  struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
  
   return(gdh->gdh_tail);
 }
@@ -290,13 +477,13 @@ bk_dll_maximum(dict_h header)
 /**
  * Find the successor of obj in the dll.
  *
- *	@param header The header of dll (unneeded and declared for API matching)
+ *	@param handle The handle of dll (unneeded and declared for API matching)
  *	@param obj The current object.
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>node</i> on success.
  */
 static __inline__ dict_obj 
-bk_dll_successor(dict_h header, dict_obj obj)
+bk_dll_successor(dict_h handle, dict_obj obj)
 {
   struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
  
@@ -309,13 +496,13 @@ bk_dll_successor(dict_h header, dict_obj obj)
 /**
  * Find the predecessor of obj in the dll.
  *
- *	@param header The header of dll (unneeded and declared for API matching)
+ *	@param handle The handle of dll (unneeded and declared for API matching)
  *	@param obj The current object.
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>node</i> on success.
  */
 static __inline__ dict_obj 
-bk_dll_predecessor(dict_h header, dict_obj obj)
+bk_dll_predecessor(dict_h handle, dict_obj obj)
 {
   struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
  
@@ -327,15 +514,15 @@ bk_dll_predecessor(dict_h header, dict_obj obj)
 /**
  * Search for a key within a bk_dll
  *
- *	@param header The bk_dll header
+ *	@param handle The bk_dll handle
  *	@param keyp Pointer to the key value.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 static __inline__ dict_obj
-bk_dll_search(dict_h header, dict_key key)
+bk_dll_search(dict_h handle, dict_key key)
 {
-  struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
   struct bk_generic_dll_element *gde;
 
   for(gde = gdh->gdh_head; gde; gde = gde->gde_next)
@@ -360,15 +547,15 @@ bk_dll_search(dict_h header, dict_key key)
  * bk_dll_successor()/predecessor() do have the advantage of not having to
  * allocate a free state when they are used. Therefore they are preferable.
  *
- *	@param header The header of dll (unneeded and declared for API matching)
+ *	@param handle The handle of dll (unneeded and declared for API matching)
  *	@param direction The direction for nextobj.
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>node</i> on success.
  */
 static __inline__ dict_iter 
-bk_dll_iterate(dict_h header, enum dict_direction direction)
+bk_dll_iterate(dict_h handle, enum dict_direction direction)
 {
-  struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
   struct bk_dll_iterator *di = NULL;
 
   if (!(di = malloc(sizeof(struct bk_dll_iterator))))
@@ -397,7 +584,7 @@ bk_dll_iterate(dict_h header, enum dict_direction direction)
  *	@param iter Iterator to destroy
  */
 static __inline__ void
-bk_dll_iterate_done(dict_h header, dict_iter iter)
+bk_dll_iterate_done(dict_h handle, dict_iter iter)
 {
   // All seatbelts off..
   free(iter);
@@ -409,13 +596,13 @@ bk_dll_iterate_done(dict_h header, dict_iter iter)
 /**
  * Get the next object in a list
  *
- *	@param header The bk_dll header
+ *	@param handle The bk_dll handle
  *	@param iter The iterator in use.
  *	@return <i>NULL</i> when list is at the end.<br>
  *	@return <i>obj</i> on success.
  */
 static __inline__ dict_obj 
-bk_dll_nextobj(dict_h header, dict_iter iter)
+bk_dll_nextobj(dict_h handle, dict_iter iter)
 {
   struct bk_dll_iterator *di = (struct bk_dll_iterator *)iter;
   dict_obj cur;
@@ -428,10 +615,10 @@ bk_dll_nextobj(dict_h header, dict_iter iter)
   switch (di->di_direction)
   {
   case DICT_FROM_START:
-    di->di_current = bk_dll_successor(header, di->di_current);
+    di->di_current = bk_dll_successor(handle, di->di_current);
     break;
   case DICT_FROM_END:
-    di->di_current = bk_dll_predecessor(header, di->di_current);
+    di->di_current = bk_dll_predecessor(handle, di->di_current);
     break;
   default:
     return((dict_obj)NULL);
@@ -442,17 +629,27 @@ bk_dll_nextobj(dict_h header, dict_iter iter)
 
 
 /**
- * Get an error string describing bk_dll error;
+ * Get an error string describing bk_dll error.
  *
- *	@param header The bk_dll header
- *	@param iter The iterator in use.
- *	@return <i>NULL</i> when list is at the end.<br>
- *	@return <i>obj</i> on success.
+ *	@param handle The bk_dll handle
+ *	@param errnop Optional copy out of the current errno value
+ *	@return <i>NULL</i> on failure.
+ *	@return <i>error string</i> on success.
  */
 static __inline__ char *
 bk_dll_error_reason(dict_h handle, int *errnop)
 {
-  return("BAKA DLL has no internal error handing");
+  int dicterrno;
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
+
+  if (!handle)
+    dicterrno = dict_errno;
+  else
+    dicterrno = gdh->gdh_errno;
+
+  if (errnop) *errnop = dicterrno;
+  
+  return(dict_error_reason(dicterrno));
 }
 
 #endif /* _libbk_inline_h_ */

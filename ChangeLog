@@ -1,3 +1,10 @@
+2003-07-09  James Tanis  <jtt@hawking.sysdetect.com>
+
+	* include/libbk_inline.h (bk_dll_insert_internal): General insert
+	routine which handles all insert cases.
+	(bk_dll_insert_unique): "Front end" for unique inserts.
+	(bk_dll_error_reason): Error reason.
+
 2003-07-07  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* xml/b_search.c (bkxml_attrnode_data): Added string expansion option.
