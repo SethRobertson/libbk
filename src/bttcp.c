@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.48 2004/06/09 04:06:52 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.49 2004/06/16 00:00:04 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -593,9 +593,9 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     break;
   case BkAddrGroupStateConnected:
     if (pc->pc_server && BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-      fprintf(stderr,"%s%s: Connection complete\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
-    if (!pc->pc_server && BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
       fprintf(stderr,"%s%s: Accepted connection\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
+    if (!pc->pc_server && BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+      fprintf(stderr,"%s%s: Connection complete\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
 
     if (BK_FLAG_ISSET(pc->pc_flags, PC_SERVER))
     {
