@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.48 2002/07/23 16:18:22 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.49 2002/07/24 01:51:45 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2394,14 +2394,14 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
       if (BK_FLAG_ISSET(flags, BK_STRING_ATOF_FLAG_ALLOW_INF)
 	  && (!strcasecmp(string, "inf") || !strcasecmp(string, "infinity")))
       {
-	*value = sign * INFINITY;
+	tmp = sign * INFINITY;
 	err = 0;				// prevent error check below
 	end = (char *) string + 1;
       }
       else if (BK_FLAG_ISSET(flags, BK_STRING_ATOF_FLAG_ALLOW_NAN)
 	       && !strncasecmp(string, "nan", 3))
       {
-	*value = NAN;
+	tmp = NAN;
 	err = 0;				// prevent error check below
 	end = (char *) string + 1;
       }
@@ -2410,6 +2410,8 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
     // potential error has occured. See strtod man page for explanations
     if (!end || string == end || err == ERANGE)
       ret = -1;
+    else
+      *value = tmp;
   }
   else if ((tmp == HUGE_VAL || tmp == -HUGE_VAL) && err == ERANGE)
   {

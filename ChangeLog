@@ -1,5 +1,7 @@
 2002-07-23  Alexander Dupuy  <dupuy@sysdetect.com>
 
+	* lib/b_string.c (bk_string_atod): assign value when parsing zero val
+
 	* include/libbk_oscompat.h (UINT64_MAX): portability
 
 	* lib/b_string.c (bk_string_flagtoa, bk_string_atoflag): revised to
