@@ -1,7 +1,17 @@
+2004-06-21  Seth Robertson  <seth@not.baka.org>
+
+	* lib/b_relay.c (bk_relay_iohhandler): Because we overfill the
+	output buffer when it fills up and we throttle, we should not
+	automatically unthrottle when we write one buffer.  Theoretically,
+	this should NOT cause an infinite amount of memory to be sunk, but
+	we can seriously overfill especially if buffer sizes are in
+	increasing size order.  While I was being stupid about something
+	else, I discovered this and assumed it was the problem.
+
 2004-06-16  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_netutils.c (bk_netutils_make_conn): Arguments for
-	bk_netutils_make_conn_verbose() were totally in the wrong order. 
+	bk_netutils_make_conn_verbose() were totally in the wrong order.
 
 2004-06-09  James Tanis  <jtt@buscemi.sysdetect.com>
 

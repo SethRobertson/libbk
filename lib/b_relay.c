@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.28 2003/12/29 06:58:01 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.29 2004/06/21 06:15:55 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -39,6 +39,8 @@ struct bk_relay
 #define BR_IOH_SEIZEOK		0x8		///< Carpe Data
   struct bk_ioh *	br_ioh2;		///< Another of the IOHs
   bk_flags		br_ioh2_state;		///< State of one IOH
+  u_int32_t		br_ioh1_max;		///< Maximum size of ioh1 buffer
+  u_int32_t		br_ioh2_max;		///< Maximum size of ioh1 buffer
   bk_relay_cb_f		br_callback;		///< Callback on reads and shutdown
   void		       *br_opaque;		///< Opaque data for callback
   struct bk_relay_ioh_stats *br_stats;		///< Optional statistics about relay
@@ -99,6 +101,7 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f
   relay->br_stats = stats;
   relay->br_flags = flags;
 
+
   if (relay->br_stats)
     memset(relay->br_stats, 0, sizeof(*relay->br_stats));
 
@@ -108,10 +111,9 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f
 
   //<TODO> Alter interface to permit caller to specify hints (though they can specify them in the IOH up front) </TODO>
 
-  if (bk_ioh_get(B, ioh1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL< NULL, NULL, NULL, &flags1) < 0)
+  if (bk_ioh_get(B, ioh1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, &relay->br_ioh1_max, NULL, &flags1) < 0)
     goto error;
-
-  if (bk_ioh_get(B, ioh2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL< NULL, NULL, NULL, &flags2) < 0)
+  if (bk_ioh_get(B, ioh2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, &relay->br_ioh2_max, NULL, &flags2) < 0)
     goto error;
 
   if (BK_FLAG_ISCLEAR(flags1, BK_IOH_LINE) && BK_FLAG_ISCLEAR(flags2, BK_IOH_LINE))
@@ -268,9 +270,22 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
     // Now that some data has drained...
     if (BK_FLAG_ISSET(*state_him, BR_IOH_THROTTLED))
     {
-      bk_debug_printf_and(B, 1, "Clearing throttle.  My state %x, his state %x\n",*state_me,*state_him);
-      BK_FLAG_CLEAR(*state_him, BR_IOH_THROTTLED);
-      bk_ioh_readallowed(B, ioh_other, 1, 0);
+      u_int32_t outqueue = 0;
+      u_int32_t bufmax = 0;
+
+      if (ioh == relay->br_ioh1)
+	bufmax = relay->br_ioh1_max;
+      else
+	bufmax = relay->br_ioh2_max;
+
+      bk_ioh_getqlen(B, ioh, NULL, &outqueue, 0);
+
+      if (!bufmax || outqueue < bufmax)
+      {
+	bk_debug_printf_and(B, 1, "Clearing throttle.  My state %x, his state %x\n",*state_me,*state_him);
+	BK_FLAG_CLEAR(*state_him, BR_IOH_THROTTLED);
+	bk_ioh_readallowed(B, ioh_other, 1, 0);
+      }
     }
     break;
 
