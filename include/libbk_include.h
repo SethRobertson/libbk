@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.22 2002/03/20 20:18:11 dupuy Exp $
+ * $Id: libbk_include.h,v 1.23 2002/03/26 23:21:19 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -16,8 +16,14 @@
 #ifndef _libbk_include_h_
 #define _libbk_include_h_
 
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
+
+#if defined(__INSURE__) && defined(__linux__)
+/*
+ * Insure can't handle the 64-bit file operation redirections using GNUC
+ * asm syntax.  So we get the __REDIRECT macro and then make it go away.
+ */
+#include <sys/cdefs.h>
+#undef __REDIRECT
 
 /*
  * The GNU C library <sys/types.h> uses some weird GNU extension for gcc > 2.7
@@ -27,7 +33,6 @@
  * variants, which are defined more conventionally using char, short, long,
  * etcetera.
  */
-#if defined(__INSURE__) && defined(__linux__)
 #define int8_t weird_int8_t
 #define int16_t weird_int16_t
 #define int32_t weird_int32_t
@@ -53,6 +58,7 @@
 #define u_int16_t __uint16_t
 #define u_int32_t __uint32_t
 #define u_int64_t __uint64_t
+
 #endif /* __INSURE__ */
 
 

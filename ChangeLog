@@ -1,5 +1,8 @@
 2002-03-26  Alexander Dupuy  <dupuy@sysdetect.com>
 
+	* include/libbk_include.h: work around Insure problems with
+	_FILE_OFFSET_BITS 64
+
 	* test/Makefile (BK_SIMPLE_INTERNALPROGS): support "make test_fun"
 
 	* test/test_config.c (main): bk_general_debug_config obviates
