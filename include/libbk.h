@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.306 2004/08/11 00:41:44 jtt Exp $
+ * $Id: libbk.h,v 1.307 2004/08/20 21:52:52 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1573,6 +1573,7 @@ extern int bk_memx_lop(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags);
 
 /* b_run.c */
 extern struct bk_run *bk_run_init(bk_s B, bk_flags flags);
+#define BK_RUN_WANT_SIGNALTHREAD		0x01 ///< Tell bk_run that we only want signal processing on this thread--the one which is initializing bk_run_init
 extern void bk_run_destroy(bk_s B, struct bk_run *run);
 extern int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B, struct bk_run *run, int signum, void *opaque), void *opaque, bk_flags flags);
 #define BK_RUN_SIGNAL_CLEARPENDING		0x01 ///< Clear pending signal count for this signum for @a bk_run_signal

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.74 2004/08/12 20:18:59 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.75 2004/08/20 21:52:53 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -158,17 +158,19 @@ struct bk_run
   volatile sig_atomic_t	br_signums[NSIG];	///< Number of signal events we have received
   struct br_sighandler	br_handlerlist[NSIG];	///< Handlers for signals
   bk_flags		br_flags;		///< General flags
-#define BK_RUN_FLAG_RUN_OVER		0x01	///< bk_run_run should terminate
-#define BK_RUN_FLAG_NEED_POLL		0x02	///< Execute poll list
-#define BK_RUN_FLAG_CHECK_DEMAND	0x04	///< Check demand list
-#define BK_RUN_FLAG_HAVE_IDLE		0x08	///< Run idle task
-#define BK_RUN_FLAG_IN_DESTROY		0x10	///< In the middle of a destroy
-#define BK_RUN_FLAG_ABORT_RUN_ONCE	0x20	///< Return now from run_once
-#define BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE	0x40	///< Don't block on current run once
-#define BK_RUN_FLAG_FD_CANCEL		0x80	///< At least 1 fd on cancel list
+#define BK_RUN_FLAG_RUN_OVER		0x001	///< bk_run_run should terminate
+#define BK_RUN_FLAG_NEED_POLL		0x002	///< Execute poll list
+#define BK_RUN_FLAG_CHECK_DEMAND	0x004	///< Check demand list
+#define BK_RUN_FLAG_HAVE_IDLE		0x008	///< Run idle task
+#define BK_RUN_FLAG_IN_DESTROY		0x010	///< In the middle of a destroy
+#define BK_RUN_FLAG_ABORT_RUN_ONCE	0x020	///< Return now from run_once
+#define BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE	0x040	///< Don't block on current run once
+#define BK_RUN_FLAG_FD_CANCEL		0x080	///< At least 1 fd on cancel list
 #define BK_RUN_FLAG_FD_CLOSED		0x100	///< At least 1 fd on cancel list is closed
+#define BK_RUN_FLAG_SIGNAL_THREAD	0x200	///< Only one thread should receive signals
   dict_h		br_canceled;		///< List of canceled descriptors.
 #ifdef BK_USING_PTHREADS
+  pthread_t		br_signalthread;	///< Specify thread to receive signals
   pthread_mutex_t	br_lock;		///< Lock on run management
   int			br_runfd;		///< File descriptor for select interrupt
   int			br_selectcount;		///< Number of entries in select
@@ -387,6 +389,12 @@ struct bk_run *bk_run_init(bk_s B, bk_flags flags)
   BK_ZERO(run);
 
 #ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISSET(flags, BK_RUN_WANT_SIGNALTHREAD))
+  {
+    run->br_signalthread = pthread_self();
+    BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_SIGNAL_THREAD);
+  }
+
   run->br_runfd = -1;
 
   pthread_mutex_init(&run->br_lock, NULL);
@@ -1005,6 +1013,9 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   int isinselect = 0;
 #ifdef BK_USING_PTHREADS
   int islocked = 0;
+  int wantsignals = 0;
+#else /* BK_USING_PTHREADS */
+  int wantsignals = 1;
 #endif /* BK_USING_PTHREADS */
 
   deltapoll.tv_sec = INT32_MAX;
@@ -1016,12 +1027,17 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-#define BK_RUN_ONCE_ABORT_CHECK()					\
-  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE))		\
-    goto abort_run_once;						\
-  if (sigprocmask(SIG_UNBLOCK, &run->br_runsignals, NULL) < 0 ||	\
-      sigprocmask(SIG_BLOCK, &run->br_runsignals, NULL) < 0 ||		\
-      br_beensignaled)							\
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_SIGNAL_THREAD) || run->br_signalthread == pthread_self())
+    wantsignals = 1;
+#endif /* BK_USING_PTHREADS */
+
+#define BK_RUN_ONCE_ABORT_CHECK()						\
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE))			\
+    goto abort_run_once;							\
+  if (wantsignals && sigprocmask(SIG_UNBLOCK, &run->br_runsignals, NULL) < 0 ||	\
+      sigprocmask(SIG_BLOCK, &run->br_runsignals, NULL) < 0 ||			\
+      br_beensignaled)								\
     goto beensignaled;
 
   /*
@@ -1430,10 +1446,14 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
      * sysd bug 3434)</KLUDGE>
      */
     // Wait for I/O, signal, or timeout
-    sigprocmask(SIG_UNBLOCK, &run->br_runsignals, NULL);
+    if (wantsignals)
+      sigprocmask(SIG_UNBLOCK, &run->br_runsignals, NULL);
+
     if (!br_beensignaled)
       ret = select(run->br_selectn, &readset, &writeset, &xcptset, selectarg ? &timeout : NULL);
-    sigprocmask(SIG_BLOCK, &run->br_runsignals, NULL);
+
+    if (wantsignals)
+      sigprocmask(SIG_BLOCK, &run->br_runsignals, NULL);
 
 #ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
