@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.18 2004/11/12 22:15:53 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.19 2004/12/21 17:50:31 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -295,7 +295,7 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
     
     switch(ret = (*brd->brd_brc.brc_chkpnt)(B, brd->brd_opaque, BkRingDirChkpntActionRecover, brd->brd_directory, brd->brd_pattern, &brd->brd_cur_file_num, BkRingDirCallbackSourceInit, 0))
     {
-    case -1:  // Errorr
+    case -1:  // Error
       bk_error_printf(B, BK_ERR_ERR, "Failed to recover checkpoint value\n");
       goto error;
       
@@ -854,7 +854,7 @@ bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, enum bk_rin
     open_flags |= O_CREAT | O_TRUNC;
   
 
-  if ((brs->brs_fd = open(filename, open_flags, 0777)) < 0)
+  if ((brs->brs_fd = open(filename, open_flags, 0666)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not open %s for writing: %s\n", filename, strerror(errno));
     goto error;
@@ -1001,7 +1001,7 @@ bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions 
   case BkRingDirChkpntActionChkpnt:
     value = htonl(*valuep);
 
-    if ((fd = open(brs->brs_chkpnt_filename, O_WRONLY|O_CREAT, 0777)) < 0)
+    if ((fd = open(brs->brs_chkpnt_filename, O_WRONLY|O_CREAT, 0666)) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open %s for reading: %s\n", brs->brs_chkpnt_filename, strerror(errno));
       goto error;
@@ -1742,7 +1742,7 @@ write_settings(bk_s B, struct bk_ring_directory *brd, const char *directory, con
   // Record size of ring buffer for readers
   value = htonl(brd->brd_max_num_files);
 
-  if ((fd = open(max_filename, O_WRONLY|O_CREAT, 0777)) < 0)
+  if ((fd = open(max_filename, O_WRONLY|O_CREAT, 0666)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not open %s for writing: %s\n", max_filename, strerror(errno));
     goto error;
