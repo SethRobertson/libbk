@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_bio.c,v 1.4 2002/03/26 22:16:08 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: test_bio.c,v 1.5 2002/05/09 00:03:39 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -28,7 +28,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define STD_LOCALEDIR_KEY     "LOCALEDIR"	///< Key in bkconfig to find the locale translation files
 #define STD_LOCALEDIR_ENV     "BAKA_HOME"	///< Key in Environment to find base of locale directory
 #define STD_LOCALEDIR_DEF     "/usr/local/baka"	///< Default base of where locale directory might be found
-#define STD_LOCALEDIR_SUB     ".install/Locale"	///< Sub-component from install base where locale might be found
+#define STD_LOCALEDIR_SUB     "locale"		///< Sub-component from install base where locale might be found
 #define ERRORQUEUE_DEPTH      32		///< Default error queue depth
 
 

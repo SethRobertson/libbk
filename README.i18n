@@ -68,7 +68,7 @@ emacs messages.po
 # Compile the translation
 msgfmt messages.po
 # Install the translation (da.ISO-8859-1 from locale.aliases for danish)
-mv messages $INSTDIR.install/Locale/da.ISO-8859-1/LC_MESSAGES/proto.mo 
+mv messages $INSTDIR/locale/da.ISO-8859-1/LC_MESSAGES/proto.mo 
 # Run the program
 BAKA_HOME=$INSTDIR LANG=danish proto
 **********************************************************************
