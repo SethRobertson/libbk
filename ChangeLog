@@ -1,3 +1,8 @@
+2002-09-23  James Tanis  <jtt@hawking.sysdetect.com>
+
+	* lib/b_bnbio.c (bk_iohh_bnbio_read): Only set timeout if one is
+	wanted. Remember to clear it if not needed.
+
 2002-09-12  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_time.c (bk_time_iso_format): Fixed minor bug in BK_TIME_FORMAT_FLAG_NO_TZ.

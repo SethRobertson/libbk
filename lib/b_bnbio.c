@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.13 2002/09/17 16:23:52 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.14 2002/09/24 00:20:48 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -146,15 +146,19 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t ti
   }
 
  reread:
-  bnbio_set_timeout(B, bib, timeout, 0);
+  if (timeout)
+    bnbio_set_timeout(B, bib, timeout, 0);
 
   BK_FLAG_CLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT);
 
   // first, generate *some* form of useful information
   while (BK_FLAG_ISCLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT) &&
 	 (!(is_canceled = bk_iohh_bnbio_is_canceled(B, bib, 0))) && 
-	 (ret = bk_polling_io_read(B, bib->bib_bpi, datap, &status, 0)) == 1)
+	 ((ret = bk_polling_io_read(B, bib->bib_bpi, datap, &status, 0)) == 1))
     /* void */;
+
+  if (timeout)
+    bnbio_set_timeout(B, bib, 0, 0);
 
   if (BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT) || is_canceled)
   {
