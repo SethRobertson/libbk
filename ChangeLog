@@ -1,3 +1,7 @@
+2002-11-20  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_fileutils.c (bk_file_unlock): Change sprintf to snprintf.
+
 2002-11-19  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* include/libbk.h: Add autoconf'd BK-IN6_IS_ADDR_MULTICAST.

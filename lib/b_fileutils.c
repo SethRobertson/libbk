@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.12 2002/11/14 22:02:46 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.13 2002/11/20 18:35:16 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -338,7 +338,7 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
       continue;
     }
     line_cnt++;
-    sprintf(p, "%s\n", line);
+    snprintf(p, sb.st_size, "%s\n", line);
     p += (strlen(line)+1);
   }
 
