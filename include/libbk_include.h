@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.16 2002/01/24 08:54:43 dupuy Exp $
+ * $Id: libbk_include.h,v 1.17 2002/02/06 21:36:37 brian Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -100,6 +100,7 @@
 #include <sys/mman.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <netinet/udp.h>
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
