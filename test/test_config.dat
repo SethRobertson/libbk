@@ -1,0 +1,13 @@
+#
+#Mon Mar 24 18:33:18 EST 2003
+Truth = Beauty
+	truth:beauty
+TRUTH		:BEAUTY
+postgres\://sysd@sysd/ = postgres\://sysd:sysd@sysd/
+
+#include /home/dupuy/.idswatch/user_items.conf
+
+EOL = \r\n
+TAB = \t
+
+#include ../test/test_config.dat

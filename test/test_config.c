@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_config.c,v 1.9 2003/03/19 20:00:17 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: test_config.c,v 1.10 2003/03/29 14:48:26 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -35,7 +35,7 @@ struct global_structure
 
 
 int proginit(bk_s B);
-void progrun(bk_s B);
+void progrun(bk_s B, const char *file);
 
 
 
@@ -102,7 +102,7 @@ main(int argc, char **argv, char **envp)
     bk_die(B,254,stderr,"Could not perform program initialization\n",0);
   }
 
-  progrun(B);
+  progrun(B, argv[1]);
   bk_exit(B,0);
   abort();
   BK_RETURN(B,255);				/* Insight is stupid */
@@ -125,13 +125,20 @@ int proginit(bk_s B)
 /*
  * Normal processing
  */
-void progrun(bk_s B)
+void progrun(bk_s B, const char *extra)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
 
   if (BK_FLAG_ISSET(Global.gs_flags, TESTCONFIG_FLAG_DISPLAY))
   {
-    bk_config_print(B,NULL,stderr);
+    bk_config_print(B, NULL, stderr);
+  }
+
+  if (extra)
+  {
+    struct bk_config *conf = bk_config_init(B, extra, NULL, 0);
+    if (conf)
+      bk_config_print(B, conf, stdout);
   }
 
   BK_VRETURN(B);

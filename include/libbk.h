@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.222 2003/03/28 20:33:34 seth Exp $
+ * $Id: libbk.h,v 1.223 2003/03/29 14:48:26 dupuy Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -933,7 +933,8 @@ typedef struct bk_vstr
 struct bk_config_user_pref
 {
   char *	bcup_include_tag;		///< Include file tag
-  char *	bcup_separator;		 	///< key/value sep. char
+  char *	bcup_separators;	 	///< key/value separator chars
+  char *	bcup_commentchars;	 	///< comment chars
   bk_flags	bcup_flags;			///< Everyone needs flags
 };
 
@@ -1504,6 +1505,8 @@ extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f h
 #define BK_IOH_LINE		0x10		///< Line oriented reads, for bk_ioh
 #define BK_IOH_WRITE_ALL	0x20		///< Write all available data when doing a write, for bk_ioh
 #define BK_IOH_FOLLOW		0x40		///< Put the ioh in "follow" mode (read past EOF).
+#define BK_IOH_WRITE_DEFER	0x80		///< Don't write until queue full
+#define BK_IOH_WRITE_BUFFERED	(BK_IOH_WRITE_DEFER|BK_IOH_WRITE_ALL)
 #define BK_IOH_NO_HANDLER	0x8000		///< Suppress stupid warning
 
 #if 0

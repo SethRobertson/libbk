@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_config.c,v 1.29 2003/03/26 17:59:38 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_config.c,v 1.30 2003/03/29 14:48:26 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -17,22 +17,114 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 
 /**
- * @file
- * This module implements the BAKA config file facility. Config files are
+ * @file This module implements the BAKA config file facility. Config files are
  * nothing more than key/value pairs. Keys are single words and values are
- * comprised of everything which follows the key/value separator (equals
- * sign by default). Thus values may contain spaces (included leading 
- * spaces). There are no comments per se, but a key of the form 
- * 	#key 
- * is unlikely to every be searched for and thus becomes a de facto comment.
+ * comprised of everything which follows the first instance of a key/value
+ * separator character (by default, this is '=', whitespace, or ':').
  *
- * This facility also support included config files with the
- * 	#include=<filename> 
- * directive ("#include token" directive may be changed at init
- * time--seperator between directive and file is the configured file
- * seperator"). Include loops are detected and quashed.
+ * The format of these files is intended to be more-or-less compatible with the
+ * java.util.Properties load/store file format described below.  Not all of
+ * of the features supported by Properties.load are supported, but we attempt
+ * to provide 99% compatibility with the canonical format written by
+ * Properties.store.
  *
- * Blank lines are ignored.
+ * The BAKA config file facility also supports included config files with the
+ * 	#include file.name 
+ * directive (the particular token used for include can be changed from the
+ * default "#include" in the BAKA config user preferences structure passed to
+ * bk_configure_init.  Include loops are detected and quashed.  This
+ * functionality is not present in java.util.Properties.
+ *
+ * Differences from the format written by Properties.store are:
+ *
+ * - \uxxxx unicode character escapes aren't supported [for control/8bit chars]
+ *
+ * - maximum line length is 8192 characters
+ *
+ * Differences from format accepted by Properties.load are the above, plus:
+ * 
+ * - line terminator must be \n or \r\n (on MacOS, stdio converts \r, if used)
+ *
+ * - ISO 8859-1 encoding is not explicitly specified (dependent on locale)
+ *
+ * - line continuations with \ aren't supported
+ *
+ * - \a, \b, \f, \v are treated as ANSI C escapes (BEL, BS, FF, VT)
+ *
+ * - lines with no separator character generate a warning and are ignored
+ *
+ * Properties.store is specified as follows:
+ *
+ * Every entry in this Properties table is written out, one per line. For each
+ * entry the key string is written, then an ASCII =, then the associated
+ * element string. Each character of the element string is examined to see
+ * whether it should be rendered as an escape sequence. The ASCII characters \,
+ * tab, newline, and carriage return are written as \\, \t, \n, and \r,
+ * respectively. Characters less than \u0020 and characters greater than \u007E
+ * are written as \uxxxx for the appropriate hexadecimal value xxxx. Leading
+ * space characters, but not embedded or trailing space characters, are written
+ * with a preceding \. The key and value characters #, !, =, and : are written
+ * with a preceding slash to ensure that they are properly loaded.
+ *
+ * Properties.load is specified as follows:
+ *
+ * Reads a property list (key and element pairs) from the input stream. The
+ * stream is assumed to be using the ISO 8859-1 character encoding.
+ *
+ * Every property occupies one line of the input stream. Each line is
+ * terminated by a line terminator (\n or \r or \r\n). Lines from the input
+ * stream are processed until end of file is reached on the input stream.
+ *
+ * A line that contains only whitespace or whose first non-whitespace character
+ * is an ASCII # or ! is ignored (thus, # or ! indicate comment lines).
+ *
+ * Every line other than a blank line or a comment line describes one property
+ * to be added to the table (except that if a line ends with \, then the
+ * following line, if it exists, is treated as a continuation line, as
+ * described below). The key consists of all the characters in the line
+ * starting with the first non-whitespace character and up to, but not
+ * including, the first ASCII =, :, or whitespace character. All of the key
+ * termination characters may be included in the key by preceding them with a
+ * \. Any whitespace after the key is skipped; if the first non-whitespace
+ * character after the key is = or :, then it is ignored and any whitespace
+ * characters after it are also skipped. All remaining characters on the line
+ * become part of the associated element string. Within the element string, the
+ * ASCII escape sequences \t, \n, \r, \\, \", \', \ (a backslash and a space),
+ * and \uxxxx are recognized and converted to single characters. Moreover, if
+ * the last character on the line is \, then the next line is treated as a
+ * continuation of the current line; the \ and line terminator are simply
+ * discarded, and any leading whitespace characters on the continuation line
+ * are also discarded and are not part of the element string.
+ *
+ * As an example, each of the following four lines specifies the key "Truth"
+ * and the associated element value "Beauty":
+ *
+ * Truth = Beauty
+ * 	Truth:Beauty
+ * Truth	:Beauty
+ *
+ *
+ * As another example, the following three lines specify a single property:
+ *
+ * fruits			apple, banana, pear, \
+ * 				cantaloupe, watermelon, \
+ * 				kiwi, mango
+ *
+ * The key is "fruits" and the associated element is:
+ *
+ * "apple, banana, pear, cantaloupe, watermelon, kiwi, mango"
+ *
+ * Note that a space appears before each \ so that a space will appear after
+ * each comma in the final result; the \, line terminator, and leading
+ * whitespace on the continuation line are merely discarded and are not
+ * replaced by one or more other characters.
+ *
+ * As a third example, the line:
+ *
+ * cheeses
+ *
+ * specifies that the key is "cheeses" and the associated element is the empty
+ * string.
  */
 
 #include <libbk.h>
@@ -40,10 +132,11 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 #define SET_CONFIG(b,B,c) do { if (!(c)) { (b)=BK_GENERAL_CONFIG(B); } else { (b)=(c); } } while (0) ///< Set the configuration database to use--either from BAKA or from passed-in
-#define LINELEN 1024				///< Maximum size of one configuration line
+#define LINELEN 8192				///< Maximum size of one configuration line
 #define CONFIG_MANAGE_FLAG_NEW_KEY	0x1	///< Internal state info required for config_manage cleanup
 #define CONFIG_MANAGE_FLAG_NEW_VALUE	0x2	///< Internal state info required for config_manage cleanup
-#define BK_CONFIG_SEPARATOR	"="		///< Default configuration seperator
+#define BK_CONFIG_SEPARATORS "=:"BK_HWHITESPACE	///< Default configuration separators
+#define BK_CONFIG_COMMENTCHARS	"#!"		///< Default configuration comments
 #define BK_CONFIG_INCLUDE_TAG	"#include"	///< Default include-command key
 
 
@@ -202,9 +295,9 @@ static int bcv_ko_cmp(void *a, void *bck2);
  * Initialize the config file subsystem. 
  *	@param B BAKA thread/global state 
  *	@param filename The file from which to read the data.
- *	@param separator The string which separates keys from values.
- *	@param flags Random flags (see code for valid)
- *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
+ *	@param bcup BAKA configure user preferences (see libbk.h for fields)
+ *	@param flags reserved for future use
+ *	@return <i>NULL</i> on call or allocation failure, other fatal error.
  *	@return <br><i>baka config structure</i> if successful.
  */
 struct bk_config *
@@ -213,7 +306,8 @@ bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, b
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_config *bc=NULL;
   struct bk_config_fileinfo *bcf=NULL;
-  char *separator;
+  char *separators;
+  char *commentchars;
   char *include_tag;
 
   if (!filename)
@@ -247,14 +341,25 @@ bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, b
 
   bc->bc_bcf=bcf;
   
-  if (!bcup || !bcup->bcup_separator)
-    separator=BK_CONFIG_SEPARATOR;
+  if (!bcup || !bcup->bcup_separators)
+    separators=BK_CONFIG_SEPARATORS;
   else
-    separator=bcup->bcup_separator;
+    separators=bcup->bcup_separators;
 
-  if (!(bc->bc_bcup.bcup_separator=strdup(separator)))
+  if (!(bc->bc_bcup.bcup_separators=strdup(separators)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate separator: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate separators: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (!bcup || !bcup->bcup_commentchars)
+    commentchars=BK_CONFIG_COMMENTCHARS;
+  else
+    commentchars=bcup->bcup_commentchars;
+
+  if (!(bc->bc_bcup.bcup_commentchars=strdup(commentchars)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate commentchars: %s\n", strerror(errno));
     goto error;
   }
 
@@ -316,7 +421,8 @@ bk_config_destroy(bk_s B, struct bk_config *obc)
     config_kv_destroy(bc->bc_kv);
   }
 
-  if (bc->bc_bcup.bcup_separator) free (bc->bc_bcup.bcup_separator);
+  if (bc->bc_bcup.bcup_separators) free (bc->bc_bcup.bcup_separators);
+  if (bc->bc_bcup.bcup_commentchars) free (bc->bc_bcup.bcup_commentchars);
   if (bc->bc_bcup.bcup_include_tag) free (bc->bc_bcup.bcup_include_tag);
 
   if (bc->bc_bcf) bcf_destroy(B, bc->bc_bcf);
@@ -340,7 +446,7 @@ bk_config_destroy(bk_s B, struct bk_config *obc)
 
 /**
  * Load up the indicated config file from the indicated filename.  It opens
- * the file, reads it in line by line locates the separator, passes the
+ * the file, reads it in line by line, locates the separator, passes the
  * key/value on for insertion, locates included files, and calls itself
  * recursively when it finds one.
  *	@param B BAKA thread/global state 
@@ -353,10 +459,12 @@ static int
 load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *bcf)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  FILE *fp=NULL;
-  int ret=0;
+  FILE *fp = NULL;
+  int ret = 0;
   char line[LINELEN];
-  int lineno=0;
+  int lineno = 0;
+  char **key = NULL;				// (single) token array
+  char **value = NULL;				// (single) token array
 
   if (!bc || !bcf)
   {
@@ -364,7 +472,7 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
     BK_RETURN(B, -1);
   }
 
-  if (!(fp=fopen(bcf->bcf_filename, "r")))
+  if (!(fp = fopen(bcf->bcf_filename, "r")))
   {
     bk_error_printf(B, BK_ERR_WARN, "Could not open %s: %s\n", bcf->bcf_filename, strerror(errno));
     ret=-1; 
@@ -372,39 +480,40 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
   }
 
   /* Get the stat and search for loops */
-  if (fstat(fileno(fp),&bcf->bcf_stat) < 0)
+  if (fstat(fileno(fp), &bcf->bcf_stat) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not fstat %s: %s\n",bcf->bcf_filename, strerror(errno));
-    ret=-1;
+    bk_error_printf(B, BK_ERR_ERR, "Could not fstat %s: %s\n", bcf->bcf_filename, strerror(errno));
+    ret = -1;
     goto done;
   }
     
-  /* <WARNING> 
-   * This isn't quite the correct use of the API, but what the hell 
-   * </WARNING>
-   */
-  if (check_for_double_include(B,bc,bc->bc_bcf,bcf) != 1)
+  // <WARNING>This isn't quite the correct use of the API, but what the hell</WARNING>
+  if (check_for_double_include(B, bc, bc->bc_bcf, bcf) != 1)
   {
-    bk_error_printf(B, BK_ERR_WARN, "Double include detected (quashed)\n");
+    bk_error_printf(B, BK_ERR_NOTICE, "Double include detected (quashed)\n");
     /* 
      * But this is not even a sort-of error. If we have already included
-     * the file then we have all the keys and values so anythig the user
-     * might want will exist.
+     * the file then we have all the keys and values so anything the user
+     * might want will exist (we still return failure).
      */
-    ret=0;
+    ret = 0;
     goto done;
   }
 
-  bk_debug_printf_and(B,1,"Have opened %s while loading config info", bcf->bcf_filename);
+  bk_debug_printf_and(B, 1, "Have opened %s while loading config info", bcf->bcf_filename);
   while(fgets(line, LINELEN, fp))
   {
-    char *key=line, *value;
+    char *start = line;
+    char *rest;
 
     lineno++;
 
-    bk_string_rip(B, line, NULL, 0);		/* Nuke trailing CRLF */
+    bk_string_rip(B, start, NULL, 0);		/* Nuke trailing CRLF */
 
-    if (BK_STREQ(line,""))
+    while (isspace(*start))			// skip leading space in key
+      start++;
+
+    if (BK_STREQ(start,""))
     {
       /* 
        * Blank lines are perfectly OK -- as are lines with only white space
@@ -414,40 +523,82 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
     }
 
     /* 
-     * The separator for the key value is ONE instance of seperator (ie not any span of 
-     * white space). This way the value *may* contain leading white space if
-     * the user wishes
+     * The separator for the key value is the first non-escaped instance of one
+     * of the separator chars.
      */
-    if (!(value=strstr(line,bc->bc_bcup.bcup_separator)))
+    rest = start;
+    while ((rest = strpbrk(rest, bc->bc_bcup.bcup_separators)))
     {
-      bk_error_printf(B, BK_ERR_WARN, "Malformed config line in file %s at line %d\n", bcf->bcf_filename, lineno);
+      char *escapes = rest;
+
+      // count back over all leading backslashes before separator char
+      while (--escapes >= start && *escapes == '\\')
+	;					// empty body
+
+      if ((rest - escapes + 1) % 2)
+	rest++;					// odd # of \; sep is escaped
+      else
+	break;					// 0 or even # of \; real sep
+    }
+    if (!rest)
+    {
+      if (strchr(bc->bc_bcup.bcup_commentchars, start[0]))
+	continue;				// don't complain about comment
+      bk_error_printf(B, BK_ERR_ERR, "%s:%d: no separator in line '%s'\n",
+		      bcf->bcf_filename, lineno, start);
       continue;
     }
     
-    *value='\0'; 
-    value += strlen (bc->bc_bcup.bcup_separator); /* <TODO> Should we cache this strlen? </TODO>*/
+    if (isspace(*rest))
+    {
+      *rest++ = '\0';				// terminate key
 
-    /* "line" now points at the key and "value" at the value */
-    if (BK_STREQ(line, bc->bc_bcup.bcup_include_tag))
+      while (isspace(*rest))			// skip trailing space in key
+	rest++;
+
+      if (strchr(bc->bc_bcup.bcup_separators, *rest))
+	rest++;					// skip one non-space separator
+
+      rest--;					// back up to final separator
+    }
+
+    *rest++ = '\0';				// terminate key (again?)
+
+    while (isspace(*rest))			// skip leading space in rest
+      rest++;
+
+    /*
+     * "start" now points at the key and "rest" at the value.  In order to
+     * handle backslash escapes, we (ab)use bk_string_tokenize_split to convert
+     * the escapes without actually splitting the key or value further.
+     */
+    key = bk_string_tokenize_split(B, start, 1, "", NULL, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR|BK_STRING_TOKENIZE_BACKSLASH);
+    value = bk_string_tokenize_split(B, rest, 1, "", NULL, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR|BK_STRING_TOKENIZE_BACKSLASH);
+
+    // check for include tag before ignoring comments
+    if (BK_STREQ(start, bc->bc_bcup.bcup_include_tag))
     {
       struct bk_config_fileinfo *nbcf;
 
-      if (!(nbcf=bcf_create(B,value,bcf)))
+      // <TODO>should we be interpreting escape characters?</TODO>
+      if (!(nbcf = bcf_create(B, rest, bcf)))
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not create bcf for included file: %s\n", value);
+	bk_error_printf(B, BK_ERR_ERR, "Could not create bcf for included file: %s\n", rest);
 	ret=-1;
 	goto done;
       }
       if (load_config_from_file(B, bc, nbcf) < 0)
       {
-	bk_error_printf(B, BK_ERR_WARN, "Could not fully load: %s\n", value);
+	bk_error_printf(B, BK_ERR_WARN, "Could not fully load: %s\n", rest);
 	bcf_destroy(B, nbcf);
-	/* Try to read rest of file anyway */
+	// try to read rest of file anyway
       }
     }
-    else if (config_manage(B, bc, line, value, NULL, lineno) < 0)
+    else if (strchr(bc->bc_bcup.bcup_commentchars, start[0]))
+      continue;					// ignore comment line
+    else if (config_manage(B, bc, *key, *value, NULL, lineno) < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not add %s ==> %s to DB\n", key, value);
+      bk_error_printf(B, BK_ERR_ERR, "Could not add %s ==> %s to DB\n", *key, *value);
       ret=-1;
       goto done;
     }
@@ -462,6 +613,8 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
 
  done:
   if (fp) fclose(fp);
+  if (key) bk_string_tokenize_destroy(B, key);
+  if (value) bk_string_tokenize_destroy(B, value);
 
   BK_RETURN(B, ret);
 
@@ -1018,6 +1171,10 @@ bcv_destroy(bk_s B, struct bk_config_value *bcv)
 
 /**
  * Print out all the keys and their values.
+ *
+ * Note that the resulting file may not be a valid input for bk_config_init, if
+ * escaped characters were used.
+ *
  *	@param B BAKA thread/global state.
  *	@param ibc The baka config structure to use. If NULL, the structure
  *	is extracted from the @a B
@@ -1054,6 +1211,11 @@ bk_config_print(bk_s B, struct bk_config *ibc, FILE *fp)
 	 bcv;
 	 bcv=config_values_successor(bck->bck_values,bcv))
       {
+	/*
+	 * <TODO>Should use bk_string_quote for key and value, to generate
+	 * output that can be read back in correctly, but bk_string_quote uses
+	 * octal escapes for everything, which only make matters worse.</TODO>
+	 */
 	fprintf (fp, "%s=%s\n", bck->bck_key, bcv->bcv_value);
       }
   }

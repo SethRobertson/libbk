@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.37 2003/03/25 22:01:45 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.38 2003/03/29 14:48:26 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1540,7 +1540,10 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval *startt
   while (top = pq_head(run->br_equeue))
   {
     if (!timeset)				// can't defer any longer
+    {
       gettimeofday(starttime, NULL);
+      timeset = 1;
+    }
 
     if (BK_TV_CMP(&top->bre_when, starttime) > 0)
       break;  
