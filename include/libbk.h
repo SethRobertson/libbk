@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.71 2001/11/28 18:24:09 seth Exp $
+ * $Id: libbk.h,v 1.72 2001/11/29 02:49:42 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -683,6 +683,7 @@ extern void bk_memx_destroy(bk_s B, struct bk_memx *bm, bk_flags flags);
 #define BK_MEMX_PRESERVE_ARRAY    1		///< Don't destroy created array in @a bk_memx_destroy
 extern void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused, bk_flags flags);
 #define BK_MEMX_GETNEW		  1		///< Get new allocation in @a bk_memx_get
+#define bk_memx_new(B, bm, count, curused, flags) bk_memx_get((B), (bm), (count), (curused), (flags)|BK_MEMX_GETNEW) ///< For alex
 extern int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags);
 
 
@@ -727,7 +728,7 @@ extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
 typedef int (*bk_iorfunc)(bk_s, int, caddr_t, __SIZE_TYPE__, bk_flags); ///< read style I/O function for bk_ioh (flags for specialized datagram handling, like peek)
 typedef int (*bk_iowfunc)(bk_s, int, struct iovec *, __SIZE_TYPE__, bk_flags); ///< writev style I/O function for bk_ioh
 typedef void (*bk_iohhandler)(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh, u_int state_flags);  ///< User callback for bk_ioh w/zero terminated array of data ptrs free'd after handler returns
-extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iorfunc readfun, bk_iowfunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
+extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
 #define BK_IOH_STREAM		0x01		///< Stream (instead of datagram) oriented protocol, for bk_ioh
 #define BK_IOH_RAW		0x02		///< Any data is suitable, no special message blocking, for bk_ioh
 #define BK_IOH_BLOCKED		0x04		///< Must I/O in hint blocks: block size is required, for bk_ioh
@@ -743,7 +744,16 @@ extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iorfunc readfu
 #define BK_IOH_STATUS_READCOMPLETE	8	///< bk_ioh notifying user handler of a previous write of a buffer has completed, and here is the zero terminated array of buffers, which you must copy if necessary
 #define BK_IOH_STATUS_USERERROR		9	///< bk_ioh notifying user handler of some kind of user error being propagated in some unknown and unknowable fashion
 #define BK_IOH_STATUS_IOHREADEOF	10	///< bk_ioh notifying user handler of a received EOF
-extern int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags);
+extern int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags);
+#define BK_IOH_UPDATE_READFUN		0x001	///< Update the read function
+#define BK_IOH_UPDATE_WRITEFUN		0x002	///< Update the write function
+#define BK_IOH_UPDATE_HANDLER		0x004	///< Update the handler
+#define BK_IOH_UPDATE_OPAQUE		0x008	///< Update the opaque
+#define BK_IOH_UPDATE_INBUFHINT		0x010	///< Update the inbufhint
+#define BK_IOH_UPDATE_INBUFMAX		0x020	///< Update the inbufmax
+#define BK_IOH_UPDATE_OUTBUFMAX		0x040	///< Update the outbufmax
+#define BK_IOH_UPDATE_FLAGS		0x080	///< Update the external flags
+
 extern int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc *readfun, bk_iowfunc *writefun, bk_iohhandler *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags);
 extern int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
 #define BK_IOH_BYPASSQUEUEFULL	0x01		///< Bypass bk_ioh_write normal check for output queue full

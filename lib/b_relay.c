@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_relay.c,v 1.5 2001/11/15 22:03:35 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_relay.c,v 1.6 2001/11/29 02:49:42 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -99,13 +99,9 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
   bk_ioh_readallowed(B, ioh1, 1, 0);
   bk_ioh_readallowed(B, ioh2, 1, 0);
 
-  if (bk_ioh_get(B, ioh1, NULL, NULL, &readfun, &writefun, NULL, NULL, &inbufhint, &inbufmax, &outbufmax, NULL, &saveflags) < 0)
+  if (bk_ioh_update(B, ioh1, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
     goto error;
-  if (bk_ioh_update(B, ioh1, readfun, writefun, bk_relay_iohhandler, relay, inbufhint, inbufmax, outbufmax, saveflags) < 0)
-    goto error;
-  if (bk_ioh_get(B, ioh2, NULL, NULL, &readfun, &writefun, NULL, NULL, &inbufhint, &inbufmax, &outbufmax, NULL, &saveflags) < 0)
-    goto error;
-  if (bk_ioh_update(B, ioh2, readfun, writefun, bk_relay_iohhandler, relay, inbufhint, inbufmax, outbufmax, saveflags) < 0)
+  if (bk_ioh_update(B, ioh2, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
     goto error;
 
   BK_RETURN(B, 0);

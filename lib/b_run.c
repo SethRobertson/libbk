@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.13 2001/11/28 18:24:09 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.14 2001/11/29 02:49:42 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -95,10 +95,11 @@ struct bk_run
   volatile sig_atomic_t	br_signums[NSIG];	///< Number of signal events we have received
   struct br_sighandler	br_handlerlist[NSIG];	///< Handlers for signals
   bk_flags		br_flags;		///< General flags
-#define BK_RUN_FLAG_RUN_OVER		0x1	///< bk_run_run should terminate
-#define BK_RUN_FLAG_NEED_POLL		0x2	///< Execute poll list
-#define BK_RUN_FLAG_CHECK_DEMAND	0x4	///< Check demand list
-#define BK_RUN_FLAG_HAVE_IDLE		0x8	///< Run idle task
+#define BK_RUN_FLAG_RUN_OVER		0x01	///< bk_run_run should terminate
+#define BK_RUN_FLAG_NEED_POLL		0x02	///< Execute poll list
+#define BK_RUN_FLAG_CHECK_DEMAND	0x04	///< Check demand list
+#define BK_RUN_FLAG_HAVE_IDLE		0x08	///< Run idle task
+#define BK_RUN_FLAG_IN_DESTROY		0x10	///< In the middle of a destroy
 };
 
 
@@ -329,7 +330,10 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
     BK_VRETURN(B);
   }
 
-  // XXX Double destroy protection.
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_IN_DESTROY))
+    BK_VRETURN(B);
+
+  BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_IN_DESTROY);
 
   gettimeofday(&curtime,0);
 

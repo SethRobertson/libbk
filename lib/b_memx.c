@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_memx.c,v 1.5 2001/11/07 21:35:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_memx.c,v 1.6 2001/11/29 02:49:42 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,9 +25,10 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 
+// XX Alex sez: we need an accessor function for bm_curused(definitely) and bm_unitsize(maybe).
 
 /**
- * Information about an extendible buffer being managed
+ * Information about an extensible buffer being managed
  */
 struct bk_memx
 {
@@ -53,12 +54,12 @@ struct bk_memx
  *	@return <i>NULL</i> on call failure, allocation failure
  *	@return <br><i>Buffer handle</i> on success
  */
-struct bk_memx *bk_memx_create(bk_s B, size_t objsize, u_int start_hint, u_int incr_hint, bk_flags flags)
+struct bk_memx *bk_memx_create(bk_s B, size_t unitsize, u_int start_hint, u_int incr_hint, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_memx *ret;
 
-  if (objsize < 1)
+  if (unitsize < 1)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_RETURN(B, NULL);
@@ -72,12 +73,12 @@ struct bk_memx *bk_memx_create(bk_s B, size_t objsize, u_int start_hint, u_int i
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory manager: %s\n",strerror(errno));
     BK_RETURN(B, NULL);
   }
-  ret->bm_unitsize = objsize;
+  ret->bm_unitsize = unitsize;
   ret->bm_curused = 0;
   ret->bm_incr = incr_hint;
   ret->bm_flags = flags;
 
-  if (!(ret->bm_array = malloc(objsize * start_hint)))
+  if (!(ret->bm_array = malloc(unitsize * start_hint)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate initial memory: %s\n",strerror(errno));
     goto error;
@@ -105,7 +106,7 @@ struct bk_memx *bk_memx_create(bk_s B, size_t objsize, u_int start_hint, u_int i
  */
 void bk_memx_destroy(bk_s B, struct bk_memx *bm, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
   if (!bm)
   {
@@ -127,24 +128,25 @@ void bk_memx_destroy(bk_s B, struct bk_memx *bm, bk_flags flags)
  *
  *	@param B BAKA Thread/global state
  *	@param bm Buffer management handle
- *	@param count Number of new elements to obtain or location of old element to return
+ *	@param count Number of new elements to obtain (GETNEW) or location of old element to return (!GETNEW)
  *	@param curused Copy-out the number of elements currently in use
  *	@param flags BK_MEMX_GETNEW will request a new allocation; otherwise will request a prior allocation
  *	@return <i>NULL</i> on call failure, allocation failure
- *	@return <br><i>new allocation</i> pointer to first of new allocation (array layout)
- *	@return <br><i>old allocation</i> pointer to a particular prior allocation (array layout).
+ *	@return <br><i>new allocation</i> (GETNEW) pointer to first of new allocation (array layout)
+ *	@return <br><i>old allocation</i> (!GETNEW) pointer to the requested location of a particular prior allocation (array layout).
  *		Note that you can obtain a pointer to one past the end of the array.  Avoid
  *		reading or writing to this location.  This can be useful in certain circumstances.
  */
 void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   void *ret = NULL;
+  void *tmp;
 
   if (curused && bm) *curused = bm->bm_curalloc;
 
   if (!bm || (BK_FLAG_ISSET(flags, BK_MEMX_GETNEW) && (count < 1)) ||
-      (BK_FLAG_ISCLEAR(flags, BK_MEMX_GETNEW) && (count >= bm->bm_curused)))
+      (BK_FLAG_ISCLEAR(flags, BK_MEMX_GETNEW) && (count > bm->bm_curused)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_RETURN(B, NULL);
@@ -154,20 +156,22 @@ void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused, bk_fl
   {						/* Want "new" allocation */
     if (bm->bm_curused + count > bm->bm_curalloc)
     {						/* Need to extend array */
-      u_int incr = MAX(bm->bm_incr,count-(bm->bm_curalloc-bm->bm_curused));
+      // XXX - add code to allocate in integral bm_incr size chunks?
+      u_int incr = MAX(bm->bm_incr, count - (bm->bm_curalloc - bm->bm_curused));
 
-      if (!(bm->bm_array = realloc(bm->bm_array, (bm->bm_curalloc + incr) * bm->bm_unitsize)))
+      if (!(tmp = realloc(bm->bm_array, (bm->bm_curalloc + incr) * bm->bm_unitsize)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not extend array: %s\n",strerror(errno));
-	/* XXX - should we destroy our bm? */
+	// don't destroy our bm -- data still valid
 	BK_RETURN(B, NULL);
       }
+      bm->bm_array = tmp;
     }
 
     ret = ((char *)bm->bm_array) + bm->bm_curused * bm->bm_unitsize;
     bm->bm_curused += count;
 
-    if (curused && bm) *curused = bm->bm_curalloc;
+    if (curused) *curused = bm->bm_curalloc;
   }
   else
   {						/* Want existing record */
@@ -191,7 +195,7 @@ void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused, bk_fl
  */
 int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
   if (!bm)
   {
@@ -204,3 +208,7 @@ int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags)
 
   BK_RETURN(B, 0);
 }
+
+
+
+

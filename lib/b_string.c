@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.14 2001/11/18 20:54:50 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.15 2001/11/29 02:49:43 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -29,24 +29,25 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * String utilites
  */
 
-#define TOKENIZE_FIRST		8		/**< How many we will start with */
-#define TOKENIZE_INCR		4		/**< How many we will expand if we need more */
-#define TOKENIZE_STR_FIRST	16		/**< How many we will start with */
-#define TOKENIZE_STR_INCR	16		/**< How many we will expand */
 
-#define S_BASE			0x40		/**< Base state */
-#define S_SQUOTE		0x1		/**< In single quote */
-#define S_DQUOTE		0x2		/**< In double quote */
-#define S_VARIABLE		0x4		/**< In variable */
-#define S_BSLASH		0x8		/**< Backslash found */
-#define S_BSLASH_OCT		0x10		/**< Backslash octal */
-#define S_SPLIT			0x20		/**< In split character */
-#define INSTATE(x)		(state & (x))	/**< Are we in this state */
-#define GOSTATE(x)		state = x	/**< Become this state  */
-#define ADDSTATE(x)		state |= x	/**< Superstate (typically variable in dquote) */
-#define SUBSTATE(x)		state &= ~(x)	/**< Get rid of superstate */
+#define TOKENIZE_FIRST		8		///< How many we will start with 
+#define TOKENIZE_INCR		4		///< How many we will expand if we need more 
+#define TOKENIZE_STR_FIRST	16		///< How many we will start with 
+#define TOKENIZE_STR_INCR	16		///< How many we will expand 
 
-#define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	/**< Check to see if the limit on numbers of tokens has been reached or not.  Yes, limit>1 and limit-- will always have the same truth value */
+#define S_BASE			0x40		///< Base state 
+#define S_SQUOTE		0x1		///< In single quote 
+#define S_DQUOTE		0x2		///< In double quote 
+#define S_VARIABLE		0x4		///< In variable 
+#define S_BSLASH		0x8		///< Backslash found 
+#define S_BSLASH_OCT		0x10		///< Backslash octal 
+#define S_SPLIT			0x20		///< In split character 
+#define INSTATE(x)		(state & (x))	///< Are we in this state 
+#define GOSTATE(x)		state = x	///< Become this state  
+#define ADDSTATE(x)		state |= x	///< Superstate (typically variable in dquote) 
+#define SUBSTATE(x)		state &= ~(x)	///< Get rid of superstate
+
+#define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	///< Check to see if the limit on numbers of tokens has been reached or not.  Yes, limit>1 and limit-- will always have the same truth value
 
 
 static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sign, bk_flags flags);
@@ -78,7 +79,7 @@ bk_strhash(char *a, bk_flags flags)
   for (h = 0; *a; a++)
     h = h * M + *a;
 
-  if (flags & BK_STRHASH_NOMODULUS)
+  if (BK_FLAG_ISSET(flags, BK_STRHASH_NOMODULUS))
     return(h);
   else
     return(h % P);
@@ -94,7 +95,8 @@ bk_strhash(char *a, bk_flags flags)
  * size = (n/16) * (prefix+61) + strlen(intro) + 10
  *
  * Example output line:
- * AAA 1234 5678 1234 5678 1234 5678 1234 5678 0123456789abcdef
+ * PREFIXAddress  Hex dump of data                     ASCII interpretation
+ * PREFIXAddr 1234 5678 1234 5678 1234 5678 1234 5678  qwertu...&*ptueo
  *
  *	@param B BAKA Thread/global state
  *	@param intro Description of buffer being printed
@@ -107,12 +109,12 @@ bk_strhash(char *a, bk_flags flags)
 char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  const u_int bytesperline = 16;			/* Must be multiple of bytes per group */
-  const u_int hexaddresscols = 4;
-  const u_int addressbitspercol = 16;
-  const u_int bytespergroup = 2;
-  const u_int colsperbyte = 2;
-  const u_int colsperline = hexaddresscols + 1 + (bytesperline / bytespergroup) * (colsperbyte + 1 + 1 + bytesperline + 1);
+  const u_int bytesperline = 16;		// Must be multiple of bytes per group--the maximum number of source bytes displayed on one output line
+  const u_int hexaddresscols = 4;		// The number of columns outputting the address takes
+  const u_int addressbitspercol = 16;		// The base of the address
+  const u_int bytespergroup = 2;		// The number of source bytes outputted per space seperated group
+  const u_int colsperbyte = 2;			// The number of columns of output it takes to output one bytes of source data
+  const u_int colsperline = hexaddresscols + 1 + (bytesperline / bytespergroup) * (colsperbyte * bytespergroup + 1) + 1 + bytesperline + 1; // Number of output columns for a single line
   u_int64_t maxaddress;
   u_int32_t nextaddr, addr, addrgrp, nextgrp, addrbyte, len, curlen;
   char *ret;
@@ -124,7 +126,9 @@ char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_fla
     BK_RETURN(B,NULL);
   }
 
+  // addressbitspercol ^ hexaddresscols 
   for(len=0,maxaddress=1;len<hexaddresscols;len++) maxaddress *= addressbitspercol;
+
   if (buf->len >= maxaddress)
   {
     bk_error_printf(B, BK_ERR_ERR, "Buffer size too large to print\n");
@@ -165,7 +169,7 @@ char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_fla
 	if (addrbyte >= buf->len)
 	  snprintf(cur,curlen,"  ");
 	else
-	  snprintf(cur,curlen,"%02x",((char *)buf->ptr)[addrbyte]);
+	  snprintf(cur,curlen,"%02x",((u_char *)buf->ptr)[addrbyte]);
 	curlen -= strlen(cur); cur += strlen(cur);
       }
       strcpy(cur," "); curlen -= strlen(cur); cur += strlen(cur);
@@ -209,7 +213,7 @@ char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_fla
  */
 int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
   u_int64_t tmp;
   int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
@@ -243,7 +247,7 @@ int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags)
  */
 int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
   u_int64_t tmp;
   int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
@@ -277,7 +281,7 @@ int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags)
  */
 int bk_string_atoull(bk_s B, char *string, u_int64_t *value, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
   u_int64_t tmp;
   int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
@@ -310,7 +314,7 @@ int bk_string_atoull(bk_s B, char *string, u_int64_t *value, bk_flags flags)
  */
 int bk_string_atoill(bk_s B, char *string, int64_t *value, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
   u_int64_t tmp;
   int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
@@ -329,7 +333,9 @@ int bk_string_atoill(bk_s B, char *string, int64_t *value, bk_flags flags)
 
 
 /**
- * Convert ascii string to unsigned int64 with sign extension
+ * Convert ascii string to unsigned int64 with sign extension.  Uses
+ * the normal convention of leading "0x" to detect hexadecimal numbers
+ * and "0" to detect octal numbers.
  *
  *	@param B BAKA Thread/global state
  *	@param string String to convert
@@ -343,20 +349,19 @@ int bk_string_atoill(bk_s B, char *string, int64_t *value, bk_flags flags)
  */
 static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sign, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   signed char decode[256];
   int base;
   u_int tmp;
   int neg = 1;
 
-  if (!string || !value)
+  if (!string || !value || !sign)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_RETURN(B, -1);
   }
 
-  for(tmp=0;tmp<sizeof(decode);tmp++)
-    decode[tmp] = -1;
+  memset(decode, -1, sizeof(decode));
   for(tmp='0';tmp<='9';tmp++)
     decode[tmp] = tmp - '0';
   for(tmp='A';tmp<='Z';tmp++)
@@ -367,6 +372,14 @@ static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sig
   /* Skip over leadings space */
   for(;*string && isspace(*string);string++)
     ; // Void
+
+  if (!*string)
+  {
+    *sign = 1;
+    *value = 0;
+
+    BK_RETURN(B,1);
+  }
 
   /* Sign determination */
   switch(*string)
@@ -383,7 +396,6 @@ static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sig
     switch(*(string+1))
     {
     case 'x':
-      base = 16; string += 2; break;
     case 'X':
       base = 16; string += 2; break;
     case '0':
@@ -414,8 +426,9 @@ static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sig
     *value *= base;
     *value += x;
   }
+
   *sign = neg;
-  BK_RETURN(B, *string);
+  BK_RETURN(B, *((u_char *)string));
 }
 
 
@@ -428,7 +441,7 @@ static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sig
  *
  *	@param B BAKA Thread/global state
  *	@param src Source string to tokenize
- *	@param limit Maximum number of tokens to generate--last token contains "rest" of string
+ *	@param limit Maximum number of tokens to generate--last token contains "rest" of string.  Zero for unlimited.
  *	@param spliton The string containing the character(s) which seperate tokens
  *	@param variabledb Future expansion--variable substitution.  Set to NULL for now.
  *	@param flags BK_STRING_TOKENIZE_SKIPLEADING, if set will cause
@@ -464,14 +477,18 @@ static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sig
  *		tokenization seperation (backslashes are still magic
  *		and may quote a double quote); otherwise, double
  *		quotes are not treated specially.  At some point in
- *		the future, BK_STRING_TOKENIZE_VARIABLE may exist which may
- *		cause $variable text substitution.
+ *		the future, BK_STRING_TOKENIZE_VARIABLE may exist
+ *		which may cause $variable text substitution. There are
+ *		some convenience flags which group some of these
+ *		together. See @a libbk.h for details. You should call
+ *		@a bk_string_tokenize_destroy to free up the generated
+ *		array.
  *	@return <i>NULL</i> on call failure, allocation failure, other failure
  *	@return <br><i>null terminated array of token strings</i> on success.
  */
 char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, void *variabledb, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char **ret;
   char *curloc = src;
   int tmp;
@@ -823,7 +840,7 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
  */
 void bk_string_tokenize_destroy(bk_s B, char **tokenized)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char **cur;
 
   if (!tokenized)
@@ -854,7 +871,7 @@ void bk_string_tokenize_destroy(bk_s B, char **tokenized)
  */
 char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
   if (!string)
   {
@@ -881,13 +898,13 @@ char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags)
  * 	@param B BAKA Thread/global state
  *	@param src Source string to convert
  *	@param needquote Characters which need backslash qutoing (double quote if NULL)
- *	@param flags BK_STRING_QUOTE_NULLOK will convert NULL @a src into BK_NULLSTR.
+ *	@param flags BK_STRING_QUOTE_NULLOK will convert NULL @a src into BK_NULLSTR.  BK_STRING_QUOTE_NONPRINT will quote non-printable characters.
  *	@return <i>NULL</i> on call failure, allocation failure, other failure
  *	@return <br><i>quoted src</i> on success (you must free)
  */
 char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *ret = NULL;
   struct bk_memx *outputx;
   char scratch[16];
@@ -973,7 +990,7 @@ char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags)
  */
 char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *ret;
   char scratch[16];
 
@@ -1003,7 +1020,7 @@ char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags)
  */
 int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
   if (!dst || !src)
   {
@@ -1036,21 +1053,22 @@ int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags)
 ssize_t /* this is not an error. See description */
 bk_strnlen(bk_s B, char *s, ssize_t max)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   ssize_t c=0;
+
   if (!s)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
   
-  for(c=0; *s && c<max; s++,c++)
+  for(c=0; *s && c < max; s++,c++)
     ; // Void
 
-  if (c==max && *s)
-    BK_RETURN(B,-1);
+  if (c == max && *s)
+    BK_RETURN(B, -1);
 
-  BK_RETURN(B,c);
+  BK_RETURN(B, c);
 }
 
 
@@ -1127,7 +1145,7 @@ static unsigned char index_64[256] = {
  */
 char *bk_encode_base64(bk_s B, bk_vptr *src, char *eolseq)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *str;					/* string to encode */
   ssize_t len;					/* length of the string */
   char *eol;					/* the end-of-line sequence to use */
@@ -1233,7 +1251,7 @@ char *bk_encode_base64(bk_s B, bk_vptr *src, char *eolseq)
  */
 bk_vptr *bk_decode_base64(bk_s B, const char *str)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   ssize_t len;
   const char *end;
   char *r;
