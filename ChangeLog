@@ -1,3 +1,7 @@
+2003-05-13  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_strcode.c (bk_string_str2xml): #963: grow destination correctly
+
 2003-05-12  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_bnbio.c: Specify thread state (though needs more work to be practical)

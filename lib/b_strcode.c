@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.11 2003/05/02 03:29:59 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.12 2003/05/13 04:33:51 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -321,11 +321,11 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
 // @}
 
 
-
-#define CHUNK_LEN(cur_len, chunk_len) ((((cur_len) / (chunk_len)) + 1) * (chunk_len))
 #define XML_LT_STR		"&lt;"
 #define XML_GT_STR		"&gt;"
 #define XML_AMP_STR		"&amp;"
+
+
 
 /**
  * Convert a string to a "valid" xml string. The function allocates memory
@@ -350,23 +350,31 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *xml = NULL;
   char *p;
-  int len, l;
+  enum { GROW = 8 };				// size of largest addition
+  int chunk, len, left, l;
   char c;
   char *tmp;
 
-  /* Each source character can consume up to 3 characters of destination
-   * space.  We can either assume every character will take up 3 bytes of
-   * the destination space, or make an extra pass through the source to
-   * calculate the exact amount of space needed.  I choose to just assume
-   * the worst case.
+  /*
+   * In the worst case, a source string that is numerically entity-encoded
+   * requires six times as much space ('\377' -> "&#xFF;") but this is very
+   * rare.  Instead, we estimate the size as source strlen + chunk, where
+   * chunk is computed as max(strlen/8, 128), and grow the array by chunk
+   * whenever there are less than 8 bytes left (that's just slightly more
+   * than we might add to the string at a time with an entity like &#xFF;).
+   * See ticket #963 for the details of previous bugs.
    */
-  len = CHUNK_LEN(3*strlen(str), 1024);
+
+  len = strlen(str);
+  chunk = MAX(len / 8, 128);
+  len += chunk;
+  left = len;
+
   if (!(xml = malloc(len)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate xml string: %s\n", strerror(errno));
     goto error;
   }
-
 
   p = xml;
   while((c = *str))
@@ -385,11 +393,11 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
 	(BK_FLAG_ISSET(flags, BK_STRING_STR2XML_FLAG_ENCODE_WHITESPACE) &&
 	 isspace(c)))
     {
-      char scratch[8];
+      char scratch[GROW];
       snprintf(scratch, sizeof(scratch), "&#x%02x;", (unsigned char) c);
       l = strlen(scratch);
       memcpy(p, scratch, l);
-      len -= l;
+      left -= l;
       p += l;
     }
     else
@@ -399,35 +407,36 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
       case '<':
 	l = sizeof(XML_LT_STR) - 1;
 	memcpy(p, XML_LT_STR, l);
-	len -= l;
+	left -= l;
 	p += l;
 	break;
 
       case '>':
 	l = sizeof(XML_GT_STR) - 1;
 	memcpy(p, XML_GT_STR, l);
-	len -= l;
+	left -= l;
 	p += l;
 	break;
 
       case '&':
 	l = sizeof(XML_AMP_STR) - 1;
 	memcpy(p, XML_AMP_STR, l);
-	len -= l;
+	left -= l;
 	p += l;
 	break;
 
       default:
 	*p = c;
 	p++;
-	len--;
+	left--;
 	break;
       }
     }
 
-    if (len < 100)
+    if (left < GROW)
     {
-      len = CHUNK_LEN(len, 1024);
+      len += chunk;
+      left += chunk;
       if (!(tmp = realloc(xml, len)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not realloc xml string: %s\n", strerror(errno));

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.13 2003/04/13 00:24:40 seth Exp $";
+static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.14 2003/05/13 04:33:51 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,8 +19,10 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 
 
-
 #define MAXLINE 1024
+
+// not declared by default on BSD?!?
+extern char *environ[];				
 
 
 
@@ -58,6 +60,7 @@ char *prompts[] =
   "String to signed 64 bit integer conversion.  Please enter number:  ",
   "String hash.  Please enter string to hash:  ",
   "String tokenization.  Please enter arguments followed by the string to tokenize.\n  <limit>#<spliton>#<flagbits>#<string to tokenize>\n  0x01 - Multisplit (foo::bar are two tokens, not three)\n  0x02 - Singlequote quoting\n  0x04 - Doublequote quoting\n  0x08 - Variable expansion\n  0x10 - Backslash quoting of next character\n  0x20 - Backslash character interpolation\\n\n  0x40 - Backslash octal number ascii interpolation\010\n\n",
+  "String XML encoding.  Please enter string to encode:  ",
   NULL,
 };
 
@@ -241,6 +244,11 @@ void progrun(bk_s B, struct program_config *pconfig)
 	  }
 	  break;
 	}
+      case 6:
+	printf("Allow non-print: \"%s\"\n", bk_string_str2xml(B, line, BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT));
+	printf("Default XML: \"%s\"\n", bk_string_str2xml(B, line, 0));
+	printf("Encode whitespace: \"%s\"\n", bk_string_str2xml(B, line, BK_STRING_STR2XML_FLAG_ENCODE_WHITESPACE));
+	break;
       default:
 	state++;
 	break;
