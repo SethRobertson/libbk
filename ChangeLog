@@ -1,3 +1,10 @@
+2002-06-26  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_netinfo.c (bk_netinfo_from_socket): ERR->WARN for peer sockname
+
+	* lib/b_addrgroup.c (tcp_connect_activity): don't gripe at shutdown
+	(tcp_listen_activity): don't gripe at shutdown
+
 2002-06-22  Seth Robertson  <seth@yeah.baka.org>
 
 	* lib/b_addrgroup.c (tcp_connect_start): Allow zero timeout to

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.25 2002/06/22 22:36:42 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.26 2002/06/26 05:18:10 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1203,7 +1203,8 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
   
   if (BK_FLAG_ISSET(gottype, BK_RUN_DESTROY))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Our run environment has been destroyed\n");
+    // user-initiated process shutdown; not an error at all
+    bk_error_printf(B, BK_ERR_NOTICE, "Our run environment has been destroyed\n");
     goto error;
   }
 
@@ -1302,7 +1303,11 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
   BK_VRETURN(B);
 
  error:
-  net_init_abort(B, as);			// <WARNING>We can probably abort since this should be running off the bk_run loop</WARNING>
+  /*
+   * <WARNING>We can probably abort since this should be running off the bk_run
+   * loop</WARNING>
+   */
+  net_init_abort(B, as);
   BK_VRETURN(B);
 }
 
@@ -1479,7 +1484,8 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
   
   if (BK_FLAG_ISSET(gottype, BK_RUN_DESTROY))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Our run environment has been destroyed\n");
+    // user-initiated process shutdown; not an error at all
+    bk_error_printf(B, BK_ERR_NOTICE, "Our run environment has been destroyed\n");
     goto error;
   }
 
@@ -1514,7 +1520,11 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
   BK_VRETURN(B);
 
  error:
-  net_init_abort(B, as);			// <WARNING>We can probably abort since this should be running off the bk_run loop</WARNING>
+  /*
+   * <WARNING>We can probably abort since this should be running off the bk_run
+   * loop</WARNING>
+   */
+  net_init_abort(B, as);
   BK_VRETURN(B);
 }
 
