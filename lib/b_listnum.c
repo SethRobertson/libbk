@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_listnum.c,v 1.1 2002/03/19 05:29:31 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_listnum.c,v 1.2 2002/03/21 05:12:03 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -148,8 +148,8 @@ struct bk_listnum_head *bk_listnum_get(bk_s B, struct bk_listnum_main *mainl, u_
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate new list for %d: %s\n", number, strerror(errno));
     BK_RETURN(B, NULL);
   }
-  head->blh_first = &head;
-  head->blh_last = &head;
+  head->blh_first = head;
+  head->blh_last = head;
   head->blh_num = number;
 
   if (listnum_insert(mainl->blm_list, head) != DICT_OK)
