@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.24 2001/11/27 00:58:41 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.25 2001/12/06 00:17:47 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -89,25 +89,25 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
 
   BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
 
-  if (!(BK_GENERAL_DEBUG(B) = bk_debug_init(B, 0)))
+  if (!(B->bt_general->bg_debug = bk_debug_init(B, 0)))
     goto error;
 
-  if (!(BK_GENERAL_ERROR(B) = bk_error_init(B, error_queue_length, NULL, BK_ERR_NONE, 0)))
+  if (!(B->bt_general->bg_error = bk_error_init(B, error_queue_length, NULL, BK_ERR_NONE, 0)))
     goto error;
 
-  if (!(BK_GENERAL_DESTROY(B) = bk_funlist_init(B, 0)))
+  if (!(B->bt_general->bg_destroy = bk_funlist_init(B, 0)))
     goto error;
 
-  if (!(BK_GENERAL_REINIT(B) = bk_funlist_init(B,0)))
+  if (!(B->bt_general->bg_reinit = bk_funlist_init(B,0)))
     goto error;
 
   // Config files should not be required, generally
-  BK_GENERAL_CONFIG(B) = bk_config_init(B, configfile, bcup, 0);
+  B->bt_general->bg_config = bk_config_init(B, configfile, bcup, 0);
 
-  if (!(BK_GENERAL_PROCTITLE(B) = bk_general_proctitle_init(B, argc, argv, envp, &program, 0)))
+  if (!(B->bt_general->bg_proctitle = bk_general_proctitle_init(B, argc, argv, envp, &program, 0)))
     goto error;
 
-  BK_GENERAL_PROGRAM(B) = program;
+  B->bt_general->bg_program = program;
 
 #if !defined(_WIN32) || defined(__CYGWIN32__)
   if (log_facility && BK_GENERAL_PROGRAM(B))

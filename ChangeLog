@@ -1,3 +1,9 @@
+2001-12-05  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_memx.c (bk_memx_get): Return current used, not current allocated
+
+	* lib/b_general.c (bk_general_init): Insight does some really stupid things.
+
 2001-12-05  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_config.c: Make sure that bc is checked after SET_CONFIG

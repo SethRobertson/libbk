@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.15 2001/11/29 02:49:43 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.16 2001/12/06 00:17:47 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -814,6 +814,8 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
     bk_error_printf(B, BK_ERR_ERR, "Could not find array for return?!?\n");
     goto error;
   }
+  bk_memx_destroy(B, splitx, BK_MEMX_PRESERVE_ARRAY);
+  bk_memx_destroy(B, tokenx, 0);
   BK_RETURN(B, ret);
   
  error:
@@ -1062,8 +1064,8 @@ bk_strnlen(bk_s B, char *s, ssize_t max)
     BK_RETURN(B, -1);
   }
   
-  for(c=0; *s && c < max; s++,c++)
-    ; // Void
+  for(c=0; *s && c < max; c++)
+    s++; // Void
 
   if (c == max && *s)
     BK_RETURN(B, -1);

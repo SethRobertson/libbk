@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.28 2001/12/04 19:51:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.29 2001/12/06 00:17:47 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -879,7 +879,7 @@ void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
     if (ioh->ioh_fdin >= 0)
       close(ioh->ioh_fdin);
 
-    if (ioh->ioh_fdout >= 0)
+    if (ioh->ioh_fdout >= 0 && ioh->ioh_fdout != ioh->ioh_fdin)
       close(ioh->ioh_fdout);
   }
   else
