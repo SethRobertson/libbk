@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.30 2003/01/23 21:47:50 dupuy Exp $
+ * $Id: libbk_include.h,v 1.31 2003/04/16 16:26:57 dupuy Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -16,13 +16,7 @@
 #ifndef _libbk_include_h_
 #define _libbk_include_h_
 
-
-// <TODO bugid="1000">Need autoconf for threading</TODO>
-#ifdef __linux__
-#define _XOPEN_SOURCE				// Autoconf - for linux only
-#endif
-#define _REENTRANT				// Probably autoconf this
-
+#define __STDC_VERSION__ 199901L		// turn on ISO C99 extensions
 
 #define _GNU_SOURCE				// turn on all GNU extensions
 
@@ -166,8 +160,9 @@
 
 #endif /* REALLY NEEDED */
 
-// <TODO>This should probably be autoconf'd</TODO>
+#ifdef BK_USING_PTHREADS
 #include <pthread.h>
+#endif
 
 #include "fsma.h"
 #include "dict.h"
