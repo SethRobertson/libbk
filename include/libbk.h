@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.145 2002/05/14 21:32:21 seth Exp $
+ * $Id: libbk.h,v 1.146 2002/05/15 02:21:32 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1247,6 +1247,7 @@ extern int bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence);
 extern bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_flags, bk_flags *out_flagsp);
 // In flags
 #define		BK_IOH_COALESCE_FLAG_MUST_COPY		0x1 ///< Coalesce code *must* copy.
+#define		BK_IOH_COALESCE_FLAG_TRAILING_NULL	0x2 ///< Ensure trailing null (implies must-copy)
 // Out flags
 #define 	BK_IOH_COALESCE_OUT_FLAG_NO_COPY	0x1 ///< Data not copied.
 extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str);

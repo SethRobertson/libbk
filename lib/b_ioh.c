@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.54 2002/05/15 01:01:37 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.55 2002/05/15 02:21:33 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3264,7 +3264,7 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
  *	@param B BAKA global/thread state
  *	@param data NULL terminated array of vectored pointers
  *	@param curvptr Optional remaining data from previous call--user must free
- *	@param flags Fun for the future
+ *	@param flags MUST_COPY and TRAILING_NULL
  *	@return <i>NULL</i> on call failure, allocation failure
  *	@return <br><i>new vptr</i> on success
  */
@@ -3274,6 +3274,7 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
   bk_vptr *new = NULL;
   bk_vptr *cur;
   int cbuf = 0;
+  int nulldata = 0;
   int cdata = 0;
   char *optr;
 
@@ -3298,10 +3299,16 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
     cdata += cur->len;
   }
 
+  if (BK_FLAG_ISSET(in_flags, BK_IOH_COALESCE_FLAG_TRAILING_NULL))
+  {
+    BK_FLAG_SET(in_flags, BK_IOH_COALESCE_FLAG_MUST_COPY);
+    nulldata = 1;
+  }
+
   if (cbuf > 1 || (curvptr && curvptr->ptr && curvptr->len > 0) || 
       BK_FLAG_ISSET(in_flags, BK_IOH_COALESCE_FLAG_MUST_COPY))
   {
-    if (!BK_MALLOC(new) || !BK_MALLOC_LEN(new->ptr, cdata))
+    if (!BK_MALLOC(new) || !BK_MALLOC_LEN(new->ptr, cdata + nulldata))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate data during coalescing of %d bytes: %s\n", cdata, strerror(errno));
       goto error;
@@ -3322,6 +3329,9 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
       // NO FREE of cur->ptr (see above).
     }
     // NO FREE off data (see above).
+
+    if (BK_FLAG_ISSET(in_flags, BK_IOH_COALESCE_FLAG_TRAILING_NULL))
+      ((char *)new->ptr)[cdata] = 0;		// Ensure null termination
   }
   else
   {

@@ -5,6 +5,10 @@
 
 2002-05-14  Seth Robertson  <seth@startide.sysdetect.com>
 
+	* lib/b_ioh.c (bk_ioh_coalesce): BK_IOH_COALESCE_FLAG_TRAILING_NULL
+	ensures coalesces into a valid string, suitlable for certain
+	protocols.
+
 	* lib/b_string.c (bk_mempbrk): strpbrk for vptrs (memory ranges)
 
 2002-05-14  Seth Robertson  <seth@startide.sysdetect.com>
