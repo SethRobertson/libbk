@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.101 2002/01/11 10:06:05 dupuy Exp $
+ * $Id: libbk.h,v 1.102 2002/01/11 17:49:32 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1051,7 +1051,7 @@ extern void bk_iohh_bnbio_destroy(bk_s B, struct bk_iohh_bnbio *bib);
 extern int bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, bk_flags flags);
 extern int bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags flags);
 extern int bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, bk_flags flags);
-extern u_int64_t bk_iohh_bnbio_tell(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
+extern int64_t bk_iohh_bnbio_tell(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 extern void bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 
 

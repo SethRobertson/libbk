@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.25 2002/01/11 10:06:05 dupuy Exp $
+ * $Id: libbk_internal.h,v 1.26 2002/01/11 17:49:32 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -105,7 +105,7 @@ struct bk_polling_io
   struct bk_ioh *	bpi_ioh;		///< Ioh structure.
   u_int			bpi_size;		///< Amount of data I'm buffering.
   u_int			bpi_throttle_cnt;	///< Count the number of people who want to throttle me.
-  u_int64_t		bpi_tell;		///< Where we are in the stream.
+  int64_t		bpi_tell;		///< Where we are in the stream.
 };
 
 

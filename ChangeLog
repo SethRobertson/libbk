@@ -1,10 +1,10 @@
 2002-01-11  Alexander Dupuy  <dupuy@sysdetect.com>
 
-	* include/libbk.h (bk_iohh_bnbio_tell): use u_int64_t, not BSD quad_t
+	* include/libbk.h (bk_iohh_bnbio_tell): use int64_t, not BSD quad_t
 
-	* include/libbk_internal.h (struct bk_polling_io): use u_int64_t
+	* include/libbk_internal.h (struct bk_polling_io): use int64_t
 
-	* lib/b_bnbio.c (bk_iohh_bnbio_tell): return u_int64_t
+	* lib/b_bnbio.c (bk_iohh_bnbio_tell): return int64_t
 
 	* include/libbk_include.h (struct ether_addr): defined if none of the
 	possible include files are present
