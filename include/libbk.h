@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.84 2001/12/12 00:57:34 jtt Exp $
+ * $Id: libbk.h,v 1.85 2001/12/13 17:19:34 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -540,12 +540,12 @@ typedef struct bk_vptr
 /**
  * Pointer with current length and maximum length
  */
-struct bk_alloc_ptr
+typedef struct bk_alloc_ptr
 {
   void *ptr;					///< Data
   u_int32_t cur;				///< Current length
   u_int32_t max;				///< Maximum length
-};
+} bk_alloc_ptr;
 
 
 /**
