@@ -1,5 +1,7 @@
 
-Description
-	- Changelog List of changes in the package
-	- include Files of common interest
-	- lib Main core of the system
+ChangeLog
+	- List of changes in the package
+include
+	- Files of common interest to many source files
+lib
+	- Main core of the system
