@@ -1,3 +1,15 @@
+2001-11-21  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_addrgroup.c (bk_addrgroup_get_server_socket): Get the
+	server socket from the handle.
+	(bk_addrgroup_server_close): Close up the server based referenced
+	by the handle.
+	(as_server_copy): Copy an as from the server as to the connected as.
+	Adjust everybody to send server_handle on callback.
+	(tcp_listen_activity): Make sure you change the state of the *new*
+	as not the old.
+	Convert everybody to store complete state in as.
+
 2001-11-20  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* src/bttcp.c: Converted to use new convenient interface. State

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.66 2001/11/21 01:10:48 seth Exp $
+ * $Id: libbk.h,v 1.67 2001/11/21 17:56:05 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -217,8 +217,10 @@ typedef enum
   BK_ADDRGROUP_STATE_TIMEOUT,			///< Connection timedout.
   BK_ADDRGROUP_STATE_WIRE_ERROR,		///< Connection got an error off the wire.
   BK_ADDRGROUP_STATE_BAD_ADDRESS,		///< Something's wrong with the addresses in use.
-  BK_ADDRGROUP_STATE_ABORT,			///< We've aborted for some reason
-  BK_ADDRGROUP_STATE_NEWCONNECTION,		///< Here's a new connection
+  BK_ADDRGROUP_STATE_ABORT,			///< We've aborted for some reason.
+  BK_ADDRGROUP_STATE_NEWCONNECTION,		///< Here's a new connection.
+  BK_ADDRGROUP_STATE_CONNECTING,		///< We are connecting.
+  BK_ADDRGROUP_STATE_ACCEPTING,			///< We are accepting.
   BK_ADDRGROUP_STATE_READY,			///< Server ready.
   BK_ADDRGROUP_STATE_CLOSING,			///< We're closing.
 } bk_addrgroup_state_t;
@@ -232,16 +234,38 @@ struct bk_run;
 typedef void (*bk_fd_handler_t)(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, struct timeval starttime);
 
 /**
- * @name bk_netassoc structure.
+ * @name bk_addrgroup structure.
  */
 // @{
+/**
+ * Callback when connections complete/abort and server listens
+ * complete/abort. NB: Choosing to store the @a server_handle means you
+ * accept the responsibility of noting if and when it dies. Should
+ * something go wrong with the server to which it refers, you will receive
+ * a BK_ADDRGROUP_STATE_CLOSING for that socket (ie the server socket, not
+ * any connected sockets you might be currently handling). The
+ * server_handle is still valid at this point, but from the moment you
+ * return it is <em>no longer usuable</em> (its underlying memory will be
+ * freed). Do not reuse. Indeed about the only thin you probably want to do
+ * when you get this noticification is to NULL out your stored version of
+ * the handle (and any local cleanup associated with this). Please be aware
+ * too that if you call bk_addrgroup_server_close(), you will still get the
+ * closing notification.
+ *	@param B BAKA thread/global state.
+ *	@param args User args
+ *	@param sock The new socket.
+ *	@param bag The address group pair (if you requested it).
+ *	@param server_handle The handle for referencing the server (accepting connections only). 
+ *	@param state State as described by @a bk_addrgroup_state_t.
+ *
+ */
+typedef void (*bk_bag_callback_t)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_t state);
+
 /**
  * Structure which describes a network "association". This name is slightly
  * bogus owing to the fact that server listens (which aren't tehcnically
  * associations) and unconnected udp use this structure too. 
  */
-typedef void (*bk_bag_callback_t)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_t state);
-
 struct bk_addrgroup
 {
   bk_flags		bag_flags;		///< Everyone needs flags */
@@ -854,5 +878,7 @@ extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils
 extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_t callback, void *args, int backlog);
 void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
 extern int bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securenets, bk_bag_callback_t callback, void *args, bk_flags flags);
+int bk_addrgroup_get_server_socket(bk_s B, void *server_handle);
+int bk_addrgroup_server_close(bk_s B, void *server_handle);
 
 #endif /* _BK_h_ */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.12 2001/11/21 00:01:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.13 2001/11/21 17:56:05 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -60,6 +60,7 @@ struct program_config
 {
   bttcp_role_t		pc_role;		///< What role do I play?
   bk_flags		pc_flags;		///< Everyone needs flags.
+#define BTTCP_FLAG_SHUTTING_DOWN_SERVER	0x1	///< We're shutting down a server
   char *		pc_remoteurl;		///< Remote "url".
   char *		pc_localurl;		///< Local "url".
   struct bk_netinfo *	pc_local;		///< Local side info.
@@ -67,6 +68,7 @@ struct program_config
   struct bk_run	*	pc_run;			///< Run structure.
   int			pc_af;			///< Address family.
   long			pc_timeout;		///< Connection timeout
+  void *		pc_server;		///< Server handle
 };
 
 
@@ -93,7 +95,7 @@ int
 main(int argc, char **argv, char **envp)
 {
   bk_s B = NULL;				/* Baka general structure */
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "SIMPLE");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "bttcp");
   char c;
   int getopterr=0;
   extern char *optarg;
@@ -211,7 +213,7 @@ main(int argc, char **argv, char **envp)
 static int 
 proginit(bk_s B, struct program_config *pc)
 {
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
 
   if (!pc)
   {
@@ -271,7 +273,7 @@ proginit(bk_s B, struct program_config *pc)
 static void 
 progrun(bk_s B, struct program_config *pc)
 {
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
 
   if (!pc)
   {
@@ -308,7 +310,7 @@ progrun(bk_s B, struct program_config *pc)
 static int
 parse_host_specifier(bk_s B, const char *url, char **name, char **port, char **proto)
 {
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
   char *tmp;
   char *p;
   char *tmp_name;
@@ -384,7 +386,7 @@ parse_host_specifier(bk_s B, const char *url, char **name, char **port, char **p
 static void 
 connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_t state)
 {
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
   struct program_config *pc;
   struct bk_ioh *std_ioh=NULL, *net_ioh=NULL;
 
@@ -397,13 +399,29 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   switch (state)
   {
   case BK_ADDRGROUP_STATE_READY:
+    pc->pc_server=server_handle;
     fprintf(stderr,"Ready and waiting\n");
     BK_VRETURN(B);
     break;
   case BK_ADDRGROUP_STATE_NEWCONNECTION:
+    if (pc->pc_server /* && ! serving_conintuously */)
+    {
+      BK_FLAG_SET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
+      bk_addrgroup_server_close(B, pc->pc_server);
+    }
     break;
   case BK_ADDRGROUP_STATE_ABORT:
+    fprintf(stderr,"Software abort\n");
+    break;
   case BK_ADDRGROUP_STATE_CLOSING:
+    if (BK_FLAG_ISSET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER) &&
+	pc->pc_server == server_handle)
+    {
+      pc->pc_server=NULL;			/* Very important */
+      fprintf(stderr,"Clean server close\n");
+      BK_FLAG_CLEAR(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
+      BK_VRETURN(B);
+    }
     fprintf(stderr,"Software shutdown during connection setup\n");
     break;
   case BK_ADDRGROUP_STATE_TIMEOUT:
@@ -416,6 +434,18 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     fprintf(stderr,"Bad address\n");
     break;
   case BK_ADDRGROUP_STATE_NULL:
+    break;
+  case BK_ADDRGROUP_STATE_CONNECTING:
+    fprintf(stderr,"How did we get an connecting state?!\n");
+    exit(1);
+    break;
+  case BK_ADDRGROUP_STATE_ACCEPTING:
+    fprintf(stderr,"How did we get an accepting state?!\n");
+    exit(1);
+    break;
+  default:
+    fprintf(stderr, "Unknown as state: %d\n", state);
+    exit(1);
     break;
   }
 
@@ -470,7 +500,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 static void
 relay_finish(bk_s B, void *args, u_int state)
 {
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
   struct program_config *pc;
 
   if (!(pc=args))
@@ -497,7 +527,7 @@ relay_finish(bk_s B, void *args, u_int state)
 static void
 cleanup(bk_s B, struct program_config *pc)
 {
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
 
   if (!pc)
   {

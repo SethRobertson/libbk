@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.10 2001/11/20 22:20:26 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.11 2001/11/21 17:56:05 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -63,8 +63,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 struct addrgroup_state
 {
   bk_flags		as_flags;		///< Everyone needs flags
-#define ADDRGROUP_STATE_FLAG_CONNECTING	0x1	///< We are connecting.
-#define ADDRGROUP_STATE_FLAG_ACCEPTING	0x2	///< We are accepting.
+  bk_addrgroup_state_t	as_state;		///< Our state.
   int			as_sock;		///< Socket
   struct bk_addrgroup *	as_bag;			///< Addrgroup info
   u_long		as_timeout;		///< Timeout in usecs
@@ -74,6 +73,7 @@ struct addrgroup_state
   struct bk_run *	as_run;			///< run handle.
   int			as_backlog;		///< Listen backlog.
   bk_flags		as_user_flags;		///< Flags passed in from user.
+  struct addrgroup_state *as_server;		///< Server as (gerenally pointing at myself).
 };
 
 
@@ -83,7 +83,6 @@ static struct addrgroup_state *as_create(bk_s B);
 static void as_destroy(bk_s B, struct addrgroup_state *as);
 static int net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remote, struct bk_addrgroup *bag);
 static void net_init_finish(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, struct timeval startime);
-static int addrgroup_apply(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state);
 static void connect_timeout(bk_s B, struct bk_run *run, void *args, struct timeval starttime, bk_flags flags);
 static int do_net_init_af_inet(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_local(bk_s B, struct addrgroup_state *as);
@@ -91,15 +90,16 @@ static int do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as);
-static int tcp_connect_start(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state);
+static int tcp_connect_start(bk_s B, struct addrgroup_state *as);
 static int open_inet_local(bk_s B, struct addrgroup_state *as);
-static void tcp_end(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state);
+static void tcp_end(bk_s B, struct addrgroup_state *as);
 static void tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, struct timeval starttime, bk_flags flags);
 static void tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, struct timeval startime);
 static void net_close(bk_s B, struct addrgroup_state *as);
 static void tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, struct timeval startime);
-static void net_init_end(bk_s B, struct addrgroup_state *as, struct bk_addrgroup *bag, bk_addrgroup_state_t state);
-static void net_init_abort(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state);
+static void net_init_end(bk_s B, struct addrgroup_state *as, struct bk_addrgroup *bag);
+static void net_init_abort(bk_s B, struct addrgroup_state *as);
+static struct addrgroup_state *as_server_copy(bk_s B, struct addrgroup_state *oas , int s);
 
 
 
@@ -199,6 +199,11 @@ as_create(bk_s B)
     goto error;
   }
 
+  /* Point this at myself. It'll be updated later if necessary */
+  as->as_server=as;
+
+  as->as_state=BK_ADDRGROUP_STATE_NULL;
+
   if (!(as->as_bag=bag_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create bk_addrgroup: %s\n", strerror(errno));
@@ -231,7 +236,14 @@ as_destroy(bk_s B, struct addrgroup_state *as)
     BK_VRETURN(B);
   }
 
-  if (as->as_bag)
+  /* Recursion protection */
+  if (as->as_state == BK_ADDRGROUP_STATE_CLOSING)
+  {
+    BK_VRETURN(B);
+  }
+  as->as_state=BK_ADDRGROUP_STATE_CLOSING;
+ 
+ if (as->as_bag)
   {
     bag_destroy(B,as->as_bag);
   }
@@ -239,7 +251,7 @@ as_destroy(bk_s B, struct addrgroup_state *as)
   /* If the callback has not been called already, do so with flag */
   if (as->as_callback)
   {
-    (*(as->as_callback))(B, as->as_args, -1, NULL, NULL, BK_ADDRGROUP_STATE_CLOSING);
+    (*(as->as_callback))(B, as->as_args, -1, NULL, as->as_server, as->as_state);
   }
 
   if (as->as_eventh) bk_run_dequeue(B, as->as_run, as->as_eventh, 0);
@@ -346,7 +358,7 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
   BK_RETURN(B,ret);
 
  error:
-  net_init_abort(B, as, 0);
+  net_init_abort(B, as);
   BK_RETURN(B,-1);
 }
 
@@ -506,10 +518,10 @@ do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as)
     goto error;
   }
 
-  BK_RETURN(B,tcp_connect_start(B, as, BK_ADDRGROUP_STATE_NULL));
+  BK_RETURN(B,tcp_connect_start(B, as));
 
  error:
-  net_init_abort(B, as, 0);
+  net_init_abort(B, as);
   BK_RETURN(B,-1);
 
 }
@@ -526,7 +538,7 @@ do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as)
  *	@return a new socket on success.
  */
 static int
-tcp_connect_start(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state)
+tcp_connect_start(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int s=-1;
@@ -553,7 +565,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state
     if (!(bna=netinfo_addrs_minimum(remote->bni_addrs)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Must have at least one address to which to connect\n");
-      state=BK_ADDRGROUP_STATE_BAD_ADDRESS;
+      as->as_state=BK_ADDRGROUP_STATE_BAD_ADDRESS;
       goto error;
     }
   }
@@ -561,7 +573,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state
   {
     if (!(bna=netinfo_addrs_successor(remote->bni_addrs,remote->bni_addr)))
     {
-      tcp_end(B,as, state);
+      tcp_end(B,as);
       /* 
        * You might be tempted to return as->as_sock here since this
        * function may return or be called from thins which may return
@@ -625,7 +637,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state
   }
 
   /* Just turn this on every time. */
-  BK_FLAG_SET(as->as_flags, ADDRGROUP_STATE_FLAG_CONNECTING);
+  as->as_state=BK_ADDRGROUP_STATE_CONNECTING;
 
   if (connect(as->as_sock, &sa, sizeof(sa))<0 && errno != EINPROGRESS)
   {
@@ -650,7 +662,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state
   BK_RETURN(B,s);
   
  error:
-  net_init_abort(B, as, state);
+  net_init_abort(B, as);
   BK_RETURN(B,-1);
 }
 
@@ -698,7 +710,7 @@ open_inet_local(bk_s B, struct addrgroup_state *as)
   BK_RETURN(B,0);
 
  error:
-  net_init_abort(B, as, 0);
+  net_init_abort(B, as);
   BK_RETURN(B,-1);
 }
 
@@ -714,7 +726,7 @@ open_inet_local(bk_s B, struct addrgroup_state *as)
  *	@return <i>0</i> on success.
  */
 static void
-tcp_end(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state)
+tcp_end(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_addrgroup *bag=NULL;
@@ -725,7 +737,7 @@ tcp_end(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state)
     BK_VRETURN(B);
   }
   
-  if (state == BK_ADDRGROUP_STATE_NEWCONNECTION)
+  if (as->as_state == BK_ADDRGROUP_STATE_NEWCONNECTION)
   {
     if (!(bag=bag_create(B)))
     {
@@ -750,13 +762,13 @@ tcp_end(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state)
     bk_netinfo_set_primary_address(B,bag->bag_remote,NULL);
   }
 
-  net_init_end(B, as, bag, state);
+  net_init_end(B, as, bag);
 
   BK_VRETURN(B);
 
  error:
   if (bag) bk_addrgroup_destroy(B,bag);
-  net_init_abort(B, as, 0);
+  net_init_abort(B, as);
   BK_VRETURN(B);
 }
 
@@ -774,7 +786,7 @@ tcp_end(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state)
  *	@return <i>0</i> on success.
  */
 static void 
-net_init_end(bk_s B, struct addrgroup_state *as, struct bk_addrgroup *bag, bk_addrgroup_state_t state)
+net_init_end(bk_s B, struct addrgroup_state *as, struct bk_addrgroup *bag)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   
@@ -792,27 +804,42 @@ net_init_end(bk_s B, struct addrgroup_state *as, struct bk_addrgroup *bag, bk_ad
 
   if (as->as_callback)
   {
-    (*(as->as_callback))(B, as->as_args, as->as_sock, bag, NULL, state);
+    (*(as->as_callback))(B, as->as_args, as->as_sock, bag, as->as_server, as->as_state);
     as->as_callback=NULL;
 
     /*
      * Run this check *only* if there is a callback which could have
      * taken over the socket
      */
-    if (state == BK_ADDRGROUP_STATE_NEWCONNECTION)
+    if (as->as_state == BK_ADDRGROUP_STATE_NEWCONNECTION)
     {
       /* We are no longer responsible for this socket */
       as->as_sock=-1;
     }
   }
 
-  if (BK_FLAG_ISSET(as->as_flags,ADDRGROUP_STATE_FLAG_CONNECTING) || 
-      state != BK_ADDRGROUP_STATE_NEWCONNECTION)
+  /* Figure out whether you should nuke this as or keep it */
+  switch(as->as_state)
   {
-    /* Null out the callback so we don't call it again */
+  case BK_ADDRGROUP_STATE_NULL:
+  case BK_ADDRGROUP_STATE_TIMEOUT:
+  case BK_ADDRGROUP_STATE_WIRE_ERROR:
+  case BK_ADDRGROUP_STATE_BAD_ADDRESS:
+  case BK_ADDRGROUP_STATE_ABORT:
+  case BK_ADDRGROUP_STATE_NEWCONNECTION:
     as_destroy(B,as);
+    break;
+
+  case BK_ADDRGROUP_STATE_CONNECTING:
+  case BK_ADDRGROUP_STATE_ACCEPTING:
+  case BK_ADDRGROUP_STATE_READY:
+    /* Ok so we're not *keeping* this as, but it's already being nuked */
+  case BK_ADDRGROUP_STATE_CLOSING:
+    break;
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown addrgroup state: %d\n", as->as_state);
+    break;
   }
-    
   BK_VRETURN(B);
 }
 
@@ -827,7 +854,7 @@ net_init_end(bk_s B, struct addrgroup_state *as, struct bk_addrgroup *bag, bk_ad
  *	@return <i>0</i> on success.
  */
 static void 
-net_init_abort(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state)
+net_init_abort(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   
@@ -837,12 +864,31 @@ net_init_abort(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state)
     BK_VRETURN(B);
   }
 
-  if (!state)
+  switch (as->as_state)
   {
-    state=BK_ADDRGROUP_STATE_ABORT;
+  case BK_ADDRGROUP_STATE_NULL:
+  case BK_ADDRGROUP_STATE_NEWCONNECTION:
+  case BK_ADDRGROUP_STATE_ACCEPTING:
+  case BK_ADDRGROUP_STATE_READY:
+    /* Change "good" (and normal states) to bad */
+    as->as_state=BK_ADDRGROUP_STATE_ABORT;
+    break;
+
+
+  case BK_ADDRGROUP_STATE_TIMEOUT:
+  case BK_ADDRGROUP_STATE_WIRE_ERROR:
+  case BK_ADDRGROUP_STATE_BAD_ADDRESS:
+  case BK_ADDRGROUP_STATE_ABORT:
+  case BK_ADDRGROUP_STATE_CONNECTING:
+  case BK_ADDRGROUP_STATE_CLOSING:
+    break;
+    
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown addrgrou_state: %d\n", as->as_state);
+    break;
   }
-  
-  net_init_end(B,as, NULL, state);
+
+  net_init_end(B,as, NULL);
 
   BK_VRETURN(B);
 }
@@ -878,7 +924,8 @@ tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, struct timeval start
   net_close(B, as);
 
   /* Check for more addresses */
-  if (tcp_connect_start(B, as, BK_ADDRGROUP_STATE_TIMEOUT)<0)
+  as->as_state=BK_ADDRGROUP_STATE_TIMEOUT;
+  if (tcp_connect_start(B, as)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to attempt connection to new address\n");
   }
@@ -981,16 +1028,18 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
   {
     bk_error_printf(B, BK_ERR_ERR, "Connect to %s failed: %s\n", bag->bag_remote->bni_pretty, strerror(errno)); 
     net_close(B,as);
-    tcp_connect_start(B,as, BK_ADDRGROUP_STATE_WIRE_ERROR);
+    as->as_state=BK_ADDRGROUP_STATE_WIRE_ERROR;
+    tcp_connect_start(B,as);
     BK_VRETURN(B);
   }
   
-  tcp_end(B, as, BK_ADDRGROUP_STATE_NEWCONNECTION);
+  as->as_state=BK_ADDRGROUP_STATE_NEWCONNECTION;
+  tcp_end(B, as);
 
   BK_VRETURN(B);
 
  error:
-  net_init_abort(B, as, 0);
+  net_init_abort(B, as);
   BK_VRETURN(B);
 }
 
@@ -1021,8 +1070,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
 
   af=bk_netaddr_nat2af(B,bag->bag_type); 
   
-  BK_FLAG_SET(as->as_flags, ADDRGROUP_STATE_FLAG_ACCEPTING);
-
+  
   if ((s=socket(af,SOCK_STREAM, bag->bag_proto))<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
@@ -1049,6 +1097,8 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
     goto error;
   }
   
+  as->as_state=BK_ADDRGROUP_STATE_ACCEPTING;
+
   if (listen(s, as->as_backlog)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "listen failed: %s\n", strerror(errno));
@@ -1089,7 +1139,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
       bk_netinfo_set_primary_address(B,bag->bag_local,NULL);
     }
 
-    (*(as->as_callback))(B, as->as_args, s, bag, NULL /* XXX server handle */, BK_ADDRGROUP_STATE_READY);
+    (*(as->as_callback))(B, as->as_args, s, bag, as->as_server, BK_ADDRGROUP_STATE_READY);
 
     /* Now restore bag to it's previous definition */
     bag=as->as_bag;
@@ -1116,12 +1166,11 @@ static void
 tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, struct timeval startime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct addrgroup_state *as;
+  struct addrgroup_state *as, *nas;
   struct sockaddr sa;
   int len=sizeof(sa);
   int newfd;
   int oldfd;
-  bk_addrgroup_state_t state;
 
   if (!run || !(as=args))
   {
@@ -1132,23 +1181,23 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
   if ((newfd=accept(as->as_sock, &sa, &len))<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "accept failed: %sd\n",strerror(errno));
-    state=BK_ADDRGROUP_STATE_WIRE_ERROR;
+    as->as_state=BK_ADDRGROUP_STATE_WIRE_ERROR;
     goto error;
   }
-  else
-  {
-    state=BK_ADDRGROUP_STATE_NEWCONNECTION;
-  }
 
-  /* XXXX This is horribly thread unsafe */
-  oldfd=as->as_sock;
-  as->as_sock=newfd;
-  tcp_end(B, as, state);
-  as->as_sock=oldfd;
+  if (!(nas=as_server_copy(B,as, newfd)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Couldnot create new addrgroup_state\n");
+    goto error;
+  }
+  
+  nas->as_state=BK_ADDRGROUP_STATE_NEWCONNECTION;
+  
+  tcp_end(B, nas);
   BK_VRETURN(B);
 
  error:
-  net_init_abort(B, as, state);
+  net_init_abort(B, as);
   BK_VRETURN(B);
 }
 
@@ -1315,7 +1364,7 @@ bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securene
     goto error;
   }
 
-  as->as_flags=ADDRGROUP_STATE_FLAG_ACCEPTING;
+  as->as_state=BK_ADDRGROUP_STATE_ACCEPTING;
   as->as_sock=s;
   as->as_timeout=0;
   as->as_callback=callback;
@@ -1329,7 +1378,6 @@ bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securene
     goto error;
   }
   
-  /* Put the socket in the select loop waiting for *write* to come ready */
   if (bk_run_handle(B, as->as_run, s, tcp_listen_activity, as, BK_RUN_WANTREAD, 0)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
@@ -1341,5 +1389,106 @@ bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securene
  error:
   if (as) as_destroy(B,as);
   BK_RETURN(B,-1);
+  
+}
+
+
+
+/**
+ * Retrieve the socket from the server handle
+ *	@param B BAKA thread/global state.
+ *	@param server_handle The handle supplied to the conect callbacks.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>socket</i> on success.
+ */
+int
+bk_addrgroup_get_server_socket(bk_s B, void *server_handle)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct addrgroup_state *as;
+
+  if (!(as=server_handle))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  BK_RETURN(B,as->as_sock);
+}
+
+
+
+
+/**
+ * Shutdown a server referenced by the server handle.
+ *	@param B BAKA thread/global state.
+ *	@param server_handle The handle supplied to the conect callbacks.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_addrgroup_server_close(bk_s B, void *server_handle)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct addrgroup_state *as;
+
+  if (!(as=server_handle))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  as_destroy(B, as);
+  BK_RETURN(B,0);
+}
+
+
+
+
+/**
+ * "Clone" a new connected @a addrgroup_state from the server 
+ *	@param B BAKA thread/global state.
+ *	@param oas Old @a addrgroup_state to copy.
+ *	@param newfd Use this fd instead of the one from @a oas.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a new @a addrgroup_state on success.
+ */
+static struct addrgroup_state *
+as_server_copy(bk_s B, struct addrgroup_state *oas , int s)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct addrgroup_state *as=NULL;
+
+  if (!oas)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B,NULL);
+  }
+
+  if (!(as=as_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate new as: %s\n", strerror(errno));
+    goto error;
+  }
+
+  as->as_flags=oas->as_flags;
+  as->as_sock=s;
+  /* Ignore bag */
+  as->as_timeout=oas->as_timeout;
+  as->as_callback=oas->as_callback;
+  as->as_args=oas->as_args;
+  /* Ignore eventh */
+  as->as_run=oas->as_run;
+  /* Why are we copying this? I don't know. Leave me alone */
+  as->as_backlog=oas->as_backlog; 
+  as->as_user_flags=oas->as_user_flags;
+  /* Actually point the server at the server */
+  as->as_server=oas;
+  
+  BK_RETURN(B,as);
+
+ error:
+  if (as) as_destroy(B,as);
+  BK_RETURN(B,NULL);
   
 }
