@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.19 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.20 2002/08/19 17:33:47 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -500,7 +500,7 @@ bk_servent_destroy(bk_s B, struct servent *s)
  *	@param B BAKA thread/global state.
  *	@param name String to lookup.
  *	@param family Address family to which to restrict queries.
- *	@param bni @a bk_netinfo structure for netutils assistence
+ *	@param bni @a bk_netinfo structure for netutils assistance
  *	@param run @a bk_run structure.
  *	@param callback Function to invoke when answer is arrives.
  *	@param args User args to return to @a callback when invoked.
