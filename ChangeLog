@@ -1,3 +1,9 @@
+2003-06-20  James Tanis  <jtt@austin.sysdetect.com>
+
+	* lib/b_pollio.c (polling_io_ioh_handler): Avoid calling
+	bk_ioh_coalesce() if there's only one buffer handed up -- and
+	seize it as well.
+
 2003-06-20  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_general.c (bk_general_destroy): don't free general data until

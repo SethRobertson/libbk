@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.42 2003/06/20 18:19:25 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.43 2003/06/20 22:33:21 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -489,12 +489,39 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
   case BkIohStatusReadComplete:
   case BkIohStatusIncompleteRead:
     {
-    // Coalesce into one buffer for output
-      bk_flags flags=(bk_ioh_data_seize_permitted(B,ioh,0)?BK_IOH_COALESCE_FLAG_SEIZE_DATA:BK_IOH_COALESCE_FLAG_MUST_COPY);
-      if (!(pid->pid_data  = bk_ioh_coalesce(B, data, NULL, flags, NULL)))
+      /*
+       * NB: We *assume* (safely, we believe) that in the cases of
+       * BkIohStatusReadComplete and BkIohStatusIncompleteRead that data[1]
+       * exists (ie we can reference data[1].ptr without fear of a core
+       * dump). Since we're optimizing here, we thus don't bother checking
+       * for data[0].ptr (which might otherwise seem required for "safe"
+       * programming)
+       */
+      if (!data[1].ptr && IOH_DATA_SEIZE_PERMITTED(ioh))
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
-	goto error;
+	/*
+	 * This checks the most common case where the one buffer has been
+	 * passed up. In this case we "seize" the data (which has been
+	 * copied at the ioh level) and order the ioh level *not* to free
+	 * it (data[0].ptr = NULL). This way we avoid the issue of
+	 * coalescion entirely.
+	 */
+	if (!(BK_MALLOC(pid->pid_data)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate vptr for I/O data: %s\n", strerror(errno));
+	  goto error;
+	}
+	*pid->pid_data = data[0]; 
+	data[0].ptr = NULL;
+      }
+      else
+      {
+	// If, OTOH, we 2 or more data bufs, then we coalesce them with copy.
+	if (!(pid->pid_data  = bk_ioh_coalesce(B, data, NULL, BK_IOH_COALESCE_FLAG_MUST_COPY, NULL)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
+	  goto error;
+	}
       }
     }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.44 2003/06/17 06:07:16 seth Exp $
+ * $Id: libbk_internal.h,v 1.45 2003/06/20 22:33:20 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -108,8 +108,9 @@ extern pthread_mutex_t BkGlobalSignalLock;
 #endif /* BK_USING_PTHREADS */
 
 
-
 /* FRIENDLY FUNCTIONS */
+// This macro is an internal, fast version of bk_ioh_data_seize_permitted().
+#define IOH_DATA_SEIZE_PERMITTED(ioh) (BK_FLAG_ISSET((ioh)->ioh_extflags, BK_IOH_RAW | BK_IOH_VECTORED | BK_IOH_BLOCKED))
 
 
 extern void bk_run_signal_ihandler(int signum);
