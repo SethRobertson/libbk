@@ -1,3 +1,8 @@
+2005-01-18  James Tanis  <jtt@cheviot.sysdetect.com>
+
+	* lib/b_exec.c (bk_pipe_to_process): Flag to allow child process
+	to close stdin/stdout of not needed.
+
 2005-01-10  James Tanis  <jtt@cheviot.sysdetect.com>
 
 	* lib/b_intinfo.c (intinfo_ioctl_map): Properly terminate nvmap.

@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.52 2004/08/27 02:10:15 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.53 2005/01/18 22:41:13 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -483,7 +483,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_polling_io *bpi = args;
   struct polling_io_data *pid = NULL;
-  int (*clc_add)(dict_h dll, dict_obj obj) = dll_append;
+  int (*clc_add)(dict_h dll, dict_obj obj) = dll_append; // Can't use #define here...
 
   if (!bpi || !ioh)
   {
@@ -497,7 +497,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
     goto error;
   }
 
-  bk_debug_printf_and(B, 64, "IOH polling handler: %d\n", status);
+  bk_debug_printf_and(B, 64, "IOH polling handler: %d (in: %d, out %d)\n", status, ioh->ioh_fdin, ioh->ioh_fdout);
   switch (status)
   {
   case BkIohStatusReadComplete:
@@ -539,6 +539,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
       }
     }
 
+    bk_debug_printf_and(B, 2, "Dequeued %d bytes from descriptor %d\n", pid->pid_data[0].len, ioh->ioh_fdin);
     break;
 
   case BkIohStatusIohClosing:
@@ -623,7 +624,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
 #endif /* BK_USING_PTHREADS */
     bpi->bpi_wroutstanding--;
     bpi->bpi_wrbytes -= data->len;
-    bk_debug_printf_and(B, 64, "Dequeued %d bytes for outstanding total of %d\n", data->len, bpi->bpi_wrbytes);
+    bk_debug_printf_and(B, 2, "Dequeued %d bytes for outstanding total of %d\n", data->len, bpi->bpi_wrbytes);
 #ifdef BK_USING_PTHREADS
     bk_debug_printf_and(B, 64, "Broadcasting write timed condition wait\n");
     pthread_cond_broadcast(&bpi->bpi_wrcond);
@@ -641,7 +642,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
     polling_io_flush(B, bpi, 0);
     // Intentional fall through.
   case BkIohStatusIohSeekFailed:
-    clc_add = dll_insert;			// Put seek messages on front.
+    clc_add = dll_insert;			// Put seek messages on front. Can't use #define
     break;
 
     // No default so gcc can catch missing cases.
@@ -852,7 +853,7 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
 
       if (timeout > 0 && !bpi->bpi_rdtimeoutevent)
       {
-	bk_debug_printf_and(B, 1, "Received timeout on bpi %p\n", bpi);
+	bk_debug_printf_and(B, 1, "Received timeout on bpi:%p (fd: %d)\n", bpi, bpi->bpi_ioh->ioh_fdin);
 	timedout++;
       }
     }
