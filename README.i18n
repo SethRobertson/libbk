@@ -30,8 +30,8 @@ the makefile environment and then get them installed in the right
 place.  You might suspect that the make environment would not be
 installation dependent, but it appears that it actually is.
 
-On non-linux systems, we may have to install a -lintl, but perhaps
-this will be an autoconf issue.
+Autoconf will detect if -lintl needs to be added to get i18n gettext functions
+(nearly all non-Linux systems will need this).
 
 **********************************************************************
 How to do all of this, for C programmers:
