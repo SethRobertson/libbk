@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.50 2005/02/05 03:49:50 seth Exp $
+ * $Id: libbk_oscompat.h,v 1.51 2005/02/05 03:51:10 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -18,6 +18,13 @@
 
 #define BUG_LLU_CAST(x)	((long long unsigned)(x))
 #define BUG_LLI_CAST(x)	((long long int)(x))
+
+#ifdef __x86_64
+#define POINTER2INTS(x) ((long)(x))
+#else
+#define POINTER2INTS(x) ((int)(x))
+#endif
+
 
 
 #ifdef __INSURE__
@@ -61,11 +68,11 @@ typedef uint32_t in_addr_t;
 
 #ifndef BK_NO_USER_SHARED_LIBS
 /* USING_LT_DLOPEN is hardcoded true (see #define above)
- * You can therefore ignore all of the following cruft 
- * which only remains in case we encounter a 
+ * You can therefore ignore all of the following cruft
+ * which only remains in case we encounter a
  * ltdl-unsupported system later.
  */
-#ifdef USING_LT_DLOPEN 
+#ifdef USING_LT_DLOPEN
 #define BK_INIT_FUN(mod) \
  void mod ## _init (void)
 
