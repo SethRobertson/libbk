@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.28 2002/09/27 19:37:14 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.29 2002/10/16 04:40:09 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -36,6 +36,10 @@
 #else
 # define BK_FUNCNAME (__FILE__ ":" BK_STRINGIFY(__LINE__))
 # define HAVE__FILE_LINE
+#endif
+
+#ifndef HAVE_IN_ADDR_T
+typedef uint32_t in_addr_t;
 #endif
 
 #if !defined(__GNUC__) || defined(__INSURE__)	// should this be autoconf'ed?
