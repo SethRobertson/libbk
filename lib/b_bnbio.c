@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.20 2003/04/13 00:24:39 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.21 2003/05/13 01:05:03 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -48,6 +48,8 @@ static int bnbio_set_timeout(bk_s B, struct bk_iohh_bnbio *bib, time_t msecs, bk
 /**
  * Create a bnbio structure.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param ioh The @a bk_ioh I need to use.
  *	@param flags. Flags I need to set in the structure.
@@ -95,6 +97,9 @@ bk_iohh_bnbio_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 /**
  * Destroy a @a bk_iohh_bnbio structure.
  *
+ * THREADS: THREAD-REENTRANT (different bib)
+ * THREADS: REENTRANT (same bib)
+ *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio structure to destroy.
  *	@return <i>-1</i> on failure.<br>
@@ -123,6 +128,8 @@ bk_iohh_bnbio_destroy(bk_s B, struct bk_iohh_bnbio *bib)
 
 /**
  * Read from a bk_iohh_bnbio configuration.
+ *
+ * THREADS: REENTRANT (broken, really, in spin loop)
  *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio structure to use.
@@ -239,6 +246,9 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t ti
  * willing to keep calling bk_polling_io_do_poll until the output queue is
  * drained or we get cancellation/ioh-error-state.
  *
+ * THREADS: MT-SAFE (assuming different bib)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>-1</i> on failure (client must free data).<br>
  *	@return <i>0</i> on success.<br>
@@ -307,6 +317,9 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
 /**
  * Seek to a position in a blocking way.
  *
+ * THREADS: MT-SAFE (assuming different bib)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to use.
  *	@param ioh The @a bk_ioh to use.
@@ -369,6 +382,8 @@ bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, 
 /**
  * Return the current position in the data stream (as far as the blocking client knows).
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio structure to tell on.
  *	@param flags Flags for future use.
@@ -394,6 +409,9 @@ bk_iohh_bnbio_tell(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
 
 /**
  * Close up a blocking configuration
+ *
+ * THREADS: MT-SAFE (assuming different bib)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio structure to close.
@@ -454,6 +472,9 @@ bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
 /**
  * Set a read timeout for a bnbio (0 means clear timeout).
  *
+ * THREADS: MT-SAFE (assuming different bib)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to use.
  *	@param msecs The timeout in milliseconds.
@@ -497,6 +518,9 @@ bnbio_set_timeout(bk_s B, struct bk_iohh_bnbio *bib, time_t msecs, bk_flags flag
 /**
  * Timeout a bnbio read.
  *
+ * THREADS: MT-SAFE (assuming different bib)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param run The bk_run struct.
  *	@param opaque Data the caller asked to be returned.
@@ -526,8 +550,11 @@ bnbio_timeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *st
 /**
  * Is this bnbio struct in a timed out state.
  *
+ * THREADS: MT-SAFE (assuming different bib)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
- *	@param bnbio The bk_iohh_bnbio to check
+ *	@param bib The bk_iohh_bnbio to check
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success and not in timeout.
  *	@return <i>0</i> on success and in timeout.
@@ -550,6 +577,9 @@ bk_iohh_bnbio_is_timedout(bk_s B, struct bk_iohh_bnbio *bib)
 
 /**
  * Register a @a bnbio for cancellation
+ *
+ * THREADS: MT-SAFE (assuming different bib)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to use.
@@ -575,6 +605,9 @@ bk_iohh_bnbio_cancel_register(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
 /**
  * Unregister a @a bnbio for cancellation
  *
+ * THREADS: MT-SAFE (assuming different bib)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to unregister.
  *	@param flags Flags passed through
@@ -598,6 +631,9 @@ bk_iohh_bnbio_cancel_unregister(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flag
 
 /**
  * Check if a bnbio has been registered for cancellation.
+ *
+ * THREADS: MT-SAFE (assuming different bib)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to use.
@@ -625,6 +661,9 @@ bk_iohh_bnbio_is_canceled(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
 /**
  * Cancel a bib
  *
+ * THREADS: MT-SAFE (assuming different bib)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to cancel
  *	@param flags Flags for future use.
@@ -648,6 +687,9 @@ bk_iohh_bnbio_cancel(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
 
 /**
  * Get error message from a bib
+ *
+ * THREADS: MT-SAFE (assuming different bib)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to cancel

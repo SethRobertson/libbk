@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.17 2003/05/09 19:02:18 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.18 2003/05/13 01:05:03 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -80,6 +80,8 @@ static int polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags );
 /**
  * Create the context for on demand operation. <em>NB</em> We take control
  * of the @a ioh, just like in bk_relay().
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The BAKA ioh structure to use.
