@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.25 2003/11/22 06:07:53 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.26 2003/12/06 00:14:10 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -416,6 +416,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, c
   }
 
   // <TODO>Return ghbf_info to the user somehow here point once there is a start_service_preservice_cancel--sss is not helpful.</TODO>
+  // <TODO> But first translate the above TODO into English </TODO>
 
   if (hoststr) free(hoststr);
   if (servstr) free(servstr);
