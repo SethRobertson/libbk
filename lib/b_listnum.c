@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_listnum.c,v 1.2 2002/03/21 05:12:03 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_listnum.c,v 1.3 2002/03/26 23:23:23 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -160,10 +160,12 @@ struct bk_listnum_head *bk_listnum_get(bk_s B, struct bk_listnum_main *mainl, u_
 
   BK_RETURN(B, head);
 
+#if 0						// when goto error; used
  error:
   if (head)
     free(head);
   BK_RETURN(B, NULL);
+#endif
 }
 
 
@@ -204,7 +206,6 @@ void bk_listnum_destroy(bk_s B, struct bk_listnum_main *mainl)
 struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *mainl, struct bk_listnum_head *prev)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_listnum_head *head;
 
   if (!mainl)
   {
