@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.6 2003/06/17 06:07:19 seth Exp $
+# $Id: Makefile,v 1.7 2003/12/26 23:18:40 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -19,6 +19,9 @@ BK_LARGE_SRC=ent.c iso8859.c randtest.c
 
 GROUPTOP=../..
 GROUPSUBDIR=test/entropy
+
+LOCAL_LDS=-L$(GROUPTOP)/ssl
+
 ##################################################
 ## BEGIN BKSTANDARD MAKEFILE
 -include ./Make.preinclude
