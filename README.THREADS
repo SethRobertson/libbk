@@ -1,0 +1,113 @@
+
+* Interaction of libbk and threads.
+
+libbk is reentrant, but at the moment NOT thread-safe,
+thread-reentrant, MT-safe, or Cancel-safe.  Life sucks.  libbk is
+nominally async-safe , but this is less than impressive since this is
+only because it does not lock anything--without being thread-safe, the
+signal handler is enjoined from using any data which might potentially
+be used by the libbk function.
+
+What does this mean?  Well, it means that if you are in a threaded
+environment, you cannot call the bg_general functions (most notably
+bg_general_reinit())--though bk_general_thread* functions are fine.
+
+It also means that each thread must have its OWN copy of all pointers.
+E.g.  The bk_run structure cannot be shared among multiple threads, nor
+(probably) can multiple instances share the same fd.
+
+The ultimate meaning is that libbk does not perform locking (fine
+grained or otherwise) and in some cases (notable bg_general_reinit())
+it is not clear how this could be done.
+
+* Terminology
+
+** Reentrant
+
+A reentrant function does not hold static data over successive calls,
+nor does it return a pointer to static data. All data is provided by
+the caller of the function. A reentrant function must not call
+non-reentrant functions.
+
+A non-reentrant function can often, but not always, be identified by
+its external interface and its usage. For example, the strtok
+subroutine is not reentrant, because it holds the string to be broken
+into tokens. The ctime subroutine is also not reentrant; it returns a
+pointer to static data that is overwritten by each call.
+
+** Thread-Safe
+
+A thread-safe function protects shared resources from concurrent
+access by locks. Thread-safety concerns only the implementation of a
+function and does not affect its external interface.
+
+In C, local variables are dynamically allocated on the
+stack. Therefore, any function that does not use static data or other
+shared resources is trivially thread-safe.  Ex. sqrt(3m)
+
+The use of global data is thread-unsafe. It should be maintained per
+thread or encapsulated, so that its access can be serialized. A thread
+may read an error code corresponding to an error caused by another
+thread. In AIX, each thread has its own errno value.
+
+** Thread-Reentrant
+
+Thread-reentrant code is code that works properly while multiple
+threads execute it concurrently. Thread-reentrant code is thread-safe,
+but thread-safe code may not be thread-reentrant. Document your code
+as being thread-safe or thread-reentrant.
+
+** MT-safe
+
+If some piece of code is described as MT-safe, this indicates that it
+can be used safely within a multithreaded program, _and_ that it
+supports a "reasonable" level of concurrency.  This means that the
+code must support multiple calls to itself with simultaneous operation
+(e.g. no general lock which only allows one person to go at a time).
+
+** Async-safe
+
+Async-Signal-Safe refers to particular library routines that can be
+safely called from a signal handler. A thread that is executing
+an Async-Signal-Safe routine will not deadlock with itself if
+interrupted by a signal. Signals are only a problem for MT-Safe
+routines that acquire locks.
+
+** Cancel-safe
+
+If a multi-threaded application uses pthread_cancel(3T) to cancel
+(i.e., kill a thread), it is possible that the target thread is killed
+while holding a resource, such as a lock or allocated memory. If the
+thread has not installed the appropriate cancellation cleanup handlers
+to release the resources appropriately (see pthread_cancel(3T)), the
+application is "cancel-unsafe", i.e., it is not safe with respect to
+cancellation. This unsafety could result in deadlocks due to locks not
+released by a thread that gets cancelled, or resource leaks; for
+example, memory not being freed on thread cancellation. All
+applications that use pthread_cancel(3T) should ensure that they
+operate in a cancel-safe environment.  Libraries that have
+cancellation points and which acquire resources such as locks or
+allocate memory dynamically, also contribute to the cancel-unsafety of
+applications that are linked with these libraries. This introduces
+another level of safety for libraries in a multi-threaded program:
+cancel-safety.  There are two sub-categories of cancel-safety:
+Deferred-cancel-safety and Asynchronous-cancel-safety.
+
+An application is considered to be Deferred-cancel-safe when it is
+cancel-safe for threads whose cancellation type is
+PTHREAD_CANCEL_DEFERRED.
+
+An application is considered to be Asynchronous-cancel-safe when it is
+cancel-safe for threads whose cancellation type is
+PTHREAD_CANCEL_ASYNCHRONOUS.
+
+Deferred-cancel-safety is easier to achieve than
+Asynchronous-cancel-safety, since a thread with the deferred
+cancellation type can be cancelled only at well-defined "cancellation
+points", whereas a thread with the asynchronous cancellation type can
+be cancelled anywhere. Since all threads are created by default to
+have the deferred cancellation type, it may never be necessary to
+worry about asynchronous cancel safety. Indeed, most applications and
+libraries are expected to always be Asynchronous-cancel-unsafe.  An
+application which is Asynchronous-cancel-safe is also, by definition,
+Deferred-cancel-safe.

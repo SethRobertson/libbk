@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.6 2001/06/18 19:29:49 seth Exp $
+ * $Id: libbk_internal.h,v 1.7 2001/07/04 19:16:39 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -24,6 +24,8 @@ struct bk_proctitle
   char		**bp_argv;			/* Program and arguments */
   char		**bp_envp;			/* Environment */
   bk_vptr	bp_title;			/* Original vector for overwriting */
+  bk_flags	bp_flags;			/* Flags */
+#define BK_PROCTITLE_OFF	1
 };
 
 
@@ -83,24 +85,6 @@ struct bk_fun
 
 
 /* b_run.c */
-struct bk_run
-{
-  fd_set		br_readset;		/* FDs interested in this operation */
-  fd_set		br_writeset;		/* FDs interested in this operation */
-  fd_set		br_xcptset;		/* FDs interested in this operation */
-  dict_h		br_fdassoc;		/* FD to callback association */
-  volatile int		*br_ondemandtest;	/* Should on-demand function be called */
-  int			(*br_ondemand)(void *opaque, volatile int *demand, time_t starttime); /* On-demand function */
-  void			*br_ondemandopaque;	/* On-demand opaque */
-  int			(*br_pollfun)(void *opaque, time_t starttime); /* Polling function */
-  void			*br_pollopaque;		/* Polling opaque */
-  struct br_equeue	*br_equeue;		/* Event queue ARRAY */
-  u_int16_t		br_eq_cursize;		/* Equeue current size */
-  u_int16_t		br_eq_maxsize;		/* Equeue current size */
-  u_int8_t		br_signums[NSIG];	/* Number of signal events we have received */
-  struct br_sighandler	br_handlerlist[NSIG];	/* Handlers for signals */
-  bk_flags		br_flags;		/* General flags */
-};
 
 /* Event queue structure */
 struct br_equeue
@@ -125,6 +109,26 @@ struct br_sighandler
 {
   void			(*brs_handler)(int signum, void *opaque, time_t starttime); /* Handler */
   void			*brs_opaque;		/* Opaque data */
+};
+
+/* Fundamental run information */
+struct bk_run
+{
+  fd_set		br_readset;		/* FDs interested in this operation */
+  fd_set		br_writeset;		/* FDs interested in this operation */
+  fd_set		br_xcptset;		/* FDs interested in this operation */
+  dict_h		br_fdassoc;		/* FD to callback association */
+  volatile int		*br_ondemandtest;	/* Should on-demand function be called */
+  int			(*br_ondemand)(void *opaque, volatile int *demand, time_t starttime); /* On-demand function */
+  void			*br_ondemandopaque;	/* On-demand opaque */
+  int			(*br_pollfun)(void *opaque, time_t starttime); /* Polling function */
+  void			*br_pollopaque;		/* Polling opaque */
+  struct br_equeue	*br_equeue;		/* Event queue ARRAY */
+  u_int16_t		br_eq_cursize;		/* Equeue current size */
+  u_int16_t		br_eq_maxsize;		/* Equeue current size */
+  u_int8_t		br_signums[NSIG];	/* Number of signal events we have received */
+  struct br_sighandler	br_handlerlist[NSIG];	/* Handlers for signals */
+  bk_flags		br_flags;		/* General flags */
 };
 
 #endif /* _libbk_h_ */

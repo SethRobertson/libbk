@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.8 2001/06/18 22:41:46 seth Exp $
+ * $Id: libbk.h,v 1.9 2001/07/04 19:16:39 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -26,6 +26,13 @@
 #define BK_ERR_WARNING	LOG_WARNING
 #define BK_ERR_NOTICE	LOG_NOTICE
 #define BK_ERR_DEBUG	LOG_DEBUG
+
+
+/* General purpose macros */
+#define BK_FLAG_SET(var,bit) (var) |= (bit)
+#define BK_FLAG_ISSET(var,bit) ((var) & (bit))
+#define BK_FLAG_CLEAR(var,bit) (var) &= ~(bit)
+#define BK_FLAG_ISCLEAR(var,bit) (!((var) & (bit)))
 
 
 
@@ -56,6 +63,7 @@ struct bk_general
   struct bk_funlist	*bg_destroy;		/* Destruction list */
   struct bk_proctitle	*bg_proctitle;		/* Process title info */
   struct bk_config	*bg_config;		/* Configuration info */
+  char			*bg_program;		/* Name of program */
   bk_flags		bg_flags;		/* Flags */
 #define BK_BGFLAGS_FUNON	1		/* Is function tracing on? */
 #define BK_BGFLAGS_DEBUGON	2		/* Is debugging on? */
@@ -95,12 +103,12 @@ typedef struct __bk_thread
 
 
 /* b_fun.c */
-#define BK_ENTRY(B, fun, pkg, grp) bk_funinfo __bk_funinfo = (B->bg_flags & BK_BGFLAGS_FUNON) ? NULL : bk_fun_entry(B, fun, pkg, grp)
+#define BK_ENTRY(B, fun, pkg, grp) struct bk_funinfo __bk_funinfo = (B->bt_general->bg_flags & BK_BGFLAGS_FUNON) ? (struct bk_funinfo){NULL,NULL,0} : bk_fun_entry(B, fun, pkg, grp)
 #define BK_RETURN(B, retval) \
 	do { \
 	  typeof(retval) myretval = (retval); \
 	  int save_errno = errno; \
-	  if (!(B->bg_flags & BK_BGFLAGS_FUNON)) \
+	  if (!(B->bt_general->bg_flags & BK_BGFLAGS_FUNON)) \
 	    bk_fun_exit(B, __bk_funinfo); \
 	  errno = save_errno; \
 	  return myretval; \
@@ -109,7 +117,7 @@ typedef struct __bk_thread
 #define BK_VRETURN(B) \
 	do { \
 	  int save_errno = errno; \
-	  if (!(B->bg_flags & BK_BGFLAGS_FUNON)) \
+	  if (!(B->bt_general->bg_flags & BK_BGFLAGS_FUNON)) \
 	    bk_fun_exit(B, __bk_funinfo); \
 	  errno = save_errno; \
 	  return; \
@@ -129,16 +137,18 @@ struct bk_funinfo
 
 
 /* b_general.c */
-extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility);
-extern void bk_general_setproctitle(bk_s B, char *);
+extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, bk_flags flags);
+#define BK_GENERAL_NOPROCTITLE 1
+extern void bk_general_proctitle_set(bk_s B, char *);
 extern void bk_general_reinit(bk_s B);
 extern void bk_general_destroy(bk_s B);
 extern bk_s bk_general_thread_init(bk_s B, char *name);
 extern void bk_general_thread_destroy(bk_s B);
-/* XXX - bk_general_reinit_insert/delete ? */
+extern int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
+extern int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
+extern int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
+extern int bk_general_destroy_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
 
-
-/* b_config.c */
 extern struct bk_config *bk_config_init(bk_s B, char *filename, bk_flags flags);
 extern int bk_config_reinit(bk_s B, struct bk_config *config);
 extern void bk_config_destroy(bk_s B, struct bk_config *config);
@@ -159,7 +169,7 @@ extern int bk_debug_set(bk_s B, struct bk_debug *bdinfo, const char *name, u_int
 extern int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config, const char *program);
 extern void bk_debug_config(bk_s B, struct bk_debug *bdinfo, FILE *fh, u_int8_t sysloglevel, bk_flags flags);
 extern void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf);
-extern void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, char *format, ...);
+extern void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, char *format, ...) __attribute__ ((format (printf, 3, 4)));
 extern void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, bk_vptr *buf);
 extern void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, char *format, va_list ap);
 
@@ -172,7 +182,7 @@ extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen,
 extern u_int32_t bk_error_query(bk_s B, struct bk_error *beinfo, const char *funname, const char *pkgname, const char *program);
 extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, u_int8_t sysloglevel, bk_flags flags);
 extern void bk_error_iprint(bk_s B, struct bk_error *beinfo, char *buf);
-extern void bk_error_iprintf(bk_s B, struct bk_error *beinfo, char *format, ...);
+extern void bk_error_iprintf(bk_s B, struct bk_error *beinfo, char *format, ...) __attribute__ ((format (printf, 3, 4)));
 extern void bk_error_iprintbuf(bk_s B, struct bk_error *beinfo, bk_vptr *buf);
 extern void bk_error_ivprintf(bk_s B, struct bk_error *beinfo, char *format, va_list ap);
 
@@ -181,7 +191,7 @@ extern void bk_error_ivprintf(bk_s B, struct bk_error *beinfo, char *format, va_
 /* b_fun.c */
 extern dict_h bk_fun_init();
 extern void bk_fun_destroy(dict_h funstack);
-extern struct bk_funinfo bk_fun_entry(bk_s B, const char *func, const char *package);
+extern struct bk_funinfo bk_fun_entry(bk_s B, const char *func, const char *package, const char *group);
 extern void bk_fun_exit(bk_s B, struct bk_funinfo fh);
 /* extern void bk_fun_reentry(bk_s B, void *); huh? */
 extern void bk_fun_trace(bk_s B, FILE *out, u_int8_t sysloglevel, bk_flags flags);
