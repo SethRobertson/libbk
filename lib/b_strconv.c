@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.14 2003/07/02 16:42:54 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.15 2003/12/02 23:17:20 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -502,9 +502,11 @@ int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *n
  *
  * Decodes symbolic flags if present and all flags are provided in names;
  * otherwise performs hex decoding.  Reverse of @a bk_string_flagtoa.  Example
- * valid input strings are "[flagbit1,flagbit2]0x3", "[flagbit1]", "0x6", and
- * "[flagbit1]~0x5".  In the first two cases, symbolic decoding will be used if
- * possible, in the second two cases, hex decoding will be used.
+ * valid input strings are "[flagbit1,flagbit2]0x3", "[flagbit1]", "0x6",
+ * "[flagbit1]~0x5", and "flagbit1,flagbit2".  In the first two cases, symbolic
+ * decoding will be used if possible; in the second two cases, hex decoding
+ * will be used; and in the last case, symbolic decoding will be used, with a
+ * hard failure (-1 return) if it cannot be completely decoded.
  *
  * THREADS: MT-SAFE
  *
@@ -523,7 +525,7 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   const char *in = src;
   const char *end;
-  int ret;
+  int ret = 0;
 
   if (!dst || !src)
   {
@@ -537,32 +539,34 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
   if ((end = strrchr(in, FLAG_APPROX)))		// hex is canonical
     goto justhex;
 
-  if (in[0] == FLAG_BEGIN && (end = strrchr(in, FLAG_END)))
+  if ((in[0] == FLAG_BEGIN && (end = strrchr(in, FLAG_END)))
+      || (!isdigit(in[0]) && (ret = -1) && (end = &in[strlen(in)])))
   {
     const char *tok;
     const char *sep;
     const char *symbol;
     bk_flags out = 0;
 
-    for (tok = in + 1; tok < end; tok = sep + 1)
+    for (tok = in + 1 + ret; tok < end; tok = sep + 1)
     {
       if (!(sep = strchr(tok, FLAG_SEP)))
 	sep = end;
 
       if (tok == sep)				// empty symbol; bail
       {
-	bk_error_printf(B, BK_ERR_WARN, "Flags string \"%s\" has empty symbol\n",
-			src);
-	goto justhex;
+	bk_error_printf(B, ret < 0 ? BK_ERR_ERR : BK_ERR_WARN,
+			"Flags string \"%s\" has empty symbol\n", src);
+	goto badsymbol;
       }
 
       // not found, or not full match (not preceded and followed by bit/NUL)
       if (!(symbol = bk_strstrn(B, names + 1, tok, sep - tok))
 	  || symbol[sep - tok] > 32 || symbol[-1] > 32)
       {
-	bk_error_printf(B, BK_ERR_WARN, "Flags string \"%s\" has symbol(s) not in \"%s\"\n",
+	bk_error_printf(B, ret < 0 ? BK_ERR_ERR : BK_ERR_WARN,
+			"Flags string \"%s\" has symbol(s) not in \"%s\"\n",
 			src, names);
-	goto justhex;
+	goto badsymbol;
       }
 
       BK_FLAG_SET(out, 1 << (symbol[-1] - 1));
@@ -570,6 +574,10 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
 
     *dst = out;
     BK_RETURN(B, 0);
+
+  badsymbol:
+    if (ret)
+      BK_RETURN(B, ret);
   }
 
  justhex:

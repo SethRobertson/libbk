@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_string.c,v 1.10 2003/06/17 06:07:19 seth Exp $";
+static const char libbk__rcsid[] = "$Id: test_string.c,v 1.11 2003/12/02 23:17:21 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -141,12 +141,30 @@ void progrun(bk_s B, struct program_config *pconfig)
 
   TEST(bk_strnspacecmp(B, "a \t b", "a b", 5, 3), 0);
 
+  TEST(bk_memdiff(B, "", "a", 0, 1), INT_MIN + 256);
+
+  TEST(bk_memdiff(B, "z", "", 1, 0), INT_MAX - 255);
+
+  TEST(bk_memdiff(B, "a", "b", 1, 1), INT_MIN + 512 - 1);
+
+  TEST(bk_memdiff(B, "b", "a", 1, 1), -(INT_MIN + 512 - 1));
+
+  TEST(bk_memdiff(B, "ab", "ac", 2, 2), INT_MIN + 768 - 1);
+
+  TEST(bk_memdiff(B, "ac", "add", 2, 3), INT_MIN + 768 - 1);
+
+  TEST(bk_memdiff(B, "ab", "add", 2, 3), INT_MIN + 768 - 2);
+
+  TEST(bk_memdiff(B, "ab", "ade", 2, 3), INT_MIN + 768 - 2);
+
+  TEST(bk_memdiff(B, "add", "ade", 3, 3), INT_MIN + 1024 - 1);
+
   // <TODO>Many functions need test cases (some are in test_stringconv)</TODO>
 
   // check too little space
   TEST(bk_string_flagtoa(B, 5, buf, 2, NULL, 0), -1);
 
-  TEST(bk_string_atoflag(B, buf, &flags, NULL, 0), 1);
+  TEST(bk_string_atoflag(B, buf, &flags, NULL, 0), 0);
 
   // check basic hex
   TEST((bk_string_flagtoa(B, 5, buf, 4, NULL, 0),
@@ -159,8 +177,6 @@ void progrun(bk_s B, struct program_config *pconfig)
   // check too little space
   TEST(bk_string_flagtoa(B, 5, buf, 3, onebit, 0), -1);
 
-  TEST(bk_string_atoflag(B, buf, &flags, twobits, 0), 1);
-
   // check too little space for symbolic
   TEST((bk_string_flagtoa(B, 5, buf, 4, onebit, 0),
 	strcmp(buf, "0x5")), 0);
@@ -168,6 +184,18 @@ void progrun(bk_s B, struct program_config *pconfig)
 	strcmp(buf, "0x5")), 0);
   TEST((bk_string_flagtoa(B, 5, buf, 19, twobits, 0),
 	strcmp(buf, "0x5")), 0);
+
+  // check bogus flag names
+  TEST((bk_string_flagtoa(B, 1, buf, 32, "\1\2", 0),
+	strcmp(buf, "0x1")), 0);
+  TEST((bk_string_flagtoa(B, 2, buf, 32, "\1onebit\2", 0),
+	strcmp(buf, "0x2")), 0);
+
+  // check bogus symbols
+  TEST(bk_string_atoflag(B, "[]", &flags, NULL, 0), 0);
+  TEST(bk_string_atoflag(B, "[]0", &flags, NULL, 0), 0);
+  TEST(bk_string_atoflag(B, "[onebit,]0x1", &flags, twobits, 0), 0);
+  TEST(bk_string_atoflag(B, "[,onebit]0x1", &flags, NULL, 0), 0);
 
   // check partial symbolic
   TEST((bk_string_flagtoa(B, 5, buf, 13, onebit, 0),
@@ -197,6 +225,11 @@ void progrun(bk_s B, struct program_config *pconfig)
   TEST((bk_string_atoflag(B, buf, &flags, twobits, 0),flags), 5);
 
   *(strchr(buf, ']') + 1) = '\0';	 // chop hex digits
+  TEST((bk_string_atoflag(B, buf, &flags, twobits, 0),flags), 5);
+
+  // check symbolic-only decoding
+  strcpy(buf, "onebit,threebit");
+  TEST(bk_string_atoflag(B, buf, &flags, onebit, 0), -1);
   TEST((bk_string_atoflag(B, buf, &flags, twobits, 0),flags), 5);
 
   BK_VRETURN(B);
