@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.190 2002/11/19 22:27:41 lindauer Exp $
+ * $Id: libbk.h,v 1.191 2002/11/20 19:38:05 dupuy Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -810,10 +810,13 @@ do {						\
       }								\
 								\
     } while (0)
-#define BK_SECSTONSEC(x) ((x)*1000000000)	///< Convert seconds to nanoseconds
 
-#define BK_USECTONSEC(x) ((x)*1000000000/1000000) ///< Convert micro to nano.
-#define BK_NSECTOUSEC(x) ((x)*1000000/1000000000) ///< Conver nano to micro
+#define BK_SECSTONSEC(x) ((x) * 1000000000)	///< Convert seconds to nanoseconds
+
+#define BK_USECTONSEC(x) ((x) * 1000)		///< Convert micro to nano.
+
+// <TRICKY>This rounds to nearest microsecond rather than truncating</TRICKY>
+#define BK_NSECTOUSEC(x) ((x) + 500) / 1000)	///< Convert nano to micro
 // @}
 
 

@@ -1,3 +1,8 @@
+2002-11-20  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h (BK_NSECTOUSEC, BK_USECTONSEC): avoid overflow,
+	perform rounding on nsec->usec conversion
+
 2002-11-20  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_fileutils.c (bk_file_unlock): Change sprintf to snprintf.
