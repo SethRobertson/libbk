@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.58 2002/08/19 20:23:12 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.59 2002/08/22 20:58:04 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1731,6 +1731,37 @@ bk_strndup(bk_s B, const char *s, size_t len)
 #else  /* !HAVE_STRNDUP */
   BK_RETURN(B, strndup(s, len));
 #endif /* !HAVE_STRNDUP */
+}
+
+
+
+/**
+ * Search for a character within a buffer without exceedingg a specified
+ * max.  This is like @a strchr but doesn't assume that the supplied
+ * string is null terminated.
+ *
+ * @param B BAKA Thread/global state
+ * @param s string to search
+ * @param c character to search for
+ * @param len max length to search
+ * @return <i>NULL</i> on failure
+ * @return pointer to the matched character on success
+ */
+char *
+bk_strnchr(bk_s B, const char *s, char c, size_t len)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");  
+  size_t i;
+
+  for (i = 0; i < len; i++)
+  {
+    if (s[i] == c)
+    {
+      BK_RETURN(B, (char*) s + i);
+    }
+  }
+  
+  BK_RETURN(B, NULL);
 }
 
 

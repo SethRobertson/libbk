@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.163 2002/08/19 20:23:11 dupuy Exp $
+ * $Id: libbk.h,v 1.164 2002/08/22 20:58:03 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -995,6 +995,21 @@ struct bk_url
 #define BK_URL_FRAGMENT_LEN(bu) (BK_URL_LEN((bu),(bu)->bu_fragment))
 #define BK_URL_FRAGMENT_EQ(bu,str) ((BK_URL_IS_VPTR(bu))?BK_STREQN(BK_URL_FRAGMENT_DATA(bu),(str),BK_URL_FRAGMENT_LEN(bu)):BK_STREQ(BK_URL_FRAGMENT_DATA(bu),(str)))
 
+
+/**
+ * Breakdown of url authority section
+ */
+struct bk_url_authority
+{
+  bk_flags	flags;				///< Everyone needs flags
+  char	       *auth_user;			///< username
+  char	       *auth_pass;			///< password
+  char	       *auth_host;			///< host
+  char	       *auth_port;			///< port
+};
+
+
+
 // @}
 
 
@@ -1365,6 +1380,7 @@ extern ssize_t bk_strnlen(bk_s B, const char *s, size_t max);
 extern char *bk_encode_base64(bk_s B, const bk_vptr *str, const char *eolseq);
 extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
 extern char *bk_strndup(bk_s B, const char *s, size_t len);
+extern char *bk_strnchr(bk_s B, const char *s, char c, size_t len);
 extern char *bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len);
 extern char *bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t len);
 extern void *bk_memrchr(bk_s B, const void *buffer, int character, size_t len);
@@ -1505,6 +1521,9 @@ extern void bk_url_destroy(bk_s B, struct bk_url *bu);
 extern char *bk_url_unescape(bk_s B, const char *urlcomponent);
 extern char *bk_url_unescape_len(bk_s B, const char *component, size_t len);
 extern int bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep);
+extern struct bk_url_authority *bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags);
+extern void bk_url_authority_destroy(bk_s B, struct bk_url_authority *auth);
+
 
 /* b_nvmap.c */
 extern int bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name);
