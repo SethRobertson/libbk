@@ -1,3 +1,8 @@
+2002-07-19  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_string.c (bk_strhash): Import new hash function.  Perl and
+	its author claim that it is good.  We'll see.
+
 2002-07-16  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_string.c: Stupid bounds checking.

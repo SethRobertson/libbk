@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.154 2002/07/18 22:52:42 dupuy Exp $
+ * $Id: libbk.h,v 1.155 2002/07/19 18:48:42 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1313,6 +1313,7 @@ extern void bk_exit(bk_s B, u_char retcode);
 
 /* b_string.c */
 extern u_int bk_strhash(const char *a, bk_flags flags);
+extern u_int bk_oldstrhash(const char *a, bk_flags flags);
 #define BK_STRHASH_NOMODULUS	0x01		///< Do not perform modulus of hash by a large prime
 extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const void *variabledb, bk_flags flags);
 #define BK_WHITESPACE					" \t\r\n" ///< General definition of horizonal and vertical whitespace
