@@ -1,8 +1,9 @@
 2002-10-09  James Tanis  <jtt@hawking.sysdetect.com>
 
-	* lib/b_addrgroup.c (bk_net_init_sys_error): Check explicitly for
-	the autoconf determined "second connect to refusd port" value when
-	testing for BkAddrGroupStateRemoteError.
+	* lib/b_addrgroup.c (tcp_connect_activity): Also check errno
+	against autoconf'ed determined value for subsequent calls to
+	connect(2) after the first one (for a given socket) has been
+	refused.
 
 2002-10-04  James Tanis  <jtt@hawking.sysdetect.com>
 

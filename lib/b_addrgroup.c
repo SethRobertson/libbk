@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.29 2002/10/09 21:39:26 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.30 2002/10/09 23:39:59 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1297,7 +1297,12 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
   {
     bk_error_printf(B, BK_ERR_ERR, "Connect to %s failed: %s\n", bag->bag_remote->bni_pretty, strerror(errno)); 
     net_close(B,as);
-    as->as_state = bk_net_init_sys_error(B,errno);
+
+    if (errno == BK_SECOND_REFUSED_CONNECT_ERRNO)
+      as->as_state = BkAddrGroupStateRemoteError;
+    else
+      as->as_state = bk_net_init_sys_error(B,errno);
+
     tcp_connect_start(B,as);
     BK_VRETURN(B);
   }
@@ -1840,16 +1845,6 @@ bk_addrgroup_state_e
 bk_net_init_sys_error(bk_s B, int lerrno)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-
-  if (lerrno == BK_SECOND_CONNECT_ERRNO)
-  {
-    /* 
-     * This is a separate check (ie not in the switch below) because
-     * BK_SECOND_CONNECT_ERRNO usually is the same value as ECONNREFUSED
-     * and listing it in the case gives a "duplicate case value" error.
-     */
-    BK_RETURN(B, BkAddrGroupStateRemoteError);
-  }
 
   switch (lerrno)
   {
