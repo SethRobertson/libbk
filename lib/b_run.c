@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.27 2002/09/10 21:53:26 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.28 2002/09/16 19:22:37 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1402,6 +1402,11 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *
       BK_RETURN(B, 0);
     else
     {
+      /*
+       * <TODO>Eliminate this hack in favor of some method for someone
+       * to set non-blocking for the run to optimize the common
+       * case</TODO>
+       */
       // Allow the execution of an event to cause bk_run_once to return.
       delta->tv_sec = 0;
       delta->tv_usec = 0;
