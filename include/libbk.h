@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.136 2002/04/16 00:27:52 seth Exp $
+ * $Id: libbk.h,v 1.137 2002/04/26 00:47:48 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -209,6 +209,7 @@ struct bk_iohh_bnbio
 #define bk_error_vprintf(B,l,f,ap) bk_error_ivprintf(B,l,BK_GENERAL_ERROR(B),f,ap) ///< Print an error message in printf-style format
 #define bk_error_printbuf(B,l,i,p,v) bk_error_iprintbuf(B,l,BK_GENERAL_ERROR(B),i,p,v) ///< Print an error message along with a binary buffer
 #define bk_error_dump(B,f,m,M,s,F) bk_error_idump(B,BK_GENERAL_ERROR(B),f,m,M,s,F) ///< Dump the error queues to a certain file handle, syslog level, with various filtering options
+#define bk_error_strdump(B,m,M,F) bk_error_istrdump(B,BK_GENERAL_ERROR(B),m,M,F) ///< Dump the error queues to a string (caller must free)
 #define bk_error_mark(B,m,F) bk_error_idump(B,BK_GENERAL_ERROR(B),m,F) ///< Mark a particular location in the error queue for future reference
 #define bk_error_clear(B,m,F) bk_error_iclear(B,BK_GENERAL_ERROR(B),m,F) ///< Delete a previously inserted mark
 #define bk_error_flush(B,m,F) bk_error_iflush(B,BK_GENERAL_ERROR(B),m,F) ///< Flush the error queue, from a mark if desired.
@@ -1095,6 +1096,7 @@ extern void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, c
 extern void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *intro, char *prefix, bk_vptr *buf);
 extern void bk_error_ivprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *format, va_list ap);
 extern void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int minimumlevel, int sysloglevel, bk_flags flags);
+extern char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, char *mark, int minimumlevel, bk_flags flags);
 
 
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.16 2001/11/29 17:29:23 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.17 2002/04/26 00:47:59 lindauer Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -95,6 +95,7 @@ struct bk_error_node
 static struct bk_error_node *bk_error_marksearch(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 static char bk_error_sysloglevel_char(int sysloglevel);
 static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_node *node, bk_flags flags);
+static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *node, bk_flags flags);
 #define BE_ERROR_SYSLOG_WANT_FULL  1		///< Want long-style syslog messages with timestamps, hostnames over and above what syslog gives
 
 
@@ -639,6 +640,123 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int m
 
 
 /**
+ * Dump (print) error queues to string.  You may filter for
+ * recent log message or log messages of a certain level of
+ * importance.  Caller must free returned string.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param beinfo The error state structure. 
+ *	@param mark The constant pointer/key which represents a location in the error queue: only newer messages will be printed.
+ *	@param minimumlevel The minimum BK_ERR level for which to output error messages (BK_ERR_NONE will output all levels)
+ *	@param flags Future expansion
+ *	@return <i>malloc'd string</i> on success (caller must free)<br><i>NULL</i> on error
+ */
+char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, char *mark, int minimumlevel, bk_flags flags)
+{
+  struct bk_error_node *hi, *lo, *cur, *marknode;
+  struct bk_alloc_ptr *str = NULL;
+  char *out = NULL;
+
+  if (!beinfo)
+  {
+    goto error;
+  }
+
+  marknode = NULL;
+
+  if (mark)
+  {
+    if (!(marknode = bk_error_marksearch(B, beinfo, mark, flags)))
+    {
+      // <KLUDGE>We cannot do anything, but cannot tell anyone about it</KLUDGE>
+      goto error;
+    }
+  }
+
+  hi = errq_maximum(beinfo->be_hiqueue);
+  lo = errq_maximum(beinfo->be_lowqueue);
+
+  if (!BK_MALLOC(str))
+  {
+    goto error;
+  }
+
+  if (!BK_MALLOC_LEN(str->ptr, 1024))
+  {
+    goto error;
+  }
+  ((char*) str->ptr)[0] = '\0';
+  str->cur = 1;
+  str->max = 1024;
+
+  // Print the queues in FIFO order, interlacing the low and hi queue messages as appropriate
+  while (hi || lo)
+  {
+    int wanthi;					// Do I want to output the message from the hi queue or the low queue next
+
+    if (!hi || !lo)
+      wanthi = !lo;
+    else if ((wanthi = lo->ben_time - hi->ben_time) == 0)
+      wanthi = ((int)(lo->ben_seq - hi->ben_seq));
+
+    if (wanthi > 0)
+    {
+      cur = hi;
+      hi = errq_predecessor(beinfo->be_hiqueue, hi);
+    }
+    else
+    {
+      cur = lo;
+      lo = errq_predecessor(beinfo->be_lowqueue, lo);
+    }
+
+    if (marknode)
+    {
+      if (cur->ben_time < marknode->ben_time ||
+	  (cur->ben_time == marknode->ben_time && ((int)(cur->ben_seq - marknode->ben_seq)) < 0))
+	continue;					// We yet to reach the mark
+    }
+
+    // <WARNING>Assumes syslog levels are higher priority->lower numbers</WARNING>
+    if (minimumlevel >= 0 && minimumlevel > cur->ben_level)
+      continue;
+
+    be_error_append(B, str, cur, 0);
+  }
+
+  if (!(out = strdup(str->ptr)))
+  {
+    goto error;
+  }
+
+  free(str->ptr);
+  str->ptr = NULL;
+  free(str);
+  str = NULL;
+
+  return out;
+
+ error:
+  if (str)
+  {
+    if (str->ptr)
+    {
+      free(str->ptr);
+    }
+    free(str);
+  }
+
+  if (out)
+  {
+    free(out);
+  }
+
+  return NULL;
+}
+
+
+
+/**
  * Syslog level to printable character conversions.
  *
  * Convert the BK_ERR levels into printable character for automated filtering priority.
@@ -662,6 +780,43 @@ static char bk_error_sysloglevel_char(int sysloglevel)
 
 
 /**
+ * Translate error time into formatted string
+ *
+ *	@param node The error node
+ *	@param timestr [out] char buffer (must be at least 20 bytes long)
+ *	@param size of time
+ */
+static void be_error_time(struct bk_error_node *node, char *timestr, size_t max)
+{
+  int tmp;
+  struct tm *tm;
+
+  if (!node || (max < 20))
+  {
+    return;
+  }
+
+  tm = localtime(&node->ben_time);
+
+  if ((tmp = strftime(timestr, max, "%Y-%m-%d %H:%M:%S", tm)) != 19)
+  {
+#if 0
+    /*
+     * XXX - this way lies madness (and infinite recursion).  A better
+     * solution is to use assert.
+     */
+    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Somehow strftime produced %d bytes instead of the expected 14\n",tmp);
+#endif
+    timestr[0] = '\0';
+    return;
+  }
+
+  return;
+}
+
+
+
+/**
  * Output a error node to file handle or syslog.
  *
  *	@param B BAKA Thread/global state
@@ -672,22 +827,11 @@ static char bk_error_sysloglevel_char(int sysloglevel)
  */
 static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_node *node, bk_flags flags)
 {
-  int tmp;
   char timeprefix[40];
   char fullprefix[40];
   struct tm *tm = localtime(&node->ben_time);
 
-  if ((tmp = strftime(timeprefix, sizeof(timeprefix), "%Y-%m-%d %H:%M:%S", tm)) != 19)
-  {
-#if 0
-    /*
-     * XXX - this way lies madness (and infinite recursion).  A better
-     * solution is to use assert.
-     */
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Somehow strftime produced %d bytes instead of the expected 14\n",tmp);
-#endif
-    return;
-  }
+  be_error_time(node, timeprefix, 40);
 
   if (BK_GENERAL_PROGRAM(B))
     snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
@@ -713,4 +857,60 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
   }
 
   return;
+}
+
+
+
+/**
+ * Append error to a bk_alloc_ptr
+ *	@param B BAKA Thread/global state
+ *	@param str extensible string to which to append
+ *	@param node The error node--message, time, etc to log
+ *	@param flags reserved
+ */
+static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *node, bk_flags flags)
+{
+  char timeprefix[40];
+  char fullprefix[40];
+  u_int32_t addedlength;
+
+  if (!str || !node || !(node->ben_msg))
+  {
+    return;
+  }
+
+  be_error_time(node, timeprefix, 40);
+
+  if (BK_GENERAL_PROGRAM(B))
+    snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
+  else
+    snprintf(fullprefix, sizeof(fullprefix), "%s", timeprefix);
+  fullprefix[sizeof(fullprefix)-1] = 0;		/* Ensure terminating NULL */
+
+  addedlength = strlen(fullprefix) + strlen(node->ben_msg) + 2;
+
+  while ((str->max - str->cur) < addedlength)
+  {
+    char *tmp;
+    const int blocksize = 2048;
+
+    tmp = realloc(str->ptr, str->max + blocksize);
+    if (!tmp)
+    {
+      return;
+    }
+    str->ptr = tmp;
+    str->max += blocksize;
+  }
+
+  if (str->cur > 1)
+  {
+    sprintf((char*) str->ptr + str->cur - 1, "\n%s %s", fullprefix, node->ben_msg);
+    str->cur += addedlength;
+  }
+  else
+  {
+    sprintf((char*) str->ptr + str->cur - 1, "%s %s", fullprefix, node->ben_msg);
+    str->cur += addedlength -1;
+  }
 }
