@@ -11,6 +11,8 @@
 
 	* lib/b_string.c (bk_decode_base64): don't NUL terminate vptr buf
 
+	* test/entropy/randtest.c (log2): don't define function if macro exists
+
 2002-03-05  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_addrgroup.c (do_net_init_af_inet_tcp_listen): Add

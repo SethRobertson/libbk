@@ -22,10 +22,12 @@ static double prob[256];	   /* Probabilities per bin for entropy */
 
 /*  LOG2  --  Calculate log to the base 2  */
 
+#ifndef log2
 static double log2(double x)
 {
     return log2of10 * log10(x);
 }
+#endif
 
 #define MONTEN	6		      /* Bytes used as Monte Carlo
 					 co-ordinates.	This should be no more
