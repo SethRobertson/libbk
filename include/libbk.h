@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.116 2002/02/22 06:12:21 dupuy Exp $
+ * $Id: libbk.h,v 1.117 2002/02/28 18:46:00 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -252,6 +252,24 @@ struct bk_general
 #define BK_FILE_LOCK_EXTENSION 		"lck"
 #define BK_FILE_LOCK_MODE_EXCLUSIVE 	"EXCLUSIVE"
 #define BK_FILE_LOCK_MODE_SHARED 	"SHARED"
+// @}
+
+
+/**
+ * Manifest constants need to convert values to/from NTP style dates to unix/timeval style
+ */
+// @{
+
+#define CONVERT_SECS_NTP2UNIX(secs)	((secs) - 2208988800UL) ///< Convert secs from ntp to unix.
+#define CONVERT_SECS_UNIX2NTP(secs)	((secs) + 2208988800UL) ///< Concver secs from unix to ntp.
+
+#define CONVERT_SECSNTP2TIMEVAL(secs) 	(CONVERT_SECS_NTP2UNIX(secs)) ///< Convenience function
+#define CONVERT_SECSTIMEVAL2NTP(secs) 	(CONVERT_SECS_UNIX2NTP(secs)) ///< Convenience function
+#define CONVERT_SECSNTP2TIMESPEC(secs) 	(CONVERT_SECS_NTP2UNIX(secs)) ///< Convenience function
+#define CONVERT_SECSTIMESPEC2NTP(secs) 	(CONVERT_SECS_UNIX2NTP(secs)) ///< Convenience function
+
+#define CONVERT_SUBSECSNTP2TIMESPEC(subsecs)	((((2*((u_int64_t)secs))-1)*500000000)/(2<<32))
+#define CONVERT_SUBTIMESPEC2SUBSECS(subsecs)	((((((u_int64_t)secs)*(2<<32))/500000000)+1)/2)
 // @}
 
 
@@ -1349,6 +1367,8 @@ time_t bk_timegm(bk_s B, struct tm *timeptr, bk_flags flags);
 #else
 #define bk_gmtime_r(t,tm) ((tm) ? gmtime(t) : 0)
 #endif  
+extern int bk_time_ntp_parse(bk_s B, const char *string, struct timespec *tsp, bk_flags flags);
+
 
 /* b_url.c */
 extern struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_url_parse_mode_e mode, bk_flags flags);

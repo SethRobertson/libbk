@@ -1,3 +1,8 @@
+2002-02-27  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_time.c (bk_time_ntp_parse): Parse ntp time into struct
+	timespec (reverse function still needed).
+
 2002-02-25  James Tanis  <jtt@saint.sysdetect.com>
 
 	* src/proto.c (main): Clarify the arc preprocessing.

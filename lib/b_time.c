@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_time.c,v 1.4 2002/02/01 18:32:09 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_time.c,v 1.5 2002/02/28 18:46:00 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -397,4 +397,79 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
     date->tv_nsec = 0;
 
   BK_RETURN(B, *fraction ? 1 : 0);		// return 1 if last != NUL
+}
+
+
+
+
+/**
+ * Parse an NTP style number and insert it in a timespec
+ *
+ *	@param B BAKA thread/global state.
+ *	@param string The string with the ntp time.
+ *	@param tsp A copout pointer to a timespec (to be filled in).
+ *	@param Flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_time_ntp_parse(bk_s B, const char *string, struct timespec *tsp, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *subsec;
+  char *tmpstr = NULL;
+  u_int64_t secs;
+  u_int64_t nsecs;
+  int len;
+
+  if (!string || !tsp)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  len = strlen(string);
+
+  if (!(tmpstr = malloc(len+1)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate tempory copy string: %s\n", strerror(errno));
+    goto error;
+  }
+
+  memcpy(tmpstr, string, len);
+  tmpstr[len+1]='\0';
+
+  if (!(subsec = strchr(tmpstr, '.')))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Improperlly formated NTP time string\n");
+    goto error;
+  }
+
+  *subsec++ = '\0';
+  
+  if (bk_string_atoill(B, tmpstr, &secs, 0) != 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert ntp string seconds to integer\n");
+    goto error;
+  }
+
+  tsp->tv_sec = (u_int64_t)CONVERT_SECSNTP2TIMESPEC(secs);
+
+  if (bk_string_atoill(B, subsec, &nsecs, 0) != 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert ntp string seconds to integer\n");
+    goto error;
+  }
+
+  tsp->tv_nsec = (u_int64_t)CONVERT_SECSNTP2TIMESPEC(nsecs);
+
+  free(tmpstr);
+  BK_RETURN(B,0);  
+
+ error:
+  
+  if (tmpstr)
+    free(tmpstr);
+
+  BK_RETURN(B,-1);  
 }
