@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.1 2001/08/30 19:57:33 seth Exp $";
+static char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.2 2001/09/07 16:24:45 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -83,6 +83,7 @@ main(int argc, char **argv, char **envp)
   pconfig = &Pconfig;
   memset(pconfig,0,sizeof(*pconfig));
 
+#if 0 /* getopt not part of cygwin; use popt (better) instead for all o/s */
   while ((tmpvar = getopt(argc, argv, "dv")) != -1)
     switch (tmpvar)
     {
@@ -98,6 +99,8 @@ main(int argc, char **argv, char **envp)
     default:
       getopterr++;
     }
+#endif /* 0 */
+
   if (getopterr)
   {
     usage(B);

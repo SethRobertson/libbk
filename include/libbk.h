@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.25 2001/09/05 02:56:34 seth Exp $
+ * $Id: libbk.h,v 1.26 2001/09/07 16:24:46 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -26,6 +26,15 @@
 #define NULL ((void *)0)
 #endif
 #endif
+
+#ifndef MAX
+#define MAX(x,y) ((x) > (y) ? (x) : (y))
+#endif
+
+#ifndef MIN
+#define MIN(x,y) ((x) > (y) ? (y) : (x))
+#endif
+
 
 /* Error levels & their syslog equivalents */
 #define BK_ERR_NONE	-1

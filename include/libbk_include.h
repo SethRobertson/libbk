@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.3 2001/06/18 19:29:49 seth Exp $
+ * $Id: libbk_include.h,v 1.4 2001/09/07 16:24:46 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -49,6 +49,8 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+
+#ifdef REALLY_NEEDED
 #include <arpa/nameser.h>
 #include <resolv.h>
 
@@ -57,6 +59,8 @@
 #else /* filio.h instead of ioctl.h */
 # include <sys/filio.h>
 #endif /* filio.h instead of ioctl.h */
+
+#endif /* REALLY NEEDED */
 
 #include "fsma.h"
 #include "dict.h"
