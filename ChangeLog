@@ -1,3 +1,11 @@
+2002-02-20  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h: declare bk_ioh_print{,f}
+
+2002-02-20  Brian Lindauer  <lindauer@sysdetect.com>
+
+	* lib/b_ioh.c: Added b_ioh_print and b_ioh_printf
+
 2002-02-19  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_ioh.c (bk_ioh_fdctl): fcntl F_SETFL takes value, not pointer

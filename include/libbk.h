@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.114 2002/02/19 00:38:37 jtt Exp $
+ * $Id: libbk.h,v 1.115 2002/02/21 00:02:01 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1162,6 +1162,8 @@ extern bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flag
 #define		BK_IOH_COALESCE_FLAG_MUST_COPY		0x1 ///< Coalesce code *must* copy.
 // Out flags
 #define 	BK_IOH_COALESCE_OUT_FLAG_NO_COPY	0x1 ///< Data not copied.
+extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str);
+extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, char *format, ...);
 
 /* b_pollio.c */
 extern struct bk_polling_io *bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags);
