@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.292 2004/06/07 21:51:23 jtt Exp $
+ * $Id: libbk.h,v 1.293 2004/06/08 21:43:08 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2147,7 +2147,7 @@ extern void volatile *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
 extern int bk_ring_length(bk_s B, struct bk_ring *ring, bk_flags flags);
 
 /* b_vptr.c */
-extern int bk_vptr_append(bk_s B, struct bk_vptr *dp, struct bk_vptr *sp);
+extern int bk_vptr_append(bk_s B, struct bk_vptr *dp, const struct bk_vptr *sp);
 extern int bk_vptr_trimleft(bk_s B, struct bk_vptr *vptr, const void *ptr);
 extern int bk_vptr_ntrimleft(bk_s B, struct bk_vptr *vptr, size_t n);
 extern int bk_vptr_cmp(bk_vptr *v1, bk_vptr *v2);

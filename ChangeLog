@@ -1,3 +1,8 @@
+2004-06-08  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_vptr.c (bk_vptr_append): Make RO component (source
+	bk_vptr) constant.
+
 2004-06-07  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_run.c (bk_run_signal): Shut up Insure.
