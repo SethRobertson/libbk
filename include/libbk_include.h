@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.20 2002/03/09 21:40:45 jtt Exp $
+ * $Id: libbk_include.h,v 1.21 2002/03/18 21:40:18 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -82,6 +82,7 @@
 #include <libintl.h>
 #include <limits.h>
 #include <popt.h>
+#include <paths.h>
 #include <assert.h>
 #include <dirent.h>
 #ifdef BK_MINGW

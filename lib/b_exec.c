@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_exec.c,v 1.4 2002/03/15 04:21:03 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_exec.c,v 1.5 2002/03/18 21:40:18 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -363,6 +363,28 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
     break;
       
   case 0:
+    if (BK_FLAG_ISSET(flags, BK_EXEC_FLAG_TOSS_STDERR) && stderr)
+    {
+      int fd = fileno(stderr);
+      int nullfd;
+      long dummy;
+      char *path = BK_GWD(B, "bk_path_dev_null", _PATH_DEVNULL);
+
+      if ((nullfd = open(path, O_WRONLY)) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not open %s: %s\n", path, strerror(errno));
+	// Whatever, forge on.
+      }
+      else
+      {
+	if (dup2(nullfd, fd) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not dup stderr to %s: %s\n", path, strerror(errno));
+	}
+	close(nullfd);
+      }
+    }
+
     if (bk_exec(B, proc, args, env, flags) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not exec child process\n");

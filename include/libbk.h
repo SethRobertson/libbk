@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.123 2002/03/14 21:55:30 dupuy Exp $
+ * $Id: libbk.h,v 1.124 2002/03/18 21:40:18 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1401,14 +1401,17 @@ extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, 
 
 
 /* b_exec.c */
+
+#define BK_EXEC_FLAG_SEARCH_PATH	0x1	///< Search PATH for the process
+#define BK_EXEC_FLAG_TOSS_STDERR	0x2	///< Duplicate stderr to /dev/null.
+#define BK_EXEC_FLAG_USE_SUPPLIED_FDS	0x4	///< Use the fd's supplied as copyu in args
+
 extern int bk_pipe_to_process(bk_s B, int *fdinp, int*fdoutp, bk_flags flags);
 extern int bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags flags);
-#define BK_EXEC_FLAG_SEARCH_PATH	0x1	///< Search PATH for the process
 extern char *bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags flags);
 extern int bk_exec_cmd(bk_s B, const char *cmd, char *const *env, bk_flags flags);
 extern int bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
 extern pid_t bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *args, char *const *env, bk_flags flags);
-#define BK_EXEC_FLAG_USE_SUPPLIED_FDS		0x1 ///< Use the fd's supplied as copyu in args
 extern pid_t bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const *env, u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
 extern pid_t bk_pipe_to_cmd(bk_s B, int *fdin,int *fdout, const char *cmd, char *const *env, bk_flags flags);
 
