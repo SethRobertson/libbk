@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.197 2003/01/23 17:28:02 lindauer Exp $
+ * $Id: libbk.h,v 1.198 2003/01/23 20:02:38 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1555,6 +1555,8 @@ extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags fl
 extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags);
 #define BK_STRING_ATOF_FLAG_ALLOW_INF BK_STRING_ATOD_FLAG_ALLOW_INF
 #define BK_STRING_ATOF_FLAG_ALLOW_NAN BK_STRING_ATOD_FLAG_ALLOW_NAN
+extern char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **envdb, bk_flags flags)
+#define BK_STRING_EXPAND_FLAG_FREE	0x1
 
 
 /* b_string.c */
