@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.45 2002/03/08 11:34:44 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.46 2002/03/18 19:08:44 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1069,7 +1069,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
     BK_VRETURN(B);
   }
 
-  bk_debug_printf_and(B, 1, "Received run notification of %x ready for IOH %p/%x\n", gottypes, ioh, ioh->ioh_intflags);
+  bk_debug_printf_and(B, 1, "Received run notification of %x ready for IOH %p/%x (fd: %d)\n", gottypes, ioh, ioh->ioh_intflags, fd);
 
   // Check for error or exceptional conditions
   if (BK_FLAG_ISSET(gottypes, BK_RUN_DESTROY) || BK_FLAG_ISSET(gottypes, BK_RUN_CLOSE))
