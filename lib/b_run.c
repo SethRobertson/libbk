@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.30 2002/09/26 22:04:38 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.31 2002/10/04 21:11:43 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -150,7 +150,7 @@ struct bk_run_ondemand_func
 
 static int bk_run_event_comparator(struct br_equeue *a, struct br_equeue *b);
 static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
-static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *starttime, struct timeval *delta);
+static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *starttime, struct timeval *delta, u_int *event_cntp);
 static struct bk_run_func *brfn_alloc(bk_s B);
 static void brfn_destroy(bk_s B, struct bk_run_func *brf);
 static struct bk_run_ondemand_func *brof_alloc(bk_s B);
@@ -789,6 +789,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   int x;
   int use_deltapoll, check_idle;	
   struct timeval zero;
+  u_int event_cnt;
 
   deltapoll.tv_sec = INT32_MAX;
   deltapoll.tv_usec = INT32_MAX;
@@ -906,7 +907,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   if (br_beensignaled) goto beensignaled;
 
   // Check for event queue
-  if ((ret = bk_run_checkeventq(B, run, &curtime, &deltaevent)) < 0)
+  if ((ret = bk_run_checkeventq(B, run, &curtime, &deltaevent, &event_cnt)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "The event queue checking procedure failed severely.\n");
     goto error;
@@ -963,7 +964,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
    * select set.
    */
   if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_RUN_OVER | BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE) || 
-      BK_FLAG_ISSET(flags, BK_RUN_ONCE_FLAG_DONT_BLOCK))
+      BK_FLAG_ISSET(flags, BK_RUN_ONCE_FLAG_DONT_BLOCK) || event_cnt ) 
   {
     selectarg = &zero; 
   }
@@ -1429,17 +1430,21 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
  *	@return <br><i>1</i> if there is a next event
  *	@return <br>copy-out <i>delta</i> is time to next event, if there is a next event
  */
-static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *starttime, struct timeval *delta)
+static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *starttime, struct timeval *delta, u_int *event_cntp)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeue *top;
   struct timeval curtime;
+  int event_cnt = 0;
 
   if (!run || !delta)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_RETURN(B, -1);
   }
+
+  if (event_cntp)
+    *event_cntp = 0;
 
   while (top = pq_head(run->br_equeue))
   {
@@ -1450,7 +1455,11 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *
 
     (*top->bre_event)(B, run, top->bre_opaque, starttime, 0);
     free(top);
+    event_cnt++;
   }
+
+  if (event_cntp)
+    *event_cntp = event_cnt;
 
   if (!top)
     BK_RETURN(B,0);    
