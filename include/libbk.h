@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.58 2001/11/18 19:04:39 seth Exp $
+ * $Id: libbk.h,v 1.59 2001/11/20 02:10:53 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -27,8 +27,12 @@
 
 /* Forward references */
 struct bk_ioh;
-typedef u_int32_t bk_flags;			///< Normal bitfield type
 struct bk_addrgroup;
+struct bk_server_info;
+
+
+
+typedef u_int32_t bk_flags;			///< Normal bitfield type
 
 
 
@@ -44,6 +48,7 @@ struct bk_addrgroup;
 
 #define BK_APP_CONF	"/etc/bk.conf"		///< Default configuration file name
 #define BK_ENV_GWD(e,d)	((char *)(getenv(e)?getenv(e):(d))) ///< Get an environmental variable with a default if it does not work
+#define BK_GWD(B,k,d) (bk_config_getnext(B, NULL, (k), NULL)?:(d)) ///< Get a value from the config file, or return a default
 #define BK_SYSLOG_MAXLEN 256			///< Length of maximum user message we will syslog
 #define BK_FLAG_SET(var,bit) ((var) |= (bit))	///< Set a bit in a simple bitfield
 #define BK_FLAG_ISSET(var,bit) ((var) & (bit))	///< Test if bit is set in a simple bitfield
@@ -173,6 +178,20 @@ typedef enum
   BK_SOCKET_SIDE_LOCAL=1,			///< The local side.
   BK_SOCKET_SIDE_REMOTE,			///< The remote side.
 } bk_socket_side_t;
+
+
+
+/**
+ * Possible reasons why a server callback may be called
+ */
+typedef enum
+{
+  BK_SERVER_READY,				///< We are ready to accept, here is server reference
+  BK_SERVER_NEWCONNECTION,			///< Here is the new connection
+  BK_SERVER_CLOSE,				///< We are closing down
+  BK_SERVER_FAILED,				///< Could not create the server socket
+} bk_server_state_t;
+
 
 
 
@@ -840,5 +859,10 @@ extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils
 /* b_addrgroup.c */
 extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_t callback, void *args, int backlog);
 void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
+
+/* b_server.c */
+typedef void (*bk_server_cb)(bk_s B, int newsock, void *opaque, bk_server_state_t state, struct bk_server_info *server);
+extern int bk_server_bind_fd(bk_s B, int servfd, char *securenets, bk_server_cb callback, void *opaque, bk_flags flags);
+extern int bk_server_bind(bk_s B, const char *servspec, char *securenets, bk_server_cb callback, void *opaque, bk_flags flags);
 
 #endif /* _BK_h_ */

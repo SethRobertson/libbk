@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.19 2001/11/20 00:04:46 seth Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.20 2001/11/20 02:10:53 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -70,7 +70,7 @@ main(int argc, char **argv, char **envp)
 {
   bk_s B = NULL;				/* Baka general structure */
   BK_ENTRY(B, __FUNCTION__, __FILE__, "SIMPLE");
-  char c;
+  int c;
   int getopterr=0;
   extern char *optarg;
   extern int optind;
