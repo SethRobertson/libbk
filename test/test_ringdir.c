@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_ringdir.c,v 1.3 2004/04/08 21:03:47 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_ringdir.c,v 1.4 2004/05/04 14:38:26 brian Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -289,7 +289,7 @@ static void progrun(bk_s B, struct program_config *pc)
   char *filename;
   int cnt;
 
-  if (!(brdh = bk_ringdir_init(B, "/tmp/jtt-ringdir/", 1024, 100, "%02ujtt", &jtt_ringdir_callbacks, 0)))
+  if (!(brdh = bk_ringdir_init(B, "/tmp/jtt-ringdir/", 1024, 100, "%02ujtt", NULL, &jtt_ringdir_callbacks, 0)))
   {
     fprintf(stderr, "Could not initialize ring dir\n");    
     goto error;
