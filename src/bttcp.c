@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.24 2002/05/01 01:53:28 seth Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.25 2002/05/01 20:32:31 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -149,7 +149,7 @@ main(int argc, char **argv, char **envp)
 
   pc = &Pconfig;
   memset(pc,0,sizeof(*pc));
-  pc->pc_multicast_ttl = 2;			// Default local net multicast
+  pc->pc_multicast_ttl = 1;			// Default local net multicast
   pc->pc_timeout=BK_SECS_TO_EVENT(30);
   pc->pc_proto=DEFAULT_PROTO_STR;
 
