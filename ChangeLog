@@ -1,3 +1,8 @@
+2003-06-24  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_general.c (bk_general_thread_destroy): Go back to the
+	original definition of funstatfile.  You silly silly people.
+
 2003-06-20  James Tanis  <jtt@austin.sysdetect.com>
 
 	* lib/b_pollio.c (polling_io_ioh_handler): Avoid calling
@@ -10,7 +15,7 @@
 	after thread data is destroyed
 	(bk_general_thread_destroy): use pthread_self() as well as getpid()
 	for funstats file format
-	
+
 2003-06-20  James Tanis  <jtt@wonder.sysdetect.com>
 
 	* lib/b_pollio.c (polling_io_ioh_handler): Seize the data if it's

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.49 2003/06/24 17:46:29 brian Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.50 2003/06/24 18:19:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -387,14 +387,17 @@ void bk_general_thread_destroy(bk_s B)
       char buf[PATH_MAX+1];
       FILE *FH;
 
-#ifdef BK_USING_PTHREADS
-      // <TODO>should perform some validation of printf format string</TODO>
-      snprintf(buf, PATH_MAX, BK_GENERAL_FUNSTATFILE(B),
-	       getpid(), (pid_t) pthread_self());
-#else /* BK_USING_PTHREADS */
-      snprintf(buf, PATH_MAX, BK_GENERAL_FUNSTATFILE(B),
-	       getpid(), getpid());
-#endif /* BK_USING_PTHREADS */
+      /*
+       * <TODO>When we port this to another system where threads are
+       * not implemented as processes, we need to figure out an
+       * identifier.  Note, Alex, that using pthread_self() is not
+       * usable.  It is implemented as an integer on Linux, but on
+       * other systems it may be a structure, a copy of a structure, a
+       * pointer, a pointer to a copy of a structure, or all sorts of
+       * bizarre stuff.  In other words, printing it as a number is not
+       * a good idea.  We have now come full circle.</TODO>
+       */
+      snprintf(buf, PATH_MAX, BK_GENERAL_FUNSTATFILE(B), getpid());
 
       if (FH = fopen(buf,"w"))
       {
