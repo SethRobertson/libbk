@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.5 2001/07/13 16:21:44 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.6 2001/07/15 05:13:26 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -57,10 +57,11 @@ static int kv_ko_cmp(void *a, void *bck2);
 static ht_val kv_obj_hash(void *bck);
 static ht_val kv_key_hash(void *a);
 static int load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *bcf);
-static struct bk_config_key *bck_create(bk_s B, char *key, bk_flags flags);
+static struct bk_config_key *bck_create(bk_s B, const char *key, bk_flags flags);
 static void bck_destroy(bk_s B, struct bk_config_key *bck);
-static struct bk_config_value *bcv_create(bk_s B, char *value, u_int lineno, bk_flags flags);
+static struct bk_config_value *bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags);
 static void bcv_destroy(bk_s B, struct bk_config_value *bcv);
+static int config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, const char *ovalue, u_int lineno);
 
 
 static int kv_oo_cmp(void *bck1, void *bck2)
@@ -277,34 +278,13 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
       continue;
     }
     
-    *value++='\0';
+    *value++='\0'; /* "line" now points at the key and "value" at the value */
     
-    if (!(bck=config_kv_search(bc->bc_kv,key)))
+    if (config_manage(B, bc, line, value, NULL, lineno)<0)
     {
-      if (!(bck=bck_create(B, key,0)))
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not create key struct for %s\n", key);
-	ret=-1;
-	goto done;
-      }
-
-      if (config_kv_insert(bc->bc_kv, bck) != DICT_OK)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not insert key %s into config clc (continuing)\n", key);
-	bck_destroy(B, bck);
-	continue;
-      }
-    }
-
-    if (!(bcv=bcv_create(B, value, lineno, 0)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not create value struct for %s (continuing)\n", value);
-      continue;
-    }
-    if (config_values_append(bck->bck_values,bcf) != DICT_OK)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not insert %s in values clc\n", value);
-      continue;
+      bk_error_printf(B, BK_ERR_ERR, "Could not add %s ==> %s to DB\n", key, value);
+      ret=-1;
+      goto done;
     }
   }
 
@@ -322,6 +302,121 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
 
 }
 
+
+
+#define CONFIG_MANAGE_FLAG_NEW_KEY	0x1
+#define CONFIG_MANAGE_FLAG_NEW_VALUE	0x2
+/*
+ * Internal management function.
+ */
+static int
+config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, const char *ovalue, u_int lineno)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_config_key *bck=NULL;
+  struct bk_config_value *bcv=NULL;
+  int flags=0;
+
+  if (!bc || !key || (!value && !ovalue))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  if (!(bck=config_kv_search(bc->bc_kv,(char *)key)))
+  {
+    if (!(bck=bck_create(B, key,0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create key struct for %s\n", key);
+      goto error;
+    }
+
+    BK_FLAG_SET(flags, CONFIG_MANAGE_FLAG_NEW_KEY);
+
+    if (config_kv_insert(bc->bc_kv, bck) != DICT_OK)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not insert key %s into config clc (continuing)\n", key);
+      goto error;
+    }
+  }
+
+  if (ovalue)
+  {
+    /* Add a new value to key */
+    if (!(bcv=bcv_create(B, value, lineno, 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create value struct for %s (continuing)\n", value);
+      goto error;
+    }
+
+    BK_FLAG_SET(flags, CONFIG_MANAGE_FLAG_NEW_VALUE);
+
+    if (config_values_append(bck->bck_values,bcv) != DICT_OK)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not insert %s in values clc\n", value);
+      goto error;
+    }
+  }
+  else
+  {
+    if (!(bcv=config_values_search(bck->bck_values, (char *)ovalue)))
+    {
+      /* 
+       * jtt thinks failure to locate something you want to delete is just
+       * a warning and *not* and erorr.
+       */
+	 
+      bk_error_printf(B, BK_ERR_WARN, "Could not locate value: %s in key: %s\n", value, key);
+      goto error;
+    }
+
+    if (value)
+    {
+      /* Replace ovalue with value. If strdup fails restore ovalue */
+      char *hold;
+      hold=bcv->bcv_value;
+      if (!(bcv->bcv_value=strdup(value)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not strdup new value: %s (restoring %s)\n", value, ovalue);
+	bcv->bcv_value=hold;
+      }
+      else
+      {
+	/* OK to free now */
+	if (hold) free (hold); /* hold should *always* be nonnull, but check*/
+      }
+    }
+    else
+    {
+      /* Delete value */
+      config_values_delete(bck->bck_values, bcv);
+      bcv_destroy(B, bcv);
+      if (!(config_values_minimum(bck->bck_values)))
+      {
+	/* That was the last value in the key. Get rid the key */
+	config_kv_delete(bc->bc_kv, bck);
+	bck_destroy(B, bck);
+      }
+    }
+  }
+
+  BK_RETURN(B, 0);
+
+ error:
+  /* Destroy the value first to make sure you don't double free */
+  if (BK_FLAG_ISSET(flags, CONFIG_MANAGE_FLAG_NEW_VALUE) && bcv)
+  {
+    config_values_delete(bck->bck_values, bcv);
+    bcv_destroy(B, bcv);
+  }
+
+  if (BK_FLAG_ISSET(flags, CONFIG_MANAGE_FLAG_NEW_KEY) && bck)
+  {
+    config_kv_delete(bc->bc_kv, bck);
+    bck_destroy(B, bck);
+  }
+  BK_RETURN(B, -1);
+}
 
 
 /*
@@ -389,7 +484,7 @@ bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ov
  * Delete an entire key
  */
 int 
-bc_config_delete_key(bk_s B, struct bk_config *ibc, const char *key)
+bk_config_delete_key(bk_s B, struct bk_config *ibc, const char *key)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_config *bc;
@@ -498,7 +593,7 @@ bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf)
  * Create a key struct
  */
 static struct bk_config_key *
-bck_create(bk_s B, char *key, bk_flags flags)
+bck_create(bk_s B, const char *key, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_config_key *bck=NULL;
@@ -579,7 +674,7 @@ bck_destroy(bk_s B, struct bk_config_key *bck)
  * Create a values struct
  */
 static struct bk_config_value *
-bcv_create(bk_s B, char *value, u_int lineno, bk_flags flags)
+bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_config_value *bcv=NULL;

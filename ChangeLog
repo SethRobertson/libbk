@@ -1,3 +1,7 @@
+2001-07-15  James Tanis  <jtt@outpost.tanis.org>
+
+	* lib/b_config.c (bck_create): Main maintence function.
+
 2001-07-13  James Tanis  <jtt@outpost.tanis.org>
 
 	* lib/b_config.c: More config stuff.
