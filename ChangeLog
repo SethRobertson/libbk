@@ -1,3 +1,11 @@
+2002-08-27  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_string.c: weird insure++ error was just due to feeping
+	creaturism of string functions; splitting b_string.c into two files
+	eliminates the problem until we add another ten functions more...
+	
+	* lib/b_strconv.c: string conversion functions [bk_string_*to* et al.]
+
 2002-08-27  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_string.c (bk_string_atof): Provide alternate version
