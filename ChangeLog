@@ -1,3 +1,9 @@
+2001-11-14  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_signal.c (bk_signal): conditionalize SA_SIGINFO, and
+	document the problems with the current API if SA_SIGINFO exists
+	and is used.
+
 2001-11-14  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_ioh.c (ioht_block_other): Line misordering causing

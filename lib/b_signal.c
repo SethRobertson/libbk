@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_signal.c,v 1.1 2001/11/14 01:10:19 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_signal.c,v 1.2 2001/11/15 02:12:32 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,6 +23,12 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+/*
+ * <TODO>bk_signal probably needs an API change, so that certain signal flags,
+ * like SA_SIGINFO (perhaps SA_NODEFER, SA_NOCLDWAIT too) are preserved
+ * correctly when restoring an original signal handler.</TODO>>
+ */
 
 
 
@@ -56,9 +62,18 @@ bk_sighandler bk_signal(bk_s B, int signo, bk_sighandler handler, bk_flags flags
     BK_RETURN(B, NULL);
   }
 
-  if (old.sa_flags & SA_SIGINFO)		// May be linuxism
+#ifdef SA_SIGINFO
+  /*
+   * <WARNING>If SA_SIGINFO is set, we correctly return the signal handler
+   * stored in sa_sigaction.  But if you later use bk_signal to restore the
+   * original "handler", it will go in sa_handler, SA_SIGINFO will not be set,
+   * and the function will get garbage instead of the siginfo_t * it expects.
+   * </WARNING>
+   */
+  if (old.sa_flags & SA_SIGINFO)
     ret = old.sa_sigaction;
   else
+#endif /* SA_SIGINFO */
     ret = old.sa_handler;
 
   if (!ret)
