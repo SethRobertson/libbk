@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.11 2001/11/21 17:56:05 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.12 2001/11/26 18:12:28 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1058,7 +1058,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int af;
   int s=-1;
-  struct bk_addrgroup *bag;
+  struct bk_addrgroup *bag=NULL;
 
   if (!as)
   {
@@ -1119,35 +1119,33 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
    */
   if (as->as_callback)
   {
-    /* Reuse bag here */
-    bag=NULL;
+    struct bk_addrgroup *nbag=NULL;
+
     if (BK_FLAG_ISSET(as->as_user_flags, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP))
     {
-      if (!(bag=bag_create(B)))
+      if (!(nbag=bag_create(B)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate bk_addrgroup\n");
 	goto error;
       }
       /* The proto and type have to be the same as the cached. */
-      bag->bag_proto=as->as_bag->bag_proto;
-      bag->bag_type=as->as_bag->bag_type;
-      if (!(bag->bag_local=bk_netinfo_from_socket(B,as->as_sock, bag->bag_proto, BK_SOCKET_SIDE_LOCAL)))
+      nbag->bag_proto=as->as_bag->bag_proto;
+      nbag->bag_type=as->as_bag->bag_type;
+      if (!(nbag->bag_local=bk_netinfo_from_socket(B,as->as_sock, nbag->bag_proto, BK_SOCKET_SIDE_LOCAL)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not generate local side netinfo\n");
 	goto error;
       }
-      bk_netinfo_set_primary_address(B,bag->bag_local,NULL);
+      bk_netinfo_set_primary_address(B,nbag->bag_local,NULL);
     }
 
-    (*(as->as_callback))(B, as->as_args, s, bag, as->as_server, BK_ADDRGROUP_STATE_READY);
-
-    /* Now restore bag to it's previous definition */
-    bag=as->as_bag;
+    (*(as->as_callback))(B, as->as_args, s, nbag, as->as_server, BK_ADDRGROUP_STATE_READY);
   }
   
   BK_RETURN(B,s);
 
  error:
+  if (bag) bag_destroy(B,bag);
   net_close(B, as);
   BK_RETURN(B,-1);
 }

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.67 2001/11/21 17:56:05 jtt Exp $
+ * $Id: libbk.h,v 1.68 2001/11/26 18:12:27 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -810,9 +810,10 @@ extern void bk_protoent_destroy(bk_s B, struct protoent *p);
 extern int bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni, bk_flags flags);
 #define BK_GETSERVBYFOO_FORCE_LOOKUP	0x1	///< Do lookup even if argumnet suggests otherwise.
 extern void bk_servent_destroy(bk_s B, struct servent *s);
-extern int bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args, bk_flags user_flags);
+extern void *bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args, bk_flags user_flags);
 #define BK_GETHOSTBYFOO_FLAG_FQDN	0x1	///< Get the FQDN
 extern void bk_destroy_hostent(bk_s B, struct hostent *h);
+extern void bk_gethostbyfoo_info_destroy(bk_s B, void *opaque);
 
 
 /* b_netinfo.c */

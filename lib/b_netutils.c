@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.5 2001/11/21 00:01:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.6 2001/11/26 18:12:28 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -41,6 +41,7 @@ struct start_service_state
   int				sss_backlog;	///< Listen backlog.
   char *			sss_host;	///< Space to save a hostname.
   u_long			sss_timeout;	///< Timeout
+  void *			sss_ghbf_info;	///< Opaque gethostbyfoo info
 };
 
 
@@ -215,6 +216,7 @@ bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char
     goto error;
   }
 
+  if (url) free (url);
   BK_RETURN(B,0);
 
  error:
@@ -300,12 +302,15 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhostst
   sss->sss_securenets=securenets;
   sss->sss_backlog=backlog;
 
-  if (bk_gethostbyfoo(B, hoststr, 0, NULL, bni, run, sss_serv_gethost_complete, sss, 0)<0)
+  if (!(sss->sss_ghbf_info=bk_gethostbyfoo(B, hoststr, 0, NULL, bni, run, sss_serv_gethost_complete, sss, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not begin the hostname lookup process\n");
     goto error;
   }
-  
+
+  if (hoststr) free(hoststr);
+  if (servstr) free(servstr);
+  if (protostr) free(protostr);
   BK_RETURN(B,0);
   
  error:
@@ -336,6 +341,9 @@ sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent **h, struc
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
   }
+
+  /* Don't double free gethostbyfoo info */
+  sss->sss_ghbf_info=NULL;
 
   if (bk_net_init(B, run, sss->sss_lbni, NULL, 0, sss->sss_flags, sss->sss_callback, sss->sss_args, sss->sss_backlog)<0)
   {
@@ -396,6 +404,9 @@ sss_destroy(bk_s B, struct start_service_state *sss)
     BK_VRETURN(B);
   }
   
+  if (sss->sss_lbni) bk_netinfo_destroy(B,sss->sss_lbni);
+  if (sss->sss_rbni) bk_netinfo_destroy(B,sss->sss_rbni);
+  if (sss->sss_ghbf_info) bk_gethostbyfoo_info_destroy(B,sss->sss_ghbf_info);
   free(sss);
   BK_VRETURN(B);
 }
@@ -544,7 +555,7 @@ bk_netutils_make_conn(bk_s B, struct bk_run *run, char *rurl, char *defrhost, ch
   sss->sss_host=lhoststr;
   sss->sss_timeout=timeout;
 
-  if (bk_gethostbyfoo(B, rhoststr, 0, NULL, rbni, run, sss_connect_rgethost_complete, sss, 0)<0)
+  if (!(sss->sss_ghbf_info=bk_gethostbyfoo(B, rhoststr, 0, NULL, rbni, run, sss_connect_rgethost_complete, sss, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not start search for remote hostname\n");
     goto error;
@@ -587,7 +598,16 @@ sss_connect_rgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, st
     BK_VRETURN(B);
   }
 
-  if (bk_gethostbyfoo(B, sss->sss_host, 0, NULL, sss->sss_lbni, run, sss_connect_lgethost_complete, sss, 0)<0)
+  /* 
+   * Null this out so we don't try to double free the gethostbyfoo info. Do
+   * this *despite* the fact that (when first written) the following line
+   * resets it. If someone inserts some code (which might result in an
+   * error) before the next bk_gethostbyfoo, with this "redundant" line
+   * here we are guarenteed to do the right thing.
+   */
+  sss->sss_ghbf_info=NULL;
+
+  if (!(sss->sss_ghbf_info=bk_gethostbyfoo(B, sss->sss_host, 0, NULL, sss->sss_lbni, run, sss_connect_lgethost_complete, sss, 0)))
   {
     goto error;
   }
@@ -625,6 +645,9 @@ sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, st
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
   }
+
+  /* Don't double free gethostbyfoo info */
+  sss->sss_ghbf_info=NULL;
 
   if (bk_net_init(B, run, sss->sss_lbni, sss->sss_rbni, sss->sss_timeout, sss->sss_flags, sss->sss_callback, sss->sss_args, 0)<0)
   {

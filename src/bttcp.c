@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.13 2001/11/21 17:56:05 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.14 2001/11/26 18:12:28 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -401,7 +401,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   case BK_ADDRGROUP_STATE_READY:
     pc->pc_server=server_handle;
     fprintf(stderr,"Ready and waiting\n");
-    BK_VRETURN(B);
+    goto done;
     break;
   case BK_ADDRGROUP_STATE_NEWCONNECTION:
     if (pc->pc_server /* && ! serving_conintuously */)
@@ -420,7 +420,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
       pc->pc_server=NULL;			/* Very important */
       fprintf(stderr,"Clean server close\n");
       BK_FLAG_CLEAR(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
-      BK_VRETURN(B);
+      goto done;
     }
     fprintf(stderr,"Software shutdown during connection setup\n");
     break;
@@ -458,8 +458,6 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   fprintf(stderr, "%s ==> %s\n", bk_netinfo_info(B,bag->bag_local), bk_netinfo_info(B,bag->bag_remote));
 
   /* XXX If we need to hold on to bag save it here but for now */
-  bk_addrgroup_destroy(B,bag);
-  bag=NULL;
 
   fflush(stdin);
   fflush(stdout);
@@ -480,9 +478,12 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     goto error;
   }
 
+ done:
+  if (bag) bk_addrgroup_destroy(B, bag);
   BK_VRETURN(B);
 
  error:
+  if (bag) bk_addrgroup_destroy(B, bag);
   if (std_ioh) bk_ioh_destroy(B, std_ioh);
   if (net_ioh) bk_ioh_destroy(B, net_ioh);
   bk_run_set_run_over(B,pc->pc_run);

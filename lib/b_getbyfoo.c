@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.12 2001/11/20 19:34:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.13 2001/11/26 18:12:28 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -41,17 +41,21 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  */
 struct bk_gethostbyfoo_state
 {
-  struct hostent **	bgs_user_copyout;	/** Caller's pointer  */
-  struct bk_netaddr 	bgs_bna;		/** Space for an addr */
-  struct bk_netinfo *	bgs_bni;		/** bk_netinfo from caller */
-  struct hostent *	bgs_hostent;		/** Actual hostent info */
-  void 			(*bgs_callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni , void *args); /** Caller's callback */
-  void *		bgs_args;		/* Caller's argument to @a callback */
-  bk_flags		bgs_flags;		/* Everyone needs flags */
+  struct hostent **	bgs_user_copyout;	///< Caller's pointer
+  struct bk_run *	bgs_run;		///< Run struct
+  struct bk_netaddr 	bgs_bna;		///< Space for an addr
+  struct bk_netinfo *	bgs_bni;		///< bk_netinfo from caller
+  struct hostent *	bgs_hostent;		///< Actual hostent info
+  void 			(*bgs_callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni , void *args); ///< Caller's callback
+  void *		bgs_args;		///< Caller's argument to @a callback
+  bk_flags		bgs_flags;		///< Everyone needs flags
+  void *		bgs_event;		///< Callback event 
 };
 
 static int copy_hostent(bk_s B, struct hostent **ih, struct hostent *h);
 static void gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval starttime, bk_flags flags);
+static struct bk_gethostbyfoo_state *bgs_create(bk_s B);
+static void bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs);
 
 
 
@@ -461,6 +465,12 @@ bk_servent_destroy(bk_s B, struct servent *s)
  * <em>subsequent</em> @a bk_run_once pass. If BK_GETHOSTBYFOO_FLAG_FQDN
  * flags is set, then the fully qualified name is return. This of course
  * really only makes sens on an addr ==> name lookup.
+ * 
+ * On success the caller gets back an opaque handle which is useful
+ * <em>only</em> useful as an argument to @a
+ * bk_gethostbyfoo_info_destroy(). This function should be called iff an
+ * error occurs which makes the callback for gethostbyfoo a bad idea.
+ *
  *
  *	@param B BAKA thread/global state.
  *	@param name String to lookup.
@@ -470,10 +480,10 @@ bk_servent_destroy(bk_s B, struct servent *s)
  *	@param callback Function to invoke when answer is arrives.
  *	@param args User args to return to @a callback when invoked.
  *	@param lflags. See code for description of flags.
- *	@returns <i>-1</i> on failure.
- *	@returns <i>0</i> on success.
+ *	@returns <i>NULL</i> on failure.
+ *	@returns opaque <i>gethostbyfoo info</i> on success.
  */
-int
+void *
 bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args, bk_flags user_flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -497,7 +507,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
   if (!name || (!ih && !bni) || !callback) 
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_RETURN(B, -1);
+    BK_RETURN(B, NULL);
   }
 
   /* Make sure this is initialized right away (see error section) */
@@ -554,7 +564,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
       if (family != AF_INET)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Address family mismatch (%d != %d)\n", family, AF_INET);
-	BK_RETURN(B,1);
+	goto error;
       }
     }
 
@@ -570,7 +580,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
       if (family != AF_INET6)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Address family mismatch (%d != %d)\n", family, AF_INET6);
-	BK_RETURN(B,1);
+	goto error;
       }
     }
 
@@ -651,7 +661,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
    * code can survive returning to at least one select loop run without the
    * hostname info.
    */
-  if (!BK_CALLOC(bgs))
+  if (!(bgs=bgs_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bgs: %s\n", strerror(errno));
     goto error;
@@ -664,20 +674,92 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
   bgs->bgs_args=args;
   bgs->bgs_flags=flags;
   bgs->bgs_bni=bni;
+  bgs->bgs_run=br;
 
-  if (bk_run_enqueue_delta(B, br, 0, gethostbyfoo_callback, bgs, NULL, 0)<0)
+  if (bk_run_enqueue_delta(B, br, 0, gethostbyfoo_callback, bgs, &bgs->bgs_event, 0)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not enqueue gethostbyfoo callback\n");
     goto error;
   }
 
-  BK_RETURN(B,0);
+  BK_RETURN(B,bgs);
 
  error:
   if (tmp_h) bk_destroy_hostent(B, tmp_h);
-  if (bgs) free(bgs);
+  if (bgs) bgs_destroy(B,bgs);
   if (ih) *ih=NULL;
-  BK_RETURN(B,-1);
+  BK_RETURN(B,NULL);
+}
+
+
+
+/**
+ * Create a bgs
+ *	@param B BAKA thread/global state.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a new @a bk_gethostbyfoo_state on success.
+ */
+static struct bk_gethostbyfoo_state *
+bgs_create(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_gethostbyfoo_state *bgs=NULL;
+
+  if (!(BK_CALLOC(bgs)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate bgs: %s\n", strerror(errno));
+    goto error;
+  }
+  BK_RETURN(B,bgs);
+ error:
+  if (bgs) bgs_destroy(B, bgs);
+  BK_RETURN(B,NULL);
+}
+
+
+
+/**
+ * Destroy a @a bk_gethostbyfoo_state.
+ *	@param B BAKA thread/global state.
+ *	@param bgs @a bk_gethostbyfoo_state to destroy.
+ */
+static void
+bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  
+  if (!bgs)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+  
+  if (bgs->bgs_event) bk_run_dequeue(B, bgs->bgs_run, bgs->bgs_event, 0);
+  free(bgs);
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Public interface for bgs_destroy
+ *	@param B BAKA thread/global state.
+ *	@param bgs @a bk_gethostbyfoo_state to destroy
+ */
+void 
+bk_gethostbyfoo_info_destroy(bk_s B, void *opaque)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_gethostbyfoo_state *bgs;
+
+  if (!(bgs=opaque))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  bgs_destroy(B, bgs);
+  BK_VRETURN(B);
 }
 
 
@@ -859,6 +941,9 @@ gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval sta
     BK_VRETURN(B);
   }
   
+  /* First null out event so we don't try to dequeue it later */
+  bgs->bgs_event=NULL;
+
   /* Finally associate the user's pointer with the hostent data */
   if (bgs->bgs_user_copyout)
   {
@@ -891,6 +976,6 @@ gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval sta
     bk_destroy_hostent(B, bgs->bgs_hostent);
   }
 
-  free(bgs);
+  bgs_destroy(B,bgs);
   BK_VRETURN(B);
 }
