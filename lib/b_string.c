@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.42 2002/05/30 23:36:22 lindauer Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.43 2002/07/16 22:03:44 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1881,7 +1881,13 @@ bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
   struct bk_randinfo *ri = NULL;
   char md5_str[32];
   char *p = buf;
-  u_int32_t randnum;
+  union
+  {
+    // Sigh.. this shuts up bounds checking.
+    u_int32_t 	val;
+    char 	buf[sizeof(u_int32_t)];
+  } randnum;
+
 
   if (!buf)
   {
@@ -1918,8 +1924,8 @@ bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
   bk_MD5Update(B, &ctx, (char *)&tv, sizeof(tv));
 
   // Throw in a little more entropy just for kicks.
-  randnum = bk_rand_getword(B, ri, NULL, 0);
-  bk_MD5Update(B, &ctx, (char *)&randnum, sizeof(randnum));
+  randnum.val = bk_rand_getword(B, ri, NULL, 0);
+  bk_MD5Update(B, &ctx, randnum.buf, sizeof(randnum.buf));
 
   bk_MD5Final(B, &ctx);
   
@@ -1939,8 +1945,8 @@ bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
     bk_MD5Update(B, &ctx, md5_str, sizeof(md5_str)-1);
 
     // And throw in some more entropy
-    randnum = bk_rand_getword(B, ri, NULL, 0);
-    bk_MD5Update(B, &ctx, (char *)&randnum, sizeof(randnum));
+    randnum.val = bk_rand_getword(B, ri, NULL, 0);
+    bk_MD5Update(B, &ctx, randnum.buf, sizeof(randnum.buf));
 
     bk_MD5Final(B, &ctx);
 

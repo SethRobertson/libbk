@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_rand.c,v 1.3 2002/05/16 17:07:52 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_rand.c,v 1.4 2002/07/16 22:03:44 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -123,7 +123,13 @@ void bk_rand_destroy(bk_s B, struct bk_randinfo *R, bk_flags flags)
 u_int32_t bk_rand_getword(bk_s B, struct bk_randinfo *R, u_int32_t *co, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  u_int32_t randnum;
+  union
+  {
+    // Sigh.. this shuts up bounds checking
+    u_int32_t 	val;
+    char 	buf[sizeof(u_int32_t)];
+  }randnum;
+
   bk_MD5_CTX ctx;
 
   if (!R)
@@ -135,7 +141,7 @@ u_int32_t bk_rand_getword(bk_s B, struct bk_randinfo *R, u_int32_t *co, bk_flags
 
   // Default buffer if user did not supply copyout
   if (!co)
-    co = &randnum;
+    co = &randnum.val;
 
   // Check to make sure we have enough entropy
   if (R->br_cur < R->br_entropy)
@@ -143,7 +149,7 @@ u_int32_t bk_rand_getword(bk_s B, struct bk_randinfo *R, u_int32_t *co, bk_flags
 
   // Add in previous entropy, some limited entropy
   bk_MD5Update(B, &ctx, R->br_pool, sizeof(R->br_pool));
-  bk_MD5Update(B, &ctx, (void *)&randnum, sizeof(randnum));
+  bk_MD5Update(B, &ctx, randnum.buf, sizeof(randnum.buf));
   bk_MD5Update(B, &ctx, (void *)&R->br_cntr, sizeof(R->br_cntr));
   R->br_cntr++;
   bk_MD5Final(B, &ctx);
@@ -223,7 +229,13 @@ static int bk_rand_addentropy(bk_s B, struct bk_randinfo *R, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_MD5_CTX ctx;
-  struct timeval end, cur;
+  struct timeval end;
+  union 
+  {
+    // sigh... this shuts up bounds checking
+    struct timeval	time;
+    char 		buf[sizeof(struct timeval)];
+  } cur;
   
   if (!R)
   {
@@ -243,23 +255,30 @@ static int bk_rand_addentropy(bk_s B, struct bk_randinfo *R, bk_flags flags)
   // Fill our pool chock full of entropy
   while (R->br_cur < sizeof(R->br_pool) * 8)
   {
-    int cntr = 0;
+    union 
+    {
+      // Sigh.. this shuts up bounds checking
+      int	val;
+      char	buf[sizeof(int)];
+    } cntr;
+    
+    cntr.val = 0;
 
     gettimeofday(&end,NULL);
     end.tv_usec += BK_TRUERAND_TIME;
     BK_TV_RECTIFY(&end);
     bk_MD5Update(B, &ctx, (char *)&end, sizeof(end));
 
-    cur.tv_sec = 0;
-    cur.tv_usec = 0;
+    cur.time.tv_sec = 0;
+    cur.time.tv_usec = 0;
 
-    while (BK_TV_CMP(&cur,&end) < 0)
+    while (BK_TV_CMP(&cur.time,&end) < 0)
     {
-      gettimeofday(&cur,NULL);
-      bk_MD5Update(B, &ctx, (char *)&cur, sizeof(cur));
-      cntr++;
+      gettimeofday(&cur.time,NULL);
+      bk_MD5Update(B, &ctx, cur.buf, sizeof(cur.buf));
+      cntr.val++;
     }
-    bk_MD5Update(B, &ctx, (char *)&cntr, sizeof(cntr));
+    bk_MD5Update(B, &ctx, cntr.buf, sizeof(cntr.buf));
 
     R->br_cur += BK_TRUERAND_BITS;
   }
