@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.9 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.10 2005/02/05 03:16:38 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -219,7 +219,7 @@ static int child(int argc, char **argv, int optint)
 
   /* no terminal-related job control signals */
 #ifdef SIGTTOU
-  if ((int) signal (SIGTTOU, SIG_IGN) == -1)
+  if (signal (SIGTTOU, SIG_IGN) == SIG_ERR)
   {
     perror("signal");
     fprintf(stderr,"%s: Error: signal: SIGTTOU\n", argv[0]);
@@ -227,7 +227,7 @@ static int child(int argc, char **argv, int optint)
   }
 #endif
 #ifdef SIGTTIN
-  if ((int) signal (SIGTTIN, SIG_IGN) == -1)
+  if (signal (SIGTTIN, SIG_IGN) == SIG_ERR)
   {
     perror("signal");
     fprintf(stderr,"%s: Error: signal: SIGTTIN\n", argv[0]);
@@ -235,7 +235,7 @@ static int child(int argc, char **argv, int optint)
   }
 #endif
 #ifdef SIGTSTP
-  if ((int) signal (SIGTSTP, SIG_IGN) == -1)
+  if (signal (SIGTSTP, SIG_IGN) == SIG_ERR)
   {
     perror("signal");
     fprintf(stderr,"%s: Error: signal: SIGTSTP\n", argv[0]);
@@ -244,14 +244,14 @@ static int child(int argc, char **argv, int optint)
 #endif
 
   /* Ignore Hangup and Quit */
-  if ((int) signal (SIGHUP, SIG_IGN) == -1)
+  if (signal (SIGHUP, SIG_IGN) == SIG_ERR)
   {
     perror("signal");
     fprintf(stderr,"%s: Error: signal: SIGHUP\n", argv[0]);
     exit(2);
   }
 
-  if ((int) signal (SIGQUIT, SIG_IGN) == -1)
+  if (signal (SIGQUIT, SIG_IGN) == SIG_ERR)
   {
     perror("signal");
     fprintf(stderr,"%s: Error: signal: SIGQUIT\n", argv[0]);

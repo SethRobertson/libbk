@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.48 2004/12/24 00:28:00 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.49 2005/02/05 03:16:38 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -15,6 +15,14 @@
 
 #ifndef _libbk_oscompat_h_
 #define _libbk_oscompat_h_
+
+#ifdef __x86_64
+#define BUG_LLU_CAST(x)	((long long unsigned)(x))
+#define BUG_LLI_CAST(x)	((long long int)(x))
+#else
+#define BUG_LLU_CAST(x)	(x)
+#define BUG_LLI_CAST(x)	(x)
+#endif
 
 
 #ifdef __INSURE__

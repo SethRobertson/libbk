@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.77 2005/01/20 21:31:37 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.78 2005/02/05 03:16:38 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1610,7 +1610,10 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
 	    if (!isme)
 	    {
-	      bk_error_printf(B, BK_ERR_WARN, "UserID does not match (%d != %d), fdassoc %p, fd %d\n", (int)curfd, (int)pthread_self(), oldfd, x);
+	      pthread_t foo = pthread_self();
+	      int self_threadid = *(int *)&foo;
+	      int cur_threadid = *(int *)&curfd->brf_userid;
+	      bk_error_printf(B, BK_ERR_WARN, "UserID does not match (%d != %d), fdassoc %p, fd %d\n", cur_threadid, self_threadid, oldfd, x);
 	    }
 
 	    BK_ZERO(&curfd->brf_userid); // Here's hoping zero is reserved

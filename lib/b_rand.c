@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.12 2004/12/10 21:10:56 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.13 2005/02/05 03:16:38 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -94,7 +94,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define USE_MEM_ENTROPY 0
 #else  /* !__INSURE__ */
 
-#ifdef HAVE_VALGRIND_MEMCHECK_H
+#if defined(HAVE_VALGRIND_MEMCHECK_H) && !defined(__x86_64)
 #include <valgrind/memcheck.h>
 #else  /* !HAVE_VALGRIND_MEMCHECK_H */ 
 #define RUNNING_ON_VALGRIND 0

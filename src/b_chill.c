@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_chill.c,v 1.3 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_chill.c,v 1.4 2005/02/05 03:16:38 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -246,7 +246,7 @@ static void progrun(bk_s B, struct program_config *pc)
   if (!memory)
     perror("sbrk");
 
-  printf("Allocated and wired %lld bytes (%lld MB) of memory\n", allocated, allocated/1024/1024);
+  printf("Allocated and wired %lld bytes (%lld MB) of memory\n", BUG_LLI_CAST(allocated), BUG_LLI_CAST(allocated/1024/1024));
 
   BK_VRETURN(B);
 }

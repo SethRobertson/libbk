@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_cksum.c,v 1.13 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_cksum.c,v 1.14 2005/02/05 03:16:38 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -97,7 +97,7 @@ int bk_in_cksum(bk_s B, bk_vptr *m, int len)
     /*
      * Force to even boundary.
      */
-    if ((1 & (int) w) && (mlen > 0))
+    if ((1 & w) && (mlen > 0))
     {
       REDUCE;
       sum <<= 8;

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.13 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.14 2005/02/05 03:16:38 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -563,11 +563,11 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
 
     if (BK_FLAG_ISSET(flags, BK_STAT_DUMP_HTML))
     {
-      snprintf(perfbuf, sizeof(perfbuf), "<tr><td>%s</td><td>%s</td><td align=\"right\">%llu</td><td align=\"right\">%.3f</td><td align=\"right\">%llu</td><td align=\"right\">%u</td><td align=\"right\">%.6f</td></tr>\n",bnode->bsn_name1, bnode->bsn_name2, bnode->bsn_minutime, bnode->bsn_count?(double)bnode->bsn_sumutime/bnode->bsn_count:0.0, bnode->bsn_maxutime, bnode->bsn_count,(double)bnode->bsn_sumutime/1000000.0);
+      snprintf(perfbuf, sizeof(perfbuf), "<tr><td>%s</td><td>%s</td><td align=\"right\">%llu</td><td align=\"right\">%.3f</td><td align=\"right\">%llu</td><td align=\"right\">%u</td><td align=\"right\">%.6f</td></tr>\n",bnode->bsn_name1, bnode->bsn_name2, BUG_LLU_CAST(bnode->bsn_minutime), bnode->bsn_count?(double)bnode->bsn_sumutime/bnode->bsn_count:0.0, BUG_LLU_CAST(bnode->bsn_maxutime), bnode->bsn_count,(double)bnode->bsn_sumutime/1000000.0);
     }
     else
     {
-      snprintf(perfbuf, sizeof(perfbuf), "\"%s\",\"%s\",\"%llu\",\"%.3f\",\"%llu\",\"%u\",\"%.6f\"\n",bnode->bsn_name1, bnode->bsn_name2, bnode->bsn_minutime, bnode->bsn_count?(double)bnode->bsn_sumutime/bnode->bsn_count:0.0, bnode->bsn_maxutime, bnode->bsn_count,(double)bnode->bsn_sumutime/1000000.0);
+      snprintf(perfbuf, sizeof(perfbuf), "\"%s\",\"%s\",\"%llu\",\"%.3f\",\"%llu\",\"%u\",\"%.6f\"\n",bnode->bsn_name1, bnode->bsn_name2, BUG_LLU_CAST(bnode->bsn_minutime), bnode->bsn_count?(double)bnode->bsn_sumutime/bnode->bsn_count:0.0, BUG_LLU_CAST(bnode->bsn_maxutime), bnode->bsn_count,(double)bnode->bsn_sumutime/1000000.0);
     }
 
 #ifdef BK_USING_PTHREADS
