@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.46 2003/06/18 03:57:30 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.47 2003/06/20 05:57:03 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -162,7 +162,9 @@ void bk_general_destroy(bk_s B)
 {
   if (B)
   {
-    if (BK_BT_GENERAL(B))
+    struct bk_general *bg;
+
+    if ((bg = BK_BT_GENERAL(B)))
     {
       if (BK_GENERAL_DESTROY(B))
       {
@@ -190,10 +192,12 @@ void bk_general_destroy(bk_s B)
 
       if (BK_GENERAL_DEBUG(B))
 	bk_debug_destroy(B, BK_GENERAL_DEBUG(B));
-
-      free(BK_BT_GENERAL(B));
     }
+
     bk_general_thread_destroy(B);
+
+    if (bg)
+      free(bg);
   }
 }
 
@@ -383,8 +387,9 @@ void bk_general_thread_destroy(bk_s B)
       char buf[PATH_MAX+1];
       FILE *FH;
 
-      // <TODO>What method do other pthread systems have of getting a unique per-thread identifier?</TODO>
-      snprintf(buf, PATH_MAX, BK_GENERAL_FUNSTATFILE(B), getpid());
+      // <TODO>should perform some validation of printf format string</TODO>
+      snprintf(buf, PATH_MAX, BK_GENERAL_FUNSTATFILE(B),
+	       getpid(), (pid_t) pthread_self());
 
       if (FH = fopen(buf,"w"))
       {

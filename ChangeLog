@@ -1,3 +1,10 @@
+2003-06-20  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_general.c (bk_general_destroy): don't free general data until
+	after thread data is destroyed
+	(bk_general_thread_destroy): use pthread_self() as well as getpid()
+	for funstats file format
+	
 2003-06-17  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_thread.c (bk_threadnode_destroy): Actually start
