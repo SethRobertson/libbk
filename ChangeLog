@@ -1,3 +1,10 @@
+2004-04-15  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_ringdir.c (bk_ringdir_standard_get_size): Return correct
+	value on error.
+	(bk_ringdir_standard_get_size): If the file descriptor is bad, try
+	to stat with the filename.
+
 2004-04-14  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_ringdir.c (bk_ringdir_filename_predecessor): Use full path

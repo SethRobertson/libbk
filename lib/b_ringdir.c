@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.9 2004/04/14 23:37:23 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.10 2004/04/15 22:06:30 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -34,6 +34,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define PREVIOUS_FILE_NUM(brd,num)	(((num)==0)?((brd)->brd_max_num_files-1):((num)-1))
 
 #define INCREMENT_FILE_NUM(brd)	 do { (brd)->brd_cur_file_num = NEXT_FILE_NUM(brd, (brd)->brd_cur_file_num); } while(0)
+
 
 
 /**
@@ -772,13 +773,25 @@ bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flag
   if (!brs || !filename)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_RETURN(B, -1);
+    goto error;
   }
   
   if (fstat(brs->brs_fd, &st) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not stat %s: %s\n", filename, strerror(errno));
-    goto error;
+    if (errno == EBADF)
+    {
+      // If the FD is bad, try again with the name. Happens occasionally during opens.
+      if (stat(filename, &st) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not stat %s (fd: %d): %s\n", filename, brs->brs_fd, strerror(errno));
+	goto error;
+      }
+    }
+    else
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not stat %s: %s\n", filename, strerror(errno));
+      goto error;
+    }
   }
   
   BK_RETURN(B,st.st_size);  
