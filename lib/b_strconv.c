@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.3 2002/09/04 17:57:11 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.4 2002/10/18 20:03:30 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,7 +23,6 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
-#include <math.h>
 #include <limits.h>
 
 
@@ -243,7 +242,7 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
     decode[tmp] = tmp - 'a' + 10;
 
   /* Skip over leading space */
-  while (isspace(*string))
+  while (isspace((int)(*string)))
     string++;
 
   // empty/whitespace string is a best-effort zero

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.27 2002/10/18 18:50:14 dupuy Exp $
+ * $Id: libbk_include.h,v 1.28 2002/10/18 20:03:30 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -74,6 +74,7 @@
 
 #endif /* __INSURE__ */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
@@ -103,7 +104,9 @@
 #include <dirent.h>
 #ifndef BK_MINGW32
 #include <libintl.h>
+#ifdef HAVE_PATHS_H
 #include <paths.h>
+#endif
 #include <syslog.h>
 #include <termios.h>
 #include <pwd.h>

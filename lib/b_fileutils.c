@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.10 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.11 2002/10/18 20:03:30 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -503,7 +503,7 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
     
   if (sb.st_nlink != 2)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Incorrect number of links. Is: %d (should be 2)\n", sb.st_nlink);
+    bk_error_printf(B, BK_ERR_ERR, "Incorrect number of links. Is: %lu (should be 2)\n", (u_long)sb.st_nlink);
     goto error;
   }
   close(fd);

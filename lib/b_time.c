@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.10 2002/09/12 20:32:10 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_time.c,v 1.11 2002/10/18 20:03:30 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -29,9 +29,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define RESOLUTION BK_SECSTONSEC(1)
 #define LOG10_RES  9
 // must adjust if converting to struct timeval 
-#define MICROSEC   (1000)
+#define BK_MICROSEC   (1000)
 // need no adjustment
-#define MILLISEC   (MICROSEC*1000)
+#define BK_MILLISEC   (BK_MICROSEC*1000)
 
 #define MONTHS	   12
 
@@ -113,19 +113,19 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
     precision = 0;
   else
   {
-    if (timep->tv_nsec % MICROSEC)
+    if (timep->tv_nsec % BK_MICROSEC)
     {
       fraction = timep->tv_nsec;
       precision = 9;
     }
-    else if (timep->tv_nsec % MILLISEC)
+    else if (timep->tv_nsec % BK_MILLISEC)
     {
-      fraction = timep->tv_nsec / MICROSEC;
+      fraction = timep->tv_nsec / BK_MICROSEC;
       precision = 6;
     }
     else
     {
-      fraction = timep->tv_nsec / MILLISEC;
+      fraction = timep->tv_nsec / BK_MILLISEC;
       precision = 3;				// what Java wants to see
     }
   }
@@ -367,7 +367,7 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
     case ',':
       if (!precision				// decimal not already seen
 	  && *fraction != '-' && *fraction != '+'
-	  && !isspace(*fraction))		// strtoul takes these, not us
+	  && !isspace((int)(*fraction)))		// strtoul takes these, not us
       {
 	char *end;
 

@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.30 2002/10/18 18:50:15 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.31 2002/10/18 20:03:30 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001,2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -921,9 +921,9 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
   be_error_time(node, timeprefix, sizeof(timeprefix));
 
   if (BK_GENERAL_PROGRAM(B))
-    snprintf(fullprefix, sizeof(fullprefix), "%s%.14s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
+    snprintf(fullprefix, sizeof(fullprefix), "%s%.14s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), (int)getpid());
   else
-    snprintf(fullprefix, sizeof(fullprefix), "%s[%d]", timeprefix, getpid());
+    snprintf(fullprefix, sizeof(fullprefix), "%s[%d]", timeprefix, (int)getpid());
 
   fullprefix[sizeof(fullprefix)-1] = 0;		// Ensure terminating NUL
 
@@ -1010,9 +1010,9 @@ static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *nod
   be_error_time(node, timeprefix, sizeof(timeprefix));
 
   if (BK_GENERAL_PROGRAM(B))
-    snprintf(fullprefix, sizeof(fullprefix), "%s%.14s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
+    snprintf(fullprefix, sizeof(fullprefix), "%s%.14s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), (int)getpid());
   else
-    snprintf(fullprefix, sizeof(fullprefix), "%s[%d]", timeprefix, getpid());
+    snprintf(fullprefix, sizeof(fullprefix), "%s[%d]", timeprefix, (int)getpid());
 
   fullprefix[sizeof(fullprefix)-1] = 0;		// Ensure terminating NUL
 

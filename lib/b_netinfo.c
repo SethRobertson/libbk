@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.16 2002/08/08 20:25:55 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.17 2002/10/18 20:03:30 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,12 +26,12 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
+static int bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_un *sunix, bk_flags flags);
 static int update_bni_pretty(bk_s B, struct bk_netinfo *bni);
 static int bni2sin(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_in *sin4, bk_flags flags);
 #ifdef HAVE_INET6
 static int bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_in6 *sin6, bk_flags flags);
 #endif
-static int bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_un *sun, bk_flags flags);
 
 static int bna_oo_cmp(void *bck1, void *bck2);
 static int bna_ko_cmp(void *a, void *bck2);
@@ -878,28 +878,28 @@ bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr
  *	@param B BAKA thread/global state.
  *	@param bni The @a bk_netinfo to use for the source.
  *	@param bna The @a bk_netaddr to use for the source.
- *	@param sun The INET6 sockaddr to copy into.
+ *	@param sunix The INET6 sockaddr to copy into.
  *	@param flags Random flags.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 static int
-bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_un *sun, bk_flags flags)
+bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_un *sunix, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
   /* Fuzzy ANY does not make sense in AF_LOCAL */
-  if (!bni || !bna || !sun)
+  if (!bni || !bna || !sunix)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
-  sun->sun_family = AF_LOCAL;
+  sunix->sun_family = AF_LOCAL;
   
-  BK_SET_SOCKADDR_LEN(B,sun,bna->bna_len);
+  BK_SET_SOCKADDR_LEN(B,sunix,bna->bna_len);
 
-  snprintf(sun->sun_path,sizeof(sun->sun_path),"%s", bna->bna_path);
+  snprintf(sunix->sun_path,sizeof(sunix->sun_path),"%s", bna->bna_path);
 
   BK_RETURN(B,0);
 }

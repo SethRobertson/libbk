@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.17 2002/08/08 20:27:05 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.18 2002/10/18 20:03:30 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -434,7 +434,7 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, const char *buf)
     }
 
     if (BK_GENERAL_PROGRAM(B))
-      snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
+      snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), (int)getpid());
     else
       strncpy(fullprefix,timeprefix,sizeof(fullprefix));
     fullprefix[sizeof(fullprefix)-1] = 0;		/* Ensure terminating NULL */

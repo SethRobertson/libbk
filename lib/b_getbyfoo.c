@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.20 2002/08/19 17:33:47 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.21 2002/10/18 20:03:30 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -645,7 +645,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
     if (family) 
     {
 #ifdef HAVE_INET6
-      h = gethostbyname2(name, family);
+      h = BK_GETHOSTBYNAME2(name, family);
 #else
       if (family == AF_INET)
 	h = gethostbyname(name);
@@ -658,7 +658,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
       if (!(h = gethostbyname(name)))
       {
 #ifdef HAVE_INET6
-	h = gethostbyname2(name, AF_INET6);
+	h = BK_GETHOSTBYNAME2(name, AF_INET6);
 	family = AF_INET6; /* Sure this gets set if h==NULL, so what? :-) */
 #endif
       }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_child.c,v 1.3 2002/09/30 00:26:10 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_child.c,v 1.4 2002/10/18 20:03:30 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -394,7 +394,7 @@ void bk_child_isigfun(bk_s B, struct bk_run *run, int signum, void *opaque)
 
     if (!(bcc = childpidlist_search(bchild->bc_childpidlist, &childpid)))
     {
-      bk_error_printf(B, BK_ERR_WARN, "Could not find child in managed child list: %d\n", childpid);
+      bk_error_printf(B, BK_ERR_WARN, "Could not find child in managed child list: %d\n", (int)childpid);
       continue;
     }
     

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.29 2002/10/16 04:40:09 seth Exp $
+ * $Id: libbk_oscompat.h,v 1.30 2002/10/18 20:03:30 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -37,6 +37,12 @@
 # define BK_FUNCNAME (__FILE__ ":" BK_STRINGIFY(__LINE__))
 # define HAVE__FILE_LINE
 #endif
+
+#ifndef HAVE_U_INT_T_TYPEDEFS
+typedef uint16_t u_int16_t;
+typedef uint32_t u_int32_t;
+typedef uint64_t u_int64_t;
+#endif /* HAVE_U_INT_T_TYPEDEFS */
 
 #ifndef HAVE_IN_ADDR_T
 typedef uint32_t in_addr_t;
@@ -321,4 +327,28 @@ __attribute__ ((__packed__))
 #else /* Default assumes unix */
 #define BK_GZIP_OS_CODE		0x03
 #endif
+
+#ifndef HAVE_ISINF
+# ifdef HAVE_IEEEFP_H
+#  include <ieeefp.h>
+# endif /* HAVE_IEEEFP_H */
+#define isinf(d) ((fpclass(d) == FP_NINF)?-1:((fpclass(d) == FP_PINF)?1:0))
+#endif /* HAVE_ISINF */
+
+#ifndef HAVE_GMTIME_R
+/* <WARNING> Having to use this is unsafe under certain cirumstances </WARNING> */
+#define gmtime_r(c,t) gmtime(c)
+#endif /* HAVE_GMTIME_R */
+
+#ifndef HAVE_GMTIME_R_PROTOTYPE
+struct tm *gmtime_r(const time_t *timenow, struct tm *buffer);
+#endif /* HAVE_GMTIME_R_PROTOTYPE */
+
+
+#ifndef HAVE_GETHOSTBYNAME2
+# define BK_GETHOSTBYNAME2(n,f)	(gethostbyname(n))
+#else
+# define BK_GETHOSTBYNAME2(n,f)	(gethostbyname2(n,f))
+#endif /* HAVE_GETHOSTBYNAME2 */
+
 #endif /* _libbk_oscompat_h_ */
