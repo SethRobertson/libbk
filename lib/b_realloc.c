@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_realloc.c,v 1.1 2004/05/22 00:11:36 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_realloc.c,v 1.2 2004/06/07 17:01:57 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -84,7 +84,7 @@ static struct ht_args buffer_pool_args = { 1021, 2, (ht_func)buffer_pool_obj_has
 int
 bk_malloc_wrap_init(bk_flags flags)
 {
-  if (!(buffer_pool = buffer_pool_create((dict_function)buffer_pool_oo_cmp, (dict_function)buffer_pool_ko_cmp, 0, &buffer_pool_args)))
+  if (!buffer_pool && !(buffer_pool = buffer_pool_create((dict_function)buffer_pool_oo_cmp, (dict_function)buffer_pool_ko_cmp, 0, &buffer_pool_args)))
   {
     goto error;
   }
@@ -114,9 +114,7 @@ bk_malloc_wrap_destroy(bk_flags flags)
   if (!buffer_pool)
     return;
 
-  for(vector = buffer_pool_minimum(buffer_pool); 
-      vector;
-      vector = buffer_pool_successor(buffer_pool, vector))
+  while(vector = buffer_pool_minimum(buffer_pool))
   {
     // There really shouldn't be any of these
     if (buffer_pool_delete(buffer_pool, vector) != DICT_OK)
@@ -127,7 +125,7 @@ bk_malloc_wrap_destroy(bk_flags flags)
      * Do NOT free vector->ptr. If the vector still exists then presumably
      * someone is using the memory. If this is *not* the case, then this
      * memory has already been leaked and we certainly don't want to hide
-     * the leak to Insure by freeing it here, since, after all, in
+     * the leak from Insure by freeing it here, since, after all, in
      * production this will not happen.
      */
     free(vector);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.51 2003/06/24 18:42:05 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.52 2004/06/07 17:01:57 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -81,6 +81,11 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
 {
   bk_s B;
   char *program;
+
+#if defined(__INSURE__) && !defined(BK_NO_MALLOC_WRAP)
+  if (bk_malloc_wrap_init(0) < 0)
+    goto error;
+#endif /* __INSURE__ */
 
   if (!(B = bk_general_thread_init(NULL, "*MAIN*")))
     goto error;
@@ -199,6 +204,11 @@ void bk_general_destroy(bk_s B)
     if (bg)
       free(bg);
   }
+
+#if defined(__INSURE__) && !defined(BK_NO_MALLOC_WRAP)
+  bk_malloc_wrap_destroy(0);
+#endif /* __INSURE__ */
+
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.290 2004/05/28 12:09:31 jtt Exp $
+ * $Id: libbk.h,v 1.291 2004/06/07 17:01:58 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -54,6 +54,25 @@ struct bk_threadnode;
  * ceiling the len * 1.001 product.
  */
 #define BK_COMPRESS_SWELL(l)	((u_int)((double)(l) * 1.001) + 13)
+
+/*
+ * This is irritating. While gcc has absolutely *no* problem with pointers
+ * that have "bizzare" values (such as SIG_IGN which is defined as
+ * ((__sighandler_t)1)), Insure tends to think these are "WILD" values. So
+ * in order to shut it up we define this ptr2uint_t type, based on the
+ * native size of a pointer, in order to cast these "WILD" situations to a
+ * type that will not alarm Insure.
+ */
+#if SIZEOF_VOID_P == 2
+// Yeah, like we're *ever* going to see 16 bit again...
+typedef u_int16_t ptr2uint_t;
+#elif SIZEOF_VOID_P == 4
+typedef u_int32_t ptr2uint_t;
+#elif SIZEOF_VOID_P == 8
+typedef u_int64_t ptr2uint_t;
+#else
+#error UNKNOWN SIZE OF POINTER
+#endif
 
 
 /**
