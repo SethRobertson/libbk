@@ -1,3 +1,14 @@
+2002-09-27  James Tanis  <jtt@hawking.sysdetect.com>
+
+	* lib/b_error.c (be_error_append): Don't append NEWLINE if last
+	char is already a NEWLINE.
+
+2002-09-26  James Tanis  <jtt@hawking.sysdetect.com>
+
+	* include/libbk.h (BK_MAX_SHORT): Add a few constants, which are
+	_likely_ to exist on all archs, but let's be sure. 
+	(BK_ARMAGEDDON): Define the End of All Things.
+
 2002-09-26  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_run.c (bk_run_enqueue_delta): Fixed small arithmetic error.

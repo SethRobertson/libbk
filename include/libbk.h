@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.175 2002/09/17 16:23:52 jtt Exp $
+ * $Id: libbk.h,v 1.176 2002/09/27 19:00:56 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -75,6 +75,15 @@ struct bk_polling_io;
 
 
 typedef u_int32_t bk_flags;			///< Normal bitfield type
+
+
+#define BK_MAX_USHORT		((u_short)-1)
+#define BK_MAX_SHORT		((short)((BK_MAX_USHORT>>1) & BK_MAX_USHORT))
+#define BK_MAX_UINT		((u_int)-1)
+#define BK_MAX_INT		((int)((BK_MAX_UINT>>1) & BK_MAX_UINT))
+#define BK_MAX_ULONG		((u_long)-1)
+#define BK_MAX_LONG		((long)((BK_MAX_ULONG>>1) & BK_MAX_ULONG))
+
 
 
 
@@ -763,6 +772,9 @@ do {						\
 #define BK_NSECTOUSEC(x) ((x)*1000000/1000000000) ///< Conver nano to micro
 // @}
 
+
+// Time is generally an unsigned long. We might have to make this system dependent
+#define BK_ARMAGEDDON	BK_MAX_LONG		///< The End of All Things.
 
 /** @brief Special symbol which means resolve to "any" address. */
 #define BK_ADDR_ANY "bk_addr_any"
