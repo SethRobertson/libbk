@@ -1,5 +1,8 @@
 2001-11-18  Seth Robertson  <seth@yeah.baka.org>
 
+	* lib/b_string.c (bk_encode_base64): Correct pointer bugaboo.
+	Mime now working.
+
 	* src/bttcp.c: Update James' documentation and formatting.  Shame on James.
 
 	* lib/b_string.c (bk_encode_base64): Mime encode/decode routines

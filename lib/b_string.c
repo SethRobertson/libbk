@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.13 2001/11/18 20:14:45 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.14 2001/11/18 20:54:50 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1132,7 +1132,7 @@ char *bk_encode_base64(bk_s B, bk_vptr *src, char *eolseq)
   ssize_t len;					/* length of the string */
   char *eol;					/* the end-of-line sequence to use */
   ssize_t eollen;				/* length of the EOL sequence */
-  char *r;					/* result string */
+  char *r, *ret;				/* result string */
   ssize_t rlen;					/* length of result string */
   unsigned char c1, c2, c3;
   int chunk;
@@ -1167,7 +1167,7 @@ char *bk_encode_base64(bk_s B, bk_vptr *src, char *eolseq)
   rlen++;					// Add space for null termination
 
   /* allocate a result buffer */
-  if (!BK_MALLOC_LEN(r, rlen))
+  if (!(ret = BK_MALLOC_LEN(r, rlen)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory(%d) for result: %s\n", rlen, strerror(errno));
     BK_RETURN(B, NULL);
@@ -1217,7 +1217,7 @@ char *bk_encode_base64(bk_s B, bk_vptr *src, char *eolseq)
   }
   *r = '\0';					/* NULL terminate */
 
-  BK_RETURN(B, r);
+  BK_RETURN(B, ret);
 }
 
 
