@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.22 2003/05/14 21:59:54 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.23 2003/05/14 22:22:33 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -443,7 +443,6 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_polling_io *bpi = args;
   struct polling_io_data *pid = NULL;
-  bk_vptr *newcopy = NULL;
   int (*clc_add)(dict_h dll, dict_obj obj) = dll_append;
 
   if (!bpi || !ioh)
@@ -463,12 +462,11 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
   case BkIohStatusReadComplete:
   case BkIohStatusIncompleteRead:
     // Coalesce into one buffer for output
-    if (!(newcopy = bk_ioh_coalesce(B, data, NULL, BK_IOH_COALESCE_FLAG_MUST_COPY, NULL)))
+    if (!(pid->pid_data  = bk_ioh_coalesce(B, data, NULL, BK_IOH_COALESCE_FLAG_MUST_COPY, NULL)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
       goto error;
     }
-    pid->pid_data = newcopy;
 
 #ifdef BK_USING_PTHREADS
     pthread_cond_broadcast(&bpi->bpi_rdcond);
