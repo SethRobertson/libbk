@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.79 2001/12/10 21:52:11 jtt Exp $
+ * $Id: libbk.h,v 1.80 2001/12/10 22:50:15 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -981,5 +981,11 @@ extern int bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, cha
 extern int bk_addrgroup_get_server_socket(bk_s B, void *server_handle);
 extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
 extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
+
+/* b_url.c */
+struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_flags flags);
+struct bk_url *bk_url_create(bk_s B);
+void bk_url_destroy(bk_s B, struct bk_url *bu);
+
 
 #endif /* _BK_h_ */

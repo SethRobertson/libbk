@@ -1,3 +1,9 @@
+2001-12-10  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_url.c: File for url munging.
+
+	* include/libbk.h (struct bk_version): bk_version stuff added.
+
 2001-12-06  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* libbk: many other dumb insight related cleanup.

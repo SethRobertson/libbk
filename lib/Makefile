@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.19 2001/11/15 22:19:47 jtt Exp $
+# $Id: Makefile,v 1.20 2001/12/10 22:50:16 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -40,6 +40,7 @@ BK_LARGE_LIBSRC=		       		\
 		b_signal.c			\
 		b_stdfun.c			\
 		b_string.c			\
+		b_url.c				\
 # Line eater fodder -- leave
 
 GROUPTOP=..
