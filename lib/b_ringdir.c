@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.7 2004/04/13 17:54:29 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.8 2004/04/14 18:54:01 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -41,16 +41,16 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 struct bk_ring_directory
 {
-  bk_flags				brd_flags; ///< Everyone needs flags.
-  off_t					brd_rotate_size; ///< The maximum size of a file.
-  u_int32_t				brd_max_num_files; ///< The maximum number of files in directory.
-  const char *				brd_directory;	///< Directory name;
-  const char *				brd_pattern;	///< Pattern on which to base the file names.
-  const char *				brd_path;	///< Full path with pattern.
-  u_int32_t				brd_cur_file_num; ///< Index of current file.
-  const char *				brd_cur_filename; ///< The current file we are updating.
-  void *				brd_opaque; ///< User data.
-  struct bk_ringdir_callbacks	brd_brc; ///< Callback structure.
+  bk_flags			brd_flags;	///< Everyone needs flags.
+  off_t				brd_rotate_size; ///< The maximum size of a file.
+  u_int32_t			brd_max_num_files; ///< The maximum number of files in directory.
+  const char *			brd_directory;	///< Directory name;
+  const char *			brd_pattern;	///< File name pattern.
+  const char *			brd_path;	////< Full path with pattern.
+  u_int32_t			brd_cur_file_num; ///< Index of current file.
+  const char *			brd_cur_filename; ///< The current file we are updating.
+  void *			brd_opaque;	///< User data.
+  struct bk_ringdir_callbacks	brd_brc;	///< Callback structure.
 };
 
 
@@ -236,8 +236,6 @@ brd_destroy(bk_s B, struct bk_ring_directory *brd)
  *
  * BK_RINGDIR_FLAG_NO_CONTINUE: Do not pick up at checkpointed spot. Simply
  * start over.
- *
- * BK_RINGDIR_FLAG_NO_CONTINUE: Do not pick up at checkpointed spot. Simply
  *
  * BK_RINGDIR_FLAG_CANT_APPEND: The underlying "file" object does not
  * support append so checkpoints must simply start with the next "file"
@@ -510,7 +508,7 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
       goto error;
     }
 
-    BK_FLAG_SET(flags, BK_RINGDIR_FLAG_ROTATION_OCCURED);
+    BK_FLAG_SET(brd->brd_flags, BK_RINGDIR_FLAG_ROTATION_OCCURED);
   }
   
   BK_RETURN(B,0);  
@@ -1134,6 +1132,36 @@ bk_ringdir_standard_get_fd(bk_s B, bk_ringdir_t brdh, bk_flags flags)
 
 
 /**
+ * Insert a file descriptor
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@param fd File descriptor to add.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ringdir_standard_set_fd(bk_s B, bk_ringdir_t brdh, int fd, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ringdir_standard *brs;
+
+  if (!brdh || !(brs = bk_ringdir_get_private_data(B, brdh, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  brs->brs_fd = fd;
+
+  BK_RETURN(B, 0);
+}
+
+
+
+
+/**
  * Update the private data of the standard struct by the standard struct
  *
  *	@param B BAKA thread/global state.
@@ -1193,7 +1221,8 @@ bk_ringdir_standard_get_private_data_by_standard(bk_s B, void *brsh, bk_flags fl
  *	@param brdh Ring directory handle.
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
+ *	@return <i>0</i> on success with no rotate.
+ *	@return <i>1</i> on success with rotate.
  */
 int
 bk_ringdir_did_rotate_occur(bk_s B, bk_ringdir_t brdh, bk_flags flags)

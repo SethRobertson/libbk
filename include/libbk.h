@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.283 2004/04/13 17:54:28 jtt Exp $
+ * $Id: libbk.h,v 1.284 2004/04/14 18:54:00 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2313,6 +2313,7 @@ extern int bk_ringdir_standard_close(bk_s B, void *opaque, const char *filename,
 extern int bk_ringdir_standard_unlink(bk_s B, void *opaque, const char *filename, enum bk_ringdir_callback_source source, bk_flags flags);
 extern int bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, enum bk_ringdir_callback_source source, bk_flags flags);
 extern int bk_ringdir_standard_update_private_data(bk_s B, bk_ringdir_t brdh, void *opaque, bk_flags flags);
+extern int bk_ringdir_standard_set_fd(bk_s B, bk_ringdir_t brdh, int fd, bk_flags flags);
 extern int bk_ringdir_standard_get_fd(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern void *bk_ringdir_standard_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern int bk_ringdir_standard_update_private_data_by_standard(bk_s B, void *brsh, void *opaque, bk_flags flags);
