@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_signal.c,v 1.12 2004/06/07 21:51:22 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_signal.c,v 1.13 2004/06/21 02:03:30 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -506,6 +506,22 @@ bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags)
 
 
 /**
+ * Sigchild reaper signal handler
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param signal Signal number
+ */
+void bk_reaper(int signum)
+{
+  // Reap 'dem children
+  while (waitpid(-1, NULL, WNOHANG|WUNTRACED) > 0)
+    ;
+}
+
+
+
+/**
  * Create a ba
  *
  * THREADS: MT-SAFE
@@ -558,7 +574,7 @@ bss_destroy(bk_s B, struct bk_signal_saved *bss)
 
 
 #ifdef __INSURE__
-/* 
+/*
  * Insure gets really irritated with ((__sighandler_t)1) (which doesn't
  * bother gcc at all), so we shut it up by make SIG_IGN not *really*
  * ignored, but rather handled by a function which does nothing.

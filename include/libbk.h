@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.295 2004/06/09 02:02:27 seth Exp $
+ * $Id: libbk.h,v 1.296 2004/06/21 02:03:29 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1900,6 +1900,7 @@ extern void *bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags 
 extern void *bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags);
 extern int bk_signal_reset(bk_s B, void *args, bk_flags flags);
 extern int bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags);
+extern void bk_reaper(int signum);
 #ifdef __INSURE__
 void bk_sig_ign(int signal);
 #endif /* __INSURE__ */
