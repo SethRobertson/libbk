@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_sysutils.c,v 1.2 2002/07/19 21:44:47 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_sysutils.c,v 1.3 2002/08/21 02:42:01 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -59,7 +59,7 @@ char *bk_gethostname(bk_s B)
     }
 
     errno = 0;
-    if ((gethostname(hostname, hostnamelen) < 0) && (errno != EINVAL))
+    if ((gethostname(hostname, hostnamelen) < 0) && (errno != EINVAL) && (errno != ENAMETOOLONG))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not retrieve hostname: %s\n", strerror(errno));
       BK_RETURN(B, NULL);
