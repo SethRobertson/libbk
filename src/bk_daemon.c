@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.5 2004/04/26 19:34:42 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.6 2004/04/26 20:40:11 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -155,7 +155,7 @@ main(int argc, char **argv, char **envp)
   /* check for errors or a program to run */
   if (error || argc <= optind)
   {
-    (void) fprintf (stderr, "usage: %s [-cCdDeEu] [-p priority] <cmd> [args]\n", argv[0]);
+    (void) fprintf (stderr, "usage: %s [-cNCdDeEu] [-p priority] <cmd> [args]\n", argv[0]);
     exit (2);
   }
 
