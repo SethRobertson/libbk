@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.10 2001/11/13 06:04:25 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.11 2001/11/13 06:46:52 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -344,7 +344,6 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iorfunc readfun, bk_i
 int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_ioh *curioh = NULL;
   int tmp;
  
   if (!ioh || (ioh->ioh_readfun && !readfun) || (ioh->ioh_writefun && !writefun) || !handler)
@@ -353,14 +352,14 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc wri
     BK_RETURN(B, -1);
   }
 
-  curioh->ioh_readfun = readfun;
-  curioh->ioh_writefun = writefun;
-  curioh->ioh_handler = handler;
-  curioh->ioh_opaque = opaque;
-  curioh->ioh_inbuf_hint = inbufhint;
-  curioh->ioh_readq.biq_queuemax = inbufmax;
-  curioh->ioh_writeq.biq_queuemax = outbufmax;
-  curioh->ioh_extflags = flags;
+  ioh->ioh_readfun = readfun;
+  ioh->ioh_writefun = writefun;
+  ioh->ioh_handler = handler;
+  ioh->ioh_opaque = opaque;
+  ioh->ioh_inbuf_hint = inbufhint;
+  ioh->ioh_readq.biq_queuemax = inbufmax;
+  ioh->ioh_writeq.biq_queuemax = outbufmax;
+  ioh->ioh_extflags = flags;
 
   BK_RETURN(B, 0);
 }

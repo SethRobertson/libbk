@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.1 2001/11/13 06:04:55 seth Exp $";
+static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.2 2001/11/13 06:46:52 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -47,6 +47,7 @@ struct program_config
 {
   struct bk_run	       *pc_run;			///< BAKA run environment
   const char * 		pc_remhost;		///< The host to connect to
+  int			pc_port;		///< Port number to use
   int			pc_input_hint;		///< IOH input hint
   int			pc_input_max;		///< IOH input max
   int			pc_output_max;		///< IOH output max
@@ -65,6 +66,7 @@ int proginit(bk_s B, struct program_config *pconfig);
 static void relayer(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in, u_int state_flags);
 static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int fd1out, int fd2in, int fd2out, bk_flags flags);
 static void rmt_acceptor(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime);
+static void address_resolved(bk_s B, struct program_config *pconfig, struct in_addr *himaddr);
 
 
 
@@ -81,7 +83,7 @@ int
 main(int argc, char **argv, char **envp)
 {
   bk_s B = NULL;				/* Baka general structure */
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "SIMPLE");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "IOHTEST");
   char c;
   int getopterr=0;
   extern char *optarg;
@@ -91,6 +93,7 @@ main(int argc, char **argv, char **envp)
   const struct poptOption optionsTable[] = 
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
+    {"port", 'p', POPT_ARG_INT, NULL, 'p', "Port to communicate over", NULL },
     {"transmit", 't', POPT_ARG_STRING, NULL, 't', "Connect to a remote test_ioh server", NULL },
     {"receive", 'r', POPT_ARG_NONE, NULL, 'r', "Receive connection from a remote test_ioh server (default)", NULL },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
@@ -116,6 +119,7 @@ main(int argc, char **argv, char **envp)
   pconfig = &Pconfig;
   memset(pconfig,0,sizeof(*pconfig));
   pconfig->pc_ioh_mode = PC_MODE_RAW;		// Default mode is RAW
+  pconfig->pc_port = PORT;			// Default port is PORT
 
   if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0)))
   {
@@ -134,6 +138,9 @@ main(int argc, char **argv, char **envp)
       break;
     case 't':
       pconfig->pc_remhost = poptGetOptArg(optCon);
+      break;
+    case 'p':
+      pconfig->pc_port = atoi(poptGetOptArg(optCon));
       break;
     case 'r':
       pconfig->pc_remhost = NULL;
@@ -205,7 +212,7 @@ main(int argc, char **argv, char **envp)
  */
 int proginit(bk_s B, struct program_config *pconfig)
 {
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"IOHTEST");
 
   if (!pconfig)
   {
@@ -223,7 +230,14 @@ int proginit(bk_s B, struct program_config *pconfig)
   // Transmit or receive mode?
   if (pconfig->pc_remhost)
   {						// Transmit
-    // Schedule name to address conversion
+    struct in_addr himaddr;
+
+    if (inet_aton(pconfig->pc_remhost, &himaddr) < 0)
+    {
+      bk_die(B,254,stderr,"Could not perform convert remote address\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+    }
+
+    address_resolved(B, pconfig, &himaddr);
   }
   else
   {						// Receive
@@ -242,7 +256,7 @@ int proginit(bk_s B, struct program_config *pconfig)
     sinme.sin_len = sizeof(sineme);
 #endif /* HAS_SIN_LEN */
     sinme.sin_family = AF_INET;
-    sinme.sin_port = htons(PORT);
+    sinme.sin_port = htons(pconfig->pc_port);
 
     if (bind(sd, (struct sockaddr *)&sinme, sizeof(sinme)) < 0)
     {
@@ -283,7 +297,7 @@ int proginit(bk_s B, struct program_config *pconfig)
  */
 void rmt_acceptor(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime)
 {
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"IOHTEST");
   struct program_config *pconfig = opaque;
   int sockaddrsize, newfd = -1;
   struct sockaddr throwaway;
@@ -354,7 +368,7 @@ void rmt_acceptor(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *op
 
 static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int fd1out, int fd2in, int fd2out, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"IOHTEST");
   struct bk_ioh *ioh1 = NULL;
   struct bk_ioh *ioh2 = NULL;
   int mode;
@@ -411,7 +425,7 @@ static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int f
 
 static void relayer(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in, u_int state_flags)
 {
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"IOHTEST");
   struct bk_ioh *ioh_out = opaque;
   int cnt = 0;
   int size = 0;
@@ -484,3 +498,51 @@ static void relayer(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in,
   }
   BK_VRETURN(B);
 }
+
+
+
+static void address_resolved(bk_s B, struct program_config *pconfig, struct in_addr *himaddr)
+{
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"IOHTEST");
+  int sd = -1;
+  struct sockaddr_in sinhim;
+
+  if (!pconfig || !himaddr)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_VRETURN(B);
+  }
+
+  if ((sd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not receive socket: %s\n",strerror(errno));
+    BK_VRETURN(B);
+  }
+
+  // Connect to PORT on his address
+  memset(&sinhim, 0, sizeof(sinhim));
+#ifdef HAS_SIN_LEN
+  sinhim.sin_len = sizeof(sineme);
+#endif /* HAS_SIN_LEN */
+  sinhim.sin_family = AF_INET;
+  sinhim.sin_addr = *himaddr;
+  sinhim.sin_port = htons(pconfig->pc_port);
+
+  if (connect(sd, &sinhim, sizeof(sinhim)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could connect to remote address\n");
+    close(sd);
+    bk_die(B,254,stderr,"Could not connect to remote address\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+  }
+
+  if (create_relay(B, pconfig, sd, sd, 0, 1, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not set up relay\n");
+    close(sd);
+    bk_die(B,254,stderr,"Could not set up relay\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+  }
+
+  BK_VRETURN(B);
+}
+
+
