@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.13 2003/06/17 06:07:17 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.14 2003/07/02 16:42:54 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -530,6 +530,9 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_RETURN(B, -1);
   }
+
+  if (!names)					// NULL is same as empty string
+    names = "";
 
   if ((end = strrchr(in, FLAG_APPROX)))		// hex is canonical
     goto justhex;
