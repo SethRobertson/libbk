@@ -1,18 +1,18 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_url.c,v 1.32 2003/03/25 23:25:16 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_url.c,v 1.33 2003/05/03 04:23:28 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001,2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
- * 
+ *
  * Copyright (c) 2001,2002 The Authors. All rights reserved.
- * 
+ *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- * 
+ *
  * Mail <projectbaka@baka.org> for further information
- * 
+ *
  * --Copyright LIBBK--
  */
 
@@ -116,6 +116,8 @@ do {									  \
  *
  * Basic URI looks like: <scheme>://<authority><path>?<query>#<fragment>
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param url Url to parse.
  *	@param mode The mode of parsing.
@@ -142,15 +144,15 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (!(bu = bk_url_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "could not create url struct\n");
     goto error;
   }
-  
+
   bu->bu_mode = mode;
-  
+
   // Cache the end of the url since we use it a lot.
   url_end = url + strlen(url);
 
@@ -159,7 +161,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 
   // The inclusion of [ is compliant with rfc2732 ipv6 literal address parsing
   end = strpbrk(start, ":/?#[");
-  
+
   if (end && *end == ':')
   {
     // We demand at least one char before the ':'
@@ -176,7 +178,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
     start = scheme_end + 1;
   }
 
-  
+
   /*
    * The following is safe. start is guaranteed to point at something valid
    * (although perhaps '\0') and if *start == '/' then *(start+1) is
@@ -346,7 +348,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
     }
   }
 
-  // Build host/serv sections 
+  // Build host/serv sections
   if (BK_FLAG_ISSET(bu->bu_flags, BK_URL_FLAG_AUTHORITY))
   {
     const char *host = NULL, *host_end = NULL;
@@ -392,7 +394,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
       if (host_end == host)
 	host_end = (BK_URL_AUTHORITY_DATA(bu) + BK_URL_AUTHORITY_LEN(bu));
     }
-	
+
     if (host_end != host)
     {
       BK_FLAG_SET(bu->bu_flags, BK_URL_FLAG_HOST);
@@ -413,6 +415,8 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 
 /**
  * Create a url structure and clean it out.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
@@ -438,6 +442,8 @@ bk_url_create(bk_s B)
 /**
  * Destroy a @a bk_url completely.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param bu The url structure to nuke.
  */
@@ -454,34 +460,34 @@ bk_url_destroy(bk_s B, struct bk_url *bu)
 
   if (bu->bu_mode != BkUrlParseVptr && bu->bu_url)
     free(bu->bu_url);
-      
+
   if (bu->bu_mode == BkUrlParseStrNULL || bu->bu_mode == BkUrlParseStrEmpty)
   {
-    if (bu->bu_scheme.bue_str) 
+    if (bu->bu_scheme.bue_str)
       free(bu->bu_scheme.bue_str);
 
-    if (bu->bu_authority.bue_str) 
+    if (bu->bu_authority.bue_str)
       free(bu->bu_authority.bue_str);
 
-    if (bu->bu_path.bue_str) 
+    if (bu->bu_path.bue_str)
       free(bu->bu_path.bue_str);
 
-    if (bu->bu_query.bue_str) 
+    if (bu->bu_query.bue_str)
       free(bu->bu_query.bue_str);
 
-    if (bu->bu_fragment.bue_str) 
+    if (bu->bu_fragment.bue_str)
       free(bu->bu_fragment.bue_str);
 
-    if (bu->bu_host.bue_str) 
+    if (bu->bu_host.bue_str)
       free(bu->bu_host.bue_str);
 
-    if (bu->bu_serv.bue_str) 
+    if (bu->bu_serv.bue_str)
       free(bu->bu_serv.bue_str);
   }
 
   free(bu);
   BK_VRETURN(B);
-  
+
 }
 
 
@@ -499,6 +505,8 @@ bk_url_destroy(bk_s B, struct bk_url *bu)
  * a flag, but it is incompatible with the BkUrlParseVptr mode, since a copy of
  * the string must be made to expand % escapes.  In general, the mode vs. flags
  * arguments of bk_url_parse need to be rationalized.</TODO>
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param component The url component string (may be NULL)
@@ -526,6 +534,8 @@ bk_url_unescape(bk_s B, const char *component)
  * characters (i.e. %00 through %1F, and %7F) are <em>not</em> expanded.
  * Illegal % escapes (e.g. %GB, %%) are not altered (the string "%%20" is
  * expanded as "% ", as the first % is not a legal escape, but second one is).
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param component The url component string (may be NULL)
@@ -622,6 +632,8 @@ bk_url_unescape_len(bk_s B, const char *component, size_t len)
  * value, if any).  The calling program should decide if this is an error, or
  * if the unrecognised option should be passed on to another program.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param pathp pointer to path component (passed by reference).
  *	@param tokens array of recognized parameter names, terminated by NULL.
@@ -669,7 +681,7 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
   for (p = *pathp; *p && (*p == delim || *p == ' ' || *p == '\t'); ++p)
     /* empty */;
 
-  if (!*p) 
+  if (!*p)
   {
     *pathp = p;
     BK_RETURN(B, -1);
@@ -679,21 +691,21 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
   for (param = p; *++p && *p != delim && *p != '=';)
     /* empty */;
 
-  if (*p) 
+  if (*p)
   {
     /*
      * If there's an equals sign, set the value pointer, and
      * skip over the value part of the token.  Terminate the
      * token.
      */
-    if (*p == '=') 
+    if (*p == '=')
     {
       *p = '\0';
       for (*valuep = ++p;
 	   *p && *p != delim; ++p);
-      if (*p) 
+      if (*p)
 	*p++ = '\0';
-    } 
+    }
     else
       *p++ = '\0';
     /* Skip any delimiters after this token. */
@@ -712,7 +724,7 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
     {
       if (!**tokens)				// empty token => case indep.
 	compare = strcasecmp;
-      if (!compare(param, *tokens))
+      if (!(*compare)(param, *tokens))
 	BK_RETURN(B, cnt + (delim != PARAM_DELIM));
     }
 
@@ -727,7 +739,7 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
       {
 	if (!**tokens)				// empty token => case indep.
 	  compare = strcasecmp;
-	if (!compare(p, *tokens))
+	if (!(*compare)(p, *tokens))
 	{
 	  free(p);
 	  BK_RETURN(B, cnt + (delim != PARAM_DELIM));
@@ -752,6 +764,8 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
  * format is: [[user[:password]@]server[:port]]
  * char* members of bk_url_authority are guaranteed to be non-null.
  * Caller must free the returned value with bk_url_authority_free
+ *
+ * THREADS: MT-SAFE
  *
  * @param B BAKA Thread/global astate
  * @param auth_str NULL-terminated authority string to parse
@@ -786,7 +800,7 @@ bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags)
     if (col = (char*) memchr(auth_str, ':', userdata_len))
     {
       u_int16_t user_len = col - auth_str;	// don't include :
-      auth->auth_user = bk_strndup(B, auth_str, user_len); 
+      auth->auth_user = bk_strndup(B, auth_str, user_len);
       auth->auth_pass = bk_strndup(B, col + 1, userdata_len - user_len - 1);
     }
     else
@@ -796,7 +810,7 @@ bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags)
     }
     auth_str = amp + 1;
   }
-  
+
   // host and port
   if (col = strchr(auth_str, ':'))
   {
@@ -814,13 +828,16 @@ bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags)
  error:
   if (auth)
     bk_url_authority_destroy(B, auth);
-    
+
   BK_RETURN(B, NULL);
 }
 
 
+
 /**
  * Destroy a bk_url_authority
+ *
+ * THREADS: MT-SAFE
  *
  * @param B BAKA Thread/global state
  * @param auth ptr to struct
@@ -860,6 +877,8 @@ bk_url_authority_destroy(bk_s B, struct bk_url_authority *auth)
  * improved, this function may still generate incorrect URLs for non-generic
  * schemes; don't use this unless you know the scheme type and have validated
  * the reconstructed URLs for all variants.</WARNING>
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bu The parsed url
@@ -953,11 +972,11 @@ bk_url_reconstruct(bk_s B, struct bk_url *bu, bk_flags sections, bk_flags flags)
     len += tmp_len;
   }
 
-  BK_RETURN(B,url);  
+  BK_RETURN(B,url);
 
  error:
   if (url)
     free(url);
 
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }

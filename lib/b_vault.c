@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_vault.c,v 1.1 2003/02/01 04:23:11 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_vault.c,v 1.2 2003/05/03 04:23:29 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -48,7 +48,9 @@ static ht_val vault_key_hash(void *a);
 /**
  * Create vault
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state
  *	@param table_entries Optional number of entries in CLC table (0 for default)
  *	@param bucket_entries Optional number of entries in each bucket (0 for default)
  *	@param flags fun for the future

@@ -1,3 +1,9 @@
+2003-05-02  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_url.c: Specify thread state
+
+	* lib/b_time.c: Specify thread state
+
 2003-05-01  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_sysutils.c: Specify thread state

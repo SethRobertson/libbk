@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.7 2003/04/16 21:25:51 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.8 2003/05/03 04:23:28 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -187,6 +187,8 @@ int bk_atomic_addition(bk_s B, struct bk_atomic_cntr *bac, int delta, int *resul
 /**
  * Blocking-non-blocking method to acquire pthread mutex lock.
  *
+ * DEPRECATED FUNCTION--DO NOT USE
+ *
  * @param B BAKA Thread/global state
  * @return <i>0</i> on success
  * @return <i>negative</i> on error
@@ -364,6 +366,7 @@ void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags)
   free(tnode);
   BK_VRETURN(B);
 }
+
 
 
 #ifdef BK_USING_PTHREADS

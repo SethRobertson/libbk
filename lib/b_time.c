@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.13 2003/03/17 22:22:15 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_time.c,v 1.14 2003/05/03 04:23:28 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,10 +25,10 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 
-// must adjust if converting to struct timeval 
+// must adjust if converting to struct timeval
 #define RESOLUTION BK_SECSTONSEC(1)
 #define LOG10_RES  9
-// must adjust if converting to struct timeval 
+// must adjust if converting to struct timeval
 #define BK_MICROSEC   (1000)
 // need no adjustment
 #define BK_MILLISEC   (BK_MICROSEC*1000)
@@ -52,8 +52,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * The output flags BK_TIME_FORMAT_OUTFLAG_TRUNCATED means that the
  * function failed to find enough space.
  *
- * Note that on some systems, use of gmtime() can make this unsafe to call
- * from signal handlers, so don't do that unless HAVE_GMTIME_R is defined.
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param str buffer to use on output
@@ -68,7 +67,7 @@ size_t
 bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags *out_flagsp, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  // the size of the array is that of base output "YYYY-mm-ddTHH:MM:SSZ\0"
+  // the size of the array is that of base output "YYYY-mm-ddTHH:MM:SSZ\0" for no apparent reason
   static const char FORMAT_WITH_T[21] = "%Y-%m-%dT%H:%M:%S";
   static const char FORMAT_NO_T[21] = "%Y-%m-%d %H:%M:%S";
   const char *format;
@@ -119,6 +118,8 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
     precision = 0;
   else
   {
+    // <BUG ID="862">Guessing precision is stupid since even us/ms/sec boundries do occur </BUG>
+
     if (timep->tv_nsec % BK_MICROSEC)
     {
       fraction = timep->tv_nsec;
@@ -165,7 +166,15 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
 
 
 
-
+/**
+ * Is this non-fully-qualified (e.g. struct tm) year a leap year?
+ *
+ * THREADS: MT-SAFE
+ *
+ * @param y Year number
+ * @return <i>1</i> if it is a leap year<br>
+ * @return <i>0</i> if it is not a leap year
+ */
 static int
 is_leap(unsigned y)
 {
@@ -184,6 +193,8 @@ is_leap(unsigned y)
  * will will be used if BK_TIMEGM_FLAG_NORMALIZE is passed in flags; if leap
  * second support is enabled in the system time functions it may give slightly
  * different time_t results than if the flag is not set.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param timep broken out struct tm.
@@ -285,6 +296,7 @@ bk_timegm(bk_s B, struct tm *timep, bk_flags flags)
 }
 
 
+
 #ifdef HAVE_STRPTIME
 /*
  * Annoyingly, you have to define _XOPEN_SOURCE to get the definition of
@@ -305,7 +317,7 @@ extern char *strptime (const char *s, const char *fmt, struct tm *tp);
  * Parses an ISO date and time specification.
  *
  * Only ISO extended complete Calendar date format in UTC/localtime supported.
- * 
+ *
  * e.g: "yyyy-mm-ddThh:mm:ss[.SSS][Z]" with optional fractional secs and/or Z
  *
  * Use BK_TIME_FORMAT_FLAG_NO_TZ to force GMT/UTC interpretation if no timezone
@@ -316,6 +328,8 @@ extern char *strptime (const char *s, const char *fmt, struct tm *tp);
  * IsoDateFormat class; essentially, to scan for tokens and build up an
  * strptime format string, then let strptime do the heavy lifting for Ordinal
  * dates, etc..</TODO>
+ *
+ * THREADS: MT-SAFE (as long as setlocale is not called)
  *
  *	@param B BAKA thread/global state.
  *	@param string ISO format time string to parse.
@@ -435,7 +449,7 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
       }
     else if (precision < LOG10_RES)
       decimal *= factors[LOG10_RES - precision];
-    
+
     date->tv_nsec = decimal;
   }
   else
@@ -452,6 +466,8 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
  * Generates IDMEF ntpstamp format "0x12345678.0x12345678" for the struct
  * timespec pointed to by @a timep, and places it in in the character array @a
  * str of size @max.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param str buffer to use on output
@@ -486,6 +502,8 @@ bk_time_ntp_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
 /**
  * Parses an "NTP-style" date and time specification.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param string NTP format time string to parse.
  *	@param date Copy-out struct timespec pointer for parsed time.
@@ -510,7 +528,7 @@ bk_time_ntp_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (!(subsec = strchr(string, '.')))
     goto error;
 
@@ -531,5 +549,5 @@ bk_time_ntp_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
 
  error:
   bk_error_printf(B, BK_ERR_ERR, "Improperly formatted NTP time string\n");
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
