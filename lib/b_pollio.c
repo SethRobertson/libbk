@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.5 2002/01/14 16:17:27 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.6 2002/01/14 20:34:13 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -427,6 +427,7 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct polling_io_data *pid;
+  bk_flags bk_run_once_flags;
   
   if (!bpi || !status)
   {
@@ -437,15 +438,25 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
   if (datap)
     *datap = NULL;
 
+  if ((pid = pidlist_minimum(bpi->bpi_data)))
+  {
   // Seth sez: do bk_run_once regardless of presence of existing data to report.
+    bk_run_once_flags = BK_RUN_ONCE_FLAG_DONT_BLOCK;
+  }
+  else
+  {
+    bk_run_once_flags = 0;
+  }
+
   if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
-      bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
+      bk_run_once(B, bpi->bpi_ioh->ioh_run, bk_run_once_flags) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severly\n");
     goto error;
   }
 
-  pid = pidlist_minimum(bpi->bpi_data);
+  if (!pid)
+    pid = pidlist_minimum(bpi->bpi_data);
 
   // Now that we either have data or might
   if (!pid)
