@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.19 2002/03/19 06:23:53 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.20 2002/03/19 06:33:09 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -208,10 +208,11 @@ typedef char *caddr_t;
 #endif
 
 #ifndef _PATH_DEVNULL
-#ifdef BK_MINGW
-#define _PATH_DEVNULL "NUL:"
-#else
+#ifndef BK_MINGW32
 #define _PATH_DEVNULL "/dev/null"
-#endif
+#else  /* BK_MINGW32 */
+#define _PATH_DEVNULL "NUL:"
+#endif /* BK_MINGW32 */
+#endif /* !_PATH_DEVNULL */
 
 #endif /* _libbk_oscompat_h_ */
