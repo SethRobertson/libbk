@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.49 2001/11/12 20:54:42 jtt Exp $
+ * $Id: libbk.h,v 1.50 2001/11/13 01:59:27 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -621,7 +621,7 @@ extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iorfunc readfu
 #define BK_IOH_STATUS_IOHABORT		5	///< bk_ioh notifying user handler of IOH going away due to system constraints
 #define BK_IOH_STATUS_WRITECOMPLETE	6	///< bk_ioh notifying user handler of a previous write of a buffer has completed, and here is the buffer
 #define BK_IOH_STATUS_WRITEABORTED	7	///< bk_ioh notifying user handler of a previous write of a buffer was not fully completed before abort, and here is the buffer
-#define BK_IOH_STATUS_READCOMPLETE	8	///< bk_ioh notifying user handler of a previous write of a buffer has completed, and here is the buffer, which you must free
+#define BK_IOH_STATUS_READCOMPLETE	8	///< bk_ioh notifying user handler of a previous write of a buffer has completed, and here is the zero terminated array of buffers, which you must copy if necessary
 #define BK_IOH_STATUS_USERERROR		9	///< bk_ioh notifying user handler of some kind of user error being propagated in some unknown and unknowable fashion
 #define BK_IOH_STATUS_IOHREADEOF	10	///< bk_ioh notifying user handler of a received EOF
 extern int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags);

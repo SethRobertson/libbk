@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.8 2001/11/12 06:53:16 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.9 2001/11/13 01:59:27 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,8 +27,10 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-#define CALLBACK(ioh,data, state) ((*((ioh)->ioh_handler))((data), (ioh)->ioh_opaque, (ioh), (state)))
-#define IOH_DEFAULT_DATA_SIZE 128		///< Default read size
+#define CALLBACK(ioh,data, state) ((*((ioh)->ioh_handler))((data), (ioh)->ioh_opaque, (ioh), (state))) ///< Function to evaluate user callback with new data/state information
+#define IOH_DEFAULT_DATA_SIZE	128		///< Default read size
+#define IOH_VS			2		///< Number of vectors to hold length and msg
+#define IOH_EOLCHAR		'\n'		///< End of line character
 
 
 
@@ -77,9 +79,9 @@ struct bk_ioh
 {
   int			ioh_fdin;		///< Input file descriptor
   u_int32_t		ioh_fdin_savestate;	///< Information about fdin which we changed
-#define IOH_ADDED_NONBLOCK	0x01
-#define IOH_ADDED_OOBINLINE	0x02
-#define IOH_NUKED_LINGER	0x03
+#define IOH_ADDED_NONBLOCK	0x01		///< O_NONBLOCK was added to the fd
+#define IOH_ADDED_OOBINLINE	0x02		///< SO_OOBINLINE was added to the fd
+#define IOH_NUKED_LINGER	0x03		///< SO_LINGER was added to the fd
   int			ioh_fdout;		///< Output file descriptor
   u_int32_t		ioh_fdout_savestate;	///< Information about fdout which we changed
   bk_iorfunc 		ioh_readfun;		///< Function to read data
@@ -90,6 +92,7 @@ struct bk_ioh
   struct bk_run	       *ioh_run;		///< BK_RUN environment
   struct bk_ioh_queue	ioh_readq;		///< Data queued for reading
   struct bk_ioh_queue	ioh_writeq;		///< Data queued for writing
+  char			ioh_eolchar;		///< End of line character
   bk_flags		ioh_extflags;		///< Flags--see libbk.h
   bk_flags		ioh_intflags;		///< Flags
 #define IOH_FLAGS_SHUTDOWN_INPUT	0x01	///< Input shut down
@@ -105,7 +108,7 @@ struct bk_ioh
 
 
 
-static int ioh_getlastbuf(bk_s B, struct bk_ioh_queue *queue, u_int32_t *size, char **data, bk_flags flags);
+static int ioh_getlastbuf(bk_s B, struct bk_ioh_queue *queue, u_int32_t *size, char **data, struct bk_ioh_data **bid, bk_flags flags);
 static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, size_t len, bk_flags flags);
 static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, bk_flags flags);
 static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, bk_flags flags);
@@ -187,8 +190,8 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk
  *	@param handler The user callback to notify on complete I/O or other events
  *	@param opaque The opaque data for the user callback.
  *	@param inbufhint A hint for the input routines (0 for 128 bytes)
- *	@param inbufmax The maximum buffer size of incomplete data (0 for unlimited)
- *	@param outbufmax The maximum amount of data queued for transmission (0 for unlimited)
+ *	@param inbufmax The maximum buffer size of incomplete data (0 for unlimited) -- note this is a hint not an absolute limit
+ *	@param outbufmax The maximum amount of data queued for transmission (0 for unlimited) -- note this is a hint not an absolute limit
  *	@param run The bk run environment to use with the fd.
  *	@param flags The type of data on the file descriptors.
  *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
@@ -262,6 +265,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iorfunc readfun, bk_i
   curioh->ioh_writeq.biq_queuemax = outbufmax;
   curioh->ioh_run = run;
   curioh->ioh_extflags = flags;
+  curioh->ioh_eolchar = IOH_EOLCHAR;
 
   curioh->ioh_fdin = fdin;
   if (curioh->ioh_fdin >= 0)
@@ -959,10 +963,10 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
       bk_error_printf(B, BK_ERR_ERR, "Unknown message format type %x\n",ioh->ioh_extflags);
     }
 
-    if (ret >= 0 && ioh_getlastbuf(B, &ioh->ioh_readq, &room, &data, 0) == 0 && data && room > 0)
+    if (ret > 0 && ioh_getlastbuf(B, &ioh->ioh_readq, &room, &data, &bid, 0) == 0 && data && room > 0)
     {
       // Get some data
-      ret = ioh_internal_read(B, ioh, ioh->ioh_fdin, data, room, 0);
+      ret = ioh_internal_read(B, ioh, ioh->ioh_fdin, data, MIN(room, (u_int32_t)ret), 0);
 
       if (ret < 0 && (
 #ifdef EWOULDBLOCK
@@ -996,6 +1000,9 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
       else
       {
 	// Got ret bytes
+	bid->bid_inuse += ret;
+	ioh->ioh_readq.biq_queuelen += ret;
+
 	if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
 	{
 	  ret = ioht_raw_other(B, ioh, ret, IOHT_HANDLER_RMSG, 0);
@@ -1255,7 +1262,7 @@ static int ioht_block_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags 
     BK_RETURN(B,-1);
   }
 
-  if ((ret = ioh_queue(B, &ioh->ioh_writeq, data->ptr, data->len, data->len, 0, data, 0, flags)) == 0)
+  if ((ret = ioh_queue(B, &ioh->ioh_writeq, data->ptr, data->len, data->len, 0, data, BID_FLAG_MESSAGE, flags)) == 0)
   {
     /*
      * Yes, there may be blocks already partially sent, but if this condition
@@ -1418,7 +1425,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 	cnt = (*ioh->ioh_writefun)(ioh->ioh_fdout, &iov, 1, 0);
 
-	if (cnt < 0 && (
+	if (cnt == 0 || cnt < 0 && (
 #ifdef EWOULDBLOCK
 			errno == EWOULDBLOCK
 #endif /* EWOULDBLOCK */
@@ -1436,14 +1443,8 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	else if (cnt < 0)
 	{
 	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
-	  CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHREADERROR);
-	  ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, 0);
-	}
-	else if (cnt == 0)
-	{
-	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
-	  CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHREADEOF);
-	  ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, 0);
+	  CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHWRITEERROR);
+	  ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
 	}
 	else
 	{
@@ -1467,6 +1468,11 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	    bid->bid_inuse -= cnt;
 	    ioh->ioh_writeq.biq_queuelen -= cnt;
 	  }
+	  if (ioh->ioh_writeq.biq_queuelen < 1)
+	  {
+	    ioh->ioh_writeq.biq_queuelen = 0;
+	    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
+	  }
 	}
       }
     }
@@ -1474,7 +1480,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
     {						// Return the number of bytes to read
       char *data;
 
-      if (ioh_getlastbuf(B, &ioh->ioh_readq, &size, NULL, 0) == 0)
+      if (ioh_getlastbuf(B, &ioh->ioh_readq, &size, NULL, NULL, 0) != 0 || size < 1)
       {
 	size = ioh->ioh_inbuf_hint?ioh->ioh_inbuf_hint:IOH_DEFAULT_DATA_SIZE;
 
@@ -1484,7 +1490,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	  BK_RETURN(B, -1);
 	}
 
-	if (ioh_queue(B, &ioh->ioh_readq, data, size, size, 0, NULL, 0, BK_IOH_BYPASSQUEUEFULL) < 0)
+	if (ioh_queue(B, &ioh->ioh_readq, data, size, 0, 0, NULL, BID_FLAG_MESSAGE, BK_IOH_BYPASSQUEUEFULL) < 0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not insert input buffer for ioh %p input queue: %s\n",ioh,biq_error_reason(ioh->ioh_writeq.biq_queue, NULL));
 	  free(data);
@@ -1497,9 +1503,50 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
   case IOHT_HANDLER_RMSG:
     if (aux > 0)
-    {
-      // XXX - determine message boundry, if full send up, if over size limit send up as incomplete
-      
+    {						// Determine if we have msg or are over limit
+      int cnt = 0;
+      bk_vptr *sendup;
+      dict_iter iter;
+
+      // Find out how many data segments we have
+      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+      while (bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter))
+      {
+	if (bid->bid_data && bid->bid_inuse > 0)
+	  cnt++;
+      }
+      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+
+      if (!cnt)
+	BK_RETURN(B,0);
+
+      if (!BK_CALLOC_LEN(sendup,sizeof(*sendup)*(cnt+1)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate data vectors to return data: %s\n", strerror(errno));
+	BK_RETURN(B,-1);
+      }
+    
+      // Actually fill out the data list
+      cnt = 0;
+      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+      while (bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter))
+      {
+	if (bid->bid_data)
+	{
+	  sendup[cnt].ptr = bid->bid_data+bid->bid_used;
+	  sendup[cnt].len = bid->bid_inuse;
+	  cnt++;
+	}
+      }
+      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+
+      CALLBACK(ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
+
+      // Nuke vector list
+      free(sendup);
+
+      // Nuke everything in the input queue, we have "used" the necessary stuff
+      bk_ioh_flush(B, ioh, SHUT_RD, 0);
     }
 
   default:
@@ -1513,7 +1560,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 
 /**
- * Raw--no particular messaging format--IOH Type routines to perform I/O maintenance and activity
+ * Blocked--fixed length messages--IOH Type routines to perform I/O maintenance and activity
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -1527,6 +1574,10 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret = 0;
+  struct bk_ioh_data *bid;
+  u_int32_t size = 0;
+  dict_iter iter;
 
   if (!ioh)
   {
@@ -1534,13 +1585,277 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
     BK_RETURN(B,-1);
   }
 
-  BK_RETURN(B, 0);
+  switch (flags)
+  {
+  case IOHT_FLUSH:
+    // Clean any algorithm private data, or nuke it if ABORT
+    memset(&ioh->ioh_writeq.biq.block, 0, sizeof(ioh->ioh_writeq.biq.block));
+    break;
+
+  case IOHT_HANDLER:
+    if (aux == BK_RUN_WRITEREADY)
+    {
+      int cnt = 0;
+      struct iovec *iov;
+
+      // On shutdown-pending, just write everything out
+      if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT_PEND))
+	ioh->ioh_writeq.biq.block.remaining = ioh->ioh_writeq.biq_queuelen;
+
+      // If we are at start-of-block
+      if (!ioh->ioh_writeq.biq.block.remaining)
+	{
+	  if (ioh->ioh_writeq.biq_queuelen >= ioh->ioh_inbuf_hint)
+	    ioh->ioh_writeq.biq.block.remaining = ioh->ioh_inbuf_hint;
+	  else
+	  {
+	    bk_error_printf(B, BK_ERR_NOTICE, "Block write handler called without a full block to output\n");
+	    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
+	    break;
+	  }
+	}
+
+      cnt = 0;
+      size = 0;
+      for (bid = biq_minimum(ioh->ioh_writeq.biq_queue); bid; bid = biq_successor(ioh->ioh_writeq.biq_queue, bid))
+      {	
+	if (bid->bid_data)
+	{
+	  cnt++;
+	  size += bid->bid_inuse;
+	  if (size >= ioh->ioh_writeq.biq.block.remaining)
+	    break;
+	}
+      }
+
+      if (!bid || cnt < 1)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Block write handler called with inconsistant bid_inuse, biq.block.remaining, and biq_queuelen\n");
+	if (cnt < 1)
+	{
+	  bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
+	  BK_RETURN(B,-1);
+	}
+      }
+
+      if (!BK_MALLOC_LEN(iov,sizeof(*iov)*(cnt)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate data vectors to write data: %s\n", strerror(errno));
+	BK_RETURN(B,-1);
+      }
+
+      // Fill out iovec with ptrs from user buffers
+      cnt = 0;
+      size = 0;
+      for (bid = biq_minimum(ioh->ioh_writeq.biq_queue); bid; bid = biq_successor(ioh->ioh_writeq.biq_queue, bid))
+      {	
+	if (bid->bid_data)
+	{
+	  iov[cnt].iov_base = bid->bid_data + bid->bid_used;
+	  iov[cnt].iov_len = MIN(bid->bid_inuse, ioh->ioh_writeq.biq.block.remaining - size);
+	  cnt++;
+	  size += iov[cnt].iov_len;
+	  if (size >= ioh->ioh_writeq.biq.block.remaining)
+	    break;
+	}
+      }
+
+      cnt = (*ioh->ioh_writefun)(ioh->ioh_fdout, iov, cnt, 0);
+      free(iov);
+
+      if (cnt == 0 || cnt < 0 && (
+#ifdef EWOULDBLOCK
+		      errno == EWOULDBLOCK
+#endif /* EWOULDBLOCK */
+#if defined(EWOULDBLOCK) && defined(EAGAIN)
+		      ||
+#endif /* EWOULDBLOCK && EAGAIN */
+#if defined(EAGAIN)
+		      errno == EAGAIN
+#endif /* EAGAIN */
+		      ))
+      {
+	// Not quite ready for writing yet
+	cnt = 0;
+	break;
+      }
+      else if (cnt < 0)
+      {
+	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
+	CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHWRITEERROR);
+	ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
+      }
+      else
+      {
+	if ((u_int32_t)cnt >= size)
+	{
+	  // Block has been fully written
+	  ioh->ioh_writeq.biq.block.remaining = 0;
+	  ioh->ioh_writeq.biq_queuelen -= cnt;
+	  if (ioh->ioh_writeq.biq_queuelen < 1)
+	  {					// Nothing more to do
+	    ioh->ioh_writeq.biq_queuelen = 0;
+	    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
+	  }
+	}
+	else
+	{
+	  // Block has been partially written
+	  ioh->ioh_writeq.biq.block.remaining = 0;
+	  ioh->ioh_writeq.biq_queuelen -= cnt;
+	}
+
+	// Figure out what buffers have been fully written
+	iter = biq_iterate(ioh->ioh_writeq.biq_queue, DICT_FROM_START);
+	while ((bid = biq_nextobj(ioh->ioh_writeq.biq_queue, iter)) && cnt > 0)
+	{	
+	  if (bid->bid_data)
+	  {
+	    if ((u_int32_t)cnt < bid->bid_inuse)
+	    {					// Partially written--adjust
+	      bid->bid_used += cnt;
+	      bid->bid_inuse -= cnt;
+	      break;
+	    }
+
+	    // Buffer fully written
+	    if (bid->bid_vptr)
+	    {					// Either give the data back to the user to free
+	      CALLBACK(ioh, bid->bid_vptr, BK_IOH_STATUS_WRITECOMPLETE);
+	    }
+	    else
+	    {					// Or free the data yourself
+	      if (bid->bid_data)
+		free( bid->bid_data);
+	    }
+
+	    cnt -= bid->bid_inuse;
+	    biq_delete(ioh->ioh_writeq.biq_queue,bid);
+	    free(bid);
+	  }
+	}
+	biq_iterate_done(ioh->ioh_writeq.biq_queue, iter);
+      }
+    }
+
+    if (aux == BK_RUN_READREADY)
+    {						// Return the number of bytes to read
+      char *data;
+
+      if (ioh_getlastbuf(B, &ioh->ioh_readq, &size, NULL, NULL, 0) != 0 || size < 1)
+      {
+	size = ioh->ioh_inbuf_hint?ioh->ioh_inbuf_hint:IOH_DEFAULT_DATA_SIZE;
+
+	if (!(data = malloc(size)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer for ioh %p of size %d: %s\n",ioh,size,strerror(errno));
+	  BK_RETURN(B, -1);
+	}
+
+	if (ioh_queue(B, &ioh->ioh_readq, data, size, 0, 0, NULL, BID_FLAG_MESSAGE, BK_IOH_BYPASSQUEUEFULL) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not insert input buffer for ioh %p input queue: %s\n",ioh,biq_error_reason(ioh->ioh_writeq.biq_queue, NULL));
+	  free(data);
+	  BK_RETURN(B, -1);
+	}
+      }
+    }
+    BK_RETURN(B, size);
+    break;
+
+  case IOHT_HANDLER_RMSG:
+    if (aux > 0)
+    {						// Determine if we have msg or are over limit
+      int cnt = 0;
+      bk_vptr *sendup;
+
+      if (ioh->ioh_readq.biq_queuelen >= ioh->ioh_inbuf_hint)
+      {						// We have enough data--get ready to send up
+
+	size = cnt = 0;
+	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+	while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)) && size < ioh->ioh_inbuf_hint)
+	{
+	  if (bid->bid_data && bid->bid_inuse > 0)
+	  {
+	    cnt++;
+	    size += bid->bid_inuse;
+	  }
+	}
+	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+
+	if (!cnt || size < ioh->ioh_inbuf_hint)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Inconsistency between ioh->ioh_readq.biq_queuelen and the data in the queue\n");
+	  BK_RETURN(B,-1);
+	}
+
+	if (!BK_CALLOC_LEN(sendup,sizeof(*sendup)*(cnt+1)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate data vectors to return data: %s\n", strerror(errno));
+	  BK_RETURN(B,-1);
+	}
+    
+	// Actually fill out the data list
+	size = cnt = 0;
+	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+	while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)) && size < ioh->ioh_inbuf_hint)
+	{
+	  if (bid->bid_data && bid->bid_inuse > 0)
+	  {
+	    sendup[cnt].ptr = bid->bid_data+bid->bid_used;
+	    sendup[cnt].len = MIN(bid->bid_inuse,ioh->ioh_inbuf_hint - size);
+	    size += sendup[cnt].len;
+	    cnt++;
+	  }
+	}
+	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+
+	CALLBACK(ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
+
+	// Nuke vector list
+	free(sendup);
+    
+	ioh->ioh_readq.biq_queuelen -= size;
+
+	// Delete buffers that have been used
+	size = cnt = 0;
+	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+	while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)) && size < ioh->ioh_inbuf_hint)
+	{
+	  if (bid->bid_data && bid->bid_inuse > 0)
+	  {
+	    if (bid->bid_inuse >= ioh->ioh_inbuf_hint - size)
+	    {
+	      bid->bid_inuse -= ioh->ioh_inbuf_hint - size;
+	      bid->bid_used += ioh->ioh_inbuf_hint - size;
+	      break;
+	    }
+
+	    // Buffer fully read
+	    size -= bid->bid_inuse;
+	    free(bid->bid_data);
+	    biq_delete(ioh->ioh_readq.biq_queue, bid);
+	    free(bid);
+	  }
+	}
+	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+      }
+    }
+    break;
+
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown command %d/%x\n",cmd,aux);
+    BK_RETURN(B,-1);
+  }
+
+  BK_RETURN(B, ret);
 }
 
 
 
 /**
- * Raw--no particular messaging format--IOH Type routines to perform I/O maintenance and activity
+ * Vectored--length encoded messaging format--IOH Type routines to perform I/O maintenance and activity
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -1554,6 +1869,12 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret = 0;
+  struct bk_ioh_data *bid;
+  u_int32_t room, size = 0;
+  dict_iter iter;
+  u_int32_t lengthfromwire = 0;
+  int cnt = 0;
 
   if (!ioh)
   {
@@ -1561,13 +1882,310 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
     BK_RETURN(B,-1);
   }
 
-  BK_RETURN(B, 0);
+  switch (flags)
+  {
+  case IOHT_FLUSH:
+    // Clean any algorithm private data, or nuke it if ABORT
+    break;
+
+  case IOHT_HANDLER:
+    if (aux == BK_RUN_WRITEREADY)
+    {
+      struct iovec iov[IOH_VS];
+
+      for (bid = biq_minimum(ioh->ioh_writeq.biq_queue); bid; bid = biq_successor(ioh->ioh_writeq.biq_queue, bid))
+      {	
+	if (bid->bid_data)
+	{
+	  iov[cnt].iov_base = bid->bid_data + bid->bid_used;
+	  iov[cnt].iov_len = bid->bid_inuse;
+	  cnt++;
+
+	  // Have we got the vector & data or at least whatever is remaining?
+	  if (BK_FLAG_ISSET(bid->bid_flags, BID_FLAG_MESSAGE) || cnt >= IOH_VS)
+	    break;
+	}
+      }
+
+      if (bid && cnt > 0)
+      {
+	cnt = (*ioh->ioh_writefun)(ioh->ioh_fdout, iov, cnt, 0);
+	free(iov);
+
+	if (cnt == 0 || cnt < 0 && (
+#ifdef EWOULDBLOCK
+			errno == EWOULDBLOCK
+#endif /* EWOULDBLOCK */
+#if defined(EWOULDBLOCK) && defined(EAGAIN)
+			||
+#endif /* EWOULDBLOCK && EAGAIN */
+#if defined(EAGAIN)
+			errno == EAGAIN
+#endif /* EAGAIN */
+			))
+	{
+	  // Not quite ready for writing yet
+	  cnt = 0;
+	}
+	else if (cnt < 0)
+	{
+	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
+	  CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHWRITEERROR);
+	  ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
+	}
+	else
+	{					// Some (cnt) data written
+	  ioh->ioh_writeq.biq_queuelen -= cnt;
+	  if (ioh->ioh_writeq.biq_queuelen < 1)
+	  {					// Nothing more to do
+	    ioh->ioh_writeq.biq_queuelen = 0;
+	    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
+	  }
+
+	  // Figure out what buffers have been fully written
+	  iter = biq_iterate(ioh->ioh_writeq.biq_queue, DICT_FROM_START);
+	  while ((bid = biq_nextobj(ioh->ioh_writeq.biq_queue, iter)) && cnt > 0)
+	  {	
+	    if (bid->bid_data)
+	    {
+	      if ((u_int32_t)cnt < bid->bid_inuse)
+	      {					// Partially written--adjust
+		bid->bid_used += cnt;
+		bid->bid_inuse -= cnt;
+		break;
+	      }
+
+	      // Buffer fully written
+	      if (bid->bid_vptr)
+	      {					// Either give the data back to the user to free
+		CALLBACK(ioh, bid->bid_vptr, BK_IOH_STATUS_WRITECOMPLETE);
+	      }
+	      else
+	      {					// Or free the data yourself
+		if (bid->bid_data)
+		  free( bid->bid_data);
+	      }
+
+	      cnt -= bid->bid_inuse;
+	      biq_delete(ioh->ioh_writeq.biq_queue,bid);
+	      free(bid);
+	    }
+	  }
+	  biq_iterate_done(ioh->ioh_writeq.biq_queue, iter);
+	}
+      }
+    }
+
+    if (aux == BK_RUN_READREADY || aux == IOHT_HANDLER_RMSG)
+    {						// Return the number of bytes to read
+      // Determine how many bytes we have ready, and what the length of data queued up is
+      for (bid = biq_minimum(ioh->ioh_readq.biq_queue); bid; bid=biq_successor(ioh->ioh_readq.biq_queue, bid))
+      {
+	if (!bid->bid_data || bid->bid_inuse < 1)
+	  continue;				// Nothing to see, move along
+
+	if (size < sizeof(lengthfromwire))
+	{
+	  memcpy((char *)&lengthfromwire, bid->bid_data + bid->bid_used, MIN(sizeof(lengthfromwire) - size, bid->bid_inuse));
+	}
+
+	size += bid->bid_inuse;
+	cnt++;
+      }
+      if (size >= 4)
+	lengthfromwire = ntohl(lengthfromwire);
+      else
+	lengthfromwire = 0;
+
+      assert(size == ioh->ioh_readq.biq_queuelen);
+
+      if (ioh_getlastbuf(B, &ioh->ioh_readq, &room, NULL, &bid, 0) != 0)
+	room = 0;
+
+      // Size now contains the number of bytes of data in queue
+      // if (size > 4) lengthfromwire contains the host-order number of data bytes in the message
+      // room contains the number of bytes "free" in the last buffer
+      // bid points to the last buffer where these bytes are stored
+      // cnt now contains the number of buffers that this data is stored in
+    }
+
+    if (aux == BK_RUN_READREADY)
+    {
+      char *data;
+
+      if (size < sizeof(lengthfromwire))
+      {						// We still need to read length from wire
+	if (!room)
+	{					// We still need to allocate storage for same
+	  if (!(data = malloc(sizeof(lengthfromwire) - size)))
+	  {
+	    bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer for ioh %p of size %d: %s\n",ioh,sizeof(lengthfromwire) - size,strerror(errno));
+	    BK_RETURN(B, -1);
+	  }
+
+	  if (ioh_queue(B, &ioh->ioh_readq, data, sizeof(lengthfromwire) - size, 0, 0, NULL, 0, BK_IOH_BYPASSQUEUEFULL) < 0)
+	  {
+	    bk_error_printf(B, BK_ERR_ERR, "Could not insert input buffer for ioh %p input queue: %s\n",ioh,biq_error_reason(ioh->ioh_writeq.biq_queue, NULL));
+	    free(data);
+	    BK_RETURN(B, -1);
+	  }
+
+	  if (ioh_getlastbuf(B, &ioh->ioh_readq, &room, NULL, &bid, 0) != 0 || !room)
+	  {
+	    bk_error_printf(B, BK_ERR_ERR, "Could not find the buffer we just inserted\n");
+	    BK_RETURN(B, -1);
+	  }
+	}
+
+	/*
+	 * Returning number of bytes to fill out length from wire (maybe less if
+	 * something strange is happening WRT buffers with some room
+	 * already on stack)
+	 */
+	BK_RETURN(B, room);
+      }
+
+      // We have length from wire
+      if (lengthfromwire+sizeof(lengthfromwire) >= size)
+      {
+	/*
+	 * Uh--we already have a complete message in queue.  How?
+	 *
+	 * Anyway, cause message to be delivered to user and return
+	 * zero (skipping this read notification cycle).
+	 */
+	ret = 0;
+	goto IOHT_HANDLER_RMSG_case;
+      }
+
+      if (!room)
+      {
+	room = lengthfromwire + sizeof(lengthfromwire) - size;
+	if (!(data = malloc(room)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer for ioh %p of size %d: %s\n",ioh,room,strerror(errno));
+	  BK_RETURN(B, -1);
+	}
+
+	if (ioh_queue(B, &ioh->ioh_readq, data, room, 0, 0, NULL, BID_FLAG_MESSAGE, BK_IOH_BYPASSQUEUEFULL) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not insert input buffer for ioh %p input queue: %s\n",ioh,biq_error_reason(ioh->ioh_writeq.biq_queue, NULL));
+	  free(data);
+	  BK_RETURN(B, -1);
+	}
+
+	if (ioh_getlastbuf(B, &ioh->ioh_readq, &room, NULL, &bid, 0) != 0 || !room)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not find the buffer we just inserted\n");
+	  BK_RETURN(B, -1);
+	}
+      }
+      BK_RETURN(B, room);
+    }
+    bk_error_printf(B, BK_ERR_ERR, "Should never get here\n");
+    BK_RETURN(B, -1);
+    break;
+
+  case IOHT_HANDLER_RMSG:
+#if 0
+    indent_is_stupid();
+#endif    
+  IOHT_HANDLER_RMSG_case:
+    if (lengthfromwire+sizeof(lengthfromwire) >= size)
+    {
+      bk_vptr *sendup;
+      u_int32_t tmp = 0;
+
+      // This may allocate more than we need--cnt may be (usually will be) artificially
+      // high due to buffers dedicated to lengthfromwire
+      if (!BK_CALLOC_LEN(sendup,sizeof(*sendup)*(cnt+1)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate data vectors to return data: %s\n", strerror(errno));
+	BK_RETURN(B,-1);
+      }
+
+      // Actually fill out the data list
+      size = cnt = 0;
+      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)) && size < lengthfromwire)
+      {
+	if (bid->bid_data && bid->bid_inuse > 0)
+	{
+	  if (size < sizeof(lengthfromwire))
+	  {
+	    if (bid->bid_inuse > (sizeof(lengthfromwire) - size))
+	    {
+	      sendup[cnt].ptr = bid->bid_data+bid->bid_used + sizeof(lengthfromwire) - size;
+	      sendup[cnt].len = MIN(bid->bid_inuse - (sizeof(lengthfromwire) - size),
+				    lengthfromwire);
+	      size += sendup[cnt].len;
+	      cnt++;
+	      tmp = sizeof(lengthfromwire);
+	    }
+	    else
+	    {
+	      tmp += bid->bid_inuse;
+	    }
+	  }
+	  else
+	  {
+	    sendup[cnt].ptr = bid->bid_data+bid->bid_used;
+	    sendup[cnt].len = MIN(bid->bid_inuse,lengthfromwire - size);
+	    size += sendup[cnt].len;
+	    cnt++;
+	  }
+	}
+      }
+      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+
+      CALLBACK(ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
+
+      // Nuke vector list
+      free(sendup);
+    
+      size += tmp;				// Include size of lengthfromwire
+      tmp = size;
+      ioh->ioh_readq.biq_queuelen -= size;
+
+      // Delete buffers that have been used
+      size = cnt = 0;
+      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)) && size < tmp)
+      {
+	if (bid->bid_data && bid->bid_inuse > 0)
+	{
+	  if (bid->bid_inuse >= tmp - size)
+	  {					// Partially read
+	    bid->bid_inuse -= tmp - size;
+	    bid->bid_used += tmp - size;
+	    break;
+	  }
+
+	  // Buffer fully read
+	  size += bid->bid_inuse;
+	  free(bid->bid_data);
+	  biq_delete(ioh->ioh_readq.biq_queue, bid);
+	  free(bid);
+	}
+      }
+      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+    }
+    break;
+
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown command %d/%x\n",cmd,aux);
+    BK_RETURN(B,-1);
+  }
+
+  BK_RETURN(B, ret);
 }
 
 
 
 /**
- * Raw--no particular messaging format--IOH Type routines to perform I/O maintenance and activity
+ * Line--"/n" terminated lines--IOH Type routines to perform I/O maintenance and activity.
+ * A mechanism should be devised to specify the EOL character (or preferrably sequence).
+ * 
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -1581,6 +2199,12 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret = 0;
+  struct bk_ioh_data *bid;
+  u_int32_t room, needed, size = 0;
+  dict_iter iter;
+  u_int32_t lengthfromwire = 0;
+  int cnt = 0;
 
   if (!ioh)
   {
@@ -1588,7 +2212,138 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
     BK_RETURN(B,-1);
   }
 
-  BK_RETURN(B, 0);
+  switch (flags)
+  {
+  case IOHT_FLUSH:
+    // Clean any algorithm private data, or nuke it if ABORT
+    break;
+
+  case IOHT_HANDLER:
+    if (aux == BK_RUN_WRITEREADY)
+    {
+      /*
+       * We are not enforcing line oriented output, thus this is no different
+       * that raw, so we will trivially call raw.
+      */
+      BK_ORETURN(B, ioht_raw_other(B, ioh, aux, cmd, flags));
+    }
+
+    if (aux == BK_RUN_READREADY)
+    {
+      /*
+       * Determining the number of bytes to read is an impossible
+       * science in line oriented input modes.  No one policy will
+       * ever be correct, and the one used by raw seems just as good
+       * as any other, so let's use raw.
+       *
+       * I suppose one possible modification would be to ensure
+       * that everything is NUL terminated, but since the stuff
+       * is not guarenteed contiguous, this is not too interesting.
+       */
+      BK_ORETURN(B, ioht_raw_other(B, ioh, aux, cmd, flags));
+    }
+    break;
+
+  case IOHT_HANDLER_RMSG:
+    /*
+     * Here is the interesting bit.  Determining if we have at least
+     * one full line, making a buffer list for it, and sending it up.
+     *
+     * Since we may have many lines in the queue, we loop over the data
+     * until the data is exhausted or we don't find a complete line.
+     */
+    while (ioh->ioh_readq.biq_queuelen > 0)
+    {
+      bk_vptr *sendup;
+      u_int32_t tmp = 0;
+
+      // Find number of segments
+      size = cnt = 0;
+      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+      while (bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter))
+      {
+	if (bid->bid_data && bid->bid_inuse > 0)
+	{
+	  cnt++;
+	  for (tmp=0; tmp<bid->bid_inuse; tmp++)
+	  {
+	    size++;
+	    if (*(bid->bid_data + tmp + bid->bid_used) == ioh->ioh_eolchar)
+	    {
+	      // Hurrah--we have found E-O-L
+	      break;
+	    }
+	  }
+	}
+      }
+      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+      needed = size;
+
+      if (!bid || cnt < 1)
+      {						// No bid, no line (at least not this time)
+	BK_RETURN(B, 0);
+      }
+
+      // Allocate send-up buffers
+      if (!BK_CALLOC_LEN(sendup,sizeof(*sendup)*(cnt+1)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate data vectors to return data: %s\n", strerror(errno));
+	BK_RETURN(B,-1);
+      }
+
+      // Actually fill out the data list
+      size = cnt = 0;
+      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)) && size < needed)
+      {
+	if (bid->bid_data && bid->bid_inuse > 0)
+	{
+	  sendup[cnt].ptr = bid->bid_data + bid->bid_used;
+	  sendup[cnt].len = MIN(bid->bid_inuse, needed-size);
+	  size += sendup[cnt].len;
+	  cnt++;
+	}
+      }
+      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+
+      CALLBACK(ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
+
+      // Nuke vector list
+      free(sendup);
+    
+      ioh->ioh_readq.biq_queuelen -= needed;
+
+      // Delete buffers that have been used
+      size = cnt = 0;
+      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)) && size < needed)
+      {
+	if (bid->bid_data && bid->bid_inuse > 0)
+	{
+	  if (bid->bid_inuse >= needed - size)
+	  {					// Partially read
+	    bid->bid_inuse -= needed - size;
+	    bid->bid_used += needed - size;
+	    break;
+	  }
+
+	  // Buffer fully read
+	  size += bid->bid_inuse;
+	  free(bid->bid_data);
+	  biq_delete(ioh->ioh_readq.biq_queue, bid);
+	  free(bid);
+	}
+      }
+      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+    }
+    break;
+
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown command %d/%x\n",cmd,aux);
+    BK_RETURN(B,-1);
+  }
+
+  BK_RETURN(B, ret);
 }
 
 
@@ -1683,7 +2438,7 @@ void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, u_i
  *	@return <br><i>0</i> on success (including no bytes available)
  *	@return <br><i>1</i> if no data could be found
  */
-static int ioh_getlastbuf(bk_s B, struct bk_ioh_queue *queue, u_int32_t *size, char **data, bk_flags flags)
+static int ioh_getlastbuf(bk_s B, struct bk_ioh_queue *queue, u_int32_t *size, char **data, struct bk_ioh_data **bidp, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh_data *bid;
@@ -1699,13 +2454,14 @@ static int ioh_getlastbuf(bk_s B, struct bk_ioh_queue *queue, u_int32_t *size, c
     if (bid->bid_data)
     {
       if (data) *data = bid->bid_data + bid->bid_used;
-      *size = bid->bid_inuse;
+      *size = bid->bid_allocated - bid->bid_inuse - bid->bid_used;
       BK_RETURN(B,0);
     }
   }
 
   *size = 0;
   if (data) *data = NULL;
+  if (bidp) *bidp = bid;
   BK_RETURN(B,1);
 }
 
@@ -1773,7 +2529,7 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
   {
     if (filter && BK_FLAG_ISCLEAR(bid->bid_flags, filter))
       continue;
-    if (bid->bid_data)
+    if (bid->bid_data && bid->bid_inuse)
       cnt++;
   }
   biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
