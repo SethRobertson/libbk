@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.34 2002/10/21 16:02:26 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.35 2002/11/05 07:36:35 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -330,14 +330,12 @@ __attribute__ ((__packed__))
 #endif /* HAVE_ISINF */
 
 #ifndef HAVE_GMTIME_R
-/* <WARNING> Having to use this is unsafe under certain cirumstances </WARNING> */
+// <WARNING>Having to use this is unsafe under certain cirumstances</WARNING>
 #define gmtime_r(c,t) gmtime(c)
-#endif /* HAVE_GMTIME_R */
-
-#ifndef HAVE_GMTIME_R_PROTOTYPE
-struct tm *gmtime_r(const time_t *timenow, struct tm *buffer);
-#endif /* HAVE_GMTIME_R_PROTOTYPE */
-
+#else
+// Just in case there's no prototype, we declare the standard one
+extern struct tm *gmtime_r(const time_t *timenow, struct tm *buffer);
+#endif
 
 #ifndef HAVE_GETHOSTBYNAME2
 # define BK_GETHOSTBYNAME2(n,f)	(gethostbyname(n))
