@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.56 2002/05/16 22:32:04 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.57 2002/05/21 19:35:12 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,6 +25,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+#include <zlib.h>
 
 
 #if defined(EWOULDBLOCK) && defined(EAGAIN)
@@ -40,6 +41,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif
 #endif
 #endif
+
+#define IOH_COMPRESS_BLOCK_SIZE 	32768	///< Basic block size to use in compression.
 
 
 #define CALL_BACK(B, ioh, data, state)								\
@@ -243,8 +246,8 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *curioh = NULL;
   int tmp;
-  bk_iorfunc readfun = bk_ioh_stdrdfun;
-  bk_iowfunc writefun = bk_ioh_stdwrfun;
+  bk_iorfunc_f readfun = bk_ioh_stdrdfun;
+  bk_iowfunc_f writefun = bk_ioh_stdwrfun;
 
   if ((fdin < 0 && fdout < 0) || !run)
   {
@@ -313,6 +316,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
   curioh->ioh_run = run;
   curioh->ioh_extflags = flags;
   curioh->ioh_eolchar = IOH_EOLCHAR;
+  
 
   curioh->ioh_fdin = fdin;
   if (curioh->ioh_fdin >= 0)
@@ -390,7 +394,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
  *	@return <i>-1<i> on call failure.
  *	@return <br><i>0</i> on success.
  */
-int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc writefun, void *iofunopaque, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags)
+int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f writefun, void *iofunopaque, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
  
@@ -446,7 +450,7 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc wri
  *	@return <i>-1</i> on call failure.
  *	@return <br><i>0</i> on success.
  */
-int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc *readfun, bk_iowfunc *writefun, void **iofunopaque, bk_iohhandler_f *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags)
+int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc_f *readfun, bk_iowfunc_f *writefun, void **iofunopaque, bk_iohhandler_f *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
  
@@ -1770,7 +1774,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 	// <TODO>Perhaps attempt to write multiple buffers if available (here and elsewhere) </TODO>
 
-	cnt = (*ioh->ioh_writefun)(B, ioh->ioh_opaque, ioh->ioh_fdout, &iov, 1, 0);
+	cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, &iov, 1, 0);
 
 	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
 	{
@@ -1983,7 +1987,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	}
       }
 
-      cnt = (*ioh->ioh_writefun)(B, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
+      cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
       free(iov);
 
       bk_debug_printf_and(B, 2, "Post-write, cnt %d, size %d\n", cnt, size);
@@ -2212,7 +2216,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 
       if (bid && cnt > 0)
       {
-	cnt = (*ioh->ioh_writefun)(B, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
+	cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
 
 	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
 	{
@@ -2752,7 +2756,7 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
   bk_debug_printf_and(B, 1, "Internal read IOH %p of %d bytes\n", ioh, len);
 
   // Worry about non-stream protocols--somehow
-  ret = (*ioh->ioh_readfun)(B, ioh->ioh_iofunopaque, fd, data, len, flags);
+  ret = (*ioh->ioh_readfun)(B, ioh, ioh->ioh_iofunopaque, fd, data, len, flags);
 
   BK_RETURN(B,ret);
 }
@@ -3024,6 +3028,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
  * Standard read() functionality in IOH API
  *
  *	@param B BAKA Thread/global state
+ *	@param ioh The ioh to use (may be NULL for those not including libbk_internal.h)
  *	@param opaque Common opaque data for read and write funs
  *	@param fd File descriptor
  *	@param buf Data to read
@@ -3031,7 +3036,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
  *	@param flags Fun for the future
  *	@return Standard @a read() return codes
  */
-int bk_ioh_stdrdfun(bk_s B, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags)
+int bk_ioh_stdrdfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret, erno;
@@ -3062,20 +3067,72 @@ int bk_ioh_stdrdfun(bk_s B, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ siz
  * Standard write() functionality in IOH API
  *
  *	@param B BAKA Thread/global state
- *	@param fd File descriptor
+ *	@param ioh The ioh to use (may be NULL for those not including libbk_internal.h)
  *	@param opaque Common opaque data for read and write funs
+ *	@param fd File descriptor
  *	@param iovec Data to write
  *	@param size Number of iovec buffers
  *	@param flags Fun for the future
  *	@return Standard @a writev() return codes
  */
-int bk_ioh_stdwrfun(bk_s B, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags)
+int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret, erno;
 
   errno = 0;
-  ret = writev(fd, buf, size);
+  if (ioh && ioh->ioh_compress_level)
+  {
+    char *src = NULL;
+    char *dst = NULL;
+    u_int cnt;
+    char *q;
+    int len = 0;
+    int new_len;
+
+    ret =-1;					// Assume failure
+    for (cnt = 0; cnt < size; cnt++)
+    {
+      if (!(q = realloc(src, len + buf[cnt].iov_len)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate compress source buffer: %s\n", strerror(errno));
+	free(src);
+	src = NULL;
+	break;
+      }
+      src = q;
+      memcpy(src+len, buf[cnt].iov_base, buf[cnt].iov_len);
+      len += buf[cnt].iov_len;
+    }
+    if (src)
+    {
+      new_len = BK_COMPRESS_SWELL(len);
+      if (!(BK_MALLOC_LEN(dst, new_len)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate compress dest buffer: %s\n", strerror(errno));
+      }
+      else
+      {
+	int comp_ret;
+	if ((comp_ret = compress2(dst, (uLongf *)&new_len, src, len, ioh->ioh_compress_level)) != Z_OK)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not compress buffer: %s\n", bk_compress_strerror(B, comp_ret));
+	}
+	else
+	{
+	  // Sigh I think we need to loop here until we write out everything or get -1.
+	  ret = write(fd, dst, new_len);
+	}
+      }
+      free(src);
+      if (dst)
+	free(dst);
+    }
+  }
+  else
+  {
+    ret = writev(fd, buf, size);
+  }
   erno = errno;
 
   bk_debug_printf_and(B, 1, "System writev returns %d with errno %d\n",ret,errno);
@@ -3554,4 +3611,55 @@ static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, cons
   ioh_runhandler(B, run, BK_RUN_USERFLAG1, ioh->ioh_fdin, ioh, starttime);
 
   BK_VRETURN(B);
+}
+
+
+
+
+/**
+ * Set various and sudry "extras" available to the ioh. NB Not everything may be fully supported
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ioh The @a bk_ioh to use.
+ *	@param int compression_level The compression level to use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_alg, struct bk_vptr auth_key, char *auth_name , int encrypt_alg, struct bk_vptr encrypt_key, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (compression_level)
+  {
+    if (ioh->ioh_compress_level && ioh->ioh_compress_level != compression_level)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "May not alter compression level during run\n");
+      goto error;
+    }
+    ioh->ioh_compress_level = compression_level;
+    if (BK_FLAG_ISCLEAR(ioh->ioh_extflags, BK_IOH_BLOCKED))
+    {
+      BK_FLAG_CLEAR(ioh->ioh_extflags, BK_IOH_RAW | BK_IOH_VECTORED | BK_IOH_LINE);
+      BK_FLAG_SET(ioh->ioh_extflags, BK_IOH_BLOCKED);
+    }
+    if (!ioh->ioh_inbuf_hint)
+      ioh->ioh_inbuf_hint = IOH_COMPRESS_BLOCK_SIZE;
+  }
+  else if (ioh->ioh_compress_level)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "May not turn of compression once it's started\n");
+    goto error;
+  }
+  
+  BK_RETURN(B,0);  
+
+ error:
+  BK_RETURN(B,-1);  
 }

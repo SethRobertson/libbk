@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.28 2002/05/14 20:49:01 seth Exp $
+ * $Id: libbk_internal.h,v 1.29 2002/05/21 19:35:11 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -60,8 +60,8 @@ struct bk_ioh
 #define IOH_NUKED_LINGER	0x04		///< SO_LINGER was deleted from the fd
   int			ioh_fdout;		///< Output file descriptor
   u_int32_t		ioh_fdout_savestate;	///< Information about fdout which we changed
-  bk_iorfunc 		ioh_readfun;		///< Function to read data
-  bk_iowfunc		ioh_writefun;		///< Function to write data
+  bk_iorfunc_f 		ioh_readfun;		///< Function to read data
+  bk_iowfunc_f		ioh_writefun;		///< Function to write data
   void		       *ioh_iofunopaque;	///< Opaque data for iofuns
   bk_iohhandler_f	ioh_handler;		///< Callback function for event handling
   void		       *ioh_opaque;		///< Opaque data for handler
@@ -73,6 +73,7 @@ struct bk_ioh
   bk_flags		ioh_deferredclosearg;	///< Flags argument to deferred close
   int			ioh_throttle_cnt;	///< How many people want to block reads.
   void		       *ioh_readallowedevent;	///< Event to schedule user queue drain after readallowed
+  int			ioh_compress_level;	///< The level to use for compression
   bk_flags		ioh_extflags;		///< Flags--see libbk.h
   bk_flags		ioh_intflags;		///< Flags
 #define IOH_FLAGS_SHUTDOWN_INPUT	0x01	///< Input shut down
@@ -85,6 +86,7 @@ struct bk_ioh
 #define IOH_FLAGS_ERROR_OUTPUT		0x100	///< Output had I/O error
 #define IOH_FLAGS_CLOSE_PENDING		0x200	///< We want to close, but are in a user callback
 #define IOH_FLAGS_IN_CALLBACK		0x400	///< We are in a user callback
+#define IOH_FLAGS_COMPRESS		0x800	///< We are in a user callback
 };
 
 
