@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringbuf.c,v 1.1 2003/07/01 03:46:53 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringbuf.c,v 1.2 2003/07/02 02:28:03 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -54,6 +54,8 @@ struct bk_ring
   bk_flags		br_flags;			///< Fun for the future
 #define BK_RING_CLOSING		0x1			///< Ring is being terminated
 #ifdef BK_USING_PTHREADS
+  pthread_mutex_t	br_wlock;			///< Producer locking
+  pthread_mutex_t	br_rlock;			///< Consumer locking
   pthread_mutex_t	br_lock;			///< Locking to prevent everyong from being asleep
   pthread_cond_t	br_cond;			///< Where threads go to sleep
 #endif /* BK_USING_PTHREADS */
@@ -98,6 +100,8 @@ struct bk_ring *bk_ring_create(bk_s B, u_int size, bk_flags flags)
 
 #ifdef BK_USING_PTHREADS
   pthread_mutex_init(&ring->br_lock, NULL);
+  pthread_mutex_init(&ring->br_rlock, NULL);
+  pthread_mutex_init(&ring->br_wlock, NULL);
   pthread_cond_init(&ring->br_cond, NULL);
 #endif /* BK_USING_PTHREADS */
 
@@ -139,13 +143,19 @@ void bk_ring_destroy(bk_s B, struct bk_ring *ring, bk_flags flags)
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ring->br_lock) != 0)
     abort();
-#endif /* BK_USING_PTHREADS */
 
   if (pthread_mutex_destroy(&ring->br_lock) != 0)
     abort();
 
+  if (pthread_mutex_destroy(&ring->br_rlock) != 0)
+    abort();
+
+  if (pthread_mutex_destroy(&ring->br_wlock) != 0)
+    abort();
+
   if (pthread_cond_destroy(&ring->br_cond) != 0)
     abort();
+#endif /* BK_USING_PTHREADS */
 
   free(ring);
 
@@ -172,6 +182,7 @@ int bk_ring_write(bk_s B, struct bk_ring *ring, void *opaque, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   u_int new;
+  int ret = 1;
 
   if (!ring)
   {
@@ -182,15 +193,27 @@ int bk_ring_write(bk_s B, struct bk_ring *ring, void *opaque, bk_flags flags)
   if (BK_FLAG_ISSET(ring->br_flags, BK_RING_CLOSING))
     BK_RETURN(B, -1);
 
+#ifdef BK_USING_PTHREADS
+  // <TRICKY>Danger Will Robertson--we can go to sleep while holding this lock!!!</TRICKY>
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK) && pthread_mutex_lock(&ring->br_wlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   // While we can make no forward progress
   while (!WRITEALLOWED(B, ring))
   {
     if (BK_FLAG_ISSET(ring->br_flags, BK_RING_CLOSING))
-      BK_RETURN(B, -1);
+    {
+      ret = -1;
+      goto unlockexit;
+    }
 
     // Have we been asked to wait/will it be useful
     if (BK_FLAG_ISCLEAR(flags, BK_RING_WAIT) || !BK_GENERAL_FLAG_ISTHREADON(B))
-      BK_RETURN(B, 0);
+    {
+      ret = 0;
+      goto unlockexit;
+    }
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ring->br_lock) != 0)
@@ -228,7 +251,13 @@ int bk_ring_write(bk_s B, struct bk_ring *ring, void *opaque, bk_flags flags)
   if (ring->br_readasleep || !opaque)
     pthread_cond_broadcast(&ring->br_cond);	// Wake up sleeping reader
 
-  BK_RETURN(B, 1);
+ unlockexit:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK) && pthread_mutex_unlock(&ring->br_wlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B, ret);
 }
 
 
@@ -249,7 +278,7 @@ void *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   u_int new;
-  void *ret;
+  void *ret = NULL;
 
   if (!ring)
   {
@@ -257,16 +286,22 @@ void *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
     BK_RETURN(B, NULL);
   }
 
+#ifdef BK_USING_PTHREADS
+  // <TRICKY>Danger Will Robertson--we can go to sleep while holding this lock!!!</TRICKY>
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK) && pthread_mutex_lock(&ring->br_rlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   // While we can make no forward progress
   while (!READALLOWED(B, ring))
   {
     // If we can be in this situation, we have major race problems...user must communicate shutdown
     if (BK_FLAG_ISSET(ring->br_flags, BK_RING_CLOSING))
-      BK_RETURN(B, NULL);
+      goto unlockexit;
 
     // Have we been asked to wait/will it be useful
     if (BK_FLAG_ISCLEAR(flags, BK_RING_WAIT) || !BK_GENERAL_FLAG_ISTHREADON(B))
-      BK_RETURN(B, NULL);
+      goto unlockexit;
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ring->br_lock) != 0)
@@ -303,6 +338,12 @@ void *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
 
   if (ring->br_writeasleep || BK_FLAG_ISSET(ring->br_flags, BK_RING_CLOSING) || !ret)
     pthread_cond_broadcast(&ring->br_cond);	// Wake up sleeping write, or if we are closing
+
+ unlockexit:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK) && pthread_mutex_unlock(&ring->br_rlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B, ret);
 }
