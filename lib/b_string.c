@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.4 2001/08/30 19:57:33 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.5 2001/09/04 05:00:06 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -40,7 +40,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	/* yes, limit>1 and limit-- will always have the same truth value */
 
 
-static int bk_string_atou_int(bk_s B, char *string, u_int32_t *value, int *sign, bk_flags flags);
+static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sign, bk_flags flags);
 
 
 
@@ -183,11 +183,18 @@ int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
   int sign = 0;
-  int ret = bk_string_atou_int(B, string, value, &sign, flags);
+  u_int64_t tmp;
+  int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
+
+  /* We could trivially check for 32 bit overflow, but what is the proper response? */
+  *value = (u_int32_t)tmp;
 
   /* We are pretending number terminated at the minus sign */
   if (sign < 0)
+  {
     *value = 0;
+    if (ret == 0) ret=1;
+  }
 
   BK_RETURN(B, ret);
 }
@@ -195,13 +202,93 @@ int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags)
 
 
 /*
- * Convert ascii string to unsigned int32 with sign extension
+ * Convert ascii string to unsigned int
+ *
+ * Returns pos on non-null terminated number (number is still returned)
+ */
+int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  int sign = 0;
+  u_int64_t tmp;
+  int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
+
+
+  /* We could trivially check for 32 bit overflow, but what is the proper response? */
+  *value = tmp;
+
+  /* Not enough bits -- I guess this is still a pos */
+  if (*value < 0)
+    *value = 0;
+
+  *value *= sign;
+
+  BK_RETURN(B, ret);
+}
+
+
+
+/*
+ * Convert ascii string to unsigned int64
  *
  * Returns -1 on error
  * Returns 0 on success
  * Returns pos on non-null terminated number (number is still returned)
  */
-static int bk_string_atou_int(bk_s B, char *string, u_int32_t *value, int *sign, bk_flags flags)
+int bk_string_atoull(bk_s B, char *string, u_int64_t *value, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  int sign = 0;
+  u_int64_t tmp;
+  int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
+
+  *value = tmp;
+
+  /* We are pretending number terminated at the minus sign */
+  if (sign < 0)
+  {
+    *value = 0;
+    if (ret == 0) ret=1;
+  }
+
+  BK_RETURN(B, ret);
+}
+
+
+
+/*
+ * Convert ascii string to unsigned int64
+ *
+ * Returns pos on non-null terminated number (number is still returned)
+ */
+int bk_string_atoill(bk_s B, char *string, int64_t *value, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  int sign = 0;
+  u_int64_t tmp;
+  int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
+
+  *value = tmp;
+
+  /* Not enough bits -- I guess this is still a pos */
+  if (*value < 0)
+    *value = 0;
+
+  *value *= sign;
+
+  BK_RETURN(B, ret);
+}
+
+
+
+/*
+ * Convert ascii string to unsigned int64 with sign extension
+ *
+ * Returns -1 on error
+ * Returns 0 on success
+ * Returns pos on non-null terminated number (number is still returned)
+ */
+static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sign, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
   signed char decode[256];
@@ -275,31 +362,6 @@ static int bk_string_atou_int(bk_s B, char *string, u_int32_t *value, int *sign,
   }
   *sign = neg;
   BK_RETURN(B, *string);
-}
-
-
-
-/*
- * Convert ascii string to unsigned int
- *
- * Returns pos on non-null terminated number (number is still returned)
- */
-int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
-  int sign = 0;
-  u_int32_t tmp;
-  int ret = bk_string_atou_int(B, string, &tmp, &sign, flags);
-
-  *value = tmp;
-
-  /* Not enough bits -- I guess this is still a pos */
-  if (*value < 0)
-    *value = 0;
-
-  *value *= sign;
-
-  BK_RETURN(B, ret);
 }
 
 
@@ -681,7 +743,7 @@ void bk_string_tokenize_destroy(bk_s B, char **tokenized)
  * Rip a string -- terminate it at the first occurance of the terminator characters.,
  * Typipcally used with vertical whitespace to nuke the \r\n stuff.
  */
-extern char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags)
+char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
 
@@ -696,4 +758,126 @@ extern char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags fla
   /* Write zero at either first terminator character, or at the trailing \0 */
   *(string + strcspn(string,terminators)) = 0;
   BK_RETURN(B, string);
+}
+
+
+
+/*
+ * Quote a string, with double quotes, for printing, and subsequent split'ing, and
+ * returning a newly allocated string which should be free'd by the caller.
+ *
+ * split should get the following flags to decode
+ * BK_STRING_TOKENIZE_DOUBLEQUOTE|BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT
+ */
+char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  char *ret = NULL;
+  struct bk_memx *outputx;
+  char scratch[16];
+
+  if (!src)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  if (!needquote) needquote = "\"";
+
+  if (!(outputx = bk_memx_create(B, sizeof(char), strlen(src)+5, TOKENIZE_STR_INCR, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create expandable output space for quotization\n");
+    BK_RETURN(B, NULL);
+  }
+
+  for(;*src;src++)
+  {
+    if (*src == '\\' || strchr(needquote, *src) || BK_FLAG_ISSET(flags, BK_STRING_QUOTE_NONPRINT)?!isprint(*src):0)
+    {						/* Must convert to octal  */
+      snprintf(scratch,sizeof(scratch),"\\0%o",(u_char)*src);
+      if (!(ret = bk_memx_get(B, outputx, strlen(scratch), NULL, BK_MEMX_GETNEW)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not extend array for additional character\n");
+	goto error;
+      }
+      memcpy(ret,scratch,strlen(scratch));
+    }
+    else
+    {						/* Normal, just stick in */
+      if (!(ret = bk_memx_get(B, outputx, 1, NULL, BK_MEMX_GETNEW)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not extend array for additional character\n");
+	goto error;
+      }
+      *ret = *src;
+    }
+  }
+
+  if (!(ret = bk_memx_get(B, outputx, 1, NULL, BK_MEMX_GETNEW)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not extend array for additional character\n");
+    goto error;
+  }
+  *ret = 0;
+
+  if (!(ret = bk_memx_get(B, outputx, 0, NULL, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not obtain output string\n");
+    goto error;
+  }
+  bk_memx_destroy(B, outputx, BK_MEMX_PRESERVE_ARRAY);
+
+  BK_RETURN(B, ret);
+
+ error:
+  if (outputx)
+    bk_memx_destroy(B, outputx, 0);
+
+  BK_RETURN(B, NULL);
+}
+
+
+
+/*
+ * Convert flags to a string
+ */
+char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  char *ret;
+  char scratch[16];
+
+  snprintf(scratch, sizeof(scratch), "0x%x",src);
+
+  if (!(ret = strdup(scratch)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create flags string: %s\n",strerror(errno));
+    BK_RETURN(B, NULL);
+  }
+
+  BK_RETURN(B, ret);
+}
+
+
+
+/*
+ * Convert a string to flags
+ */
+int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+
+  if (!dst || !src)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (bk_string_atou(B, src, dst, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert flags string\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_RETURN(B, 0);
 }

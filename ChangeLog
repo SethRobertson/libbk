@@ -1,3 +1,10 @@
+2001-09-03  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_string.c: Create 64 bit version of atou and atoi.
+	(bk_string_atoflag/bk_string_flagtoa): Hide flags representation
+	for ascii conversion.
+	(bk_string_quote): Function to quote strings for output.
+
 2001-08-31  Seth Robertson  <seth@yeah.baka.org>
 
 	* src/proto.c: Full prototype "Hello World".  Will need more work

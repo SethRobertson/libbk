@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_memx.c,v 1.1 2001/08/27 03:10:23 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_memx.c,v 1.2 2001/09/04 05:00:06 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -121,7 +121,7 @@ void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused, bk_fl
     ret = ((char *)bm->bm_array) + bm->bm_curused * bm->bm_unitsize;
     bm->bm_curused += count;
 
-  if (curused && bm) *curused = bm->bm_curalloc;
+    if (curused && bm) *curused = bm->bm_curalloc;
   }
   else
   {						/* Want existing record */

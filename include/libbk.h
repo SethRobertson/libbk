@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.23 2001/08/30 19:57:31 seth Exp $
+ * $Id: libbk.h,v 1.24 2001/09/04 05:00:06 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -350,6 +350,12 @@ extern void bk_string_tokenize_destroy(bk_s B, char **tokenized);
 extern char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_flags flags);
 extern int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags);
 extern int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags);
+extern int bk_string_atoull(bk_s B, char *string, u_int64_t *value, bk_flags flags);
+extern int bk_string_atoill(bk_s B, char *string, int64_t *value, bk_flags flags);
 extern char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags);
+extern char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags);
+#define BK_STRING_QUOTE_NONPRINT	0x01	/* Quote non-printable */
+char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags);
+extern int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags);
 
 #endif /* _BK_h_ */
