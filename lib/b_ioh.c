@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.37 2002/01/21 03:11:08 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.38 2002/02/18 21:39:30 lindauer Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3231,7 +3231,7 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags flags
   for (cur=data;cur->ptr;cur++)
   {
     cbuf++;
-    cdata += curvptr->len;
+    cdata += cur->len;
   }
 
   if (cbuf > 1 || (curvptr && curvptr->ptr && curvptr->len > 0))
