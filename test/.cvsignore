@@ -17,3 +17,4 @@ test_iospeed
 mutex
 test_clc
 diskspeed
+test_threads
