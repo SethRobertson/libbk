@@ -1,3 +1,13 @@
+2003-05-15  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_pollio.c (bk_polling_io_create): Clear memory before using
+	(INSURE caught many uninitialized refs).
+	(bk_polling_io_read): Delet pid from list before nuking.
+	(bk_polling_io_flush): Ditto.
+
+	* lib/b_funlist.c (bk_funlist_call): Nuke iterator when done (fix
+	mem leak).
+
 2003-05-15  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_pollio.c (bk_polling_io_read): Control return codes a little more closely

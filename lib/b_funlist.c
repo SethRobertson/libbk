@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_funlist.c,v 1.8 2003/04/16 23:39:53 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_funlist.c,v 1.9 2003/05/15 20:44:54 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -167,6 +167,7 @@ void bk_funlist_call(bk_s B, struct bk_funlist *funlist, u_int aux, bk_flags fla
   iter = funlist_iterate(funlist->bf_list, DICT_FROM_START);
   while (curfun = funlist_nextobj(funlist->bf_list, iter))
     (*curfun->bf_fun)(B, curfun->bf_args, aux);
+  funlist_iterate_done(funlist->bf_list, iter);
 
   BK_VRETURN(B);
 }
