@@ -1,3 +1,8 @@
+2003-01-23  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_nvmap.c (bk_nvmap_name2value): Type int values to
+	u_int64_t so pointers can be held in nvmaps.
+
 2003-01-20  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_exec.c: Update users of tokenization to handle new

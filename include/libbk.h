@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.196 2003/01/20 23:37:21 seth Exp $
+ * $Id: libbk.h,v 1.197 2003/01/23 17:28:02 lindauer Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -495,8 +495,8 @@ typedef enum
  */
 struct bk_name_value_map
 {
-  const char *		bnvm_name;		///< The name of pairt
-  int64_t		bnvm_val;		///< The value of the pait
+  const char *		bnvm_name;		///< The name of pair
+  u_int64_t		bnvm_val;		///< The value of the pair
 };
 
 
@@ -1740,8 +1740,8 @@ extern void bk_url_authority_destroy(bk_s B, struct bk_url_authority *auth);
 
 
 /* b_nvmap.c */
-extern int bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name);
-extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, int val);
+extern u_int64_t bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name);
+extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, u_int64_t val);
 
 
 /* b_exec.c */
