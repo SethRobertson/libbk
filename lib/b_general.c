@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.19 2001/11/06 22:15:50 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.20 2001/11/06 23:00:53 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -46,8 +46,18 @@ unsigned bk_zerouint = 0;
 
 
 
-/*
- * Grand creation of libbk state structure
+/**
+ * Grand creation of libbk state structure.
+ *
+ *	@param argc Number of arguments to program's argv
+ *	@param argv Pointer to @a argv from @a main() which will be modified/replicated
+ *	@param envp Pointer to @a ergv from @a main() which will be modified/replicated
+ *	@param configfile Location of configuration file to gather defaults from
+ *	@param bcup Structure containing configuration file parameters (e.g. seperator character).  Typically NULL
+ *	@param error_queue_length Number of messages to store in both high and low priority error queues
+ *	@param flags Fun for the future
+ *	@return <i>NULL</i> on allocation or other failure
+ *	@return <br><i>baka structure</i> on success
  */
 bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, struct bk_config_user_pref *bcup, int error_queue_length, int log_facility, bk_flags flags)
 {
