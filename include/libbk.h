@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.99 2002/01/09 06:26:38 dupuy Exp $
+ * $Id: libbk.h,v 1.100 2002/01/09 07:41:54 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -65,7 +65,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 
 
 #define BK_APP_CONF	"/etc/bk.conf"		///< Default configuration file name
-#define BK_ENV_GWD(e,d)	((char *)(getenv(e)?getenv(e):(d))) ///< Get an environmental variable with a default if it does not work
+#define BK_ENV_GWD(e,d)	BK_OR(getenv(e),(d)) ///< Get an environmental variable with a default if it does not work
 #define BK_GWD(B,k,d) BK_OR(bk_config_getnext(B, NULL, (k), NULL),(d)) ///< Get a value from the config file, or return a default
 #define BK_SYSLOG_MAXLEN 256			///< Length of maximum user message we will syslog
 #define BK_FLAG_SET(var,bit) ((var) |= (bit))	///< Set a bit in a simple bitfield
@@ -127,7 +127,8 @@ struct bk_version
  *	@return <i>0<i> if @a is equal to @b <br>
  *	@return <i><0<i> if @a is less than @b
  */
-#define BK_VERSION_CMP(a,b) (((a)->bv_vers_major-(b)->bv_vers_major)?((a)->bv_vers_major-(b)->bv_vers_major):((a)->bv_vers_minor-(b)->bv_vers_minor))
+#define BK_VERSION_CMP(a,b) BK_OR((a)->bv_vers_major-(b)->bv_vers_major, \
+				  (a)->bv_vers_minor-(b)->bv_vers_minor)
 
 
 
@@ -561,7 +562,7 @@ do {						\
       BK_TV_RECTIFY(sum);				\
     } while (0)
 /** @brief Compare two timevals, return trinary value around zero */
-#define BK_TV_CMP(a,b) (((a)->tv_sec==(b)->tv_sec)?((a)->tv_usec-(b)->tv_usec):((a)->tv_sec-(b)->tv_sec))
+#define BK_TV_CMP(a,b) BK_OR((a)->tv_sec-(b)->tv_sec,(a)->tv_usec-(b)->tv_usec)
 /** @brief Convert a timeval to a float. */
 #define BK_TV2F(tv) ((double)(((double)((tv)->tv_sec)) + ((double)((tv)->tv_usec))/1000000.0))
 /** @brief Rectify timeval so that usec value is within range of second, and that usec value has same sign as sec.  Performed automatically on all BK_TV operations. */

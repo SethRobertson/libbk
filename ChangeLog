@@ -1,5 +1,9 @@
 2002-01-09  Alexander Dupuy  <dupuy@sysdetect.com>
 
+	* include/libbk.h (BK_ENV_GWD): use BK_OR()
+	(BK_VERSION_CMP): use BK_OR
+	(BK_TV_CMP): use BK_OR
+
 	* test/test_url.c (PRINT_ELEMENT): test bk_url_unescape
 
 	* lib/b_url.c (bk_url_unescape): new function to expand % escapes
