@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.21 2001/12/31 23:37:41 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.22 2002/01/08 21:03:39 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1138,7 +1138,7 @@ static unsigned char index_64[256] = {
  * in to a series of lines 76 characters long, with the eol string used to
  * seperate each line ("\n" used if the eol string is NULL).  If the eol
  * sequence is non-NULL, it will additionally be used to terminate the last
- * line.
+ * line. This function allocates memory which must be freed with free(3).
  *
  *	@param B BAKA Thread/Global state
  *	@param src Source memory to convert
@@ -1423,6 +1423,110 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, u_int len)
 
     p = q+1;
   }
+
+  BK_RETURN(B,NULL);  
+}
+
+
+
+#define CHUNK_LEN(cur_len, chunk_len) ((((cur_len) / (chunk_len)) + 1) * (chunk_len))
+#define XML_LT_STR		"&lt;"
+#define XML_GT_STR		"&gt;"
+#define XML_AMP_STR		"&amp;"
+
+/**
+ * Convert a string to a valid xml string. The function allocates memory
+ * which must be freed with free(3).
+ *
+ *	@param B BAKA thread/global state.
+ *	@param str The string to convert
+ *	@param flags Flags for future use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>xml string</i> on success.
+ */
+char *
+bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *xml = NULL;
+  char *p;
+  int len, l;
+  char c;
+  char *tmp;
+  
+  len = CHUNK_LEN(strlen(str), 1024);
+  if (!(xml = malloc(len)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate xml string: %s\n", strerror(errno));
+    goto error;
+  }
+  
+  
+  p = xml;
+  while((c = *str))
+  {
+    if (!isprint(c))
+    {
+      char scratch[100];
+      snprintf(scratch, 100,  "#x%x", c);
+      l = strlen(scratch);
+      memcpy(p, scratch, l);
+      len -= l;
+      p += l;
+    }
+    else
+    {
+      switch (c)
+      {
+      case '<':
+	l = strlen(XML_LT_STR);
+	memcpy(p, XML_LT_STR, l);
+	len -= l;
+	p += l;
+	break;
+	
+      case '>':
+	l = strlen(XML_GT_STR);
+	memcpy(p, XML_GT_STR, l);
+	len -= l;
+	p += l;
+	break;
+
+      case '&':
+	l = strlen(XML_AMP_STR);
+	memcpy(p, XML_AMP_STR, l);
+	len -= l;
+	p += l;
+	break;
+
+      default:
+	*p = c;
+	p++;
+	len--;
+	break;
+      }
+    }
+
+    if (len < 100)
+    {
+      len = CHUNK_LEN(len, 1024);
+      if (!(tmp = realloc(xml, len)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not realloc xml string: %s\n", strerror(errno));
+	goto error;
+      }
+      xml = tmp;
+    }
+    str++;
+  }
+
+  *p = '\0';
+
+  BK_RETURN(B,xml);
+
+ error:
+  if (xml)
+    free(xml);
 
   BK_RETURN(B,NULL);  
 }

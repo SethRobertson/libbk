@@ -1,3 +1,8 @@
+2002-01-08  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_string.c (bk_string_str2xml): Function to convert a normal
+	string to an xml string.
+
 2002-01-02  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_nvmap.c (bk_nvmap_value2name): Functions to map strings to values.

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.97 2002/01/02 22:24:59 jtt Exp $
+ * $Id: libbk.h,v 1.98 2002/01/08 21:03:38 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1086,6 +1086,7 @@ extern char *bk_encode_base64(bk_s B, const bk_vptr *str, const char *eolseq);
 extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
 extern char *bk_strndup(bk_s B, const char *s, u_int len);
 extern const char *bk_strstrn(bk_s B, const char *haystack, const char *needle, u_int len);
+extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
 
 
 /* getbyfoo.c */
