@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.2 2003/03/28 20:33:35 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.3 2003/03/28 20:35:08 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -470,7 +470,7 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
 
   if (BK_FLAG_ISSET(flags, BK_STAT_DUMP_HTML))
   {
-    if (bk_vstr_cat(B, 0, &ostring, "<table summary=\"Performance Information\"><caption><em>Program Performance Statistics</em></caption><tr><th>Primary Name</th><th>Secondary Name</th><th>Minimum time (usec)</th><th>Average time (usec)</th><th>Maximum time (usec)</th><th>Count</th></tr>\n") < 0)
+    if (bk_vstr_cat(B, 0, &ostring, "<table summary=\"Performance Information\"><caption><em>Program Performance Statistics</em></caption><tr><th>Primary Name</th><th>Secondary Name</th><th>Minimum time (usec)</th><th>Average time (usec)</th><th>Maximum time (usec)</th><th>Count</th><th>Total time (usec)</th></tr>\n") < 0)
       goto error;
   }
 
