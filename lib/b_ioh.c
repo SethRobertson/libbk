@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.40 2002/02/20 00:11:16 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.41 2002/02/20 16:55:18 lindauer Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -65,6 +65,13 @@ struct ioh_seek_args
   off_t		isa_offset;			///< Seek offset ala lseek(2)
   int		isa_whence;			///< Whence ala lseek(2)
 };
+
+
+
+/**
+ * Minimum size of printf buffer
+ */
+enum {MinBufSize = 512};
 
 
 
@@ -3281,4 +3288,179 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
   }
 
   BK_RETURN(B, NULL);
+}
+
+
+
+/*
+ * Copies string for output to IOH
+ * This function is only safe for C99 compliant (glibc 2.1+) compilers
+ *
+ * @param B BAKA Thread/global state
+ * @param ioh IOH for output
+ * @param str String to output
+ * @return <i>0</i> on success<br>
+ * @return <i>negative</i> on failure
+ */
+extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  bk_vptr *data = NULL;                         // to pass to bk_ioh_write
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_CALLOC(data);
+  if (!data)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Calloc failed\n");
+    goto error;
+  }
+  data->len = strlen(str);
+  data->ptr = malloc(data->len);
+  if (!data->ptr)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Malloc failed\n");
+    goto error;
+  }
+
+  memcpy(data->ptr, str, data->len);
+
+  if (bk_ioh_write(B, ioh, data, 0) != 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "IOH write failed\n");
+    goto error;
+  }
+  data = NULL;
+
+  BK_RETURN(B, 0);
+  
+ error:
+  if (data)
+  {
+    if (data->ptr)
+    {
+      free(data->ptr);
+    }
+    free(data);
+  }
+  BK_RETURN(B, -1);
+}
+
+
+
+/*
+ * Formatted output for IOH.
+ * This function is only safe for C99 compliant (glibc 2.1+) compilers
+ *
+ * @param B BAKA Thread/global state
+ * @param ioh IOH for output
+ * @param format The format string to interpret in printf style
+ * @param ... printf style arguments
+ * @return <i>0</i> on success<br>
+ * @return <i>negative</i> on failure
+ */
+extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, char *format, ...)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  va_list args;
+  bk_vptr *data = NULL;                        // local buffer
+  bk_vptr *send_data = NULL;                   // to pass to bk_ioh_write
+  int32_t ret;                                 // temp storage for return vals
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!BK_CALLOC(data))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Calloc failed\n");
+    goto error;
+  }
+
+  // allocate space
+  data->len = MinBufSize;
+  data->ptr = malloc(MinBufSize);
+  if (!data->ptr)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Malloc failed\n");
+    goto error;
+  }
+
+  // try to print
+  va_start(args, format);
+  ret = vsnprintf(data->ptr, 0, format,args);
+  va_end(args);
+
+  if (ret < 0)
+  {
+    // unrecoverable error
+    bk_error_printf(B, BK_ERR_ERR, "vsnprintf failed\n");
+    goto error;
+  } 
+  else if (ret > 0)
+  {
+    // we just didn't allocate enough space
+    // re-allocate space
+    free(data->ptr);
+    data->ptr = malloc(ret + 1);               // leave space for NULL
+    if (!data->ptr)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Malloc failed\n");
+      goto error;
+    }
+
+    // write the buffer again
+    va_start(args, format);
+    vsnprintf(data->ptr, ret + 1, format, args);
+    va_end(args);
+  }
+
+  if (!BK_CALLOC(send_data) || !BK_MALLOC_LEN(send_data->ptr, ret))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "memory allocation failed\n");
+    goto error;
+  }
+
+  memcpy(send_data->ptr, data->ptr, ret);
+  send_data->len = ret;
+
+  free(data->ptr);
+  free(data);
+  data = NULL;
+
+  if (bk_ioh_write(B, ioh, send_data, 0) != 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "IOH write failed\n");
+    goto error;
+  }
+  send_data = NULL;
+
+  BK_RETURN(B, 0);
+
+ error:
+  if (data)
+  {
+    if (data->ptr)
+    {
+      free(data->ptr);
+    }
+    free(data);
+  }
+
+  if (send_data)
+  {
+    if (send_data->ptr)
+    {
+      free(send_data->ptr);
+    }
+    free(send_data);
+  }
+
+  BK_RETURN(B, -1);
 }
