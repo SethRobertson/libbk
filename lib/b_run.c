@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.31 2002/10/04 21:11:43 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.32 2002/10/22 21:06:25 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -454,7 +454,7 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
   for(signum = 1;signum < NSIG;signum++)
   {
     if (run->br_handlerlist[signum].brs_handler)
-      bk_run_signal(B, run, signum, (void *)SIG_IGN, NULL, 0);
+      bk_run_signal(B, run, signum, (void *)(SIG_IGN), NULL, 0);
   }
 
   while (brfn=brfl_minimum(run->br_poll_funcs))
