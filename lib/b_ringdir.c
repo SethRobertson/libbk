@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.15 2004/08/14 19:39:26 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.16 2004/11/10 17:11:07 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1439,4 +1439,109 @@ bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename,
     free(previous_filename);
 
   BK_RETURN(B,NULL);  
+}
+
+
+
+/**
+ * Split up a ring directory pattern path into its directory and pattern components
+ *
+ * THREADS: NON-REENTRANT (due to use of dirname() and basename())
+ *
+ *	@param B BAKA thread/global state.
+ *	@param path path to split
+ *	@param dir_namep copy-out directory name (caller must free(3))
+ *	@param patternp copy-out pattern (caller must free(3))
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patternp, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *dir_name = NULL;
+  char *pattern = NULL;
+  char *tmp_dir_name = NULL;
+  const char *dirname_ret = NULL;
+  const char *basename_ret = NULL;
+  char *tmp_path = NULL;
+
+  if (!path || !dir_namep || !patternp)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  *dir_namep = NULL;
+  *patternp = NULL;
+
+  if (BK_STREQ(path, "/"))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "The root directory may not be a ring directory\n");
+    goto error;
+  }
+
+  if (!(tmp_dir_name = strdup(path)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not make private copy of path for directory name extraction: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (!(dirname_ret = dirname(tmp_dir_name)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not extract directory name from: %s\n", path);
+    goto error;
+  }
+
+  // dirname never returns a trailing slash
+  if (!(dir_name = bk_string_alloc_sprintf(B, 0, 0, "%s/", dirname_ret)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not append '/' on directory name\n");
+    goto error;
+  }
+
+  free(tmp_dir_name);
+  tmp_dir_name = NULL;
+
+  if (BK_STREQ(dir_name, "./") || BK_STREQ(dir_name, "../"))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Ring directory paths must be absolute: %s\n", path);
+    goto error;
+  }
+
+  if (!(tmp_path = strdup(path)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not make private copy of path for base name extraction: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (!(basename_ret = basename(tmp_path)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not extract the pattern from: %s\n", path);
+    goto error;
+  }
+
+  if (!(pattern = strdup(basename_ret)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not copy pattern: %s\n", strerror(errno));
+    goto error;
+  }
+
+  free(tmp_path);
+  tmp_path = NULL;
+
+  *dir_namep = dir_name;
+  *patternp = pattern;
+
+  BK_RETURN(B,0);
+
+ error:
+  if (tmp_dir_name)
+    free(tmp_dir_name);
+
+  if (tmp_path)
+    free(tmp_path);
+
+  BK_RETURN(B,-1);
 }

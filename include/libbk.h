@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.309 2004/10/25 17:07:42 jtt Exp $
+ * $Id: libbk.h,v 1.310 2004/11/10 17:11:06 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2430,6 +2430,8 @@ extern int bk_ringdir_standard_get_fd(bk_s B, bk_ringdir_t brdh, bk_flags flags)
 extern void *bk_ringdir_standard_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern int bk_ringdir_standard_update_private_data_by_standard(bk_s B, void *brsh, void *opaque, bk_flags flags);
 extern void *bk_ringdir_standard_get_private_data_by_standard(bk_s B, void *brsh, bk_flags flags);
+extern int bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patternp, bk_flags flags);
+
 
 /* b_realloc.c */
 #if defined(__INSURE__) && !defined(BK_NO_MALLOC_WRAP)
