@@ -1,3 +1,10 @@
+2002-04-01  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* include/libbk_oscompat.h: Size defintions for those who don't have 'em
+
+	* lib/b_string.c (bk_string_printbuf): It is too confusing when
+	address bytes and data bytes are next to each other.
+
 2002-03-28  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_string.c (bk_string_unique_string): Create a (very likely)

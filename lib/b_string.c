@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.32 2002/03/28 23:04:54 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.33 2002/04/02 02:06:53 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -110,7 +110,7 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
   const u_int addressbitspercol = 16;		// The base of the address
   const u_int bytespergroup = 2;		// The number of source bytes outputted per space separated group
   const u_int colsperbyte = 2;			// The number of columns of output it takes to output one bytes of source data
-  const u_int colsperline = hexaddresscols + 1 + (bytesperline / bytespergroup) * (colsperbyte * bytespergroup + 1) + 1 + bytesperline + 1; // Number of output columns for a single line
+  const u_int colsperline = hexaddresscols + 2 + (bytesperline / bytespergroup) * (colsperbyte * bytespergroup + 1) + 1 + bytesperline + 1; // Number of output columns for a single line
   u_int64_t maxaddress;
   u_int32_t nextaddr, addr, addrgrp, nextgrp, addrbyte, len, curlen;
   char *ret;
@@ -152,7 +152,7 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
   {
     nextaddr = addr + bytesperline;
     strcpy(cur,prefix); curlen -= strlen(cur); cur += strlen(cur);
-    snprintf(cur,curlen,"%04x ",addr);  curlen -= strlen(cur); cur += strlen(cur);
+    snprintf(cur,curlen,"%04x  ",addr);  curlen -= strlen(cur); cur += strlen(cur);
 
     /* For each group of characters in line */
     for(addrgrp = addr; addrgrp < nextaddr; addrgrp = nextgrp)
