@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.10 2001/11/06 22:15:50 jtt Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.11 2001/11/13 03:44:26 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,14 +16,19 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
+/*
+ * @file
+ *
+ * Example libbk user with main() prototype.
+ */
 #include <libbk.h>
 
 
-#define ERRORQUEUE_DEPTH 64			/* Default depth */
+#define ERRORQUEUE_DEPTH 32			///< Default depth
 
 
 
-/*
+/**
  * Information of international importance to everyone
  * which cannot be passed around.
  */
@@ -33,14 +38,15 @@ struct global_structure
 
 
 
-/*
+/**
  * Information about basic program runtime configuration
+ * which must be passed around.
  */
 struct program_config
 {
-  const char * 		pc_person;		/* The person to greet */
-  bk_flags 		pc_flags;		/* Flags are fun! */
-#define PC_VERBOSE	1
+  const char * 		pc_person;		///< The person to greet
+  bk_flags 		pc_flags;		///< Flags are fun!
+#define PC_VERBOSE	1			///< Verbose output
 };
 
 
@@ -50,6 +56,15 @@ void progrun(bk_s B, struct program_config *pconfig);
 
 
 
+/**
+ * Program entry point
+ *
+ *	@param argc Number of argv elements
+ *	@param argv Program name and arguments
+ *	@param envp Program environment
+ *	@return <i>0</i> Success
+ *	@return <br><i>254</i> Initialization failed
+ */
 int
 main(int argc, char **argv, char **envp)
 {
@@ -138,8 +153,13 @@ main(int argc, char **argv, char **envp)
 
 
 
-/*
- * Initialization
+/**
+ * General program initialization
+ *
+ *	@param B BAKA Thread/Global configuration
+ *	@param pconfig Program configuration
+ *	@return <i>0</i> Success
+ *	@return <br><i>-1</i> Total terminal failure
  */
 int proginit(bk_s B, struct program_config *pconfig)
 {
@@ -157,7 +177,12 @@ int proginit(bk_s B, struct program_config *pconfig)
 
 
 /*
- * Normal processing
+ * Normal processing of program
+ *
+ *	@param B BAKA Thread/Global configuration
+ *	@param pconfig Program configuration
+ *	@return <i>0</i> Success--program may terminate normally
+ *	@return <br><i>-1</i> Total terminal failure
  */
 void progrun(bk_s B, struct program_config *pconfig)
 {

@@ -1,5 +1,7 @@
 2001-11-12  Seth Robertson  <seth@yeah.baka.org>
 
+	* src/proto.c: Doxygenate
+
 	* lib/b_ioh.c: IOH is now code-complete
 
 2001-11-12  James Tanis  <jtt@winwood.sysdetect.com>
