@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringbuf.c,v 1.5 2003/09/17 01:19:51 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringbuf.c,v 1.6 2004/05/19 19:23:03 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,6 +25,8 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+static int deadbeef = 0;  // RO value with valid address, so Insure doesn't complain about WILD
 
 
 
@@ -336,7 +338,7 @@ volatile void *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
 
   // Please do not reorder these statements Mr. Compiler
   ret = ring->br_ring[new];
-  ring->br_ring[new] = (void *)0xdeadbeef;	// Invalid value
+  ring->br_ring[new] = (void *)&deadbeef;	// Invalid value
   ring->br_rhand = new;
 
 #ifdef BK_USING_PTHREADS
