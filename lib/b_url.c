@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.4 2001/12/11 17:04:06 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.5 2001/12/11 20:06:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,8 +26,6 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 static u_int count_colons(bk_s B, const char *str, const char *str_end);
-
-
 
 /**
  * Parse a url
@@ -62,7 +60,7 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
   }
 
   proto = url;
-  proto_end = bk_strdelim(B, proto,":/");	/* No : or / in proto */
+  proto_end = strpbrk(proto,":/");		/* No : or / in proto */
   if (!proto_end || strncmp(proto_end,":/", 2) != 0) /* Proto ends with ":/" (at a minimum) */
   {
     proto = NULL;				/* No protocol */

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.21 2001/12/01 01:24:06 seth Exp $
+ * $Id: libbk_internal.h,v 1.22 2001/12/11 20:06:47 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -31,6 +31,8 @@
 
 extern bk_s bk_general_thread_init(bk_s B, char *name);
 extern void bk_general_thread_destroy(bk_s B);
+
+extern void bk_run_signal_ihandler(int signum);
 
 
 #endif /* _libbk_internal_h_ */

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.81 2001/12/11 01:34:26 jtt Exp $
+ * $Id: libbk.h,v 1.82 2001/12/11 20:06:47 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -916,7 +916,6 @@ extern int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags);
 extern ssize_t bk_strnlen(bk_s B, char *s, ssize_t max);
 extern char *bk_encode_base64(bk_s B, bk_vptr *str, char *eolseq);
 extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
-extern char *bk_strdelim(bk_s B, const char *s, const char *delim);
 extern char *bk_strndup(bk_s B, const char *s, u_int len);
 
 
@@ -982,9 +981,15 @@ extern int bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, cha
 
 
 /* b_signal.c */
-typedef void (*bk_sighandler)(int);
-extern int bk_signal(bk_s B, int signo, bk_sighandler handler, bk_flags flags);
-
+typedef void (*bk_sighandler_f)(int);
+extern int bk_signal(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags);
+#define BK_SIGNAL_FLAG_RESTART	0x1		///< Restart syscall on signal.
+extern int bk_signal_mgmt(bk_s B, int sig, bk_sighandler_f new, bk_sighandler_f *old, bk_flags flags);
+void *bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags);
+#define BK_SIGNAL_SET_SIGNAL_FLAG_FORCE		0x1 ///< Set this handler even if a non-default handler is in place.
+void *bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags);
+int bk_signal_reset(bk_s B, void *args, bk_flags flags);
+int bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags);
 
 /* b_relay.c */
 int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb)(bk_s B, void *opaque, u_int state), void *opaque, bk_flags flags);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.15 2001/12/04 19:51:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.16 2001/12/11 20:06:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -133,7 +133,6 @@ struct bk_run_ondemand_func
 
 
 static int bk_run_event_comparator(struct br_equeue *a, struct br_equeue *b);
-static void bk_run_signal_ihandler(int signum);
 static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
 static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *starttime, struct timeval *delta);
 static struct bk_run_func *brfn_alloc(bk_s B);
@@ -1209,7 +1208,7 @@ static int bk_run_event_comparator(struct br_equeue *a, struct br_equeue *b)
  *
  *	@param signnum signal number that was received
  */
-static void bk_run_signal_ihandler(int signum)
+void bk_run_signal_ihandler(int signum)
 {
   if (br_signums)
   {

@@ -1,5 +1,15 @@
 2001-12-11  James Tanis  <jtt@winwood.sysdetect.com>
 
+	* lib/b_signal.c (bk_signal_mgmt): Allow users to manage signal
+	handlers. 
+	(bk_signal_set_alarm): Function to safely seize control of a signal.
+	(bk_signal_reset_alarm): Function to safely reset the above.
+	(bk_signal_set): Function to safely seize control of any signal.
+	(bk_signal_reset): Fuction to safely reset the above.
+
+	* lib/b_string.c: Eliminatef bk_strdelim which is identical to
+	strpbrk (thanks to Alex for pointing this out).
+
 	* lib/b_url.c (bk_url_parse): Correct for ipv6.
 
 2001-12-10  James Tanis  <jtt@winwood.sysdetect.com>
