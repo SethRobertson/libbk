@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.18 2002/08/08 20:25:55 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.19 2002/08/12 15:04:46 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1000,4 +1000,31 @@ bk_netutils_gethostname(bk_s B)
   if (p)
     free(p);
   BK_RETURN(B,NULL);
+}
+
+
+
+/**
+ * Format an inet address into a printable string in a "reentrent"
+ * way. Return the address which was passed in (on success) so that this
+ * may be used in printf(3)'s, etc.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param addr The inet addr to format (NB *not* a pointer).
+ *	@param buf The buffer in which to write (should be BK_MAX_INET_ADDR_LEN+1) chars long
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>address</i> of @a buf on success.
+ */
+char *
+bk_inet_ntoa(bk_s B, struct in_addr addr, char *buf)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!buf)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+  
+  BK_RETURN(B, strncpy(buf, inet_ntoa(addr), BK_MAX_INET_ADDR_LEN));
 }

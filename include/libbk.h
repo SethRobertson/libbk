@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.159 2002/08/09 22:08:02 dupuy Exp $
+ * $Id: libbk.h,v 1.160 2002/08/12 15:04:45 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -285,6 +285,14 @@ struct bk_general
 #define BK_FILE_LOCK_MODE_EXCLUSIVE 	"EXCLUSIVE"
 #define BK_FILE_LOCK_MODE_SHARED 	"SHARED"
 // @}
+
+/**
+ * @name Maximum length of an INET address
+ */
+// @{
+#define BK_MAX_INET_ADDR_LEN            15
+// }@
+
 
 
 /**
@@ -1434,6 +1442,7 @@ extern int bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *de
 extern int bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, char *rurl, char *defrhost, char *defrserv, char *lurl, char *deflhost, char *deflserv, char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags );
 extern int bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, char **servistr, char **protostr);
 extern char *bk_netutils_gethostname(bk_s B);
+extern char *bk_inet_ntoa(bk_s B, struct in_addr addr, char *buf);
 
 
 /* b_signal.c */
