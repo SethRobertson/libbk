@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.27 2002/05/03 04:11:43 seth Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.28 2002/05/03 15:16:37 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -229,6 +229,7 @@ main(int argc, char **argv, char **envp)
 
     case 5:					// Want multicast looping
       BK_FLAG_SET(pc->pc_flags, PC_MULTICAST_LOOP);
+      break;
 
     case 6:					// Want non-1 multicast ttl
       pc->pc_multicast_ttl = atoi(poptGetOptArg(optCon));
