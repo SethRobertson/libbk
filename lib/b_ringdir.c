@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.5 2004/04/07 22:38:07 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.6 2004/04/08 21:03:45 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -371,6 +371,18 @@ bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
   }
+
+  if (brd->brd_cur_filename)
+  {
+    if ((*brd->brd_brc.brc_close)(B, brd->brd_opaque, brd->brd_cur_filename, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not close %s\n", brd->brd_cur_filename);
+      goto error;
+    }
+
+    free((char *)brd->brd_cur_filename);
+    brd->brd_cur_filename = NULL;
+  }
   
   if ((BK_FLAG_ISCLEAR(flags, BK_RINGDIR_FLAG_NO_NUKE) &&
        BK_FLAG_ISSET(brd->brd_flags, BK_RINGDIR_FLAG_NUKE_DIR_ON_DESTROY)) ||
@@ -722,6 +734,8 @@ bk_ringdir_standard_destroy(bk_s B, void *opaque, const char *directory, bk_flag
 
   if (brs->brs_chkpnt_filename)
     free((char *)brs->brs_chkpnt_filename);
+
+  free(brs);
 
   BK_VRETURN(B);  
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.9 2004/03/20 12:37:22 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.10 2004/04/08 21:03:45 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -160,7 +160,9 @@ struct bk_truerandinfo *bk_truerand_init(bk_s B, int reinitbits, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_truerandinfo *R;
+#ifndef __INSURE__
   bk_MD5_CTX ctx;
+#endif /* __INSURE__ */
 
   if (!BK_MALLOC(R))
   {
@@ -176,7 +178,9 @@ struct bk_truerandinfo *bk_truerand_init(bk_s B, int reinitbits, bk_flags flags)
   R->br_usecounter = 0;
   R->br_reinitmask = (1<<(reinitbits>0?reinitbits:BK_MAJOR_REFRESH)) - 1;
 
+#ifndef __INSURE__
   assert(sizeof(ctx.digest) == BK_POOLSIZE);
+#endif /* __INSURE__ */
 
   if (!USE_MEM_ENTROPY)
     // Initialize the pool with 0xbe in order to be initialized.

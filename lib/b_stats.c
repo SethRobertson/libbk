@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.11 2004/02/11 23:40:20 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.12 2004/04/08 21:03:45 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -43,8 +43,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #undef BK_RETURN
 #undef BK_VRETURN
 #define BK_ENTRY(B, fun, pkg, grp) struct bk_funinfo *__bk_funinfo = NULL
-#define BK_RETURN(B, ret) do { return(ret); } while (__bk_funinfo)
-#define BK_VRETURN(B) do { return; } while (__bk_funinfo)
+// This silly looking macro keeps Insure for complaining while still doing the Right Thing.
+#define BK_RETURN(B, ret) do { if (!__bk_funinfo)return(ret); return(ret); } while (0)
+#define BK_VRETURN(B) do { if (!__bk_funinfo)return; } while (0)
 // @}
 
 

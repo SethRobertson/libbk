@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.44 2003/12/30 05:27:22 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.45 2004/04/08 21:03:45 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -878,8 +878,8 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
     bk_string_magnitude(B, (double)pc->pc_stats.side[0].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedin, sizeof(speedin), 0);
     bk_string_magnitude(B, (double)pc->pc_stats.side[1].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedout, sizeof(speedout), 0);
 
-    fprintf(stderr, "%s%s: %lld bytes received in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[0].birs_writebytes, delta.tv_sec, delta.tv_usec, speedin);
-    fprintf(stderr, "%s%s: %lld bytes transmitted in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[1].birs_writebytes, delta.tv_sec, delta.tv_usec, speedout);
+    fprintf(stderr, "%s%s: %llu bytes received in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[0].birs_writebytes, delta.tv_sec, delta.tv_usec, speedin);
+    fprintf(stderr, "%s%s: %llu bytes transmitted in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[1].birs_writebytes, delta.tv_sec, delta.tv_usec, speedout);
   }
 
   if (pc->pc_childid > 0)

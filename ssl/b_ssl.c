@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.9 2003/11/22 06:07:54 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.10 2004/04/08 21:03:46 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1243,9 +1243,11 @@ void
 ssl_shutdown_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, void *opaque, const struct timeval *startime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
+#ifdef NOT_YET
   int ret;
   int ssl_err;
   int fdin, fdout;
+#endif /* 0 */
   struct bk_ssl *bs = (struct bk_ssl *) opaque;
 
   if (!bs)
@@ -1279,6 +1281,9 @@ ssl_shutdown_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, void *op
     BK_VRETURN(B);
   }
 
+#ifndef NOT_YET /* Thu Apr  8 15:27:43 EDT 2004 */
+  SSL_shutdown(bs->bs_ssl);
+#else /* 0 */
   ret = SSL_shutdown(bs->bs_ssl);
  
   if (ret == 1)
@@ -1341,9 +1346,12 @@ ssl_shutdown_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, void *op
   BK_VRETURN(B);
 
  done:
+#endif /* 0 */
+
  error:
   if (bs)
     bk_ssl_destroy(B, bs, 0);
+  BK_VRETURN(B);
 }
 
 
