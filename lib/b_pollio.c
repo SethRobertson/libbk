@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.25 2003/05/15 20:44:54 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.26 2003/05/15 20:49:45 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -765,26 +765,23 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
     }
   }
 
-  if (ret == 0)
+  if (pid->pid_data)
   {
-    if (pid->pid_data)
-    {
-      bpi->bpi_tell += pid->pid_data->len;
-      bpi->bpi_size -= pid->pid_data->len;
-      *datap = pid->pid_data;
-      pid->pid_data = NULL;
-    }
-    else
-    {
-      ret = 1;
-    }
-    *status = pid->pid_status;
-    if (pidlist_delete(bpi->bpi_data, pid) != DICT_OK)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not delete pid from list: %s\n", pidlist_error_reason(bpi->bpi_data, NULL));
-    }
-    pid_destroy(B, pid);
+    bpi->bpi_tell += pid->pid_data->len;
+    bpi->bpi_size -= pid->pid_data->len;
+    *datap = pid->pid_data;
+    pid->pid_data = NULL;
   }
+  else
+  {
+    ret = 1;
+  }
+  *status = pid->pid_status;
+  if (pidlist_delete(bpi->bpi_data, pid) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not delete pid from list: %s\n", pidlist_error_reason(bpi->bpi_data, NULL));
+  }
+  pid_destroy(B, pid);
 
  unlockexit:
 #ifdef BK_USING_PTHREADS
