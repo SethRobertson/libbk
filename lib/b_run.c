@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.16 2001/12/11 20:06:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.17 2001/12/14 20:03:00 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -100,6 +100,7 @@ struct bk_run
 #define BK_RUN_FLAG_CHECK_DEMAND	0x04	///< Check demand list
 #define BK_RUN_FLAG_HAVE_IDLE		0x08	///< Run idle task
 #define BK_RUN_FLAG_IN_DESTROY		0x10	///< In the middle of a destroy
+#define BK_RUN_FLAG_ABORT_RUN_ONCE	0x20	///< Return now from run_once
 };
 
 
@@ -697,6 +698,51 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
+  
+  /*
+   * The purpose of the flag should be explained. libbaka supports the idea
+   * of "blocking" reads in an otherwise asynchronous environment. The
+   * details of this are explained elsewhere (presumably b_ioh.c), but it
+   * suffices here to point out (or remind) the reader that this fact means
+   * that at any given momment we might have *two* bk_run_once()'s calls
+   * active. One, more or less at the base of the stack, which is the
+   * bk_run_once() loop that you expect to exist. The other occurs when
+   * someone has invoked one of these "blocking" things. In general these
+   * two invocations coexist without too much fuss, but there is one detail
+   * for which we must account. Suppose by way of exaple that the "base"
+   * (or expected) bk_run_once() has returned from select(2) with 3 fd's
+   * ready for operation. Let's call them 4, 5, and 6. While processing
+   * descriptor 4 (the first in the list), the program invokes a "blocking"
+   * read. bk_run_once() gets called again (remember the "base" version is
+   * still in the process of completing). It will enter select(2) and since
+   * neither file descriptor 5, or 6 have been processed, they will (still)
+   * be ready and thus return. So let's claim they now both get fully dealt
+   * with and that shortly thereafter whatever condition causes the
+   * blocking bk_run_once() to return becomes true and we return all the
+   * way back to the "base" bk_run_once() which now *continues*. Because
+   * nothing has reset the fd sets which select(2) returned all that time
+   * ago, it will go on to process descriptors 5 and 6. At *best* this is a
+   * waste of time; and at worst this could cause really bizzare problems
+   * (like double frees or somesuch). Thus we need to configue a way that
+   * the blocking bk_run_once() can "communicate" back to the base
+   * bk_run_once() that it (the blocking versions) has run and that any
+   * state in the base version may be invalid. The base version's response
+   * to this is very simple; just abort the current run and go around
+   * again. It never *hurts* to do this, in general; it just wastes time
+   * (though in this case, obviously, it doesn't waste time; it prevents
+   * core dumps). The strategy we employ is childishly simple. Set a run
+   * structure flag as you *leave* bk_run_once() which is reset immediately
+   * upon entry. 99.999....9% of the time this is just one two-stage noop,
+   * but in the case of the blocking bk_run_once() this actually has some
+   * effect. The flag is set by when the blocking version exits. So when
+   * control is returned to the base version (in medias res) this flag is
+   * set. You will notice that we check it many times in the function
+   * (basically everywhere we also check for signals). As soon as the base
+   * version notices that the flag is set, it immediately aborts the
+   * current run (therefore will not attempt to process any more "dead"
+   * state), returns, and clears the flag on the next entry. Whew -jtt
+   */
+  BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE);
 
   zero.tv_sec = 0;
   zero.tv_usec = 0;
@@ -708,6 +754,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   check_idle=0;
   use_deltapoll=0;
 
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE)) goto abort_run_once;
   if (br_beensignaled) goto beensignaled;
 
   if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_CHECK_DEMAND))
@@ -720,11 +767,12 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
       if (*brof->brof_demand && (*brof->brof_fun)(B, run, brof->brof_opaque, brof->brof_demand, &curtime, 0) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "The on demand procedure failed severely.\n");
-	BK_RETURN(B, -1);
+	goto error;
       }
     }
   }
 
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE)) goto abort_run_once;
   if (br_beensignaled) goto beensignaled;
 
   // Run polling activities
@@ -739,7 +787,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
       if ((ret=(*brfn->brfn_fun)(B, run, brfn->brfn_opaque, &curtime, &tmp_deltapoll,0)) < 0)
       {
 	bk_error_printf(B, BK_ERR_WARN, "The polling procedure failed severely.\n");
-	BK_RETURN(B, -1);
+	goto error;
       }
 
       if (ret == 1)
@@ -753,13 +801,14 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     }
   }
 
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE)) goto abort_run_once;
   if (br_beensignaled) goto beensignaled;
 
   // Check for event queue
   if ((ret = bk_run_checkeventq(B, run, &curtime, &deltaevent)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "The event queue checking procedure failed severely.\n");
-    BK_RETURN(B, -1);
+    goto error;
   }
 
   // Figure out the select argument
@@ -861,6 +910,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   writeset = run->br_writeset;
   xcptset = run->br_xcptset;
 
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE)) goto abort_run_once;
   if (br_beensignaled) goto beensignaled;
 
   // Wait for I/O or timeout
@@ -870,13 +920,14 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     if (errno != EINTR)
     {
       bk_error_printf(B, BK_ERR_ERR, "Select failed severely: %s\n", strerror(errno));
-      BK_RETURN(B, -1);
+      goto error;
     }
   }
 
   // Time may have changed drasticly during select
   gettimeofday(&curtime, NULL);
 
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE)) goto abort_run_once;
   if (br_beensignaled) goto beensignaled;
 
   // Are there any I/O events pending?
@@ -908,6 +959,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	}
 	(*curfd->brf_handler)(B, run, x, type, curfd->brf_opaque, &curtime);
       }
+      if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE)) goto abort_run_once;
       if (br_beensignaled) goto beensignaled;
     }
   }
@@ -924,7 +976,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	if ((*brfn->brfn_fun)(B, run, brfn->brfn_opaque, &curtime, NULL, 0)<0)
 	{
 	  bk_error_printf(B, BK_ERR_WARN, "The polling procedure failed severely.\n");
-	  BK_RETURN(B, -1);
+	  goto error;
 	}
       }
     }
@@ -948,7 +1000,14 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     }
   }
 
+ abort_run_once:
+  BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE);
   BK_RETURN(B, 0);
+
+ error:
+  BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE);
+  BK_RETURN(B,-1);
+  
 }
 
 

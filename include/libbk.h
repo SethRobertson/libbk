@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.85 2001/12/13 17:19:34 seth Exp $
+ * $Id: libbk.h,v 1.86 2001/12/14 20:03:00 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -31,6 +31,7 @@ struct bk_run;
 struct bk_addrgroup;
 struct bk_server_info;
 struct bk_netinfo;
+struct bk_on_demand_io;
 
 
 
@@ -259,6 +260,20 @@ typedef enum
 } bk_gethostbyfoo_state_e;
 
 
+/** 
+ * Possible status types to iohhandlers.
+ */
+typedef enum
+{
+  BkIohStatusIncompleteRead=1,			///< bk_ioh notifying user handler of incomplete read, data provided
+  BkIohStatusReadComplete,			///< bk_ioh notifying user handler of a previous write of a buffer has completed, and here is the zero terminated array of buffers, which you must copy if necessary
+  BkIohStatusIohReadEOF,			///< bk_ioh notifying user handler of a received EOF
+  BkIohStatusWriteAborted,			///< bk_ioh notifying user handler of a previous write of a buffer was not fully completed before abort, and here is the buffer
+  BkIohStatusWriteComplete,			///< bk_ioh notifying user handler of a previous write of a buffer has completed, and here is the buffer
+  BkIohStatusIohClosing,			///< bk_ioh notifying user handler of IOH in process of close() -- all data flushed/drained at this point
+  BkIohStatusIohReadError,			///< bk_ioh notifying user handler of a received IOH error on read
+  BkIohStatusIohWriteError,			///< bk_ioh notifying user handler of a received IOH error on write--and here is the buffer
+} bk_ioh_status_e;
 
 /**
  * gethostbyfoo callback
@@ -330,7 +345,6 @@ typedef enum
 /**
  * File descriptor handler type.
  */
-struct bk_run;
 typedef void (*bk_fd_handler_t)(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, const struct timeval *starttime);
 
 /**
@@ -833,13 +847,15 @@ extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
 /* b_ioh.c */
 typedef int (*bk_iorfunc)(bk_s B, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags); ///< read style I/O function for bk_ioh (flags for specialized datagram handling, like peek)
 typedef int (*bk_iowfunc)(bk_s B, void *opaque, int fd, struct iovec *iov, __SIZE_TYPE__ size, bk_flags flags); ///< writev style I/O function for bk_ioh
-typedef void (*bk_iohhandler)(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh, u_int state_flags);  ///< User callback for bk_ioh w/zero terminated array of data ptrs free'd after handler returns
-extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
+typedef void (*bk_iohhandler_f)(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh, bk_ioh_status_e state_flags);  ///< User callback for bk_ioh w/zero terminated array of data ptrs free'd after handler returns
+extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
 #define BK_IOH_STREAM		0x01		///< Stream (instead of datagram) oriented protocol, for bk_ioh
 #define BK_IOH_RAW		0x02		///< Any data is suitable, no special message blocking, for bk_ioh
 #define BK_IOH_BLOCKED		0x04		///< Must I/O in hint blocks: block size is required, for bk_ioh
 #define BK_IOH_VECTORED		0x08		///< Size of data sent before data: datagramish semantics, for bk_ioh
 #define BK_IOH_LINE		0x10		///< Line oriented reads, for bk_ioh
+
+#if 0
 #define BK_IOH_STATUS_INCOMPLETEREAD	1	///< bk_ioh notifying user handler of incomplete read, data provided
 #define BK_IOH_STATUS_IOHCLOSING	2	///< bk_ioh notifying user handler of IOH in process of close() -- all data flushed/drained at this point
 #define BK_IOH_STATUS_IOHREADERROR	3	///< bk_ioh notifying user handler of a received IOH error on read
@@ -850,7 +866,9 @@ extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler han
 #define BK_IOH_STATUS_READCOMPLETE	8	///< bk_ioh notifying user handler of a previous write of a buffer has completed, and here is the zero terminated array of buffers, which you must copy if necessary
 #define BK_IOH_STATUS_USERERROR		9	///< bk_ioh notifying user handler of some kind of user error being propagated in some unknown and unknowable fashion
 #define BK_IOH_STATUS_IOHREADEOF	10	///< bk_ioh notifying user handler of a received EOF
-extern int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc writefun, void *iofunopaque, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags);
+#endif
+
+extern int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc writefun, void *iofunopaque, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags);
 #define BK_IOH_UPDATE_READFUN		0x001	///< Update the read function
 #define BK_IOH_UPDATE_WRITEFUN		0x002	///< Update the write function
 #define BK_IOH_UPDATE_HANDLER		0x004	///< Update the handler
@@ -861,11 +879,11 @@ extern int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowf
 #define BK_IOH_UPDATE_FLAGS		0x080	///< Update the external flags
 #define BK_IOH_UPDATE_IOFUNOPAQUE	0x100	///< Update the i/o function opaque data
 
-extern int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc *readfun, bk_iowfunc *writefun, void **iofunopaque, bk_iohhandler *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags);
+extern int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc *readfun, bk_iowfunc *writefun, void **iofunopaque, bk_iohhandler_f *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags);
 extern int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
 #define BK_IOH_BYPASSQUEUEFULL	0x01		///< Bypass bk_ioh_write normal check for output queue full
 extern void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags);
-extern void bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags);
+extern int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags);
 extern void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags);
 extern void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 #define BK_IOH_ABORT		0x01		///< During bk_ioh_close: Abort stream immediately -- don't wait to drain */
@@ -873,6 +891,18 @@ extern void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern int bk_ioh_stdrdfun(bk_s B, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags);		///< read() when implemented in ioh style
 extern int bk_ioh_stdwrfun(bk_s B, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags);	///< write() when implemented in ioh style
 extern int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *outqueue, bk_flags flags);
+extern struct bk_on_demand_io *bk_ioh_on_demand_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags );
+extern void bk_ioh_on_demand_io_destroy(bk_s B, struct bk_on_demand_io *odi);
+extern void bk_ioh_on_demand_io_data_destroy(bk_s B, bk_vptr *data);
+extern int bk_ioh_on_demand_io_read(bk_s B, struct bk_on_demand_io *odi, bk_vptr **datap, bk_ioh_status_e *status);
+extern void bk_ioh_on_demand_io_close(bk_s B, struct bk_on_demand_io *odi, bk_flags);
+extern int bk_ioh_on_demand_io_throttle(bk_s B, struct bk_on_demand_io *odi, bk_flags flags);
+int bk_ioh_on_demand_io_unthrottle(bk_s B, struct bk_on_demand_io *odi, bk_flags flags);
+extern void bk_ioh_on_demand_io_flush(bk_s B, struct bk_on_demand_io *odi, bk_flags flags);
+extern void bk_ioh_flush_read(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+extern void bk_ioh_flush_write(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+
+
 
 /* b_stdfun.c */
 extern void bk_die(bk_s B, u_char retcode, FILE *output, char *reason, bk_flags flags);

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.10 2001/11/16 21:30:03 brian Exp $
+ * $Id: libbk_include.h,v 1.11 2001/12/14 20:03:00 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -33,6 +33,7 @@
 #include <limits.h>
 #include <popt.h>
 #include <assert.h>
+#include <dirent.h>
 #if defined(_WIN32) && !defined(__CYGWIN32__)
 #include <winsock.h>		/* for fd_set, etc. */
 #include <process.h>		/* for getpid, etc. */

@@ -1,3 +1,19 @@
+2001-12-13  James Tanis  <jtt@saint.sysdetect.com>
+
+	* include/libbk.h (enum): BkIohStatusIohAbort removed owing to non-use.
+
+2001-12-12  James Tanis  <jtt@saint.sysdetect.com>
+
+	* include/libbk.h (bk_ioh_status_e): Convert ioh handler status to
+	an enum and update everybody who uses it.
+
+	* lib/b_ioh.c: Rename bk_iohhandler, bk_iohhandler_f to bring it
+	line with standards docs.
+
+	* lib/b_run.c (bk_run_once): Support for aborting bk_run_once if
+	another bk_run_once() has exited on the "thread" this bk_run_once
+	has just processed.
+
 2001-12-11  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_ioh.c (bk_ioh_destroy): make this static.

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_relay.c,v 1.8 2001/12/06 16:53:23 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_relay.c,v 1.9 2001/12/14 20:03:00 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -122,7 +122,7 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
  *	@param ioh IOH data/activity came in on
  *	@param state_flags Type of activity
  */
-static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh, u_int state_flags)
+static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh, bk_ioh_status_e state_flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
   struct bk_ioh *ioh_other;
@@ -153,8 +153,8 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
 
   switch (state_flags)
   {
-  case BK_IOH_STATUS_INCOMPLETEREAD:
-  case BK_IOH_STATUS_READCOMPLETE:
+  case BkIohStatusIncompleteRead:
+  case BkIohStatusReadComplete:
     // Coalesce into one buffer for output
     for (cnt = 0; data[cnt].ptr; cnt++)
     {
@@ -195,15 +195,15 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
     }
     break;
 
-  case BK_IOH_STATUS_IOHREADERROR:
-  case BK_IOH_STATUS_IOHREADEOF:
+  case BkIohStatusIohReadError:
+  case BkIohStatusIohReadEOF:
     // Propagate shutdown to write side of peer
     BK_FLAG_SET(*state_me, BR_IOH_READCLOSE);
     bk_ioh_shutdown(B, ioh_other, SHUT_WR, 0);
     bk_debug_printf_and(B, 1, "Received read error or EOF.  My state %x, his state %x\n",*state_me,*state_him);
     break;
 
-  case BK_IOH_STATUS_IOHWRITEERROR:
+  case BkIohStatusIohWriteError:
     // Propagate shutdown to read side of peer
     bk_debug_printf_and(B, 1, "Received write error msg.\n");
     BK_FLAG_SET(*state_him, BR_IOH_READCLOSE);
@@ -211,8 +211,8 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
     bk_debug_printf_and(B, 1, "Write error msg.  My state %x, his state %x\n",*state_me,*state_him);
     break;
 
-  case BK_IOH_STATUS_WRITECOMPLETE:
-  case BK_IOH_STATUS_WRITEABORTED:
+  case BkIohStatusWriteComplete:
+  case BkIohStatusWriteAborted:
     // Guarenteed just one buffer
     free(data[0].ptr);
     free(data);
@@ -226,9 +226,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
     }
     break;
 
-  case BK_IOH_STATUS_IOHCLOSING:
-  case BK_IOH_STATUS_IOHABORT:
-  case BK_IOH_STATUS_USERERROR:
+  case BkIohStatusIohClosing:
     BK_FLAG_SET(*state_me, BR_IOH_CLOSED);
     if (BK_FLAG_ISCLEAR(*state_me, BR_IOH_READCLOSE) ||
 	BK_FLAG_ISCLEAR(*state_him, BR_IOH_READCLOSE))
@@ -241,9 +239,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
     bk_debug_printf_and(B, 1, "Received ioh close notification.  My state %x, his state %x\n",*state_me,*state_him);
     break;
 
-  default:
-    bk_error_printf(B, BK_ERR_ERR, "Unknown IOH state %d\n",state_flags);
-    break;
+    // No default here so that compiler can catch missed state
   }
 
   if (0)					// Stupid method of getting error case to continue execution

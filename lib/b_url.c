@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.7 2001/12/11 21:59:02 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.8 2001/12/14 20:03:00 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -28,6 +28,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 static u_int count_colons(bk_s B, const char *str, const char *str_end);
 
 
+
+// <TODO> Rewrite to be compliant with rfc1808.
 
 /**
  * Parse a url. Place results in returned structure with undeterminable
@@ -64,6 +66,8 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
     goto error;
   }
 
+  // <TODO> Strip leading and trailing space here </TODO>
+
   proto = url;
   proto_end = strpbrk(proto,":/");		/* No : or / in proto */
   if (!proto_end || strncmp(proto_end,":/", 2) != 0) /* Proto ends with ":/" (at a minimum) */
@@ -86,6 +90,8 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
   {
     host += 2;
   }
+
+  // <TODO> Handle ipv6 adresses as bracketed.
 
   /* 
    * Host is now set to the begining of host. Now we attempt to find the
