@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.37 2002/05/01 16:53:13 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.38 2002/05/01 23:43:38 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1926,12 +1926,19 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Conversion from string to double failed\n");
     ret = -1;
   }
-  // It's unclear to jtt that we need this; it's unclear to seth that we don't. We err on the side of safety.
+#if 0
+  /*
+   * It's unclear to jtt that we need this; it's unclear to seth that
+   * we don't.  It's clear to alex that the isfinite() function is a
+   * Linux-ism, and he agrees with jtt that if a user provides "Inf"
+   * as the input, they should get positive infinity.
+   */
   else if (!isfinite(tmp))
   {
     bk_error_printf(B, BK_ERR_ERR, "Conversion from string to double failed\n");
     ret = -1;
   }
+#endif
   else
   {
     *value = tmp;
