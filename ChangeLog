@@ -1,3 +1,14 @@
+2004-12-16  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_addrgroup.c (bk_net_init): Fix documentation: timeouts are
+	actually in ms, not secs or usecs.
+
+	* lib/b_netutils.c: Fix documentation: timeouts are actually in ms, not secs or usecs.
+
+2004-12-15  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_exec.c (bk_fork_exec): Add function
+
 2004-12-01  Brian Lindauer  <lindauer@nicks.sysdetect.com>
 
 	* test/entropy/randtest.c (rt_end): Don't shadow new builtin cexp function.
@@ -10,7 +21,7 @@
 
 	* lib/b_ringdir.c (bk_ringdir_get_status): Added a settings file
 	and an API to retrieve current buffer status.
-	
+
 2004-10-27  James Tanis  <jtt@fry.sysdetect.com>
 
 	* lib/b_config.c (config_manage): Null values should be
@@ -20,13 +31,13 @@
 
 	* lib/b_string.c (bk_string_tokenize_split): Return an empty array
 	instead of an array with one empty element when input string is
-	empty. 
+	empty.
 
 2004-10-22  James Tanis  <jtt@fry.sysdetect.com>
 
 	* lib/b_string.c (bk_string_tokenize_split): If we're going to
 	substitute a default value for a variable, recursively expand
-	that. 
+	that.
 
 2004-10-21  James Tanis  <jtt@fry.sysdetect.com>
 

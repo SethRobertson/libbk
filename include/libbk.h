@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.312 2004/11/23 03:39:53 lindauer Exp $
+ * $Id: libbk.h,v 1.313 2004/12/16 20:52:07 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -177,7 +177,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #ifdef __INSURE__
 #ifndef BK_NO_MALLOC_WRAP
 
-#define malloc(s) 	(bk_malloc_wrapper(s))
+#define malloc(s)	(bk_malloc_wrapper(s))
 #define calloc(n,s)	(bk_calloc_wrapper(n, s))
 #define realloc(b,s)	(bk_realloc_wrapper(b, s))
 #define free(b)		(bk_free_wrapper(b))
@@ -411,7 +411,7 @@ do {										\
 // @}
 
 // <TODO> Potential porting issue here. We assume that time_t is 4 bytes </TODO>
-#define BK_MAX_TIME_T 	(LONG_MAX)
+#define BK_MAX_TIME_T	(LONG_MAX)
 
 
 /**
@@ -1941,6 +1941,7 @@ extern int bk_netutils_start_service(bk_s B, struct bk_run *run, const char *url
 #define BK_NETUTILS_ANY_ADDR 0x01
 extern int bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags);
 extern int bk_netutils_make_conn(bk_s B, struct bk_run *run, const char *url, const char *defurl, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags);
+#define BK_NET_STANDARD_UDP 0x01		///< Don't send baka preamble/syn thing
 extern int bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags );
 extern int bk_parse_endpt_no_defaults(bk_s B, const char *urlstr, char **hostname, char **servistr, char **protostr);
 extern char *bk_netutils_gethostname(bk_s B);
@@ -2073,6 +2074,7 @@ extern pid_t bk_pipe_to_process(bk_s B, int *fdinp, int*fdoutp, bk_flags flags);
 #define BK_PIPE_TO_PROCESS_FLAG_CLOSE_EXTRANEOUS_DESC	0x1
 #define BK_PIPE_FLAG_STDERR_ON_STDOUT		0x2 ///< When creating pipe to child, stderr dups on stdout
 #define BK_PIPE_FLAG_USE_PTY			0x4 ///< Use PTY instead of pipe
+extern int bk_fork_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags flags);
 extern int bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags flags);
 extern char *bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags flags);
 extern int bk_exec_cmd(bk_s B, const char *cmd, char *const *env, bk_flags flags);
@@ -2237,7 +2239,7 @@ enum bk_ringdir_callback_source
 
 
 /**
- * This call back API for the ring directory 
+ * This call back API for the ring directory
  */
 struct bk_ringdir_callbacks
 {
@@ -2300,7 +2302,7 @@ struct bk_ringdir_callbacks
    * this function be greater than or equal to that of @a rotate_size (from
    * the init function) when you desire rotation to occur. The macro
    * BK_RINGDIR_GET_SIZE_MAX is provided as a convenience value for the
-   * largest legal return value from this function. 
+   * largest legal return value from this function.
    *
    *	@param B BAKA thread/global state.
    *	@param opaque Your private data.
@@ -2364,10 +2366,10 @@ struct bk_ringdir_callbacks
 
 
   /**
-   * Do checkpointing managment. You will be called with one of the actions: 
-   *	BkRingDirChkpntActionChkpnt: 	Save value to checkpoint state "file"
-   *	BkRingDirChkpntActionRecover: 	Recover checkpoint value from state "file"
-   *	BkRingDirChkpntActionDelete: 	Delete the checkpoint state "file"
+   * Do checkpointing managment. You will be called with one of the actions:
+   *	BkRingDirChkpntActionChkpnt:	Save value to checkpoint state "file"
+   *	BkRingDirChkpntActionRecover:	Recover checkpoint value from state "file"
+   *	BkRingDirChkpntActionDelete:	Delete the checkpoint state "file"
    *
    * The ring directory name and the file name pattern are supplied to you
    * for your convience as your checkpoint key will almost certainly need

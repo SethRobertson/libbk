@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.32 2004/08/07 04:43:21 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.33 2004/12/16 20:52:08 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -48,7 +48,7 @@ struct start_service_state
   const char *			sss_securenets;	///< Securenets info.
   int				sss_backlog;	///< Listen backlog.
   char *			sss_host;	///< Space to save a hostname.
-  u_long			sss_timeout;	///< Timeout
+  u_long			sss_timeout;	///< Timeout in msec
 };
 
 
@@ -387,13 +387,13 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, c
 	bk_error_printf(B, BK_ERR_ERR, "Could not create local netaddr info for AF_LOCAL\n");
 	goto error;
       }
-    
+
       if (bk_netinfo_add_addr(B, sss->sss_lbni, bna, NULL) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not add local path name to netinfo\n");
 	goto error;
       }
-      
+
       bna = NULL;
 
       if (bk_net_init(B, run, sss->sss_lbni, NULL, sss->sss_timeout, sss->sss_flags, sss->sss_callback, sss->sss_args, sss->sss_backlog) < 0)
@@ -418,7 +418,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, c
   {
     // skip the bk_gethostbyfoo business
     // we don't need, and can't afford a callback later
-    
+
     // we're not address family sensitive yet (we call gethostbyfoo(.,.,0,...)
     inaddr_any.s_addr = INADDR_ANY;
 
@@ -646,7 +646,7 @@ sss_destroy(bk_s B, struct start_service_state *sss)
  *	@param ldefhostsstr Local host string to use if host part of url is not found. (may be NULL).
  *	@param ldefservstr Local service string to use if service part of url is not found. (may be NULL).
  *	@param protostr Protocol string to use if protocol part of url is not found. (may be NULL).
- *	@param timeout Abort connection after @a timeout seconds.
+ *	@param timeout Abort connection after @a timeout mseconds.
  *	@param callback Function to call when start is complete.
  *	@param args User args for @a callback.
  *	@param flags Flags for future use.
@@ -705,7 +705,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
      * not? At any rate make sure that if the lurl is *not* set and we're
      * in AF_LOCAL, then create a temporary file and use it.
      */
-    if (BK_STREQ(rprotostr, BK_AF_LOCAL_STREAM_PROTO_STR) || 
+    if (BK_STREQ(rprotostr, BK_AF_LOCAL_STREAM_PROTO_STR) ||
 	BK_STREQ(rprotostr, BK_AF_LOCAL_DGRAM_PROTO_STR))
     {
       const char *env_tmp = getenv("TMP");
@@ -835,19 +835,19 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
       bk_error_printf(B, BK_ERR_ERR, "Could not create local netaddr info for AF_LOCAL\n");
       goto error;
     }
-    
+
     if (bk_netinfo_add_addr(B, sss->sss_lbni, bna, NULL) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not add local path name to netinfo\n");
       goto error;
     }
-    
+
     if (!(bna = bk_netaddr_user(B, BkNetinfoTypeLocal, rhoststr, 0, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create remote netaddr info for AF_LOCAL\n");
       goto error;
     }
-    
+
     if (bk_netinfo_add_addr(B, sss->sss_rbni, bna, NULL) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not add remote path name to netinfo\n");
@@ -855,7 +855,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
     }
 
     bna = NULL;
-    
+
     if (bk_net_init(B, run, sss->sss_lbni, sss->sss_rbni, sss->sss_timeout, sss->sss_flags, sss->sss_callback, sss->sss_args, sss->sss_backlog) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open service\n");
@@ -914,7 +914,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
  *	@param B BAKA thread/global state.
  *	@param url The local endpoint specification (may be NULL).
  *	@param defurl The <em>default</em> local endpoint specification (may be NULL).
- *	@param timeout Abort connection after @a timeout seconds.
+ *	@param timeout Abort connection after @a timeout mseconds.
  *	@param callback Function to call when start is complete.
  *	@param args User args for @a callback.
  *	@param flags Flags for future use.

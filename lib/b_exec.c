@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.21 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.22 2004/12/16 20:52:08 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -310,6 +310,50 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
   close(c2p[1]);
 
   BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Fork and exec a process.
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state.
+ *	@param proc The proces to exec.
+ *	@param args The argument vector to use.
+ *	@param env The enviroment to use (NULL means keep current).
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>does not return</i> of child on success.
+ */
+int
+bk_fork_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  pid_t pid;
+
+  if (!proc)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  switch (pid = fork())
+  {
+  case -1:
+    bk_error_printf(B, BK_ERR_ERR, "Fork failed: %s\n", strerror(errno));
+    BK_RETURN(B, -1);
+    break;
+
+  case 0:					// Child
+    bk_exec(B, proc, args, env, flags);
+    // Uh, we are kinda fucked here.  Exit codes away!
+    _exit(255);
+    break;
+  }
+
+  BK_RETURN(B, pid);
 }
 
 

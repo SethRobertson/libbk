@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.49 2004/08/14 19:39:26 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.50 2004/12/16 20:52:08 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -74,7 +74,7 @@ struct addrgroup_state
   bk_addrgroup_state_e	as_state;		///< Our state.
   int			as_sock;		///< Socket
   struct bk_addrgroup *	as_bag;			///< Addrgroup info
-  u_long		as_timeout;		///< Timeout in usecs
+  u_long		as_timeout;		///< Timeout in msecs
   bk_bag_callback_f	as_callback;		///< Called when sock ready
   void *		as_args;		///< User args for callback
   void *		as_eventh;		///< Timeout event handle
@@ -381,7 +381,7 @@ as_destroy(bk_s B, struct addrgroup_state *as)
  *	@param B BAKA thread/global state.
  *	@param local @a bk_netinfo of the local side.
  *	@param remote @a bk_netinfo of the remote side.
- *	@param timeout Timeout information (usecs).
+ *	@param timeout Timeout information (msecs).
  *	@param flags Random flags
  *	@param callback Function to call when whatever job @a bk_net_init needs to do is done.
  *	@param args User args returned to @a callback.
@@ -752,18 +752,21 @@ do_net_init_dgram_connect(bk_s B, struct addrgroup_state *as)
     goto error;
   }
 
-  cnt = 0;
-  while(cnt < sizeof(DGRAM_PREAMBLE))
+  if (BK_FLAG_ISCLEAR(as->as_user_flags, BK_NET_STANDARD_UDP))
   {
-    int nbytes;
-    const char *dgram_preamble = DGRAM_PREAMBLE;
-
-    if ((nbytes = write(as->as_sock, dgram_preamble + cnt, sizeof(DGRAM_PREAMBLE) - cnt)) < 0)
+    cnt = 0;
+    while(cnt < sizeof(DGRAM_PREAMBLE))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not write out dgram pramble: %s\n", strerror(errno));
-      goto error;
+      int nbytes;
+      const char *dgram_preamble = DGRAM_PREAMBLE;
+
+      if ((nbytes = write(as->as_sock, dgram_preamble + cnt, sizeof(DGRAM_PREAMBLE) - cnt)) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not write out dgram pramble: %s\n", strerror(errno));
+	goto error;
+      }
+      cnt += nbytes;
     }
-    cnt += nbytes;
   }
 
   as->as_state = BkAddrGroupStateConnected;
@@ -1373,7 +1376,7 @@ stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void 
     // calls to bk_error_printf() can result in errno changing. Sigh...
     int connect_errno = errno;
 
-    bk_error_printf(B, BK_ERR_ERR, "Connect to %s failed: %s\n", bag->bag_remote->bni_pretty, strerror(errno));
+    bk_error_printf(B, BK_ERR_WARN, "Connect to %s failed: %s\n", bag->bag_remote->bni_pretty, strerror(errno));
     net_close(B, as);
 
     if (connect_errno == BK_SECOND_REFUSED_CONNECT_ERRNO)
@@ -1420,7 +1423,7 @@ do_net_init_listen(bk_s B, struct addrgroup_state *as)
   struct bk_addrgroup *bag = NULL;
   int one = 1;
   int ret;
-  int socktype; 
+  int socktype;
   int sockproto;
 
   if (!as)
@@ -1657,7 +1660,7 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
     char buf[sizeof(DGRAM_PREAMBLE)];
     int one = 1;
 
-    /* 
+    /*
      * Simulate accept(2) for DGRAM service. Obtain the premable (which is
      * really mostly just a "dummy" clien write so the server has something
      * to recvfrom(2) on before real data comes). Connect the server socket
@@ -1717,7 +1720,7 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
 
     BK_GET_SOCKADDR_LEN(B, &(bs.bs_sa), bs_len);
 
-    // For AF_LOCAL we *must* remove the synch file before rebinding 
+    // For AF_LOCAL we *must* remove the synch file before rebinding
     // <WARNNING> THIS CREATES A RACE CONDITION OF SOMEONE IS CONNECTING </WARNING?
     if (bs.bs_sa.sa_family == AF_LOCAL && (unlink(bs.bs_sun.sun_path) < 0) && (errno != ENOENT))
     {
@@ -2178,12 +2181,12 @@ bk_addrgroup_addr_type(bk_s B, struct bk_addrgroup *bag, bk_flags flags)
   }
 
   if (bag->bag_local)
-    BK_RETURN(B, bk_netinfo_addr_type(B, bag->bag_local, 0));    
-  
-  if (bag->bag_remote)
-    BK_RETURN(B, bk_netinfo_addr_type(B, bag->bag_remote, 0));    
+    BK_RETURN(B, bk_netinfo_addr_type(B, bag->bag_local, 0));
 
-  BK_RETURN(B, BkNetinfoTypeUnknown);  
+  if (bag->bag_remote)
+    BK_RETURN(B, bk_netinfo_addr_type(B, bag->bag_remote, 0));
+
+  BK_RETURN(B, BkNetinfoTypeUnknown);
 }
 
 
@@ -2210,11 +2213,11 @@ bk_addrgroup_network(bk_s B, struct bk_addrgroup *bag, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if ((type = bk_addrgroup_addr_type(B, bag, flags)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not obtain address group type\n");
-    BK_RETURN(B, -1);    
+    BK_RETURN(B, -1);
   }
 
   switch(type)
@@ -2240,10 +2243,10 @@ bk_addrgroup_network(bk_s B, struct bk_addrgroup *bag, bk_flags flags)
     break;
   }
 
-  BK_RETURN(B, ret);  
+  BK_RETURN(B, ret);
 
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -2268,7 +2271,7 @@ bag2socktype(bk_s B, struct bk_addrgroup *bag, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   switch (bag->bag_proto)
   {
   case IPPROTO_UDP:
@@ -2287,8 +2290,8 @@ bag2socktype(bk_s B, struct bk_addrgroup *bag, bk_flags flags)
     break;
   }
 
-  BK_RETURN(B, ret);  
+  BK_RETURN(B, ret);
 
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
