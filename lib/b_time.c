@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.17 2003/07/15 11:28:38 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_time.c,v 1.18 2004/04/23 21:36:20 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -559,4 +559,151 @@ bk_time_ntp_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
  error:
   bk_error_printf(B, BK_ERR_ERR, "Improperly formatted NTP time string\n");
   BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Parses a duration string in the format [Dd][Hh][Mm][Ss] and returns the 
+ * duration in seconds.  The string must not exceed 128 bytes.
+ *
+ * Example: 4d7h35m is 4 days, 7 hours, and 35 minutes.
+ *
+ * @param B BAKA Thread/global state
+ * @param string string to parse
+ * @param time_t duration in seconds (copy-out)
+ * @param flags Reserved
+ * @return <i>-1</i> on error
+ * @return <i>0</i> on success
+ */
+int
+bk_time_duration_parse(bk_s B, const char *string, time_t *duration, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  const size_t maxlen = 128;
+  char str[maxlen];
+  const char *daystr = NULL;
+  const char *hourstr = NULL;
+  const char *minstr = NULL;
+  const char *secstr = NULL;
+  char *end = NULL;
+  char *p;
+  size_t len = 0;
+  uint32_t val;
+  int i;
+
+  if (!string || !duration)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Internal error: illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  *duration = 0;
+
+  if (!(len = strnlen(string, maxlen)))
+  {
+    goto done;
+  }
+
+  if (len >= maxlen)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid duration: must be shorter than %u characters\n", maxlen);
+    goto error;
+  }
+
+  // make local copy
+  strcpy(str, string);
+
+  // convert to lower case
+  for (i=0; str[i]; i++)
+  {
+    str[i] = tolower(str[i]);
+  }
+
+  p = str;
+
+  if (end = strchr(p, 'd'))
+  {
+    *end = '\0';
+    daystr = p;
+    p = end + 1;
+  }
+
+  if (end = strchr(p, 'h'))
+  {
+    *end = '\0';
+    hourstr = p;
+    p = end + 1;
+  }
+
+  if (end = strchr(p, 'm'))
+  {
+    *end = '\0';
+    minstr = p;
+    p = end + 1;
+  }
+
+  if (end = strchr(p, 's'))
+  {
+    *end = '\0';
+    secstr = p;
+    p = end + 1;
+  }
+
+  if (*p)
+  {
+    // trailing garbage
+    bk_error_printf(B, BK_ERR_ERR, "Illegal duration string: correct format is [Dd][Hh][Mm][Ss].\n");
+    goto error;
+  }
+
+  if (daystr)
+  {
+    if (bk_string_atou32(B, daystr, &val, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Invalid day part of duration string.\n");
+      goto error;
+    }
+
+    *duration += val * (24 * 60 * 60);
+  }
+
+  if (hourstr)
+  {
+    if (bk_string_atou32(B, hourstr, &val, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Invalid hour part of duration string.\n");
+      goto error;
+    }
+
+    *duration += val * (60 * 60);
+  }
+
+  if (minstr)
+  {
+    if (bk_string_atou32(B, minstr, &val, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Invalid minute part of duration string.\n");
+      goto error;
+    }
+
+    *duration += val * (60);
+  }
+
+  if (secstr)
+  {
+    if (bk_string_atou32(B, secstr, &val, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Invalid second part of duration string.\n");
+      goto error;
+    }
+
+    *duration += val;
+  }
+
+ done:
+  BK_RETURN(B, 0);
+
+ error:
+  BK_RETURN(B, -1);
 }

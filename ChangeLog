@@ -1,3 +1,8 @@
+2004-04-23  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_time.c (bk_time_duration_parse): Add function to parse
+	durations in DdHhMmSs format.
+
 2004-04-21  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_ringdir.c (bk_ringdir_destroy): Add checkpoint after

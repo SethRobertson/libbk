@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_time.c,v 1.10 2003/06/17 06:07:19 seth Exp $";
+static const char libbk__rcsid[] = "$Id: test_time.c,v 1.11 2004/04/23 21:36:21 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -176,6 +176,38 @@ void progrun(bk_s B, struct program_config *pconfig)
   struct timeval tv;
   struct timespec t;
   struct timezone z;
+  time_t duration;
+
+  // Duration parse tests
+
+  if (bk_time_duration_parse(B, "3d2h1m35s", &duration, 0) < 0)
+  {
+    fprintf(stderr, "parse of 3d2h1m35s failed\n");
+  }
+  else if (duration != 266495)
+  {
+    fprintf(stderr, "3d2h1m35s conversion incorrect\n");
+  }
+
+  if (bk_time_duration_parse(B, "5d12h", &duration, 0) < 0)
+  {
+    fprintf(stderr, "parse of 5d12h failed\n");
+  }
+  else if (duration != 475200)
+  {
+    fprintf(stderr, "5d12h conversion incorrect\n");
+  }
+
+  if (bk_time_duration_parse(B, "12h40m", &duration, 0) < 0)
+  {
+    fprintf(stderr, "parse of 12h40m failed\n");
+  }
+  else if (duration != 45600)
+  {
+    fprintf(stderr, "12h40m conversion incorrect\n");
+  }
+
+  /////////////
 
   gettimeofday(&tv, &z);
   t.tv_sec = tv.tv_sec;
