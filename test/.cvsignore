@@ -6,3 +6,4 @@ test_printbuf
 test_stringconv
 test_ioh
 testrandidea
+test_url
