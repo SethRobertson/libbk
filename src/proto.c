@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.5 2001/11/05 20:41:11 jtt Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.6 2001/11/05 21:06:10 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -71,8 +71,6 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0);
-
   if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), ERRORQUEUE_DEPTH, BK_ERR_ERR, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
@@ -82,6 +80,8 @@ main(int argc, char **argv, char **envp)
 
   pconfig = &Pconfig;
   memset(pconfig,0,sizeof(*pconfig));
+
+  optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0);
 
   while ((c = poptGetNextOpt(optCon)) >= 0)
   {
