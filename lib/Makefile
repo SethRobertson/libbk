@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.31 2002/07/09 01:05:45 dupuy Exp $
+# $Id: Makefile,v 1.32 2002/07/19 18:50:11 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -49,6 +49,7 @@ BK_LARGE_LIBSRC=		       		\
 		b_stdfun.c			\
 		b_stdsock.c			\
 		b_string.c			\
+		b_sysutils.c			\
 		b_time.c			\
 		b_url.c				\
 # Line eater fodder -- leave

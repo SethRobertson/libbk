@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.9 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.10 2002/07/19 18:50:11 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,6 +19,11 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
+
+/**
+ * @file
+ * Standard program execution/termination utility functions
+ */
 
 static void bk_printserious(bk_s B, FILE *output, char *type, char *reason, bk_flags flags);
 

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.155 2002/07/19 18:48:42 seth Exp $
+ * $Id: libbk.h,v 1.156 2002/07/19 18:50:10 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1309,6 +1309,10 @@ extern void bk_die(bk_s B, u_char retcode, FILE *output, char *reason, bk_flags 
 extern void bk_warn(bk_s B, FILE *output, char *reason, bk_flags flags);
 #define BK_WARNDIE_WANTDETAILS		1	///< Verbose output of error logs during bk_die/bk_warn
 extern void bk_exit(bk_s B, u_char retcode);
+
+
+/* b_sysutils.c */
+extern char *bk_gethostname(bk_s B);
 
 
 /* b_string.c */
