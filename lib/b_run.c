@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.59 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.60 2003/07/02 00:10:20 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3222,6 +3222,8 @@ bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags)
     BK_FLAG_SET(bfc->bfc_flags, BK_FD_ADMIN_FLAG_IS_CLOSED);
     BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_FD_CLOSED);
   }
+
+  bk_run_select_changed(B, run, 0);
 
   BK_RETURN(B,0);
 
