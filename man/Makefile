@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.4 2001/06/18 21:59:43 seth Exp $
+# $Id: Makefile,v 1.5 2003/04/10 09:10:42 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -14,6 +14,7 @@
 #
 # libbk Makefile
 #
+BK_MAN=bk.conf.5
 
 GROUPTOP=..
 GROUPSUBDIR=man

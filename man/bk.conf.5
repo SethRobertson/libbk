@@ -1,0 +1,185 @@
+.TH BK.CONF 5 "10 Apr 2003" "" ""
+.SH NAME
+bk.conf \- baka configuration file 
+.SH DESCRIPTION
+Baka configuration file are simply key/value pairs. Keys are single words and
+values are comprised of everything which follows the first instance of a
+key/value separator character (by default, this is '=', whitespace, or ':').
+.PP
+The syntax can be summarized as follows:
+.RS
+.sp
+.nf
+.ne 7
+# comment
+! comment
+
+  key  =  value
+  key  :  value
+  key     value
+.fi
+.sp
+.RE
+.PP
+Note that blank lines are ignored, and whitespace before and after a key or
+value is ignored, although a value can contain whitespace within.  Lines which
+begin with a # or ! are considered comments and ignored.  The backslash escape
+character \(rs can be used to escape whitespace and or separator characters in
+either the key or value strings.
+.PP
+In addition to normal configuration key-value settings, the baka config file
+can be used to configure debugging output for baka applications. The syntax for
+these is a specialization of the normal key-value format, where the key is just
+the string
+.B debug 
+followed by a value that has three whitespace separated components:
+.RS
+.sp
+.nf
+.ne 7
+  debug  =  program component level
+  debug  :  program component level
+  debug     program component level
+.fi
+.sp
+.RE
+.PP
+The format of these files is intended to be more-or-less compatible with the
+java.util.Properties load/store file format described below.  Not all of of the
+features supported by Properties.load are supported, but we attempt to provide
+99% compatibility with the canonical format written by Properties.store.
+.PP
+Baka config file facility also supports included config files with the
+.RS
+.sp
+.nf
+.ne 7
+#include file.name 
+.fi
+.sp
+.RE
+directive.  Include loops are detected and quashed.  This functionality is not
+present in java.util.Properties, and Java applications will simply treat these
+include directives as comments.
+.PP
+Other differences from the format written by Properties.store are:
+.IP \(bu
+\(rsuxxxx unicode character escapes aren't supported [for control/8bit chars]
+.IP \(bu
+maximum line length is 8192 characters
+.PP
+Differences from format accepted by Properties.load are the above, plus:
+.IP \(bu
+ISO 8859-1 encoding is not explicitly specified (dependent on locale)
+.IP \(bu
+line continuations with \(rs aren't supported
+.IP \(bu
+\(rsa, \(rsb, \(rsf, \(rsv are treated as ANSI C escapes (BEL, BS, FF, VT)
+.IP \(bu
+lines with no unescaped separator character (and thus no value, only a key)
+generate a warning and are ignored
+.PP
+Properties.store is specified as follows:
+.IP
+Every entry in this Properties table is written out, one per line. For each
+entry the key string is written, then an ASCII =, then the associated element
+string. Each character of the element string is examined to see whether it
+should be rendered as an escape sequence. The ASCII characters \(rs, tab,
+newline, and carriage return are written as \(rs\(rs, \(rst, \(rsn, and \(rsr,
+respectively. Characters less than \(rsu0020 and characters greater than
+\(rsu007E are written as \(rsuxxxx for the appropriate hexadecimal value
+xxxx. Leading space characters, but not embedded or trailing space characters,
+are written with a preceding \(rs. The key and value characters #, !, =, and :
+are written with a preceding slash to ensure that they are properly loaded.
+.PP
+Properties.load is specified as follows:
+.IP
+Reads a property list (key and element pairs) from the input stream. The stream
+is assumed to be using the ISO 8859-1 character encoding.
+.IP
+Every property occupies one line of the input stream. Each line is terminated
+by a line terminator (\(rsn or \(rsr or \(rsr\(rsn). Lines from the input
+stream are processed until end of file is reached on the input stream.
+.IP
+A line that contains only whitespace or whose first non-whitespace character is
+an ASCII # or ! is ignored (thus, # or ! indicate comment lines).
+.IP
+Every line other than a blank line or a comment line describes one property to
+be added to the table (except that if a line ends with \(rs, then the following
+line, if it exists, is treated as a continuation line, as described below). The
+key consists of all the characters in the line starting with the first
+non-whitespace character and up to, but not including, the first ASCII =, :, or
+whitespace character. All of the key termination characters may be included in
+the key by preceding them with a \(rs. Any whitespace after the key is skipped;
+if the first non-whitespace character after the key is = or :, then it is
+ignored and any whitespace characters after it are also skipped. All remaining
+characters on the line become part of the associated element string. Within the
+element string, the ASCII escape sequences \(rst, \(rsn, \(rsr, \(rs\(rs,
+\(rs\(dq, \(rs', \(rs (a backslash and a space), and \(rsuxxxx are recognized
+and converted to single characters. Moreover, if the last character on the line
+is \e, then the next line is treated as a continuation of the current line; the
+\e and line terminator are simply discarded, and any leading whitespace
+characters on the continuation line are also discarded and are not part of the
+element string.
+.SH EXAMPLE
+As an example, each of the following four lines specifies the key \(dqTruth\(dq
+and the associated value \(dqBeauty\(dq:
+.RS
+.sp
+.nf
+.ne 7
+Truth = Beauty
+	Truth:Beauty
+Truth	:Beauty
+.fi
+.sp
+.RE
+.ig
+\" ignore this until it is supported by baka config syntax
+.PP
+As another example, the following three lines specify a single property:
+.RS
+.sp
+.nf
+.ne 7
+fruits			apple, banana, pear, \e
+				cantaloupe, watermelon, \e
+				kiwi, mango
+.fi
+.sp
+.RE
+The key is \(dqfruits\(dq and the associated element is:
+.RS
+.sp
+.nf
+.ne 7
+\(dqapple, banana, pear, cantaloupe, watermelon, kiwi, mango\(dq
+.fi
+.sp
+.RE
+Note that a space appears before each \e so that a space will appear after each
+comma in the final result; the \e, line terminator, and leading whitespace on
+the continuation line are merely discarded and are not replaced by one or more
+other characters.
+.PP
+As a third example, the line:
+.RS
+.sp
+.nf
+.ne 7
+cheeses
+.fi
+.sp
+.RE
+specifies that the key is \(dqcheeses\(dq and the associated element is the
+empty string.  (Note that this will generate a warning for baka applications.)
+..
+.SH ENVIRONMENT
+The environment variable
+.B BK_ENV_CONF_APP
+can be used to override the default location for the configuration file as
+noted below.
+.SH FILES
+Baka applications read configuration from the file
+.B /etc/bk.conf
+unless overridden by the environment variable BK_ENV_CONF_APP.
