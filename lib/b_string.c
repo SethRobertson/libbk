@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.31 2002/03/12 00:18:16 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.32 2002/03/28 23:04:54 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1587,4 +1587,176 @@ bk_string_intcols(bk_s B, int64_t num, u_int base)
   val += 1.0 + log(num) / logbase[base];
 
   BK_RETURN(B, val);  
+}
+
+
+
+
+
+/**
+ * Allocate a string based on a printf like format. This algorithm does
+ * waste some space. Worst case (size-1), exected case ((size-1)/2) (or
+ * something like that. User must free space with free(3).
+ *
+ *	@param B BAKA thread/global state.
+ *	@param fmt The format string to use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a malloc'ed <i>string</i> on success.
+ */
+char *
+bk_string_alloc_sprintf(bk_s B, const char *fmt, ...)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int n, size = 2048;
+  char *p = NULL;
+  va_list ap;
+
+  if (!fmt)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+
+  if (!(p = malloc (size)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not alloc string: %s\n", strerror(errno));
+    goto error;
+  }
+
+  while (1) 
+  {
+    /* Try to print in the allocated space. */
+    va_start(ap, fmt);
+    n = vsnprintf (p, size, fmt, ap);
+    va_end(ap);
+
+    /* If that worked, return the string. */
+    if (n > -1 && n < size)
+      BK_RETURN(B,p);      
+
+    /* Else try again with more space. */
+    if (n > -1)    /* glibc 2.1 */
+      size = n+1; /* precisely what is needed */
+    else           /* glibc 2.0 */
+      size *= 2;  /* twice the old size */
+    if (!(p = realloc (p, size)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not realloc string: %s\n", strerror(errno));
+      goto error;
+    }
+  }
+
+ error:
+  if (p)
+    free(p);
+  BK_RETURN(B,NULL);  
+}
+
+
+
+
+/**
+ * Generate a buffer which, to the extent possible is guarenteed to be unique. 
+ *
+ *	@param B BAKA thread/global state.
+ *	@param buf The buffer to fill.
+ *	@param len The length of the buffer (we will fill it all).
+ *	@param Flags flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *hostname = NULL;
+  struct timeval tv;
+  bk_MD5_CTX ctx;
+  struct bk_randinfo *ri = NULL;
+  char md5_str[32];
+  char *p = buf;
+  u_int32_t randnum;
+
+  if (!buf)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!(ri = bk_rand_init(B, 0, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not initialize random state\n");
+    goto error;
+  }
+  bk_MD5Init(B, &ctx);
+
+  // Start by collecting some host specific info.
+
+  // Get something unique to this host (<TODO> We could do a much better job here </TODO> )
+  if (!(hostname = bk_netutils_gethostname(B)))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Could not determine hostname (unique string may not be so unique)\n");
+    // Forge on.
+  }
+
+  bk_MD5Update(B, &ctx, hostname, strlen(hostname));
+  free(hostname);
+  hostname = NULL;
+
+  // Get something unique within this host (Let'ss ignore clock steps)
+  if (gettimeofday(&tv, NULL) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not determine the time of day (unique string may not be so unique)\n");
+    // Forge on.
+  }
+  bk_MD5Update(B, &ctx, (char *)&tv, sizeof(tv));
+
+  // Throw in a little more entropy just for kicks.
+  randnum = bk_rand_getword(B, ri, NULL, 0);
+  bk_MD5Update(B, &ctx, (char *)&randnum, sizeof(randnum));
+
+  bk_MD5Final(B, &ctx);
+  
+  if (bk_MD5_extract_printable(B, md5_str, &ctx, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not extract md5 information\n");
+    goto error;
+  }
+
+  while(len)
+  {
+    int curlen = MAX(len, 16);
+    
+    bk_MD5Init(B, &ctx);
+    
+    // OK use previous output (so the "seed" stuff at the top carries forward)
+    bk_MD5Update(B, &ctx, md5_str, sizeof(md5_str)-1);
+
+    // And throw in some more entropy
+    randnum = bk_rand_getword(B, ri, NULL, 0);
+    bk_MD5Update(B, &ctx, (char *)&randnum, sizeof(randnum));
+
+    bk_MD5Final(B, &ctx);
+
+    if (bk_MD5_extract_printable(B, md5_str, &ctx, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not extract md5 information\n");
+      goto error;
+    }
+    
+    memcpy(p, md5_str, curlen);
+    len -= curlen;
+    p += curlen;
+  }
+
+  bk_rand_destroy(B, ri, 0);
+  BK_RETURN(B,0);  
+  
+ error:
+  if (hostname)
+    free(hostname);
+  if (ri)
+    bk_rand_destroy(B, ri, 0);
+  BK_RETURN(B,-1);  
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.47 2002/03/20 20:18:12 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.48 2002/03/28 23:04:54 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1465,7 +1465,13 @@ static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t al
 
   bk_debug_printf_and(B, 1, "Enqueuing data %p/%d/%d or flags %x for IOH queue %p(%d)\n", data, inuse, allocated, msgflags, iohq, iohq->biq_queuelen);
 
-  if (BK_FLAG_ISCLEAR(flags, BK_IOH_BYPASSQUEUEFULL))
+  /*
+   * Refuse to queue the message if all 3 of the following conditions exist:
+   * 1) The queue already has something in it.
+   * 2) The new data would exceed the queue max.
+   * 3) BK_IOH_BYPASSQUEUEFULL is *not* in effect.
+   */
+  if (BK_FLAG_ISCLEAR(flags, BK_IOH_BYPASSQUEUEFULL) && iohq->biq_queuelen)
   {
     if (iohq->biq_queuemax && (inuse + iohq->biq_queuelen > iohq->biq_queuemax))
     {
@@ -1613,8 +1619,9 @@ static int ioht_vector_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags
 
   bk_debug_printf_and(B, 1, "Vector enqueuing data %p/%d for IOH %p\n", data->ptr, data->len, ioh);
 
-  // Do our own checks for queue size since we have two buffers which either both have to be on, or both off
-  if (BK_FLAG_ISCLEAR(flags, BK_IOH_BYPASSQUEUEFULL))
+  // Do our own checks for queue size since we have two buffers which either both have to be on, or both off.
+  // See comments in ioh_write for an explanation of what's going on here
+  if (BK_FLAG_ISCLEAR(flags, BK_IOH_BYPASSQUEUEFULL) && ioh->ioh_writeq.biq_queuelen)
   {
     if (ioh->ioh_writeq.biq_queuemax && (sizeof(u_int32_t) + data->len + ioh->ioh_writeq.biq_queuelen > ioh->ioh_writeq.biq_queuemax))
     {

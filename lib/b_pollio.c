@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.9 2002/03/07 05:52:21 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.10 2002/03/28 23:04:54 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -541,6 +541,8 @@ int
 bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret;
+  
 
   if (!bpi || !data)
   {
@@ -556,17 +558,40 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, bk_flags f
     BK_RETURN(B, -1);
   }
 
-  if (bk_ioh_write(B, bpi->bpi_ioh, data, 0) < 0)
+  /*
+   * Keep trying to write until we either succeed or fail miserably. This
+   * works because the underlying ioh routines *will* permit a single write
+   * which exceeds the queue max (assuming there is one) to progress
+   * provided that the queue is *empty* when the write is intiated. In all
+   * other cases the data is not queued and the write returns 1. So as long
+   * as we get > 0 as a return code we try to drain the queue. Eventually
+   * the queue *will* drain (or we will fail miserably) and no matter how
+   * large ddata is, the next bk_ioh_write will succeed.
+   */
+  while ((ret = bk_ioh_write(B, bpi->bpi_ioh, data, 0)) > 0)
+  {
+    if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
+	bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
+      BK_RETURN(B,-1);
+    }
+  }
+
+  if (ret < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not submit write\n");
     BK_RETURN(B,-1);    
   }
-
-  if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
-      bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
+  else
   {
-    bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
-    BK_RETURN(B,-1);
+    // Allow your now success write a change to go out.
+    if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
+	bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
+      BK_RETURN(B,-1);
+    }
   }
 
   BK_RETURN(B,0);

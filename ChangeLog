@@ -1,3 +1,24 @@
+2002-03-28  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_string.c (bk_string_unique_string): Create a (very likely)
+	unique string.
+
+	* lib/b_md5.c (bk_MD5_extract_printable): Copy out md5 digest into
+	32 byte printabe buffer.
+
+	* lib/b_ioh.c (ioht_vector_queue): Same fix as below. 
+
+	* lib/b_pollio.c (bk_polling_io_write): Keep trying to queue data
+	if refused until you either succeed or faile miserably.
+
+	* lib/b_ioh.c (ioh_queue): Don't refuse to queue a large buffer if
+	the output queue is empty (even of said buffer exceeds the queue max).
+
+2002-03-27  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_string.c (bk_string_alloc_printf): Function to allocate a
+	string with a printf API.
+
 2002-03-28  Seth Robertson  <seth@winwood.sysdetect.com>
 
 	* include/libbk.h (BK_FLAG_ALLSET): Macro to test for all flags

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.12 2002/01/24 08:54:43 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.13 2002/03/28 23:04:54 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -935,3 +935,63 @@ sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent *h, str
 
 
 
+
+
+/**
+ * Generate the hostname regardless of how long it is. User must free
+ * returned value with free(3). According to SUSv2 gethostname() should
+ * return as much of the hostname in the allocated space as possilbe (NULL
+ * terminated or not), but some people just fail with
+ * ENMAETOOLONG. Therefore we check both cases (ie where ENAMETOOLONG is
+ * set and where the last char is *NOT* '\0'. When this occurs, we allocate
+ * more memory and try again.
+ *
+ *	@param B BAKA thread/global state.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a malloc'ed <i>hostname string</i> on success.
+ */
+char *
+bk_netutils_gethostname(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *p = NULL;
+  int len = 2048;
+  int done = 0;
+
+  while (!done)
+  {
+    if (!(p = realloc(p, len)))
+    {
+      perror("realloc failed");
+      exit(1);
+    }
+    
+    /* 
+     * <TRICKY> 
+     * We set this NUL. If we're running on arch which truncates *
+     * gethostname() (the "correct" behavior evidently), then this char *
+     * will get overwritten. If the hostname is shorter or just the right *
+     * length this character will stay the same.
+     * </TRICKY> 
+     */
+    p[len-1] = '\0';
+    if (gethostname(p, len) < 0 && errno != ENAMETOOLONG)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not obtain the hostname from the system: %s\n", strerror(errno));
+      goto error;
+    }
+    else
+    {
+      if (p[len-1] == '\0')
+	done = 1;
+    }
+    len *= 2;
+  }
+
+  BK_RETURN(B,p);  
+
+ error:
+  if (p)
+    free(p);
+  BK_RETURN(B,NULL);
+}

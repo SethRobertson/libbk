@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.131 2002/03/28 17:50:33 seth Exp $
+ * $Id: libbk.h,v 1.132 2002/03/28 23:04:53 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1004,10 +1004,6 @@ typedef struct
   unsigned char digest[16];			///< actual digest after MD5Final call
 }  bk_MD5_CTX;
 
-void bk_MD5Init (bk_s B, bk_MD5_CTX *mdContext);
-void bk_MD5Update (bk_s B, bk_MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen);
-void bk_MD5Final (bk_s B, bk_MD5_CTX *mdContext);
-
 /*
  ***********************************************************************
  ** End of md5.h                                                      **
@@ -1303,6 +1299,8 @@ extern char *bk_strndup(bk_s B, const char *s, u_int len);
 extern const char *bk_strstrn(bk_s B, const char *haystack, const char *needle, u_int len);
 extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
 extern int bk_string_intcols(bk_s B, int64_t num, u_int base);
+extern char *bk_string_alloc_sprintf(bk_s B, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags);
 
 
 /* getbyfoo.c */
@@ -1364,6 +1362,7 @@ extern int bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *u
 extern int bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *defurl, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags);
 extern int bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, char *rurl, char *defrhost, char *defrserv, char *lurl, char *deflhost, char *deflserv, char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags );
 extern int bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, char **servistr, char **protostr);
+extern char *bk_netutils_gethostname(bk_s B);
 
 
 /* b_signal.c */
@@ -1461,6 +1460,13 @@ extern struct bk_listnum_main *bk_listnum_create(bk_s B, bk_flags flags);
 extern struct bk_listnum_head *bk_listnum_get(bk_s B, struct bk_listnum_main *main, u_int number, bk_flags flags);
 extern void bk_listnum_destroy(bk_s B, struct bk_listnum_main *main);
 extern struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *main, struct bk_listnum_head *prev);
+
+
+/* b_md5.h */
+extern void bk_MD5Init (bk_s B, bk_MD5_CTX *mdContext);
+extern void bk_MD5Update (bk_s B, bk_MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen);
+extern void bk_MD5Final (bk_s B, bk_MD5_CTX *mdContext);
+extern int bk_MD5_extract_printable(bk_s B, char *str, bk_MD5_CTX *ctx, bk_flags flags);
 
 
 #endif /* _BK_h_ */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_md5.c,v 1.1 2002/01/20 03:19:11 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_md5.c,v 1.2 2002/03/28 23:04:54 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -370,4 +370,39 @@ static void Transform(u_int32_t *buf, u_int32_t *in)
   buf[1] += b;
   buf[2] += c;
   buf[3] += d;
+}
+
+
+
+/**
+ * Extract an MD5 context into a printable string of binary digits.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param str The strint
+ *	@param ctx The MD5 context
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_MD5_extract_printable(bk_s B, char *str, bk_MD5_CTX *ctx, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int cnt;
+  int cnt2 = 0;
+  char tmp[3];
+
+  if (!str || !ctx || !ctx->digest)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  for(cnt = 0; cnt < 16; cnt++)
+  {
+    snprintf(tmp, sizeof(tmp), "%02x", (ctx->digest[cnt] & 0xff));
+    memcpy(str+cnt*2, tmp, 2);
+  }
+
+  BK_RETURN(B,0);  
 }
