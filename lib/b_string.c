@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.113 2004/10/21 19:50:33 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.114 2004/10/22 16:25:46 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -487,6 +487,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
   struct bk_memx *tokenx, *splitx = NULL;
   char varspace[MAXVARIABLESIZE];
   char *envvar = NULL;
+  char *expanded_default = NULL;
 
   if (!src)
   {
@@ -729,7 +730,12 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 
 	    if ((!replace || BK_STREQ(replace, "")) && default_val)
 	    {
-	      replace = default_val;
+	      if (!(expanded_default = bk_string_expand(B, default_val, kvht_vardb, variabledb, 0)))
+	      {
+		bk_error_printf(B, BK_ERR_ERR, "Could not expand default value\n");
+		goto error;
+	      }
+	      replace = expanded_default;
 	    }
 	  }
 
@@ -751,6 +757,10 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	  if (envvar)
 	    free(envvar);
 	  envvar = NULL;
+
+	  if (expanded_default)
+	    free(expanded_default);
+	  expanded_default = NULL;
 	}
 	// Iff variable too big->replace with empty string
       }
@@ -982,6 +992,9 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 
   if (envvar)
     free(envvar);
+
+  if (expanded_default)
+    free(expanded_default);
 
   BK_RETURN(B, NULL);
 }

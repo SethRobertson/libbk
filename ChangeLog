@@ -1,3 +1,9 @@
+2004-10-22  James Tanis  <jtt@fry.sysdetect.com>
+
+	* lib/b_string.c (bk_string_tokenize_split): If we're going to
+	substitute a default value for a variable, recursively expand
+	that. 
+
 2004-10-21  James Tanis  <jtt@fry.sysdetect.com>
 
 	* lib/b_string.c (bk_string_tokenize_split): Support
