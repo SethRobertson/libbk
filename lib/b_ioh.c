@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.61 2002/08/09 22:08:03 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.62 2002/09/05 19:20:54 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -677,7 +677,7 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  *	@param how -- SHUT_RD to flush input, SHUT_WR to flush output, SHUT_RDWR for both.
- *	@param flags Future expansion
+ *	@param flags BK_IOH_FLUSH_NOEXECUTE close telling us not to execute commands
  *	@return <i>-1</i> on call failure or subsystem refusal
  *	@return <br><i>0</i> on success
  */
@@ -709,7 +709,7 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
     ioh_flush_queue(B, ioh, &ioh->ioh_writeq, &cmds, 0);
   }
 
-  if (cmds)
+  if (cmds && BK_FLAG_ISCLEAR(flags, BK_IOH_FLUSH_NOEXECUTE))
     ioh_execute_cmds(B, ioh, cmds, 0);
 
   BK_VRETURN(B);
@@ -867,7 +867,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_CLOSING);
 
   if (BK_FLAG_ISSET(flags, BK_IOH_ABORT))
-    bk_ioh_flush(B, ioh, SHUT_RDWR, 0);
+    bk_ioh_flush(B, ioh, SHUT_RDWR, BK_IOH_FLUSH_NOEXECUTE);
 
   ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
 
@@ -879,7 +879,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
     
     // sigh.. Sometimes using a clc makes things easier sometimes it *really* doesn't...
-    if ((cmds = cmd_list_create(NULL, NULL, 0)))
+    if ((cmds = cmd_list_create(NULL, NULL, DICT_UNORDERED)))
     {
       struct ioh_data_cmd *idc;
       if (!(idc = idc_create(B)))
@@ -2614,7 +2614,7 @@ void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, dic
       // Copy command and insert it cmds list (creating same if required
       if (!cmds)
       {
-	if (!(cmds = cmd_list_create(NULL, NULL, 0)))
+	if (!(cmds = cmd_list_create(NULL, NULL, DICT_UNORDERED)))
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "could not create command list: %s\n", cmd_list_error_reason(cmds,NULL));
 	}
@@ -2881,7 +2881,7 @@ static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue
     if (bid->bid_idc.idc_type != IohDataCmdNone)
     {
       // Copy command and insert it cmds list (creating same if required
-      if (!cmds && !(cmds = cmd_list_create(NULL, NULL, 0)))
+      if (!cmds && !(cmds = cmd_list_create(NULL, NULL, DICT_UNORDERED)))
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "could not create command list: %s\n", cmd_list_error_reason(cmds,NULL));
 	}

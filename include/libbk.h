@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.168 2002/09/04 17:57:11 dupuy Exp $
+ * $Id: libbk.h,v 1.169 2002/09/05 19:20:53 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1285,6 +1285,7 @@ extern int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flag
 extern void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags);
 extern int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags);
 extern void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags);
+#define BK_IOH_FLUSH_NOEXECUTE	0x01		///< Flag for close processing--not for user consumption
 extern void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 #define BK_IOH_ABORT		0x01		///< During bk_ioh_close: Abort stream immediately -- don't wait to drain */
 #define BK_IOH_DONTCLOSEFDS	0x04		///< During bk_ioh_close: Don't close the file descriptors during close */
@@ -1486,6 +1487,8 @@ extern int bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags);
 /* b_relay.c */
 extern int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb)(bk_s B, void *opaque, u_int state), void *opaque, bk_flags flags);
 #define BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE	0x1 ///< Shut down relay after only one side has closed
+#define BK_RELAY_IOH_DONTCLOSEFDS		0x2 ///< Don't actually close fds
+#define BK_RELAY_IOH_NOSHUTDOWN			0x4 ///< Don't actually shutdown fds
 
 
 /* b_fileutils.c */

@@ -1,3 +1,17 @@
+2002-09-05  Seth Robertson  <seth@winwood.sysdetect.com>
+
+	* lib/b_relay.c (bk_relay_ioh): Add BK_RELAY_IOH_DONTCLOSEFDS for
+	various special purposes.
+	(bk_relay_ioh): Add BNK_RELAY_IOH_NOSHUTDOWN for same
+
+	* lib/b_config.c (bcf_create): You must specify that this is
+	unordered.
+
+	* lib/b_ioh.c (bk_ioh_close): You must specify that this is
+	unordered.
+
+	* lib/b_config.c (bcf_destroy): DLL might not be created yet
+
 2002-09-04  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/Makefile (BK_LARGE_LIBSRC): add new b_strcode.c

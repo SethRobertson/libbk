@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_config.c,v 1.27 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_config.c,v 1.28 2002/09/05 19:20:54 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -789,7 +789,7 @@ bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf)
     }
   }
 
-  if (!(bcf->bcf_includes=dll_create(NULL,NULL,0)))
+  if (!(bcf->bcf_includes=dll_create(NULL,NULL,DICT_UNORDERED)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create include file dll for bcf \"%s\"\n", filename);
     goto error;
@@ -821,11 +821,15 @@ bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf)
     BK_VRETURN(B);
   }
 
-  while(ibcf=dll_minimum(bcf->bcf_includes))
+  if (bcf->bcf_includes)
   {
-    bcf_destroy(B,ibcf);
+    while(ibcf=dll_minimum(bcf->bcf_includes))
+    {
+      bcf_destroy(B,ibcf);
+    }
+    dll_destroy(bcf->bcf_includes);
   }
-  dll_destroy(bcf->bcf_includes);
+
   if (bcf->bcf_insideof) dll_delete(bcf->bcf_insideof->bcf_includes,bcf);
   if (bcf->bcf_filename) free(bcf->bcf_filename);
   free(bcf);
