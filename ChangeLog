@@ -1,3 +1,13 @@
+2002-01-20  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_skid.c: Initial SKID implementation, or at least the
+	*start* of the implementation.
+
+	* lib/b_ioh.c (bk_ioh_coalesce): New coalescion code to centralize
+	common activities with ioh buffers.
+
+	* lib/b_relay.c (bk_relay_iohhandler): Use new ioh coalescion code
+
 2002-01-19  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* include/libbk_oscompat.h (realloc): Redefine realloc to
@@ -5,6 +15,9 @@
 	though protects against *really* broken malloc libs).
 
 2002-01-19  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_ioh.c (bk_ioh_update): Duh, forgot to actually allow
+	iofunopaque to be updated
 
 	* src/genrand.c: Random number production program.  Suitable for
 	password generation!

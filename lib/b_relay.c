@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_relay.c,v 1.12 2002/01/02 20:02:59 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_relay.c,v 1.13 2002/01/21 03:11:08 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -156,27 +156,12 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   case BkIohStatusIncompleteRead:
   case BkIohStatusReadComplete:
     // Coalesce into one buffer for output
-    for (cnt = 0; data[cnt].ptr; cnt++)
+    if (!(newcopy = bk_ioh_coalesce(B, data, NUL, 0)))
     {
-      size += data[cnt].len;
-    }
-    if (!BK_MALLOC(newcopy))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not allocate newcopy structure: %s\n",strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
       goto error;
     }
-    newcopy->len = size;
-    if (!BK_MALLOC_LEN(newcopy->ptr, newcopy->len))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not allocate newcopy data (%d): %s\n",newcopy->len, strerror(errno));
-      goto error;
-    }
-    size = 0;
-    for (cnt = 0; data[cnt].ptr; cnt++)
-    {
-      memcpy((char *)newcopy->ptr + size, data[cnt].ptr, data[cnt].len);
-      size += data[cnt].len;
-    }
+
     if ((ret = bk_ioh_write(B, ioh_other, newcopy, 0)) != 0)
     {
       if (ret > 0)

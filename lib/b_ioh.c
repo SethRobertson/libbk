@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.36 2002/01/14 16:17:27 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.37 2002/01/21 03:11:08 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -399,6 +399,8 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc wri
     ioh->ioh_readfun = readfun;
   if (BK_FLAG_ISSET(updateflags, BK_IOH_UPDATE_WRITEFUN))
     ioh->ioh_writefun = writefun;
+  if (BK_FLAG_ISSET(updateflags, BK_IOH_UPDATE_IOFUNOPAQUE))
+    ioh->ioh_iofunopaque = iofunopaque;
   if (BK_FLAG_ISSET(updateflags, BK_IOH_UPDATE_HANDLER))
     ioh->ioh_handler = handler;
   if (BK_FLAG_ISSET(updateflags, BK_IOH_UPDATE_OPAQUE))
@@ -3190,4 +3192,86 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
  error:
   if (isa) free(isa);
   BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * IOH coalescion routine for external users who need unified buffers w/optimizations
+ * for simple cases.
+ *
+ *	@param B BAKA global/thread state
+ *	@param data NULL terminated array of vectored pointers--data is 'freed'
+ *	@param curvptr Optional remaining data from previous call--user must free
+ *	@param flags Fun for the future
+ *	@return <i>NULL</i> on call failure, allocation failure
+ *	@return <br><i>new vptr</i> on success
+ */
+bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  bk_vptr *new = NULL;
+  bk_vptr *cur;
+  int cbuf = 0;
+  int cdata = 0;
+  char *optr;
+
+  if (!data)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  if (curvptr && curvptr->ptr && curvptr->len > 0)
+  {
+    cbuf++;
+    cdata += curvptr->len;
+  }
+
+  for (cur=data;cur->ptr;cur++)
+  {
+    cbuf++;
+    cdata += curvptr->len;
+  }
+
+  if (cbuf > 1 || (curvptr && curvptr->ptr && curvptr->len > 0))
+  {
+    if (!BK_MALLOC(new) || !BK_MALLOC_LEN(new->ptr, cdata))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate data during coalescion of %d bytes: %s\n", cdata, strerror(errno));
+      goto error;
+    }
+    new->len = cdata;
+    optr = new->ptr;
+
+    if (curvptr && curvptr->ptr && curvptr->len > 0)    
+    {
+      memcpy(optr, curvptr->ptr, curvptr->len);
+      optr += curvptr->len;
+    }
+
+    for (cur=data;cur->ptr;cur++)
+    {
+      memcpy(optr, cur->ptr, cur->len);
+      optr += cur->len;
+      free(cur->ptr);
+    }
+    free(data);
+  }
+  else
+  {
+    new = data;
+  }
+
+  BK_RETURN(B, new);
+
+ error:
+  if (new)
+  {
+    if (new->ptr)
+      free(new->ptr);
+    free(new);
+  }
+
+  BK_RETURN(B, NULL);
 }

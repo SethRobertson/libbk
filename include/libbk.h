@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.110 2002/01/20 03:19:11 seth Exp $
+ * $Id: libbk.h,v 1.111 2002/01/21 03:11:08 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -28,6 +28,7 @@
 
 /* Forward references */
 struct bk_ioh;
+struct bk_skid;
 struct bk_run;
 struct bk_addrgroup;
 struct bk_server_info;
@@ -1156,6 +1157,7 @@ extern int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int3
 extern void bk_ioh_flush_read(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern void bk_ioh_flush_write(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern int bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence);
+extern bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags flags);
 
 
 /* b_pollio.c */
@@ -1366,6 +1368,13 @@ extern struct bk_randinfo *bk_rand_init(bk_s B, u_int entropy, bk_flags flags);
 extern void bk_rand_destroy(bk_s B, struct bk_randinfo *R, bk_flags flags);
 extern u_int32_t bk_rand_getword(bk_s B, struct bk_randinfo *R, u_int32_t *co, bk_flags flags);
 extern int bk_rand_getbuf(bk_s B, struct bk_randinfo *R, u_char *buf, u_int len, bk_flags flags);
+
+
+/* b_skid.c */
+typedef void (*bk_skid_cb)(bk_s B, struct bk_ioh *ioh, void *opaque, u_int state, char *failurereason);
+extern int bk_skid_authenticate(bk_s B, struct bk_ioh *ioh, bk_vptr *myname, bk_vptr *hisname, bk_vptr *key, struct bk_config *bs_hisnamekeylist, bk_skid_cb done, void *opaque, bk_flags flags);
+extern void bk_skid_destroy(bk_s B, struct bk_skid *bs, bk_flags flags);
+#define BK_SKID_NORESTORE	0x01		///< Do not restore IOH parameters during destroy
 
 
 #endif /* _BK_h_ */
