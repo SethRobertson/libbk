@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.63 2004/01/28 02:06:53 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.64 2004/01/29 02:16:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -961,7 +961,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   static const fd_set zeroset;
-  static const struct timeval tzero;
+  static const struct timeval tzero = {0, 0};
   fd_set readset, writeset, xcptset;
   struct timeval timenow, deltaevent, deltapoll, timeout;
   struct timeval *curtime = NULL;
@@ -1259,16 +1259,11 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   }
 
   /*
-   * If some caller has registered an idle task then check to see *if*
-   * we would have blocked in select(2) for at least *some* amount of time.
-   * If so, rewrite the timeout to { 0,0 } (poll), but note that idle
-   * tasks should run if no i/o occurs.
+   * If some caller has registered an idle task then ensure we do not block.
    */
-  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_HAVE_IDLE) &&
-      (!selectarg || selectarg->tv_sec > 0 || selectarg->tv_usec > 0))
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_HAVE_IDLE))
   {
     selectarg = &tzero;
-    check_idle = 1;
   }
 
   if (bk_debug_and(B, 4))
@@ -1549,7 +1544,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   else
   {
     // no I/O has occurred; check for idle task, but not if we had any events
-    if (check_idle && !event_cnt)
+    if (!event_cnt)
     {
       struct bk_run_func *brfn;
       dict_iter iter;
