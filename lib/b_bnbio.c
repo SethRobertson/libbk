@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.11 2002/09/05 22:02:55 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.12 2002/09/10 21:53:26 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -29,6 +29,8 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define SHOULD_LINGER(bib,flags) ((BK_FLAG_ISSET((bib)->bib_flags, BK_IOHH_BNBIO_FLAG_SYNC) && BK_FLAG_ISCLEAR((flags), BK_IOHH_BNBIO_FLAG_NO_LINGER)) || (BK_FLAG_ISSET((flags), BK_IOHH_BNBIO_FLAG_LINGER)))
 
 
+static void bnbio_timeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *stattime, bk_flags flags);
+static int bnbio_set_timeout(bk_s B, struct bk_iohh_bnbio *bib, time_t usecs, bk_flags flags);
 
 
 /**
@@ -107,6 +109,7 @@ bk_iohh_bnbio_destroy(bk_s B, struct bk_iohh_bnbio *bib)
     BK_VRETURN(B);
   }
 
+  // Generally this should be closed and NULL'ed out during bk_iohh_bnbio_close()
   if (bib->bib_bpi)
     bk_polling_io_destroy(B, bib->bib_bpi);
 
@@ -123,16 +126,16 @@ bk_iohh_bnbio_destroy(bk_s B, struct bk_iohh_bnbio *bib)
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio structure to use.
  *	@param datap Copyout data pointer to use.
+ *	@param timeout The timeout for the read in usecs.
  *	@param B BAKA thread/global state.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>size of read</i> on success (0 means EOF).
  */
 int
-bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, bk_flags flags)
+bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t timeout, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_ioh_status_e status;
-  int cancelled_call = 0;
   int ret = 0;
 
   if (!bib || !datap)
@@ -149,15 +152,15 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, bk_flags 
     BK_RETURN(B, -1);
   }
 
+  bnbio_set_timeout(B, bib, timeout, 0);
+
+  BK_FLAG_CLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT);
+
   // first, generate *some* form of useful information
   while (BK_FLAG_ISCLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL) &&
+	 BK_FLAG_ISCLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT) &&
 	 (ret = bk_polling_io_read(B, bib->bib_bpi, datap, &status, 0)) == 1)
     /* void */;
-
-  if (BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL))
-  {
-    cancelled_call = 1;
-  }
 
   if (bk_run_unregister_bnbio(B, bib) < 0)
   {
@@ -165,9 +168,10 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, bk_flags 
     BK_RETURN(B, -1);
   }
 
-  if (cancelled_call)
+  if (BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL) || 
+      BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT))
   {
-    bk_error_printf(B, BK_ERR_ERR, "blocking read cancelled\n");
+    //bk_error_printf(B, BK_ERR_ERR, "blocking read cancelled or timedout\n");
     BK_RETURN(B, -1);
   }
 
@@ -426,6 +430,8 @@ bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
     BK_VRETURN(B);
   }
 
+  if (bib->bib_read_to_handle)
+    bk_run_dequeue(B, POLLING_IOH_RUN(bib->bib_bpi), bib->bib_read_to_handle, BK_RUN_DEQUEUE_EVENT);
 
   // <TODO> Jtt is not at all sure that this is correct and won't leak memory </TODO>
 
@@ -479,4 +485,130 @@ bk_iohh_bnbio_cancel_bnbio(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
   BK_FLAG_SET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL);
 
   BK_RETURN(B, 0);
+}
+
+
+
+
+
+/**
+ * Set a read timeout for a bnbio (0 means clear timeout).
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bib The @a bk_iohh_bnbio to use.
+ *	@param usec The timeout in useconds.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static int
+bnbio_set_timeout(bk_s B, struct bk_iohh_bnbio *bib, time_t usecs, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bib)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (bib->bib_read_to_handle && (bk_run_dequeue(B, POLLING_IOH_RUN(bib->bib_bpi), bib->bib_read_to_handle, BK_RUN_DEQUEUE_EVENT) < 0))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not dequeue bnbio timeout\n");
+    goto error;
+  }
+
+  bib->bib_read_to_handle = NULL;
+
+  if (usecs && (bk_run_enqueue_delta(B, POLLING_IOH_RUN(bib->bib_bpi), usecs, bnbio_timeout, bib, &bib->bib_read_to_handle, 0) < 0))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not enqueue new bnbio timeout event\n");
+    goto error;
+  }
+      
+  BK_RETURN(B,0);  
+  
+ error:
+  BK_RETURN(B,-1);  
+}
+
+
+
+
+/**
+ * Timeout a bnbio read.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The bk_run struct.
+ *	@param opaque Data the caller asked to be returned.
+ *	@param starttime The starting time of this event run.
+ *	@param flags Flags.
+ */
+static void
+bnbio_timeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *stattime, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_iohh_bnbio *bib = opaque;
+
+  if (!run || !bib)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+  
+  bib->bib_read_to_handle = NULL;
+
+  BK_FLAG_SET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT);
+  BK_VRETURN(B);  
+}
+
+
+
+
+/**
+ * Is this bnbio struct in a timed out state.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bnbio The bk_iohh_bnbio to check
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success and not in timeout.
+ *	@return <i>0</i> on success and in timeout.
+ */
+int
+bk_iohh_bnbio_is_timedout(bk_s B, struct bk_iohh_bnbio *bib)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bib)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_RETURN(B,BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT));  
+}
+
+
+
+/**
+ * Is this bnbio struct in a cancel state.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bnbio The bk_iohh_bnbio to check
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success and not in timeout.
+ *	@return <i>0</i> on success and in timeout.
+ */
+int
+bk_iohh_bnbio_is_canceled(bk_s B, struct bk_iohh_bnbio *bib)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bib)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_RETURN(B,BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL));  
 }

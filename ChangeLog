@@ -1,3 +1,14 @@
+2002-09-10  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_run.c (bk_run_checkeventq): Don't allow bk_run_once to
+	block if one or more events have fired in this iteration.
+
+	* lib/b_bnbio.c (bk_iohh_bnbio_read): Allow time outs.
+	(bnbio_set_timeout): Set/clear the timeout event.
+	(bnbio_timeout): time out callback.
+	(bk_iohh_bnbio_is_timedout): Is this bnbio struct in timeout state
+	(bk_iohh_bnbio_is_canceled): Is this bnbio struct in cancelled state
+
 2002-09-06  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_strcode.c (bk_string_str2xml): Allow non-printable

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.29 2002/05/21 19:35:11 jtt Exp $
+ * $Id: libbk_internal.h,v 1.30 2002/09/10 21:53:25 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -112,7 +112,7 @@ struct bk_polling_io
 };
 
 
-
+#define POLLING_IOH_RUN(bpi)  ((bpi)->bpi_ioh->ioh_run)
 
 
 /* FRIENDLY FUNCTIONS */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.26 2002/09/05 21:33:17 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.27 2002/09/10 21:53:26 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1376,6 +1376,7 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeue *top;
   struct timeval curtime;
+  int executed_one_event = 0;
 
   if (!run || !delta)
   {
@@ -1391,11 +1392,22 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *
     top = pq_extract_head(run->br_equeue);
 
     (*top->bre_event)(B, run, top->bre_opaque, starttime, 0);
+    executed_one_event = 1;
     free(top);
   }
 
   if (!top)
-    BK_RETURN(B, 0);
+  {
+    if (!executed_one_event)
+      BK_RETURN(B, 0);
+    else
+    {
+      // Allow the execution of an event to cause bk_run_once to return.
+      delta->tv_sec = 0;
+      delta->tv_usec = 0;
+      BK_RETURN(B,1);      
+    }
+  }
 
   /* Use the actual time to next event to allow for more accurate events */
   gettimeofday(&curtime, NULL);

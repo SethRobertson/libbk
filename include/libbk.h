@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.173 2002/09/06 20:36:05 jtt Exp $
+ * $Id: libbk.h,v 1.174 2002/09/10 21:53:25 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -157,7 +157,11 @@ struct bk_iohh_bnbio
 #define BK_IOHH_BNBIO_FLAG_SYNC		0x2	///< Linger on write until write completes.
 #define BK_IOHH_BNBIO_FLAG_NO_LINGER	0x4	///< Turn off LINGER or SYNC.
 #define BK_IOHH_BNBIO_FLAG_CANCEL	0x8	///< Cancel blocking call
+#define BK_IOHH_BNBIO_FLAG_TIMEDOUT	0x10	///< This bnbio has timed out (not set by user).
+  time_t			bib_read_to;	/// Timeout for reading.
+  // Not implementing write timeout 'till we know we need them (space considerations).
   struct bk_polling_io *	bib_bpi;	///< Polling strucuture. 
+  void *			bib_read_to_handle; ///< Event for read timeout.
 };
 
 
@@ -1395,12 +1399,14 @@ extern int bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **da
 /* b_bnbio.c */
 extern struct bk_iohh_bnbio *bk_iohh_bnbio_create(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern void bk_iohh_bnbio_destroy(bk_s B, struct bk_iohh_bnbio *bib);
-extern int bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, bk_flags flags);
+extern int bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t usecs, bk_flags flags);
 extern int bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags flags);
 extern int bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, bk_flags flags);
 extern int64_t bk_iohh_bnbio_tell(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 extern void bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 extern int bk_iohh_bnbio_cancel_bnbio(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
+extern int bk_iohh_bnbio_is_timedout(bk_s B, struct bk_iohh_bnbio *bib);
+extern int bk_iohh_bnbio_is_canceled(bk_s B, struct bk_iohh_bnbio *bib);
 
 
 /* b_stdfun.c */

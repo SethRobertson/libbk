@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_bio.c,v 1.7 2002/08/15 04:16:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_bio.c,v 1.8 2002/09/10 21:53:26 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -60,6 +60,7 @@ struct program_config
   const char *		pc_input;
   int			pc_check_fd;
   int			pc_output_fd;
+  time_t		pc_timeout;
 };
 
 
@@ -97,6 +98,7 @@ main(int argc, char **argv, char **envp)
     {"output-file", 'o', POPT_ARG_STRING, NULL, 'o', "The file in which to dump the the output", "output-file" },
     {"input-file", 'i', POPT_ARG_STRING, NULL, 'i', "The file in which to dump the the input", "input-file" },
     {"checkpoint-file", 'c', POPT_ARG_STRING, NULL, 'c', "The file in which to dump the the checkpoint output", "checkpoint-file" },
+    {"timeout", 't', POPT_ARG_INT, NULL, 't', "The read timeout value.", "read timeout" },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -154,6 +156,9 @@ main(int argc, char **argv, char **envp)
       break;
     case 'c':
       pconfig->pc_check = poptGetOptArg(optCon);
+      break;
+    case 't':
+      pconfig->pc_timeout = atoi(poptGetOptArg(optCon));
       break;
     default:
       getopterr++;
@@ -341,10 +346,18 @@ do_read(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const st
     if (BK_STREQ(line, "read") || BK_STREQ(line, "readall"))
     {
     reread:
-      if ((ret = bk_iohh_bnbio_read(B, pc->pc_bib, &data, 0)) < 0)
+      if ((ret = bk_iohh_bnbio_read(B, pc->pc_bib, &data, BK_SECS_TO_EVENT(pc->pc_timeout), 0)) < 0)
       {
-	fprintf(stderr,"Could not read data from ioh\n");
-	exit(1);
+	if (bk_iohh_bnbio_is_timedout(B, pc->pc_bib))
+	{
+	  fprintf(stderr,"Read timed out\n");
+	  goto reread;
+	}
+	else
+	{
+	  fprintf(stderr,"Could not read data from ioh\n");
+	  exit(1);
+	}
       }
   
       if (!data)
