@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.17 2001/11/06 20:31:14 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.18 2001/11/06 20:33:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,13 +16,13 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
-#include <libbk.h>
-#include "libbk_internal.h"
-
 /**
  * @file
  * The BAKA Thread/global state manipulation routines, providing basic, common, core libbk functionality
  */
+
+#include <libbk.h>
+#include "libbk_internal.h"
 
 
 

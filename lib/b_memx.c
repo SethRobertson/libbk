@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_memx.c,v 1.2 2001/09/04 05:00:06 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_memx.c,v 1.3 2001/11/06 20:33:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -14,6 +14,11 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * Mail <projectbaka@baka.org> for further information
  *
  * --Copyright LIBBK--
+ */
+
+/**
+ * @file
+ * Extendible buffer management routines (dynamicly sized arrays).
  */
 
 #include <libbk.h>
