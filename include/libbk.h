@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.272 2003/12/30 05:27:20 seth Exp $
+ * $Id: libbk.h,v 1.273 2004/01/08 06:22:26 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1426,6 +1426,7 @@ extern struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int 
 #define BK_ERROR_FLAG_SYSLOG_FULL		0x100 ///< Duplicate timestamp and program id in syslog errors
 #define BK_ERROR_FLAG_BRIEF			0x200 ///< Omit timestamp and program id from non-syslog errors
 #define BK_ERROR_FLAG_NO_FUN			0x400 ///< Only display original error message string
+#define BK_ERROR_FLAG_MORE_FUN			0x800 ///< Display full stack trace on error
 extern void bk_error_destroy(bk_s B, struct bk_error *beinfo);
 extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, int syslogthreshold, int hilo_pivot, bk_flags flags);
 #define BK_ERROR_CONFIG_FH			0x1 ///< File handle is being set

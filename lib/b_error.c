@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.43 2003/08/25 18:49:02 brian Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.44 2004/01/08 06:22:27 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -121,7 +121,8 @@ static void bk_error_iclear_i(bk_s B, struct bk_error *beinfo, const char *mark,
  *	timestamp and program information in syslogged errors,
  *	BK_ERROR_FLAG_BRIEF to omit timestamp and program information in
  *	non-syslogged errors, BK_ERROR_FLAG_NO_FUN to only include original
- *	error message (no fun info).
+ *	error message (no fun info), BK_ERROR_FLAG_MORE_FUN to include function
+ *	stack trace in error message.
  *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
  *	@return <br><i>Error structure</i> if successful, which has been initialized.
  */
@@ -235,7 +236,8 @@ void bk_error_destroy(bk_s B, struct bk_error *beinfo)
  *	timestamp and program information in syslogged errors,
  *	BK_ERROR_FLAG_BRIEF to omit timestamp and program information in
  *	non-syslogged errors, BK_ERROR_FLAG_NO_FUN to only include original
- *	error message (no fun info).
+ *	error message (no fun info).  BK_ERROR_FLAG_MORE_FUN to include function
+ *	stack trace in error message.
 */
 void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, int syslogthreshold, int hilo_pivot, bk_flags flags)
 {
@@ -260,7 +262,7 @@ void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *
     beinfo->be_maxsize = queuelen;
   if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_FLAGS))
     beinfo->be_flags = flags &
-      (BK_ERROR_FLAG_SYSLOG_FULL|BK_ERROR_FLAG_BRIEF|BK_ERROR_FLAG_NO_FUN);
+      (BK_ERROR_FLAG_SYSLOG_FULL|BK_ERROR_FLAG_BRIEF|BK_ERROR_FLAG_NO_FUN|BK_ERROR_FLAG_MORE_FUN);
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
@@ -436,6 +438,7 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
     // <TRICKY>Presumes smaller syslog levels are higher priority</TRICKY>
     if (sysloglevel <= beinfo->be_hilo_pivot && (sysloglevel != BK_ERR_NONE || beinfo->be_fh))
       be_error_output(B, beinfo->be_fh, beinfo->be_sysloglevel, node, beinfo->be_flags);
+
   }
 
 #ifdef BK_USING_PTHREADS
@@ -866,7 +869,8 @@ static void bk_error_iclear_i(bk_s B, struct bk_error *beinfo, const char *mark,
  *	timestamp and program information in syslogged errors,
  *	BK_ERROR_FLAG_BRIEF to omit timestamp and program information in
  *	non-syslogged errors, BK_ERROR_FLAG_NO_FUN to only include original
- *	error message (no fun info).
+ *	error message (no fun info).  BK_ERROR_FLAG_MORE_FUN to include function
+ *	stack trace in error message.
  */
 void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, const char *mark, int minimumlevel, int sysloglevel, bk_flags flags)
 {
@@ -957,7 +961,8 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, const char *mark,
  *	timestamp and program information in syslogged errors,
  *	BK_ERROR_FLAG_BRIEF to omit timestamp and program information in
  *	non-syslogged errors, BK_ERROR_FLAG_NO_FUN to only include original
- *	error message (no fun info).
+ *	error message (no fun info). BK_ERROR_FLAG_MORE_FUN to include function
+ *	stack trace in error message.
  *	@return <i>malloc'd string</i> on success (caller must free)<br><i>NULL</i> on error
  */
 char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, const char *mark, int minimumlevel, bk_flags flags)
@@ -1139,7 +1144,8 @@ static void be_error_time(struct bk_error_node *node, char *timestr, size_t max)
  *	timestamp and program information in syslogged errors,
  *	BK_ERROR_FLAG_BRIEF to omit timestamp and program information in
  *	non-syslogged errors, BK_ERROR_FLAG_NO_FUN to only include original
- *	error message (no fun info).
+ *	error message (no fun info).  BK_ERROR_FLAG_MORE_FUN to include function
+ *	stack trace in error message.
  */
 static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_node *node, bk_flags flags)
 {
@@ -1174,6 +1180,10 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
       bk_general_syslog(B, sysloglevel, syslogflags, "%s: %s",fullprefix, msg);
     else
       bk_general_syslog(B, sysloglevel, syslogflags, "%s", msg);
+
+    // We only dump fun trace to syslog if no file output.  Kinda verbose for syslogging...
+    if (!fh && BK_FLAG_ISSET(flags, BK_ERROR_FLAG_MORE_FUN))
+      bk_fun_trace(B, NULL, sysloglevel, 0);
   }
 
   if (fh)
@@ -1186,6 +1196,8 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
     {
       fprintf(fh, "%s: %s", fullprefix, msg);
     }
+    if (BK_FLAG_ISSET(flags, BK_ERROR_FLAG_MORE_FUN))
+      bk_fun_trace(B, fh, BK_ERR_NONE, 0);
   }
 
   return;
