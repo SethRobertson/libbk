@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.37 2003/10/20 22:56:11 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.38 2003/12/25 06:27:18 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -29,7 +29,6 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include <libbkssl.h>
-
 
 
 #define ERRORQUEUE_DEPTH	32		///< Default depth
@@ -68,14 +67,15 @@ struct program_config
 {
   bttcp_role_e		pc_role;		///< What role do I play?
   bk_flags		pc_flags;		///< Everyone needs flags.
-#define BTTCP_FLAG_SHUTTING_DOWN_SERVER	0x01	///< We're shutting down a server
-#define PC_VERBOSE			0x02	///< Verbose output
-#define PC_MULTICAST			0x04	///< Multicast allowed
-#define PC_BROADCAST			0x08	///< Broadcast allowed
-#define PC_MULTICAST_LOOP		0x10	///< Multicast loopback
-#define PC_MULTICAST_NOMEMBERSHIP	0x20	///< Multicast w/o membership
-#define PC_CLOSE_AFTER_ONE		0x40	///< Close relay after one side closed
-#define PC_SSL				0x80	///< Want SSL
+#define BTTCP_FLAG_SHUTTING_DOWN_SERVER	0x001	///< We're shutting down a server
+#define PC_VERBOSE			0x002	///< Verbose output
+#define PC_MULTICAST			0x004	///< Multicast allowed
+#define PC_BROADCAST			0x008	///< Broadcast allowed
+#define PC_MULTICAST_LOOP		0x010	///< Multicast loopback
+#define PC_MULTICAST_NOMEMBERSHIP	0x020	///< Multicast w/o membership
+#define PC_CLOSE_AFTER_ONE		0x040	///< Close relay after one side closed
+#define PC_SSL				0x080	///< Want SSL
+#define PC_NODELAY			0x100	///< Set nodelay socket buffer option
   u_int			pc_multicast_ttl;	///< Multicast ttl
   char *		pc_proto;		///< What protocol to use
   char *		pc_remoteurl;		///< Remote "url".
@@ -88,6 +88,9 @@ struct program_config
   void *		pc_server;		///< Server handle
   int			pc_buffer;		///< Buffer sizes
   int			pc_len;			///< Input size hints
+  int			pc_sockbuf;		///< Socket buffer size
+  struct bk_relay_ioh_stats	pc_stats;	///< Statistics about relay
+  struct timeval	pc_start;		///< Starting time
   struct bk_ssl_ctx    *pc_ssl_ctx;		///< SSL session template
   const char *		pc_ssl_cert_file;	///< Location of SSL cert file
   const char *		pc_ssl_key_file;	///< Location of SSL key file
@@ -140,7 +143,7 @@ main(int argc, char **argv, char **envp)
     {"multicast-ttl", 0, POPT_ARG_INT, NULL, 6, "Set nondefault multicast ttl", "ttl" },
     {"multicast-nomembership", 0, POPT_ARG_NONE, NULL, 7, "Don't want multicast membership management", NULL },
     {"buffersize", 0, POPT_ARG_INT, NULL, 8, "Size of I/O queues", "buffer size" },
-    {"length", 'l', POPT_ARG_INT, NULL, 9, "Default I/O chunk size", "default length" },
+    {"length", 'L', POPT_ARG_INT, NULL, 9, "Default I/O chunk size", "default length" },
     {"close-after-one", 'c', POPT_ARG_NONE, NULL, 10, "Shut down relay after only one side closes", NULL },
 #ifndef NO_SSL
     {"ssl", 's', POPT_ARG_NONE, NULL, 's', "Use SSL", NULL },
@@ -150,6 +153,8 @@ main(int argc, char **argv, char **envp)
     {"ssl-dhparams", 0, POPT_ARG_STRING, NULL, 14, "Use DH param file (PEM format) instead of certificate & private key", "filename"},
 #endif // NO_SSL
     {"timeout", 'T', POPT_ARG_INT, NULL, 'T', "Set the connection timeout", "timeout" },
+    {"sockbuf", 'B', POPT_ARG_INT, NULL, 15, "Socket snd/rcv buffer size", "length in bytes" },
+    {"nodelay", 0, POPT_ARG_NONE, NULL, 16, "Set TCP NODELAY", NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -283,6 +288,14 @@ main(int argc, char **argv, char **envp)
 
     case 14:					// SSL DH Params
       pc->pc_ssl_dhparam_file = poptGetOptArg(optCon);
+      break;
+
+    case 15:
+      pc->pc_sockbuf = atoi(poptGetOptArg(optCon));
+      break;
+
+    case 16:
+      BK_FLAG_SET(pc->pc_flags, PC_NODELAY);
       break;
     }
   }
@@ -425,6 +438,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
   struct program_config *pc=args;
   struct bk_ioh *std_ioh = NULL, *net_ioh = NULL;
+  int one = 1;
 
   if (!pc)
   {
@@ -453,7 +467,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   case BkAddrGroupStateReady:
     pc->pc_server = server_handle;
     if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-      fprintf(stderr,"Ready and waiting\n");
+      fprintf(stderr,"%s%s: Ready and waiting\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
     goto done;
     break;
   case BkAddrGroupStateConnected:
@@ -493,6 +507,39 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 	BK_RETURN(B, -1);
       }
     }
+    if (pc->pc_sockbuf)
+    {
+      if (setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *)&pc->pc_sockbuf, sizeof pc->pc_sockbuf) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not set socket buffer size: %s\n", strerror(errno));
+	BK_RETURN(B, -1);
+      }
+      if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char *)&pc->pc_sockbuf, sizeof pc->pc_sockbuf) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not set socket buffer size to %d: %s\n", pc->pc_sockbuf, strerror(errno));
+	BK_RETURN(B, -1);
+      }
+    }
+    if (BK_FLAG_ISSET(pc->pc_flags, PC_NODELAY))
+    {
+      if(setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *)&one, sizeof(one)) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not set nodelay option: %s\n", strerror(errno));
+	BK_RETURN(B, -1);
+      }
+    }
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_WARN, "Could not set reuseaddr on socket: %s\n", strerror(errno));
+      // Fatal? Nah...
+    }
+#ifdef SO_REUSEPORT
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_WARN, "Could not set reuseport on socket: %s\n", strerror(errno));
+      // Fatal? Nah...
+    }
+#endif /* SO_REUSEPORT */
     goto done;
     break;
   }
@@ -535,7 +582,9 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     }
   }
 
-  if (bk_relay_ioh(B, std_ioh, net_ioh, relay_finish, pc, BK_FLAG_ISSET(pc->pc_flags,PC_CLOSE_AFTER_ONE)?BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE:0) < 0)
+  gettimeofday(&pc->pc_start, NULL);
+
+  if (bk_relay_ioh(B, std_ioh, net_ioh, relay_finish, pc, &pc->pc_stats, BK_FLAG_ISSET(pc->pc_flags,PC_CLOSE_AFTER_ONE)?BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE:0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not relay my iohs\n");
     goto error;
@@ -573,10 +622,13 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
   struct program_config *pc;
+  struct timeval end, delta;
+  char speedin[128];
+  char speedout[128];
 
   // We only care about shutdown
   if (data)
-    BK_VRETURN(B);    
+    BK_VRETURN(B);
 
   if (!(pc = args))
   {
@@ -584,7 +636,18 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
     BK_VRETURN(B);
   }
 
-  /* <TODO> Report statistics here </TODO> */
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+  {
+    gettimeofday(&end, NULL);
+    BK_TV_SUB(&delta, &end, &pc->pc_start);
+
+    bk_string_magnitude(B, (double)pc->pc_stats.side[0].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedin, sizeof(speedin), 0);
+    bk_string_magnitude(B, (double)pc->pc_stats.side[1].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedout, sizeof(speedout), 0);
+
+    fprintf(stderr, "%s%s: %lld bytes transmitted in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[0].birs_writebytes, delta.tv_sec, delta.tv_usec, speedin);
+    fprintf(stderr, "%s%s: %lld bytes received in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[1].birs_writebytes, delta.tv_sec, delta.tv_usec, speedout);
+  }
+
   bk_run_set_run_over(B,pc->pc_run);
   BK_VRETURN(B);
 }

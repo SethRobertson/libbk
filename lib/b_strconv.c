@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.15 2003/12/02 23:17:20 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.16 2003/12/25 06:27:17 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -905,4 +905,119 @@ bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
   }
 
   BK_RETURN(B,ret);
+}
+
+
+
+/**
+ * Numeric magnitude representation.  Transform a number into a
+ * numeric approximation giving the order of magnitude in the SI
+ * scale.  E.g. 1532 -> 1.53 Kb/s
+ *
+ * Valid from 0 -> 10^27-1 or 0 -> 2^90-1
+ *
+ * yocto-  	y  	10^-24   \
+ * zepto- 	z 	10^-21   |
+ * atto- 	a 	10^-18   |  Not use by these routines,
+ * femto- 	f 	10^-15   |  since small case used by power 10,
+ * pico- 	p 	10^-12   |  but here for reference purposes
+ * nano- 	n 	10^-9    |
+ * micro- 	u 	10^-6    |
+ * milli- 	m 	10^-3   /
+ * (none) 	-- 	10^0	2^0
+ * kilo- 	K       10^3 	2^10
+ * mega- 	M 	10^6 	2^20
+ * giga- 	G 	10^9 	2^30
+ * tera- 	T 	10^12 	2^40
+ * peta- 	P 	10^15 	2^50
+ * exa- 	E 	10^18 	2^60
+ * zetta- 	Z 	10^21 	2^70
+ * yotta- 	Y 	10^24 	2^80
+ *
+ * @param B BAKA Thread/Global environment
+ * @param number Number to transform
+ * @param precision Number of decimal places
+ * @param units Description of units of measurement
+ * @param buffer Buffer to place representation in (NULL will malloc--caller must free)
+ * @param buflen Length of buffer
+ * @param flags BK_STRING_MAGNITUDE_POWER10 (default Power 2)
+ * @return <i>String representation</i> on success
+ * @return <br><i>NULL</i> on failure
+ */
+char *bk_string_magnitude(bk_s B, double number, u_int precision, char *units, char *buffer, u_int buflen, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *power2 = "KMGTPEZY*";			// Ignore manditory trailing fodder
+  char *power10 = "kmgtpezy*";			// Ignore manditory trailing fodder
+  char *powerme;
+  char powerstr[2];
+  int factorme;
+  int baseme;
+  double comparison;
+  double absnumber = abs(number);
+  int curpower;
+  int tmp;
+  int allocated = 0;
+
+  if (!units)
+    units = "";
+
+  if (!buffer)
+  {
+    buflen = precision+8+strlen(units);
+    if (!BK_MALLOC_LEN(buffer, buflen))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory for numeric magnitude: %s\n", strerror(errno));
+      BK_RETURN(B, NULL);
+    }
+    allocated++;
+  }
+
+  // Control whether power of 2 or 10
+  if (BK_FLAG_ISSET(flags, BK_STRING_MAGNITUDE_POWER10))
+  {
+    powerme = power10;
+    factorme = 3;
+    baseme = 10;
+  }
+  else
+  {
+    powerme = power2;
+    factorme = 10;
+    baseme = 2;
+  }
+
+  // Figure out where we are
+  for (curpower = 1; powerme[curpower-1]; curpower++)
+  {
+    tmp = curpower * factorme;
+    if (absnumber < pow(baseme, tmp))
+    {
+      curpower--;
+      break;
+    }
+  }
+
+  if (curpower > 0 && !powerme[curpower-1])
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Number is outside range of operation for this function\n");
+    goto error;
+  }
+
+  tmp = curpower * factorme;
+  comparison = number / pow(baseme, tmp);
+
+  if (curpower > 0)
+    powerstr[0] = powerme[curpower-1];
+  else
+    powerstr[0] = 0;
+  powerstr[1] = 0;
+
+  snprintf(buffer, buflen, "%.*f %s%s", precision, comparison, powerstr, units);
+
+  BK_RETURN(B, buffer);
+
+ error:
+  free(buffer);
+  BK_RETURN(B, NULL);
 }

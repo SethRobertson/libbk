@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.268 2003/12/06 01:22:01 dupuy Exp $
+ * $Id: libbk.h,v 1.269 2003/12/25 06:27:16 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -303,26 +303,26 @@ struct bk_general
 #define bk_general_thread_create(B, name, start, opaque, flags) bk_thread_create(B, BK_GENERAL_TLIST(B), name, start, opaque, flags)
 // @}
 
-#ifdef BK_USING_PTHREADS						
+#ifdef BK_USING_PTHREADS
 #define BK_SIMPLE_LOCK(B, lockp)					\
 do {									\
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(lockp) != 0)	\
     abort();								\
 } while(0)
-#else /* BK_USING_PTHREADS */						
+#else /* BK_USING_PTHREADS */
 #define BK_SIMPLE_LOCK(B, lockp) do {} while(0)
-#endif /* BK_USING_PTHREADS */						
+#endif /* BK_USING_PTHREADS */
 
 
-#ifdef BK_USING_PTHREADS							
+#ifdef BK_USING_PTHREADS
 #define BK_SIMPLE_UNLOCK(B, lockp)						\
 do {										\
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(lockp) != 0)	\
     abort();									\
 } while(0)
-#else /* BK_USING_PTHREADS */							
+#else /* BK_USING_PTHREADS */
 #define BK_SIMPLE_UNLOCK(B, lockp) do {} while(0)
-#endif /* BK_USING_PTHREADS */							
+#endif /* BK_USING_PTHREADS */
 
 
 /**
@@ -1200,9 +1200,33 @@ struct bk_url_authority
   char	       *auth_host;			///< host
   char	       *auth_port;			///< port
 };
+// @}
 
 
 
+/**
+ * ioh relay statistics
+ */
+// @{
+
+/**
+ * Stats for a single side of the connection
+ */
+struct bk_relay_ioh_stat
+{
+  u_quad_t	birs_readbytes;			///< How many octets read
+  u_quad_t	birs_writebytes;		///< How many octets written
+  u_quad_t	birs_ioh_ops;			///< Number of I/O operations (well, number of IOH read/writes)
+  u_int		birs_stalls;			///< How many times we have stalled
+};
+
+/**
+ * Stats for both sides of the connection
+ */
+struct bk_relay_ioh_stats
+{
+  struct bk_relay_ioh_stat side[2];		///< Duplicate structure for each side
+};
 // @}
 
 
@@ -1693,6 +1717,9 @@ extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags fla
 #define BK_STRING_ATOULL bk_string_atou64
 #endif
 
+extern char *bk_string_magnitude(bk_s B, double number, u_int precision, char *units, char *buffer, u_int buflen, bk_flags flags);
+#define BK_STRING_MAGNITUDE_POWER10		0x01		// Request power of 10 (instead of power of two) magnitude
+
 
 /* b_string.c */
 extern u_int bk_strhash(const char *a, bk_flags flags);
@@ -1846,7 +1873,7 @@ extern int bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags);
 typedef void (*bk_relay_cb_f)(bk_s B, void *opaque, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags);
 
 /* b_relay.c */
-extern int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f callback, void *opaque, bk_flags flags);
+extern int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f callback, void *opaque, struct bk_relay_ioh_stats *stats, bk_flags flags);
 #define BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE	0x1 ///< Shut down relay after only one side has closed
 #define BK_RELAY_IOH_DONTCLOSEFDS		0x2 ///< Don't actually close fds
 #define BK_RELAY_IOH_NOSHUTDOWN			0x4 ///< Don't actually shutdown fds

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bdtee.c,v 1.3 2003/10/21 19:02:45 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: bdtee.c,v 1.4 2003/12/25 06:27:18 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -268,7 +268,7 @@ static int proginit(bk_s B, struct program_config *pc)
     goto error;
   }
 
-  // Top of file starts with a new line. 
+  // Top of file starts with a new line.
   BK_FLAG_SET(pc->pc_flags, PC_LAST_WRITE_NEWLINE);
 
   if ((fd = open(pc->pc_outfile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0)
@@ -318,13 +318,13 @@ static int proginit(bk_s B, struct program_config *pc)
   }
 
   pc->pc_peer1_ioh = ioh1;
-      
+
   if (!(ioh2=bk_ioh_init(B, prog2_in, prog2_out, NULL, pc, 0, 0, 0, pc->pc_run, BK_IOH_RAW | BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh1 for second prog\n");
   }
-  
-  if (bk_relay_ioh(B, ioh1, ioh2, relay_tee, pc, 0) < 0)
+
+  if (bk_relay_ioh(B, ioh1, ioh2, relay_tee, pc, NULL, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create relay\n");
     goto error;
@@ -333,7 +333,7 @@ static int proginit(bk_s B, struct program_config *pc)
   BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -353,7 +353,7 @@ static int proginit(bk_s B, struct program_config *pc)
  *	@param data The data to be relayed.
  *	@param flags Flags for future use.
  */
-static void 
+static void
 relay_tee(bk_s B, void *opaque, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bdtee");
@@ -365,11 +365,11 @@ relay_tee(bk_s B, void *opaque, struct bk_ioh *read_ioh, struct bk_ioh *write_io
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   if (data)
   {
     if (BK_FLAG_ISSET(pc->pc_flags, PC_NO_TEE))
-      BK_VRETURN(B);      
+      BK_VRETURN(B);
 
     // Copy data to output file.
     if (!BK_MALLOC(outbuf))
@@ -384,14 +384,14 @@ relay_tee(bk_s B, void *opaque, struct bk_ioh *read_ioh, struct bk_ioh *write_io
     }
     memmove(outbuf->ptr, data->ptr, data->len);
     outbuf->len = data->len;
-    
+
     if (pc->pc_last_peer != read_ioh)
     {
-      bk_ioh_printf(B, pc->pc_out_ioh, "%s%s\n", 
+      bk_ioh_printf(B, pc->pc_out_ioh, "%s%s\n",
 		    BK_FLAG_ISCLEAR(pc->pc_flags, PC_LAST_WRITE_NEWLINE)?"\n":"",
 		    (read_ioh==pc->pc_peer1_ioh)?FROM_PEER1:FROM_PEER2);
     }
-    
+
     pc->pc_last_peer = read_ioh;
 
     if (bk_ioh_write(B, pc->pc_out_ioh, outbuf, 0) < 0)
@@ -399,7 +399,7 @@ relay_tee(bk_s B, void *opaque, struct bk_ioh *read_ioh, struct bk_ioh *write_io
       bk_error_printf(B, BK_ERR_ERR, "Failed to write out buffer\n");
       goto error;
     }
-    
+
     if (((char *)outbuf->ptr)[outbuf->len-1] == '\n')
       BK_FLAG_SET(pc->pc_flags, PC_LAST_WRITE_NEWLINE);
     else
@@ -413,9 +413,9 @@ relay_tee(bk_s B, void *opaque, struct bk_ioh *read_ioh, struct bk_ioh *write_io
       bk_ioh_close(B, pc->pc_out_ioh, 0);
     bk_run_set_run_over(B, pc->pc_run);
   }
-  
+
  error:
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -439,7 +439,7 @@ static void out_file_handler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   switch (state_flags)
   {
   case BkIohStatusIncompleteRead:
@@ -448,7 +448,7 @@ static void out_file_handler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh
   case BkIohStatusIohReadEOF:
     bk_error_printf(B, BK_ERR_ERR, "Who put a read in my write only ioh!\n");
     break;
-    
+
   case BkIohStatusIohWriteError:
     bk_error_printf(B, BK_ERR_ERR, "Error detected during write. Terminating tee. Continuing relay.\n");
     BK_FLAG_SET(pc->pc_flags, PC_NO_TEE);
@@ -469,5 +469,5 @@ static void out_file_handler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh
     break;
   }
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }

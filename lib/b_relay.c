@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.25 2003/10/20 16:33:12 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.26 2003/12/25 06:27:17 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -40,6 +40,7 @@ struct bk_relay
   bk_flags		br_ioh2_state;		///< State of one IOH
   bk_relay_cb_f		br_callback;		///< Callback on reads and shutdown
   void		       *br_opaque;		///< Opaque data for callback
+  struct bk_relay_ioh_stats *br_stats;		///< Optional statistics about relay
   bk_flags		br_flags;		///< State
 };
 
@@ -65,12 +66,13 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
  *	@param ioh2 Other side of the IOH relay
  *	@param callback Function to call on reads and shutdown
  *	@param opaque Data for function
+ *	@param stats Optional statistics about I/O
  *	@param flags BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE BK_RELAY_IOH_DONTCLOSEFDS
  *
  *	@return <i>-1</i> Call failure, allocation failure, other failure
  *	@return <br><i>0</i> on success
  */
-int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f callback, void *opaque, bk_flags flags)
+int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f callback, void *opaque, struct bk_relay_ioh_stats *stats, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
   struct bk_relay *relay;
@@ -92,7 +94,11 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f
   relay->br_ioh2 = ioh2;
   relay->br_callback = callback;
   relay->br_opaque = opaque;
+  relay->br_stats = stats;
   relay->br_flags = flags;
+
+  if (relay->br_stats)
+    memset(relay->br_stats, 0, sizeof(*relay->br_stats));
 
   // Ensure that reading is allowed
   bk_ioh_readallowed(B, ioh1, 1, 0);
@@ -137,6 +143,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   struct bk_relay *relay = opaque;
   bk_vptr *newcopy = NULL;
   int ret;
+  int side;
 
   if (!ioh || !relay)
   {
@@ -149,12 +156,14 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
     ioh_other = relay->br_ioh2;
     state_me = &relay->br_ioh1_state;
     state_him = &relay->br_ioh2_state;
+    side = 0;
   }
   else
   {						// We are just assuming here the other matches
     ioh_other = relay->br_ioh1;
     state_me = &relay->br_ioh2_state;
     state_him = &relay->br_ioh1_state;
+    side = 1;
   }
 
   switch (state_flags)
@@ -166,6 +175,12 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
       goto error;
+    }
+
+    if (relay->br_stats)
+    {
+      relay->br_stats->side[side].birs_readbytes += newcopy->len;
+      relay->br_stats->side[side].birs_ioh_ops++;
     }
 
     bk_debug_printf_and(B,128,"Reading data\n");
@@ -185,6 +200,8 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
 	bk_ioh_readallowed(B, ioh, 0, 0);
 	bk_debug_printf_and(B, 1, "Throttling input due to return %d.  My state %x, his state %x\n",ret,*state_me,*state_him);
 	ret = bk_ioh_write(B, ioh_other, newcopy, BK_IOH_BYPASSQUEUEFULL);
+	if (relay->br_stats)
+	  relay->br_stats->side[side].birs_stalls++;
       }
       if (ret < 0)
       {
@@ -214,6 +231,12 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
 
   case BkIohStatusWriteComplete:
   case BkIohStatusWriteAborted:
+    if (relay->br_stats)
+    {
+      relay->br_stats->side[side].birs_writebytes += data[0].len;
+      relay->br_stats->side[side].birs_ioh_ops++;
+    }
+
     // Guarenteed just one buffer
     free(data[0].ptr);
     free(data);

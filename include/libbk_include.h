@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.35 2003/06/17 06:07:16 seth Exp $
+ * $Id: libbk_include.h,v 1.36 2003/12/25 06:27:16 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -130,6 +130,7 @@
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 #else  /* BK_MINGW32 */
 #include <winsock.h>		/* for fd_set, etc. */
 #include <process.h>		/* for getpid, etc. */

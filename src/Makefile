@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.23 2003/12/16 21:54:48 jtt Exp $
+# $Id: Makefile,v 1.24 2003/12/25 06:27:18 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -41,6 +41,7 @@ GROUPSUBDIR=src
 
 # This has to go here so we get the benefit of $(TEST) which is included by one of the above.
 BK_TMP_PROG:=$(shell if [ -f tmp.c ]; then echo tmp; fi)
+LOCAL_LDS=-L$(GROUPTOP)/ssl -L$(GROUPTOP)/xml
 
 ##################################################
 ## BEGIN BKSTANDARD MAKEFILE
@@ -57,6 +58,8 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 
 ifneq ($(strip $(BK_USING_SSL)),false)
 LOCAL_LIBS=-lbkssl
+seth:
+	echo vpath $(BK_VPATH_A)
 else
 LOCAL_DEFINES+=-DNO_SSL
 endif # BK_USING_SSL
@@ -78,6 +81,9 @@ ifneq ($(BK_WANT_LIBTOOL),false)
 # differently for different targets.  Note that this won't necessarily do what
 # we want if there are previous := assignments using the variable we're trying
 # to override, but it works until somebody breaks it by getting fancy.</TRICKY>
+#
+# Guess what?  It is already broken.
+#
 PKG_LIBS:=
 LOCAL_LIBS:=
 THIRD_PARTY_LIBS:=

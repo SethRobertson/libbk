@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_ioh.c,v 1.21 2003/10/16 23:11:30 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_ioh.c,v 1.22 2003/12/25 06:27:19 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -416,7 +416,7 @@ static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int f
     bk_die(B,254,stderr,"Could not perform ioh initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 
-  bk_relay_ioh(B, ioh1, ioh2, donecb, NULL, 0);
+  bk_relay_ioh(B, ioh1, ioh2, donecb, NULL, NULL, 0);
 
   BK_RETURN(B, 0);
 }
