@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_fun.c,v 1.2 2002/03/26 22:16:09 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: test_fun.c,v 1.3 2002/04/16 00:27:53 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -44,7 +44,11 @@ enum command
   funoff,
 };
 
-int proginit(void);
+
+static int FUN_ON = 1;
+
+
+int proginit(bk_s B);
 void progrun(bk_s B);
 void recurse(bk_s B, int levels, enum command cmd);
 void recurse2(bk_s B, int levels, enum command cmd);
@@ -84,16 +88,14 @@ main(int argc, char **argv, char **envp)
     switch (c)
     {
     case 'd':
-      bk_general_debug_config(B, stderr, Global.gs_sysloglevel, BK_DEBUG_FLAG_BRIEF);
-      bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, Global.gs_sysloglevel,
-		      BK_ERROR_CONFIG_FH|BK_ERROR_CONFIG_HILO_PIVOT
-		      |BK_ERROR_CONFIG_FLAGS|BK_ERROR_FLAG_BRIEF);
-      bk_error_dump(B,stderr,NULL,BK_ERR_DEBUG,Global.gs_sysloglevel,BK_ERROR_FLAG_BRIEF);
+      bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, 0, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
+      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0); 				// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       debugging = 1;
       break;
     case 'n':
       BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
+      FUN_ON = 0;
       break;
     case 's':
       arg = poptGetOptArg(optCon);
@@ -115,7 +117,7 @@ main(int argc, char **argv, char **envp)
     bk_exit(B,254);
   }
     
-  if (proginit() < 0)
+  if (proginit(B) < 0)
   {
     bk_die(B,254,stderr,"Could not perform program initialization\n",0);
   }
@@ -123,7 +125,7 @@ main(int argc, char **argv, char **envp)
   progrun(B);
 
   if (!debugging)
-    bk_error_dump(B,stderr,NULL,BK_ERR_NONE,Global.gs_sysloglevel,BK_ERROR_FLAG_BRIEF);
+    bk_error_dump(B,stderr,NULL,BK_ERR_DEBUG,BK_ERR_NONE,0);
 
   bk_exit(B,0);
   abort();
@@ -135,11 +137,11 @@ main(int argc, char **argv, char **envp)
 /*
  * Initialization
  */
-int proginit(void)
+int proginit(bk_s B)
 {
-  BK_FUN("SIMPLE");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "SIMPLE");
 
-  BK_RET(0);
+  BK_RETURN(B, 0);
 }
 
 
@@ -150,17 +152,21 @@ int proginit(void)
 void progrun(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  int x;
 
   recurse(B, 9, badreturn);
   recurse(B, 9, trace);
   recurse(B, 9, funoff);
-  bk_fun_set(B, BK_FUN_OFF, 0);
+  if (FUN_ON)
+    bk_fun_set(B, BK_FUN_OFF, 0);
   recurse(B, 999, badreturn);
   recurse(B, 999, trace);
   recurse(B, 999, resetdebug);
   recurse(B, 9, funon);
-  bk_fun_set(B, BK_FUN_ON, 0);
-  recurse(B, 999, noop);
+  if (FUN_ON)
+    bk_fun_set(B, BK_FUN_ON, 0);
+  for(x=0;x<9999;x++)
+    recurse(B, 999, noop);
   recurse(B, 999, resetdebug);
 
   BK_VRETURN(B);
@@ -209,10 +215,12 @@ void recurse2(bk_s B, int levels, enum command cmd)
       bk_general_debug_config(B, stderr, Global.gs_sysloglevel, 0);
       break;
     case funon:
-      bk_fun_set(B, BK_FUN_ON, 0);
+      if (FUN_ON)
+	bk_fun_set(B, BK_FUN_ON, 0);
       break;
     case funoff:
-      bk_fun_set(B, BK_FUN_OFF, 0);
+      if (FUN_ON)
+	bk_fun_set(B, BK_FUN_OFF, 0);
       break;
     }
 

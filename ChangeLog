@@ -1,3 +1,8 @@
+2002-04-15  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_bits.c (bk_bitcount): New function to count numbers of
+	bits in a word.
+
 2002-04-05  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_string.c (bk_memrchr): bounded string [buffer] strrchr

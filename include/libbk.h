@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.135 2002/04/05 23:00:17 dupuy Exp $
+ * $Id: libbk.h,v 1.136 2002/04/16 00:27:52 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1041,6 +1041,7 @@ extern char *bk_bits_create(bk_s B, size_t size, bk_flags flags);
 extern void bk_bits_destroy(bk_s B, char *base);
 extern char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags);
 extern char *bk_bits_restore(bk_s B, char *saved, size_t *size, bk_flags flags);
+extern u_int bk_bitcount(bk_s B, u_int word);
 
 
 
@@ -1470,6 +1471,5 @@ extern void bk_MD5Init (bk_s B, bk_MD5_CTX *mdContext);
 extern void bk_MD5Update (bk_s B, bk_MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen);
 extern void bk_MD5Final (bk_s B, bk_MD5_CTX *mdContext);
 extern int bk_MD5_extract_printable(bk_s B, char *str, bk_MD5_CTX *ctx, bk_flags flags);
-
 
 #endif /* _BK_h_ */

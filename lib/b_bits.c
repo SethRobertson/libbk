@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bits.c,v 1.8 2001/11/27 00:58:41 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_bits.c,v 1.9 2002/04/16 00:27:53 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -20,6 +20,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * @file
  * Multibyte bitfield fundamental routines (creation, destruction, import, export).
  * See also BK_BITS_*
+ *
+ * Also other bitish functions
  */
 
 #include <libbk.h>
@@ -214,4 +216,46 @@ char *bk_bits_restore(bk_s B, char *saved, size_t *size, bk_flags flags)
   }
 
   BK_RETURN(B, ret);
+}
+
+
+
+#define BC_TWO(c) (0x1u << (c))
+#define BC_MASK(c) (((unsigned int)(-1)) / (BC_TWO(BC_TWO(c)) + 1u))
+#define BC_COUNT(x,c) ((x) & BC_MASK(c)) + (((x) >> (BC_TWO(c))) & BC_MASK(c))
+
+
+
+/**
+ * Count the number of bits in a word
+ *
+ * This version was chosen after speed trials of eight different bit
+ * count routines.  The original source of these functions are
+ * unknown, but the algorithms were gathered from
+ * http://www-db.stanford.edu/~manku/bitcount.html
+ *
+ * Parallel Count carries out bit counting in a parallel fashion.
+ * Consider n after the first line has finished executing. Imagine
+ * splitting n into pairs of bits. Each pair contains the <em>number
+ * of ones</em> in those two bit positions in the original n.  After
+ * the second line has finished executing, each nibble contains the
+ * <em>number of ones</em> in those four bits positions in the
+ * original n. Continuing this for five iterations, the 64 bits
+ * contain the number of ones among these sixty-four bit positions in
+ * the original n. That is what we wanted to compute.
+ *
+ *
+ * @param B BAKA Thread/global environment
+ * @param word The word whose bits you wish to count
+ * @return <i>number of bits in word</i>
+ */
+u_int bk_bitcount(bk_s B, u_int n)
+{
+  n = BC_COUNT(n, 0) ;
+  n = BC_COUNT(n, 1) ;
+  n = BC_COUNT(n, 2) ;
+  n = BC_COUNT(n, 3) ;
+  n = BC_COUNT(n, 4) ;
+  /* n = BC_COUNT(n, 5) ;    for 64-bit integers */
+  return n ;
 }
