@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.52 2002/07/24 07:06:50 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.53 2002/07/24 08:00:25 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1339,7 +1339,16 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
 
  justhex:
   if (end)
+  {
     in = end + 1;
+
+    /*
+     * If we've jumped to look for hex, and only whitespace (or EOS) remains,
+     * force a hard (-1) failure by setting 'in' to point to end terminator.
+     */
+    if (!in[strspn(in, " \b\t\n\v\f\r")])
+      in = end;
+  }
 
   ret = bk_string_atou(B, in, dst, 0);
   if (ret)
@@ -1731,7 +1740,7 @@ bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len)
   nlen = strlen(needle);
   if (len >= nlen)
   {
-    upper_bound = haystack + len - nlen;
+    upper_bound = haystack + len + 1 - nlen;
   
     while(p < upper_bound)
     {
@@ -1792,7 +1801,7 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t nlen)
   len = strlen(haystack);
   if (len >= nlen)
   {
-    upper_bound = haystack + len - nlen;
+    upper_bound = haystack + len + 1 - nlen;
   
     while(p < upper_bound)
     {

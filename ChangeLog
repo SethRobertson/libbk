@@ -2,6 +2,8 @@
 
 	* lib/b_string.c (bk_string_flagtoa, bk_string_atoflag): avoid using
 	'=' [looks like parameter assignment]; use traditional <> delimiters
+	(bk_string_atoflag): more aggressive error checking
+	(bk_strnstr, bk_strstrn): fix fencepost error in non-MEMMEM code
 
 2002-07-23  Alexander Dupuy  <dupuy@sysdetect.com>
 
