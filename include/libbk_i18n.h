@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_i18n.h,v 1.1 2001/11/16 21:30:03 brian Exp $
+ * $Id: libbk_i18n.h,v 1.2 2001/12/01 01:24:06 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -19,9 +19,17 @@
 #ifndef BK_I18N_DISABLE
  #include <libintl.h>
  #define  _(String) gettext(String)
-#else
+ #define N_(String) gettext_noop(String)
+ #define gettext_noop(String) (String)
+#else /* BK_I18N_DISABLE */
  #define _(String) (String)
  #define N_(String) (String)
- #define textdomain(Domain)
- #define bindtextdomain(Package, Directory)
-#endif
+ #ifndef LC_ALL
+  #define LC_ALL
+ #endif /* LC_ALL */
+ #define setlocale(Cat, Locale) do { ; } while
+ #define textdomain(Package) do { ; } while
+ #define bindtextdomain(Package, Directory) do { ; } while
+#endif /* BK_I18N_DISABLE */
+
+#endif /* _libbk_i18n_h_ */

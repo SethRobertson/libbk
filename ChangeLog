@@ -1,3 +1,9 @@
+2001-11-30  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* README.i18n: Internationalization hints
+	* src/proto.c: Internationalized
+	* include/libbk_i18n.h: Starting formal internalization support
+
 2001-11-29  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_relay.c lib/b_ioh.c: Code review day 4

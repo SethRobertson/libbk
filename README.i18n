@@ -1,0 +1,140 @@
+Subject: Internationalization mostly working
+
+
+I can't figure out how to get the popt stuff traslated, and there
+seems to get an xgettext bug where it will not pull strings from
+manifest constant definitions, but I think I have successfully made
+proto internationalized.
+
+----------------------------------------------------------------------
+startide seth> BAKA_HOME=. LANG=dansk proto -?
+Usage: proto [ARGUMENTENSTANDERDER]
+  -d, --debug           Bugen-ze-on
+  -v, --verbose         Verbozen-ze-on
+  --no-seatbelts        Nicht sealtbelten
+  -p, --person=Herr     Der Greeten Herr
+  --long-arg-only       Der longen argumenten mit de nitch shortencuter
+  -s                    Der shorten argumenten mit de nitch longencuter
+
+Help options:
+  -?, --help            Show this help message
+  --usage               Display brief usage message
+----------------------------------------------------------------------
+startide seth> BAKA_HOME=. LANG=dansk proto   
+Guten Wurlden
+----------------------------------------------------------------------
+
+There is still work to be done, but this is basically installation
+work: to actually figure out methods to best generate these files in
+the makefile environment and then get them installed in the right
+place.  You might suspect that the make environment would not be
+installation dependent, but it appears that it actually is.
+
+On non-linux systems, we may have to install a -lintl, but perhaps
+this will be an autoconf issue.
+
+**********************************************************************
+How to do all of this, for C programmers:
+
+#include <libbk_i18n.h>
+
+Constant string initializers get the N_() wrapper.  Ex:
+
+----------------------------------------------------------------------
+  const struct poptOption optionsTable[] = 
+  {
+    {"debug", 'd', POPT_ARG_NONE, NULL, 'd', N_("Turn on debugging"), NULL },
+----------------------------------------------------------------------
+
+Actual translations use the _() wrapper.  Ex:
+
+----------------------------------------------------------------------
+    if (optionsTable[c].descrip) optionsTable[c].descrip=_(optionsTable[c].descrip);
+
+    bk_die(B, 254, stderr, _("Could not perform program initialization\n"), 0);
+----------------------------------------------------------------------
+**********************************************************************
+
+How to actually get a translation going:
+**********************************************************************
+# Gather the strings to translate
+xgettext --keyword=_ --keyword=N_ proto.c
+# Pick the locale you are translating to.  Example "danish"
+less /usr/share/locale/locale.alias
+# Actually tranlate
+emacs messages.po
+ # General instructions:  Hit <space><return>--translation--^C^C
+ # Then 'V' when you think you are done.
+# Compile the translation
+msgfmt messages.po
+# Install the translation (da.ISO-8859-1 from locale.aliases for danish)
+mv messages $INSTDIR.install/Locale/da.ISO-8859-1/LC_MESSAGES/proto.mo 
+# Run the program
+BAKA_HOME=$INSTDIR LANG=danish proto
+**********************************************************************
+
+                                        -Seth Robertson
+                                         seth@baka.org
+
+An example translated messages.po
+----------------------------------------------------------------------
+# Proto sample translation file
+# Copyright (C) 2001 Seth Robertson
+# Seth Robertson <seth@baka.org>, 2001.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: 2001-11-30 19:53-0500\n"
+"PO-Revision-Date: 2001-11-30 19:55-05:00\n"
+"Last-Translator: Seth Robertson <seth@baka.org>\n"
+"Language-Team: Unix <seth@baka.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=latin1\n"
+"Content-Transfer-Encoding: ISO 8859-1\n"
+
+#: proto.c:86
+msgid "Turn on debugging"
+msgstr "Bugen-ze-on"
+
+#: proto.c:87
+msgid "Turn on verbose message"
+msgstr "Verbozen-ze-on"
+
+#: proto.c:88
+msgid "Sealtbelts off & speed up"
+msgstr "Nicht sealtbelten"
+
+#: proto.c:89
+msgid "Set the person to greet"
+msgstr "Der Greeten Herr"
+
+#: proto.c:89
+msgid "person"
+msgstr "Herr"
+
+#: proto.c:90
+msgid "An example of a long argument without a shortcut"
+msgstr "Der longen argumenten mit de nitch shortencuter"
+
+#: proto.c:91
+msgid "An example of a short argument without a longcut"
+msgstr "Der shorten argumenten mit de nitch longencuter"
+
+#: proto.c:123
+msgid "[NON-FLAG ARGUMENTS]"
+msgstr "[ARGUMENTENSTANDERDER]"
+
+#: proto.c:179
+msgid "Could not perform program initialization\n"
+msgstr "Der proginitenperformer kerputt\n"
+
+#: proto.c:231
+msgid "World"
+msgstr "Wurlden"
+
+#: proto.c:235
+#, c-format
+msgid "Hello %s\n"
+msgstr "Guten %s\n"
+----------------------------------------------------------------------

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.22 2001/11/30 00:33:08 seth Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.23 2001/12/01 01:24:06 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -22,11 +22,16 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * Example libbk user with main() prototype.
  */
 #include <libbk.h>
+#include <libbk_i18n.h>
 
 
-#define ERRORQUEUE_DEPTH 32			///< Default error queue depth
-#define PERSON_DEFAULT  "World"			///< Default person to greet
-#define PERSON_KEY      "Greeter"		///< Name to query in config to greet
+#define STD_LOCALEDIR_KEY     "LOCALEDIR"	///< Key in bkconfig to find the locale translation files
+#define STD_LOCALEDIR_ENV     "BAKA_HOME"	///< Key in Environment to find base of locale directory
+#define STD_LOCALEDIR_DEF     "/usr/local/baka"	///< Default base of where locale directory might be found
+#define STD_LOCALEDIR_SUB     ".install/Locale"	///< Sub-component from install base where locale might be found
+#define ERRORQUEUE_DEPTH      32		///< Default error queue depth
+#define PERSON_NAME	      N_("World")	///< Default name to greet
+#define PERSON_KEY	      "Greeter"		///< Name to query in config to greet
 
 
 
@@ -73,19 +78,18 @@ main(int argc, char **argv, char **envp)
   bk_s B = NULL;				/* Baka general structure */
   BK_ENTRY(B, __FUNCTION__, __FILE__, "SIMPLE");
   int c;
-  int getopterr=0;
-  extern char *optarg;
-  extern int optind;
-  struct program_config Pconfig, *pconfig=NULL;
-  poptContext optCon=NULL;
+  int getopterr = 0;
+  char i18n_localepath[_POSIX_PATH_MAX], *i18n_locale = NULL;
+  struct program_config Pconfig, *pconfig = NULL;
+  poptContext optCon = NULL;
   const struct poptOption optionsTable[] = 
   {
-    {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
-    {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
-    {"no-seatbelts", 0, POPT_ARG_NONE, NULL, 0x1000, "Sealtbelts off & speed up", NULL },
-    {"person", 'p', POPT_ARG_STRING, NULL, 'p', "Set the person to greet", "person" },
-    {"long-arg-only", 0, POPT_ARG_NONE, NULL, 1, "An example of a long argument without a shortcut", NULL },
-    {NULL, 's', POPT_ARG_NONE, NULL, 2, "An example of a short argument without a longcut", NULL },
+    {"debug", 'd', POPT_ARG_NONE, NULL, 'd', N_("Turn on debugging"), NULL },
+    {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', N_("Turn on verbose message"), NULL },
+    {"no-seatbelts", 0, POPT_ARG_NONE, NULL, 0x1000, N_("Sealtbelts off & speed up"), NULL },
+    {"person", 'p', POPT_ARG_STRING, NULL, 'p', N_("Set the person to greet"), N_("person") },
+    {"long-arg-only", 0, POPT_ARG_NONE, NULL, 1, N_("An example of a long argument without a shortcut"), NULL },
+    {NULL, 's', POPT_ARG_NONE, NULL, 2, N_("An example of a short argument without a longcut"), NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -97,6 +101,18 @@ main(int argc, char **argv, char **envp)
   }
   bk_fun_reentry(B);
 
+  // i18n stuff
+  setlocale(LC_ALL, "");
+  if (!(i18n_locale = BK_GWD(B, STD_LOCALEDIR_KEY, NULL)) && (i18n_locale = (char *)&i18n_localepath))
+    snprintf(i18n_localepath, sizeof(i18n_localepath), "%s/%s", BK_ENV_GWD(STD_LOCALEDIR_ENV,STD_LOCALEDIR_DEF), STD_LOCALEDIR_SUB);
+  bindtextdomain(BK_GENERAL_PROGRAM(B), i18n_locale);
+  textdomain(BK_GENERAL_PROGRAM(B));
+  for (c = 0; optionsTable[c].longName || optionsTable[c].shortName; c++)
+  {
+    if (optionsTable[c].descrip) (*((char **)&(optionsTable[c].descrip)))=_(optionsTable[c].descrip);
+    if (optionsTable[c].argDescrip) (*((char **)&(optionsTable[c].argDescrip)))=_(optionsTable[c].argDescrip);
+  }
+
   pconfig = &Pconfig;
   memset(pconfig, 0, sizeof(*pconfig));
 
@@ -105,7 +121,7 @@ main(int argc, char **argv, char **envp)
     bk_error_printf(B, BK_ERR_ERR, "Could not initialize options processing\n");
     bk_exit(B, 254);
   }
-  poptSetOtherOptionHelp(optCon, "[NON-FLAG ARGUMENTS]");
+  poptSetOtherOptionHelp(optCon, _("[NON-FLAG ARGUMENTS]"));
 
   while ((c = poptGetNextOpt(optCon)) >= 0)
   {
@@ -145,8 +161,9 @@ main(int argc, char **argv, char **envp)
    * name).  argc remains the number of elements in the argv array.
    */
   argv = (char **)poptGetArgs(optCon);
-  for (argc=0; argv[argc]; argc++)
-    ; // Void
+  if (!(argc = 0) && argv)
+    for (argc=0; argv[argc]; argc++)
+      ; // Void
 
   if (c < -1 || getopterr)
   {
@@ -160,7 +177,7 @@ main(int argc, char **argv, char **envp)
     
   if (proginit(B, pconfig) < 0)
   {
-    bk_die(B, 254, stderr, "Could not perform program initialization\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+    bk_die(B, 254, stderr, _("Could not perform program initialization\n"), BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 
   progrun(B, pconfig);
@@ -212,11 +229,11 @@ static void progrun(bk_s B, struct program_config *pconfig)
     BK_VRETURN(B);
   }
 
-  person = BK_GWD(B, PERSON_KEY, PERSON_DEFAULT);
+  person = BK_GWD(B, PERSON_KEY, _("Wordl"));	// <KLUDGE>Should use PERSON_NAME, but xgettext is lame</KLUDGE>
   if (pconfig->pc_person)
     person = pconfig->pc_person;
 
-  printf("Hello %s\n", person);
+  printf(_("Hello %s\n"), person);
 
   BK_VRETURN(B);
 }

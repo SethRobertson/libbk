@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.20 2001/11/27 00:58:41 seth Exp $
+ * $Id: libbk_internal.h,v 1.21 2001/12/01 01:24:06 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -21,6 +21,7 @@
 
 #ifndef _libbk_internal_h_
 #define _libbk_internal_h_
+#include <libbk_i18n.h>
 
 
 #define SCRATCHLEN (MAX(MAXPATHLEN,1024))
