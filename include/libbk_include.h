@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.24 2002/04/08 17:32:45 dupuy Exp $
+ * $Id: libbk_include.h,v 1.25 2002/05/01 16:53:13 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -114,6 +114,8 @@
 #include <winsock.h>		/* for fd_set, etc. */
 #include <process.h>		/* for getpid, etc. */
 #endif /* BK_MINGW32 */
+
+#include <float.h>
 
 #if defined(USING_DMALLOC)
 #include <dmalloc.h>

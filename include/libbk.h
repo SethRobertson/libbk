@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.139 2002/05/01 01:53:27 seth Exp $
+ * $Id: libbk.h,v 1.140 2002/05/01 16:53:13 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1308,6 +1308,9 @@ extern int bk_string_intcols(bk_s B, int64_t num, u_int base);
 extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #define BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY	0x1 ///< Take more time to return use as little memory as possible.
 extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags);
+extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags);
+extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags);
+
 
 
 /* getbyfoo.c */

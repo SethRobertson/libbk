@@ -1,3 +1,8 @@
+2002-05-01  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_string.c (bk_string_atod): Convert strings to doubles.
+	(bk_string_atof): Convert strings to floats.
+
 2002-04-30  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_addrgroup.c: Run new callback state
