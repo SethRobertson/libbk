@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.30 2001/09/11 17:20:09 seth Exp $
+ * $Id: libbk.h,v 1.31 2001/09/17 23:14:36 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -94,7 +94,7 @@ struct bk_general
 #define BK_GENERAL_PROCTITLE(B) ((B)?(B)->bt_general->bg_proctitle:(struct bk_proctitle *)bk_nullptr)
 #define BK_GENERAL_CONFIG(B)	((B)?(B)->bt_general->bg_config:(struct bk_config *)bk_nullptr)
 #define BK_GENERAL_PROGRAM(B)	((B)?(B)->bt_general->bg_program:(char *)bk_nullptr)
-#define BK_GENERAL_FLAGS(B)	((B)?(B)->bt_general->bg_flags:bk_zeroint)
+#define BK_GENERAL_FLAGS(B)	((B)?(B)->bt_general->bg_flags:bk_zerouint)
 #define BK_GENERAL_FLAG_ISFUNON(B)   BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON)
 #define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON)
 #define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON)
@@ -219,6 +219,7 @@ extern const char *bk_general_errorstr(bk_s B, int level);
 extern int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags);
 extern void *bk_nullptr;			/* NULL pointer junk */
 extern int bk_zeroint;				/* Zero integer junk */
+extern unsigned bk_zerouint;			/* Zero unsigned junk */
 
 
 /* b_bits.c */

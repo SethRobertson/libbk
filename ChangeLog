@@ -1,3 +1,10 @@
+2001-09-17  Alexander Dupuy  <dupuy@stevedore.sysdetect.com>
+
+	* include/libbk.h (BK_GENERAL_FLAGS): avoid Linux gcc warnings
+	about signed vs. unsigned
+
+	* lib/b_general.c: avoid Linux gcc warnings about signed vs. unsigned
+
 2001-09-11  Seth Robertson  <seth@yeah.baka.org>
 
 	* include/libbk_oscompat.h: Move NULL/MAX/MIN issues to oscompat.

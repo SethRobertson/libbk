@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.13 2001/08/30 19:57:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.14 2001/09/17 23:14:36 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -29,6 +29,7 @@ static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_fl
 
 void *bk_nullptr = NULL;
 int bk_zeroint = 0;
+unsigned bk_zerouint = 0;
 
 
 
