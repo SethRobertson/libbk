@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.3 2001/06/18 21:02:33 seth Exp $
+# $Id: Makefile,v 1.4 2001/06/18 21:59:44 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -20,7 +20,9 @@ GROUPTOP=..
 GROUPSUBDIR=test
 ##################################################
 ## BEGIN BKSTANDARD MAKEFILE
+-include ./Make.preinclude
 -include $(GROUPTOP)/Make.preinclude
+-include $(GROUPTOP)/$(PKGTOP)/Make.preinclude
 include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 -include $(GROUPTOP)/$(PKGTOP)/Make.include
 -include $(GROUPTOP)/Make.include
