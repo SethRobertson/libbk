@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.16 2001/07/12 20:15:08 jtt Exp $
+ * $Id: libbk.h,v 1.17 2001/07/12 20:15:50 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -20,9 +20,11 @@
 
 /* XXX Seth want this moved, but for the moment */
 /* Define NULL the *proper* way. */
+#if 0
 #ifdef NULL
 #undef NULL
 #define NULL ((void *)0)
+#endif
 #endif
 
 /* Error levels & their syslog equivalents */
