@@ -1,5 +1,5 @@
 /*
- * $Id: libbkxml.h,v 1.10 2003/12/10 14:32:02 jtt Exp $
+ * $Id: libbkxml.h,v 1.11 2004/09/27 15:03:42 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -23,7 +23,7 @@
 #include <libxml/globals.h>
 
 
-extern int bkxml_nodesearch(bk_s B, xmlNodePtr node, xmlNodePtr *last, xmlNodePtr *found, xmlElementType findtype, u_char *findname, int depth, bk_flags flags);
+extern int bkxml_nodesearch(bk_s B, xmlNodePtr node, xmlNodePtr *last, xmlNodePtr *found, xmlElementType findtype, const u_char *findname, int depth, bk_flags flags);
 #define BKXML_DONT_FIND_THIS_NODE	0x01	///< Don't attempt to look for the findname in the node being handed in
 #define BKXML_BREADTH			0x02	///< Perform a breadth-first search
 extern xmlAttrPtr bkxml_attrsearch(bk_s B, xmlNodePtr node, const char *findname, bk_flags flags);

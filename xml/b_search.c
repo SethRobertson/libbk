@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_search.c,v 1.14 2004/07/08 04:40:20 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_search.c,v 1.15 2004/09/27 15:03:41 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -46,7 +46,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  *	@return <i>0</i> if the node could not be found
  *	@return <i>1</i> if the node was found
  */
-int bkxml_nodesearch(bk_s B, xmlNodePtr node, xmlNodePtr *last, xmlNodePtr *found, xmlElementType findtype, u_char *findname, int depth, bk_flags flags)
+int bkxml_nodesearch(bk_s B, xmlNodePtr node, xmlNodePtr *last, xmlNodePtr *found, xmlElementType findtype, const u_char *findname, int depth, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkxml");
   int ret;
