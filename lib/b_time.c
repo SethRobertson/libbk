@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.9 2002/09/12 19:57:02 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_time.c,v 1.10 2002/09/12 20:32:10 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -130,7 +130,7 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
     }
   }
 
-  if (sizeof(FORMAT_WITH_T) + precision > max)	// check space in advance
+  if (sizeof(FORMAT_WITH_T) + 2 + precision > max)	// check space in advance
     BK_RETURN(B, 0);
 
   tp = gmtime_r(&timep->tv_sec, &t);
@@ -142,7 +142,7 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
     len += snprintf(&str[len], max - len, ".%0*u%s", precision, fraction, Z);
   else
   {
-    strcat(&str[len], "Z");
+    strcat(&str[len], Z);
     len++;
   }
 
