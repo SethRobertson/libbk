@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.40 2003/04/28 21:59:12 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.41 2003/06/03 21:14:13 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -355,6 +355,22 @@ extern struct tm *gmtime_r(const time_t *timenow, struct tm *buffer);
 #else
 # define BK_GETHOSTBYNAME2(n,f)	(gethostbyname2(n,f))
 #endif /* HAVE_GETHOSTBYNAME2 */
+
+/*
+ * Some platforms provide a definition for this in unistd.h, but even those
+ * platforms say that you have to declare environ in your program.  On some
+ * platforms, we may need to declare this as common (i.e. uninitialized data): 
+ *
+ *   char **environ;
+ *
+ * (and even on the ones where we don't need to do so, it may suppress warnings
+ * about unresolved references, e.g. *BSD).
+ *
+ * Theoretically, on some platforms, this might need to be declared as a
+ * array rather than a pointer.  It might be const-ified in various ways as
+ * well.
+ */
+extern char **environ;
 
 #ifdef HAVE_SETENV
 # define BK_SETENV(B, variable, value, overwrite)	(setenv(variable, value, overwrite))

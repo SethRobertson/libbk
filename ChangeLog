@@ -1,3 +1,11 @@
+2003-06-03  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* ssl/Makefile: BK_NO_STRICT_PROTOTYPES=true for *BSD compile
+
+	* include/libbk_oscompat.h: centralize environ declaration here
+
+	* lib/b_general.c, lib/b_string.c, test/test_stringconv.c: nuke environ
+
 2003-06-03  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_thread.c (bk_atomic_add_init): Reference counts useful

@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.2 2003/06/03 17:47:38 lindauer Exp $
+# $Id: Makefile,v 1.3 2003/06/03 21:14:14 dupuy Exp $
 #
 # ++Copyright SYSDETECT++
 # 
@@ -33,6 +33,10 @@ LT_LDLIBS=-lbk -lssl -lcrypto
 
 GROUPTOP=..
 GROUPSUBDIR=ssl
+
+# *BSD openssl header files have old-style prototypes
+override BK_NO_STRICT_PROTOTYPES=true
+
 ##################################################
 ## BEGIN BKSTANDARD MAKEFILE
 -include ./Make.preinclude

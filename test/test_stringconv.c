@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.15 2003/05/15 03:15:24 seth Exp $";
+static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.16 2003/06/03 21:14:14 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -20,11 +20,6 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 #define MAXLINE 1024
-
-// not declared by default on BSD?!?
-#ifdef BSD
-extern char *environ[];
-#endif /* BSD */
 
 
 /*

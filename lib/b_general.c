@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.43 2003/06/03 21:03:08 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.44 2003/06/03 21:14:14 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -44,10 +44,6 @@ struct bk_proctitle
   bk_flags	bp_flags;			///< Flags
 #define BK_PROCTITLE_OFF	1		///< Process title is disabled
 };
-
-
-
-extern char **environ;				/**< Some morons (e.g. linux) do not define the environment */
 
 
 
