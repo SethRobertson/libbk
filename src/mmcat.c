@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: mmcat.c,v 1.3 2001/11/18 20:14:45 seth Exp $";
+static char libbk__rcsid[] = "$Id: mmcat.c,v 1.4 2001/11/18 20:42:44 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -201,6 +201,7 @@ main(int argc, char **argv, char **envp)
 	bk_die(B,1,stderr,"Could not encode input string\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 
       fwrite(out, strlen(out), 1, pconfig->pc_output);
+      free(out);
     }
   }
   else

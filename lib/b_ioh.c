@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.23 2001/11/18 20:02:37 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.24 2001/11/18 20:42:44 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1157,7 +1157,7 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
   }
 
   // Examine file descriptor for proper file and socket options
-  if (fcntl(fd, F_GETFL, &fdflags) < 0)
+  if ((fdflags = fcntl(fd, F_GETFL, NULL)) < 0)
     fdflags = -1;
   size = sizeof(oobinline);
   if (getsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &oobinline, &size) < 0)
