@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.206 2003/02/05 23:58:51 lindauer Exp $
+ * $Id: libbk.h,v 1.207 2003/02/08 01:57:17 dupuy Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1584,6 +1584,7 @@ extern int bk_iohh_bnbio_cancel_register(bk_s B, struct bk_iohh_bnbio *bib, bk_f
 extern int bk_iohh_bnbio_cancel_unregister(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 extern int bk_iohh_bnbio_is_canceled(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 extern int bk_iohh_bnbio_cancel(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
+extern const char *bk_iohh_bnbio_geterr(bk_s B, struct bk_iohh_bnbio *bib);
 
 
 /* b_stdfun.c */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.14 2002/09/17 16:23:52 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.15 2003/02/08 01:57:17 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -324,8 +324,10 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
   {
     bpi->bpi_size += pid->pid_data->len;
 
-    // <TODO> if file open for only writing mark the case so we don't do this (??)</TODO>
-    /* Pause reading if buffer is full */
+    /*
+     * Pause reading if buffer is full.  <TODO> if file open for only writing
+     * mark the case so we don't bother.</TODO>
+     */
     if (ioh->ioh_readq.biq_queuemax && bpi->bpi_size >= ioh->ioh_readq.biq_queuemax)
     {
       bk_polling_io_throttle(B, bpi, 0);
@@ -500,8 +502,11 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
   }
 
 
-  // <TODO> if file open for only writing mark the case so we don't do this </TODO>
-  /* Enable reading if buffer is not full */
+  /*
+   * Enable reading if buffer is not full.  <TODO> if file open for only
+   * writing mark the case so we don't bother.</TODO> <WARNING>Requires
+   * unthrottle as no-op if not throttled.</WARNING>
+   */
   if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
       bpi->bpi_ioh->ioh_readq.biq_queuemax &&
       bpi->bpi_size < bpi->bpi_ioh->ioh_readq.biq_queuemax)
@@ -708,12 +713,10 @@ bk_polling_io_unthrottle(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     BK_RETURN(B,-1);
   }
 
-  bpi->bpi_throttle_cnt--;
-
-  if (bpi->bpi_throttle_cnt == 0)
-  {
-    bk_ioh_readallowed(B, bpi->bpi_ioh, 1, 0);
-  }
+  // <TRICKY>Other code requires unthrottle as no-op if not throttled.</TRICKY>
+  if (bpi->bpi_throttle_cnt != 0)
+    if (--bpi->bpi_throttle_cnt == 0)
+      bk_ioh_readallowed(B, bpi->bpi_ioh, 1, 0);
 
   BK_RETURN(B,0);
 }
@@ -809,6 +812,7 @@ polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 	bpi->bpi_size -= pid->pid_data->len;
 	bpi->bpi_tell -= pid->pid_data->len;
 
+	// <WARNING>Requires unthrottle as no-op if not throttled.</WARNING>
 	if (bpi->bpi_ioh->ioh_readq.biq_queuemax &&
 	    bpi->bpi_size < bpi->bpi_ioh->ioh_readq.biq_queuemax)
 	{

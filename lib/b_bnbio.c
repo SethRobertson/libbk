@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.16 2002/11/05 11:02:37 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.17 2003/02/08 01:57:17 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,7 +26,10 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
-#define SHOULD_LINGER(bib,flags) ((BK_FLAG_ISSET((bib)->bib_flags, BK_IOHH_BNBIO_FLAG_SYNC) && BK_FLAG_ISCLEAR((flags), BK_IOHH_BNBIO_FLAG_NO_LINGER)) || (BK_FLAG_ISSET((flags), BK_IOHH_BNBIO_FLAG_LINGER)))
+#define SHOULD_LINGER(bib, flags)				\
+ ((BK_FLAG_ISSET((bib)->bib_flags, BK_IOHH_BNBIO_FLAG_SYNC) &&	\
+   BK_FLAG_ISCLEAR((flags), BK_IOHH_BNBIO_FLAG_NO_LINGER))	\
+  || (BK_FLAG_ISSET((flags), BK_IOHH_BNBIO_FLAG_LINGER)))
 
 
 static void bnbio_timeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *stattime, bk_flags flags);
@@ -66,8 +69,8 @@ bk_iohh_bnbio_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
   if (!(BK_CALLOC(bib)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate bib: %s\n", strerror(errno));
-    BK_RETURN(B,NULL);
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate bib\n");
+    BK_RETURN(B, NULL);
   }
 
   if (!(bib->bib_bpi = bk_polling_io_create(B, ioh, 0)))
@@ -78,15 +81,14 @@ bk_iohh_bnbio_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
   bib->bib_flags = flags;
 
-  BK_RETURN(B,bib);
+  BK_RETURN(B, bib);
   
  error:
   if (bib) 
     bk_iohh_bnbio_destroy(B, bib);
-  BK_RETURN(B,NULL);
+  BK_RETURN(B, NULL);
   
 }
-
 
 
 
@@ -116,7 +118,6 @@ bk_iohh_bnbio_destroy(bk_s B, struct bk_iohh_bnbio *bib)
   free(bib);
   BK_VRETURN(B);
 }
-
 
 
 
@@ -163,33 +164,33 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t ti
   if (bk_iohh_bnbio_is_timedout(B, bib) || is_canceled)
   {
     if (is_canceled)
-      bk_error_printf(B, BK_ERR_ERR, "Blocking NBIO read aborted by external request\n");
+      bk_error_printf(B, BK_ERR_WARN, "Blocking NBIO read was canceled\n");
 
     BK_RETURN(B, -1);
   }
 
   if (ret < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "reading from iohh poll level failed severely\n");
-    BK_RETURN(B,-1);
+    bk_error_printf(B, BK_ERR_ERR, "Blocking NBIO read poll failed\n");
+    BK_RETURN(B, -1);
   }
 
   if (ret == 0 && !(*datap))
   {
     // EOF indicator, just pass this along.
-    BK_RETURN(B,0);
+    BK_RETURN(B, 0);
   }
 
   switch (status)
   {
   case BkIohStatusIncompleteRead:
   case BkIohStatusReadComplete:
-    BK_RETURN(B,(*datap)->len);
+    BK_RETURN(B, (*datap)->len);
     break;
 
   case BkIohStatusIohReadError:
-    // Don't log anything here since this error actually occured a long time ago
-    BK_RETURN(B,-1);
+    // Don't log anything here since error is sticky, and may not be new
+    BK_RETURN(B, -1);
     break;
     
 
@@ -198,7 +199,7 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t ti
     // Maybe free data....
     // Intentional fall through
   case BkIohStatusIohWriteError:
-    // Don't log anything here since this error actually occured a long time ago
+    // Don't log anything here since error is sticky, and may not be new
     goto reread;
     break;
 
@@ -220,18 +221,26 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t ti
     break;
   }
   
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 }
 
 
 
-
 /**
- * Write out a buffer to blocking system possibly "lingering" untill we know that it's written
+ * Write out a buffer to blocking system.
+ *
+ * Possibly "lingering" until we know that it's written.  The awb proto plugins
+ * claim something about returning -1 "if pending write cannot succeed with
+ * LINGER turned on" (whatever *that* means).  At any rate, the linger setting
+ * has no effect on return codes as this was coded before I added error return,
+ * and it still doesn't.  The only thing linger affects is whether we are
+ * willing to keep calling bk_polling_io_do_poll until the output queue is
+ * drained or we get cancellation/ioh-error-state.
  *
  *	@param B BAKA thread/global state.
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
+ *	@return <i>-1</i> on failure (client must free data).<br>
+ *	@return <i>0</i> on success.<br>
+ *	@return <i>1</i> on error (client must not use data).
  */
 int
 bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags flags)
@@ -251,25 +260,21 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
   if (bk_polling_io_write(B, bib->bib_bpi, data, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not write out data\n");
-    BK_RETURN(B,-1);
+    BK_RETURN(B, -1);
   }
 
 
   // Wait for the buffer to return.
-  if ((BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_SYNC) && 
-       BK_FLAG_ISCLEAR(flags, BK_IOHH_BNBIO_FLAG_NO_LINGER)) || 
-      (BK_FLAG_ISSET(flags, BK_IOHH_BNBIO_FLAG_SYNC)))
-  {
+  if (SHOULD_LINGER(bib, flags))
     linger = 1;
-  }
 
   // Do at least one poll to clean up the state from this write under normal conditions.
   do
   {
     if (bk_polling_io_do_poll(B, bib->bib_bpi, &ddata, &status, 0) < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "polling run failed seveerly\n");
-      BK_RETURN(B,-1);      
+      bk_error_printf(B, BK_ERR_ERR, "Blocking NBIO write poll failed\n");
+      BK_RETURN(B, -1);      
     }
 
     /*
@@ -279,18 +284,21 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
      * quite possible for us to make forward progress in terms of *writing*
      * out data without the poll subsystem really knowing it.
      */
-  } while (linger && (!(is_canceled = bk_iohh_bnbio_is_canceled(B, bib, 0))) && 
-	   (bib->bib_bpi->bpi_ioh->ioh_writeq.biq_queuelen > 0));
+  } while (linger && !(is_canceled = bk_iohh_bnbio_is_canceled(B, bib, 0)) &&
+	   status != BkIohStatusIohWriteError &&
+	   bib->bib_bpi->bpi_ioh->ioh_writeq.biq_queuelen > 0);
 
   if (is_canceled)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Blocking NBIO write aborted by external request\n");
-    BK_RETURN(B, -1);
+    bk_error_printf(B, BK_ERR_WARN, "Blocking NBIO write was canceled\n");
+    BK_RETURN(B, 1);
   }
+  if (status == BkIohStatusIohWriteError)
+    // Don't log anything here since error is sticky, and may not be new
+    BK_RETURN(B, 1);
 
-  BK_RETURN(B,0);  
+  BK_RETURN(B, 0);  
 }
-
 
 
 
@@ -300,8 +308,8 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to use.
  *	@param ioh The @a bk_ioh to use.
- *	@param offset The offset (ala @a lseek(2)).
- *	@param whence Wence (ala @a lseek(2)).
+ *	@param offset The offset (as in @a lseek(2)).
+ *	@param whence Whence (as in @a lseek(2)).
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
@@ -330,8 +338,8 @@ bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, 
   
   if (ret < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "polling run failed seveerly\n");
-    BK_RETURN(B,-1);      
+    bk_error_printf(B, BK_ERR_ERR, "Blocking NBIO seek poll failed\n");
+    BK_RETURN(B, -1);      
   }
 
   switch (status)
@@ -344,16 +352,15 @@ bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, 
     ret = -1;
     break;
   default: 
-    bk_error_printf(B, BK_ERR_ERR, "Unexpected or unknown status from seek: %d\n", status);
+    bk_error_printf(B, BK_ERR_ERR, "Unexpected seek status: %d\n", status);
     
   }
     
-  BK_RETURN(B,ret);
+  BK_RETURN(B, ret);
   
  error:
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 }
-
 
 
 
@@ -378,9 +385,8 @@ bk_iohh_bnbio_tell(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
   }
 
   // <WARNING> LAYER VIOLATION </WARNING>
-  BK_RETURN(B,bib->bib_bpi->bpi_tell);  
+  BK_RETURN(B, bib->bib_bpi->bpi_tell);  
 }
-
 
 
 
@@ -408,15 +414,13 @@ bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
   if (bib->bib_read_to_handle)
     bk_run_dequeue(B, POLLING_IOH_RUN(bib->bib_bpi), bib->bib_read_to_handle, BK_RUN_DEQUEUE_EVENT);
 
-  // <TODO> Jtt is not at all sure that this is correct and won't leak memory </TODO>
+  // <TODO> Jtt is not sure that this is correct and won't leak memory </TODO>
 
-  if ((BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_LINGER) && 
-       BK_FLAG_ISCLEAR(flags, BK_IOHH_BNBIO_FLAG_NO_LINGER)) || 
-      (BK_FLAG_ISSET(flags, BK_IOHH_BNBIO_FLAG_LINGER)))
+  if (SHOULD_LINGER(bib, flags))
   {
     bk_polling_io_close(B, bib->bib_bpi, BK_POLLING_CLOSE_FLAG_LINGER);
-    while (((ret = bk_polling_io_do_poll(B, bib->bib_bpi, &data, &status, 0)) >= 0) && 
-	   (status != BkIohStatusIohClosing))
+    while (((ret = bk_polling_io_do_poll(B, bib->bib_bpi, &data, &status, 0))
+	    >= 0) && (status != BkIohStatusIohClosing))
     {
       if (data)
       {
@@ -426,7 +430,7 @@ bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
 
     if (ret < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "polling run failed seveerly\n");
+      bk_error_printf(B, BK_ERR_ERR, "Blocking NBIO close poll failed\n");
       BK_VRETURN(B);
     }
     // We have to destroy this ourselves now.
@@ -434,7 +438,7 @@ bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
   }
   else
   {
-    // We're not linger so we can just let the run loop run its course when it chooses to.
+    // We're not lingering; the run loop is responsible for cleaning up
     bk_polling_io_close(B, bib->bib_bpi, 0);
   }
   
@@ -480,12 +484,11 @@ bnbio_set_timeout(bk_s B, struct bk_iohh_bnbio *bib, time_t msecs, bk_flags flag
     goto error;
   }
       
-  BK_RETURN(B,0);  
+  BK_RETURN(B, 0);  
   
  error:
-  BK_RETURN(B,-1);  
+  BK_RETURN(B, -1);  
 }
-
 
 
 
@@ -518,7 +521,6 @@ bnbio_timeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *st
 
 
 
-
 /**
  * Is this bnbio struct in a timed out state.
  *
@@ -539,13 +541,13 @@ bk_iohh_bnbio_is_timedout(bk_s B, struct bk_iohh_bnbio *bib)
     BK_RETURN(B, -1);
   }
 
-  BK_RETURN(B,BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT));  
+  BK_RETURN(B, BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT));  
 }
 
 
 
 /**
- * Regiester a @a bnbio for cancellation
+ * Register a @a bnbio for cancellation
  *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to use.
@@ -563,14 +565,13 @@ bk_iohh_bnbio_cancel_register(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,bk_polling_io_cancel_register(B, bib->bib_bpi, 0));  
+  BK_RETURN(B, bk_polling_io_cancel_register(B, bib->bib_bpi, 0));  
 }
 
 
 
-
 /**
- * Unregiester a @a bnbio for cancellation
+ * Unregister a @a bnbio for cancellation
  *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to unregister.
@@ -588,14 +589,13 @@ bk_iohh_bnbio_cancel_unregister(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flag
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,bk_polling_io_cancel_unregister(B, bib->bib_bpi, 0));  
+  BK_RETURN(B, bk_polling_io_cancel_unregister(B, bib->bib_bpi, 0));  
 }
 
 
 
-
 /**
- * Check if a bnbio has been regiestered for cancellation.
+ * Check if a bnbio has been registered for cancellation.
  *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to use.
@@ -615,9 +615,8 @@ bk_iohh_bnbio_is_canceled(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
     BK_RETURN(B, -1);
   }
   
-  BK_RETURN(B,bk_polling_io_is_canceled(B, bib->bib_bpi, 0));  
+  BK_RETURN(B, bk_polling_io_is_canceled(B, bib->bib_bpi, 0));  
 }
-
 
 
 
@@ -640,5 +639,33 @@ bk_iohh_bnbio_cancel(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,bk_polling_io_cancel(B, bib->bib_bpi, flags));  
+  BK_RETURN(B, bk_polling_io_cancel(B, bib->bib_bpi, flags));  
+}
+
+
+
+/**
+ * Get error message from a bib
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bib The @a bk_iohh_bnbio to cancel
+ *	@return an explanatory error message.<br>
+ *	@return NULL if we don't have a clue.
+ */
+const char *
+bk_iohh_bnbio_geterr(bk_s B, struct bk_iohh_bnbio *bib)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int err;
+
+  if (!bib || !bib->bib_bpi || !bib->bib_bpi->bpi_ioh)
+    err = EINVAL;
+  else
+    err = bib->bib_bpi->bpi_ioh->ioh_errno;
+
+  if (!err)
+    BK_RETURN(B, NULL);
+    
+
+  BK_RETURN(B, strerror(err));
 }

@@ -24,6 +24,16 @@
 	* lib/b_nvmap.c (bk_nvmap_name2value): Type int values to
 	u_int64_t so pointers can be held in nvmaps.
 
+2003-01-21  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_bnbio.c (bk_iohh_bnbio_write): return error status [data eaten]
+	(bk_iohh_bnbio_geterr): return error message from ioh errno
+
+	* lib/b_pollio.c (bk_polling_io_unthrottle): unthrottle should be noop
+	if bpi isn't already throttled
+	
+	* lib/b_run.c (bk_run_destroy): fix for ticket #590 double free
+
 2003-01-20  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_exec.c: Update users of tokenization to handle new

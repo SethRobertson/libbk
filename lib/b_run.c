@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.34 2002/11/08 23:42:23 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.35 2003/02/08 01:57:17 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -429,8 +429,13 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 
     while (cur = fdassoc_minimum(run->br_fdassoc))
     {
+      // Get rid of event in list, which will also prevent double deletion
+      if (fdassoc_delete(run->br_fdassoc, cur) != DICT_OK)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not delete descriptor %d from fdassoc list: %s\n", cur->brf_fd, fdassoc_error_reason(run->br_fdassoc, NULL));
+	break;					// DLL hopelessly mangled
+      }
       (*cur->brf_handler)(B, run, -1, BK_RUN_DESTROY, cur->brf_opaque, &curtime);
-      fdassoc_delete(run->br_fdassoc, cur);
       free(cur);
     }
     fdassoc_destroy(run->br_fdassoc);
