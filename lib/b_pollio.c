@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.31 2003/05/16 20:45:20 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.32 2003/05/16 23:51:11 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -219,7 +219,6 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct polling_io_data *pid;
-  int ret;
 
   if (!bpi)
   {
@@ -269,9 +268,9 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
     if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_LINGER))
     {
-      while (bpi->bpi_wroutstanding && (ret = bk_run_once(B, bpi->bpi_ioh->ioh_run, 0)))
+      while (bpi->bpi_wroutstanding)
       {
-	if (ret < 0)
+	if (bk_run_once(B, bpi->bpi_ioh->ioh_run, 0) < 0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
 	  break;
