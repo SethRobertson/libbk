@@ -47,7 +47,6 @@ int main(int argc, char **argv, char **envp)
   int c;
   char *dir = NULL;
   char *shell;
-  int gidset = 0;
 
   if ((uid = getuidbyargv("nobody",&err,NULL)) == -1)
     if ((uid = getuidbyargv("noone",&err,NULL)) == -1)
@@ -83,7 +82,6 @@ int main(int argc, char **argv, char **envp)
 
       case 'g':
 	gid = getgidbyargv(optarg,NULL);
-	gidset = 1;
 	break;
 
       case 'c':
