@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.8 2003/05/03 04:23:28 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.9 2003/05/15 03:15:23 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -274,22 +274,20 @@ struct bk_threadlist *bk_threadlist_create(bk_s B, bk_flags flags)
  */
 void bk_threadlist_destroy(bk_s B, struct bk_threadlist *tlist, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_threadnode *tnode;
 
   if (!tlist)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
-    BK_VRETURN(B);
+    return;
   }
 
   if (tlist->btl_list)
   {
-    DICT_NUKE(tlist->btl_list, btl, tnode, bk_error_printf(B, BK_ERR_ERR, "Could not delete node we just minimized\n"); break, bk_threadnode_destroy(B, tnode, flags));
+    DICT_NUKE(tlist->btl_list, btl, tnode, break, bk_threadnode_destroy(B, tnode, flags));
   }
 
   free(tlist);
-  BK_VRETURN(B);
+  return;
 }
 
 
@@ -349,13 +347,14 @@ struct bk_threadnode *bk_threadnode_create(bk_s B, const char *threadname, bk_fl
  */
 void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-
   if (!tnode)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
-    BK_VRETURN(B);
+    return;
   }
+
+  // Don't nuke self
+  if (B == tnode->btn_B)
+    return;
 
   if (tnode->btn_threadname)
     free((char *)tnode->btn_threadname);
@@ -364,7 +363,7 @@ void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags)
     bk_general_thread_destroy(tnode->btn_B);
 
   free(tnode);
-  BK_VRETURN(B);
+  return;
 }
 
 

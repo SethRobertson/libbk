@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.37 2003/04/21 20:38:29 brian Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.38 2003/05/15 03:15:23 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -130,10 +130,10 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
   if (!(B->bt_general->bg_proctitle = bk_general_proctitle_init(B, argc, argv, envp, &program, 0)))
     goto error;
 
-#ifdef BK_USING_THREADS
+#ifdef BK_USING_PTHREADS
   if (!(B->bt_general->bg_tlist = bk_threadlist_create(B, 0)))
     goto error;
-#endif /*BK_USING_THREADS*/
+#endif /*BK_USING_PTHREADS*/
 
   B->bt_general->bg_program = program;
 
@@ -174,7 +174,7 @@ void bk_general_destroy(bk_s B)
 	bk_funlist_destroy(B, BK_GENERAL_DESTROY(B));
       }
 
-#ifdef BK_USING_THREADS
+#ifdef BK_USING_PTHREADS
       /*
        * <WARNING>We perhaps need to cancel all child threads and
        * verify they are dead.  What we are actually doing is a little
@@ -184,7 +184,7 @@ void bk_general_destroy(bk_s B)
 
       if (B->bt_general->bg_tlist)
 	bk_threadlist_destroy(B, B->bt_general->bg_tlist, 0);
-#endif /*BK_USING_THREADS*/
+#endif /*BK_USING_PTHREADS*/
 
       if (BK_GENERAL_ISFUNSTATSON(B))
       {
@@ -348,7 +348,7 @@ bk_s bk_general_thread_init(bk_s B, char *name)
     return(NULL);
   }
 
-  if (B && BK_GENERAL_FLAG_ISTHREADREADY(B))
+  if (B && !BK_GENERAL_FLAG_ISTHREADREADY(B))
   {
     bk_error_printf(B, BK_ERR_ERR, "Cannot enable threading, is not BK_GENERAL_THREADREADY\n");
     goto error;

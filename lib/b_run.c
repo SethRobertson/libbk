@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.45 2003/05/15 01:29:50 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.46 2003/05/15 03:15:23 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1040,7 +1040,10 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
 	{
 	  if (brof->brof_userid)
+	  {
+	    bk_debug_printf_and(B, 1, "Cannot call ondemand function %p, locked by %d\n", brof->brof_fun, (int)brof->brof_userid);
 	    continue;				// Someone already calling this function
+	  }
 
 	  brof->brof_userid = pthread_self();	// Who is has a soft-lock on this structure
 	}
@@ -1110,7 +1113,10 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
       if (BK_GENERAL_FLAG_ISTHREADON(B))
       {
 	if (brfn->brfn_userid)
+	{
+	  bk_debug_printf_and(B, 1, "Cannot call poll function %p, locked by %d\n", brfn->brfn_fun, (int)brfn->brfn_userid);
 	  continue;				// Someone already calling this function
+	}
 
 	brfn->brfn_userid = pthread_self();	// Who is has a soft-lock on this structure
       }
@@ -1420,7 +1426,10 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
 	{
 	  if (curfd->brf_userid)
+	  {
+	    bk_debug_printf_and(B, 1, "Cannot call fdassoc function %p, locked by %d\n", curfd->brf_handler, (int)curfd->brf_userid);
 	    continue;				// Someone already calling this function
+	  }
 
 	  curfd->brf_userid = pthread_self();	// Who is has a soft-lock on this structure
 	}
@@ -1486,7 +1495,10 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
 	{
 	  if (brfn->brfn_userid)
+	  {
+	    bk_debug_printf_and(B, 1, "Cannot call idle function %p, locked by %d\n", brfn->brfn_fun, (int)brfn->brfn_userid);
 	    continue;				// Someone already calling this function
+	  }
 
 	  brfn->brfn_userid = pthread_self();	// Who is has a soft-lock on this structure
 	}
@@ -1965,20 +1977,24 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
   if (BK_GENERAL_FLAG_ISTHREADON(B))
   {
     if (brec->brec_userid)
+    {
+      bk_debug_printf_and(B, 1, "Cannot call cron %p, locked by %d\n", brec->brec_event, (int)brec->brec_userid);
       BK_VRETURN(B);			// Someone already calling this function
+    }
 
     brec->brec_userid = pthread_self();	// Who is has a soft-lock on this structure
   }
 #endif /* BK_USING_PTHREADS */
 
   (*brec->brec_event)(B, run, brec->brec_opaque, starttime, flags);
+  bk_debug_printf_and(B, 16, "Function %p (locked by %d) returned\n", brec->brec_event, (int)brec->brec_userid);
 
 #ifdef BK_USING_PTHREADS
   // Special handling due to partial deletion
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
     abort();
 
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && !BK_FLAG_ISSET(brec->brec_flags, BK_RUN_THREADREADY))
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && BK_FLAG_ISSET(brec->brec_flags, BK_RUN_THREADREADY))
   {
     if (!brec->brec_userid)
     {
@@ -1991,7 +2007,9 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
     }
     else
     {
+      bk_debug_printf_and(B, 16, "Function %p (locked by %d) zapping lock\n", brec->brec_event, (int)brec->brec_userid);
       BK_ZERO(&brec->brec_userid);		// Here's hoping zero is reserved
+      bk_debug_printf_and(B, 16, "Function %p (locked by %d) zapped lock\n", brec->brec_event, (int)brec->brec_userid);
     }
   }
 
@@ -2029,7 +2047,7 @@ static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, stru
   }
 
 #ifdef BK_USING_PTHREADS
-  if (BK_FLAG_ISSET(flags, BK_RUN_THREADREADY) && BK_GENERAL_FLAG_ISTHREADON(B) && !eventflags)
+  if (BK_FLAG_ISSET(flags, BK_RUN_THREADREADY) && BK_GENERAL_FLAG_ISTHREADREADY(B) && !eventflags)
   {
     struct br_runevent *brre;
 
@@ -2113,7 +2131,7 @@ static void bk_run_runfd(bk_s B, struct bk_run *run, int fd, u_int gottypes, bk_
   }
 
 #ifdef BK_USING_PTHREADS
-  if (BK_FLAG_ISSET(flags, BK_RUN_THREADREADY) && BK_GENERAL_FLAG_ISTHREADON(B))
+  if (BK_FLAG_ISSET(flags, BK_RUN_THREADREADY) && BK_GENERAL_FLAG_ISTHREADREADY(B))
   {
     struct br_runfd *brrf;
 
