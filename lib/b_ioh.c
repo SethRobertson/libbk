@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.91 2003/06/20 20:42:09 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.92 2003/06/25 19:27:14 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -80,14 +80,16 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
    }												\
  } while (0)					///< Function to evaluate user callback with new data/state information
 #else /* BK_USING_PTHREADS */
-#define CALL_BACK(B, ioh, data, state)								\
- do												\
- {												\
-   ioh->ioh_incallback++;                                                                       \
-   bk_debug_printf_and(B, 2, "Calling user callback for ioh %p with state %d\n",(ioh),(state));	\
-   ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state)));			\
-   ioh->ioh_incallback--;                                                                       \
- } while (0)					///< Function to evaluate user callback with new data/state information
+
+///< Function to evaluate user callback with new data/state information
+#define CALL_BACK(B, ioh, data, state)								 \
+ do												 \
+ {												 \
+   (ioh)->ioh_incallback++;									 \
+   bk_debug_printf_and(B, 2, "Calling user callback for ioh %p with state %d\n", (ioh),(state)); \
+   ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state)));			 \
+   (ioh)->ioh_incallback--;									 \
+ } while (0)
 #endif /* BK_USING_PTHREADS */
 
 
@@ -148,6 +150,7 @@ struct ioh_data_cmd
  */
 struct bk_ioh_data
 {
+  struct bk_generic_dll_element bid_hold;	///< Space holder for bk_dll
   char		       *bid_data;		///< Actual data
   u_int32_t		bid_allocated;		///< Allocated size of data
   u_int32_t		bid_inuse;		///< Amount actually used (!including consumed)
@@ -222,22 +225,22 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk
  * to hide CLC choice.
  */
 // @{
-#define biq_create(o,k,f,a)		dll_create(o,k,f)
-#define biq_destroy(h)			dll_destroy(h)
-#define biq_insert(h,o)			dll_insert(h,o)
-#define biq_insert_uniq(h,n,o)		dll_insert_uniq(h,n,o)
-#define biq_append(h,o)			dll_append(h,o)
-#define biq_append_uniq(h,n,o)		dll_append_uniq(h,n,o)
-#define biq_search(h,k)			dll_search(h,k)
-#define biq_delete(h,o)			dll_delete(h,o)
-#define biq_minimum(h)			dll_minimum(h)
-#define biq_maximum(h)			dll_maximum(h)
-#define biq_successor(h,o)		dll_successor(h,o)
-#define biq_predecessor(h,o)		dll_predecessor(h,o)
-#define biq_iterate(h,d)		dll_iterate(h,d)
-#define biq_nextobj(h,i)		dll_nextobj(h,i)
-#define biq_iterate_done(h,i)		dll_iterate_done(h,i)
-#define biq_error_reason(h,i)		dll_error_reason(h,i)
+#define biq_create(o,k,f,a)		bk_dll_create()
+#define biq_destroy(h)			bk_dll_destroy(h)
+#define biq_insert(h,o)			bk_dll_insert(h,o)
+#define biq_insert_uniq(h,n,o)		bk_dll_insert_uniq(h,n,o)
+#define biq_append(h,o)			bk_dll_append(h,o)
+#define biq_append_uniq(h,n,o)		bk_dll_append_uniq(h,n,o)
+#define biq_search(h,k)			bk_dll_search(h,k)
+#define biq_delete(h,o)			bk_dll_delete(h,o)
+#define biq_minimum(h)			bk_dll_minimum(h)
+#define biq_maximum(h)			bk_dll_maximum(h)
+#define biq_successor(h,o)		bk_dll_successor(h,o)
+#define biq_predecessor(h,o)		bk_dll_predecessor(h,o)
+#define biq_iterate(h,d)		bk_dll_iterate(h,d)
+#define biq_nextobj(h,i)		bk_dll_nextobj(h,i)
+#define biq_iterate_done(h,i)		bk_dll_iterate_done(h,i)
+#define biq_error_reason(h,i)		bk_dll_error_reason(h,i)
 // @}
 
 /**
@@ -1766,7 +1769,6 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
 static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *iohq, u_int32_t bytes, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  dict_iter iter;
   struct bk_ioh_data *bid;
   int origbytes = bytes;
 
@@ -1777,8 +1779,9 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
   }
 
   // Figure out what buffers have been fully written
-  iter = biq_iterate(iohq->biq_queue, DICT_FROM_START);
-  while ((bid = biq_nextobj(iohq->biq_queue, iter)) && bytes > 0)
+  while (bid = biq_minimum(iohq->biq_queue);
+	 bid && (bytes > 0);
+	 bid = biq_successor(iohq->biq_queue, bid)
   {
     if (!bid->bid_data)
       continue;
@@ -1803,7 +1806,6 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
     bytes -= bid->bid_inuse;
     ioh_dequeue(B, ioh, iohq, bid, 0);
   }
-  biq_iterate_done(iohq->biq_queue, iter);
 
   bk_debug_printf_and(B, 1, "Dequeueing %d bytes (now %d) for IOH queue %p\n", origbytes, iohq->biq_queuelen, iohq);
 
@@ -2301,17 +2303,16 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
     {						// Determine if we have msg or are over limit
       int cnt = 0;
       bk_vptr *sendup;
-      dict_iter iter;
       struct bk_ioh_data *bid_cache = NULL;
 
       // Find out how many data segments we have
-      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
+      for (bid_cache = (bid = biq_minimum(ioh->ioh_readq.biq_queue));
+	   bid;
+	   bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
       {
 	if (bid->bid_data && bid->bid_inuse > 0)
 	  cnt++;
       }
-      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
       if (!cnt)
 	BK_RETURN(B,0);
@@ -2322,20 +2323,29 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	BK_RETURN(B,-1);
       }
 
-      // Actually fill out the data list
-      cnt = 0;
-      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
+      // Optimize everything for the single bid case.
+      if (cnt == 1)
       {
-	if (bid->bid_data)
+	sendup[0].ptr = bid_cache->bid_data+bid_cache->bid_used;
+	sendup[0].len = bid_cache->bid_inuse;
+      }
+      else
+      {
+	// Actually fill out the data list
+	cnt = 0;
+	for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
+	     bid;
+	     bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
 	{
-	  sendup[cnt].ptr = bid->bid_data+bid->bid_used;
-	  sendup[cnt].len = bid->bid_inuse;
-	  cnt++;
-	  bid_cache = bid; // Cache this bid (used when only *one* bid involved in sendup).
+	  if (bid->bid_data)
+	  {
+	    sendup[cnt].ptr = bid->bid_data+bid->bid_used;
+	    sendup[cnt].len = bid->bid_inuse;
+	    cnt++;
+	    bid_cache = bid; // Cache this bid (used when only *one* bid involved in sendup).
+	  }
 	}
       }
-      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
       CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
@@ -2354,13 +2364,13 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
       {
 	// Otherwise we have to iterate through the whole list.
 	cnt = 0;
-	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-	while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
+	for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
+	     bid;
+	     bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
 	{
 	  if (bid->bid_data && !sendup[cnt++].ptr)
 	    bid->bid_data=NULL;
 	}
-	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
       }
        
       // Nuke vector list
@@ -2401,7 +2411,6 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
   int ret = 0;
   struct bk_ioh_data *bid;
   u_int32_t size = 0;
-  dict_iter iter;
 
   if (!ioh)
   {
@@ -2581,8 +2590,9 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
       {						// We have enough data--get ready to send up
 
 	size = cnt = 0;
-	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-	while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)) && size < ioh->ioh_inbuf_hint)
+	for (bid_cache = (bid = biq_minimum(ioh->ioh_readq.biq_queue));
+	     bid && (size < ioh->ioh_inbuf_hint);
+	     bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
 	{
 	  if (bid->bid_data && bid->bid_inuse > 0)
 	  {
@@ -2590,7 +2600,6 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	    size += bid->bid_inuse;
 	  }
 	}
-	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
 	if (!cnt || size < ioh->ioh_inbuf_hint)
 	{
@@ -2605,19 +2614,27 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	}
 
 	// Actually fill out the data list
-	size = cnt = 0;
-	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-	while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)) && size < ioh->ioh_inbuf_hint)
+	if (cnt == 1)
 	{
-	  if (bid->bid_data && bid->bid_inuse > 0)
+	  sendup[0].ptr = bid_cache->bid_data+bid_cache->bid_used;
+	  sendup[0].len = MIN(bid_cache->bid_inuse,ioh->ioh_inbuf_hint);
+	}
+	else
+	{
+	  size = cnt = 0;
+	  for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
+	       bid && (size < ioh->ioh_inbuf_hint);
+	       bid = biq_successor(ioh->ioh_readq.biq_queue, bid))		 
 	  {
-	    sendup[cnt].ptr = bid->bid_data+bid->bid_used;
-	    sendup[cnt].len = MIN(bid->bid_inuse,ioh->ioh_inbuf_hint - size);
-	    size += sendup[cnt].len;
-	    cnt++;
+	    if (bid->bid_data && bid->bid_inuse > 0)
+	    {
+	      sendup[cnt].ptr = bid->bid_data+bid->bid_used;
+	      sendup[cnt].len = MIN(bid->bid_inuse,ioh->ioh_inbuf_hint - size);
+	      size += sendup[cnt].len;
+	      cnt++;
+	    }
 	  }
 	}
-	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
 	CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
@@ -2636,13 +2653,13 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	{
 	  // Otherwise we have to iterate through the whole list.
 	  cnt = 0;
-	  iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-	  while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
+	  for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
+	       bid;
+	       bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
 	  {
 	    if (bid->bid_data && !sendup[cnt++].ptr)
 	      bid->bid_data=NULL;
 	  }
-	  biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 	}
 
 	// Nuke vector list
@@ -2685,7 +2702,6 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
   int ret = 0;
   struct bk_ioh_data *bid;
   u_int32_t room, size = 0;
-  dict_iter iter;
   u_int32_t lengthfromwire = 0;
   int cnt = 0;
   struct bk_ioh_data *bid_cache = NULL;
@@ -2939,8 +2955,9 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 
       // tmp is now the number of sizeof(lengthfromwire) bytes we have seen
       // size is now the number of data bytes we have seen
-      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)) && size < lengthfromwire)
+      while (bid = biq_minimum(ioh->ioh_readq.biq_queue);
+	     bid && (size < lengthfromwire);
+	     bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
       {
 	if (bid->bid_data && bid->bid_inuse > 0)
 	{
@@ -2969,7 +2986,6 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	  }
 	}
       }
-      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
       CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
@@ -2988,13 +3004,13 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
       {
 	// Otherwise we have to iterate through the whole list.
 	cnt = 0;
-	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-	while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
-	{
+	for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
+	     bid;
+	     bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
+	{  
 	  if (bid->bid_data && !sendup[cnt++].ptr)
 	    bid->bid_data=NULL;
 	}
-	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
       }
 
       // Nuke vector list
@@ -3040,7 +3056,6 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
   int ret = 0;
   struct bk_ioh_data *bid;
   u_int32_t needed, size = 0;
-  dict_iter iter;
   int cnt = 0;
 
   if (!ioh)
@@ -3098,8 +3113,9 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
 
       // Find number of segments
       size = cnt = 0;
-      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
+      for (bid = biq_minimum(ioh->ioh_readq.biq_queue)
+	   bid;
+	   bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
       {
 	if (bid->bid_data && bid->bid_inuse > 0)
 	{
@@ -3116,7 +3132,6 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
 	}
       }
     outloop:
-      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
       needed = size;
 
       if (!bid || cnt < 1)
@@ -3133,8 +3148,9 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
 
       // Actually fill out the data list
       size = cnt = 0;
-      iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-      while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)) && size < needed)
+      for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
+	   bid && (size < needed);
+	   bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
       {
 	if (bid->bid_data && bid->bid_inuse > 0)
 	{
@@ -3144,7 +3160,6 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
 	  cnt++;
 	}
       }
-      biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
       CALL_BACK(B, ioh, sendup, BkIohStatusReadComplete);
 
@@ -3414,7 +3429,6 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
   struct bk_ioh_data *bid;
   int cnt = 0;
   bk_vptr *sendup;
-  dict_iter iter;
 
   if (!ioh)
   {
@@ -3425,8 +3439,9 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
   bk_debug_printf_and(B, 1, "Send incomplete reads up for IOH %p\n", ioh);
 
   // Find out how many data segments we have
-  iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-  while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
+  for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
+       bid;
+       bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
   {
     bk_debug_printf_and(B, 1, "Checking %p for incomplete %d (%p,%d) -- cnt %d\n", bid, bid->bid_flags, bid->bid_data, bid->bid_inuse, cnt);
     if (filter && BK_FLAG_ISCLEAR(bid->bid_flags, filter))
@@ -3434,7 +3449,6 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
     if (bid->bid_data && bid->bid_inuse)
       cnt++;
   }
-  biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
   if (!cnt)
   {
@@ -3452,8 +3466,9 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
 
   // Actually fill out the data list
   cnt = 0;
-  iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
-  while ((bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter)))
+  for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
+       bid;
+       bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
   {
     if (filter && BK_FLAG_ISCLEAR(bid->bid_flags, filter))
       continue;
@@ -3464,7 +3479,6 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
       cnt++;
     }
   }
-  biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
   bk_debug_printf_and(B, 1, "We have %d incomplete reads we are sending up\n", cnt);
   CALL_BACK(B, ioh, sendup, BkIohStatusIncompleteRead);

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_inline.h,v 1.8 2003/06/24 22:16:02 jtt Exp $
+ * $Id: libbk_inline.h,v 1.9 2003/06/25 19:27:12 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -20,7 +20,6 @@
 
 #ifndef _libbk_inline_h_
 #define _libbk_inline_h_
-
 
 /*
  * This file provides baka with a "light weight" form of dll's which can in
@@ -101,8 +100,9 @@ static __inline__ void *bk_dll_maximum(bk_dll_h header);
 static __inline__ void *bk_dll_successor(bk_dll_h header, void *obj);
 static __inline__ void *bk_dll_predecessor(bk_dll_h header, void *obj);
 static __inline__ dict_iter bk_dll_iterate(bk_dll_h header, enum dict_direction direction);
-static __inline__ void bk_dll_iterate_done(dict_iter iter);
+static __inline__ void bk_dll_iterate_done(dict_h header, dict_iter iter);
 static __inline__ dict_obj bk_dll_nextobj(dict_h header, dict_iter iter);
+static __inline__ char *bk_dll_error_reason(dict_h handle, int *errnop);
 
 
 /**
@@ -313,7 +313,18 @@ bk_dll_predecessor(bk_dll_h header, void *obj)
 
 
 /**
- * Allocate a baka dll iterator
+ * Allocate a baka dll iterator.
+ *
+ * Note on bk_dll iterators: These exist for purposes of "dropping" in the
+ * bk_dll stuff to replace an existing CLC. But the purpose of the CLC
+ * iterator is to allow you the obtain the next element in the CLC without
+ * having to search for the "current" value (using clc_successor(h, o)
+ * sometimes requires the CLC to first locate o, using a linear
+ * search). Since bk_dll's use the acutal object as the vessle for the back
+ * and forward pointers, there is never any need to search even when using
+ * bk_dll_successor()/predecessor(). *However*
+ * bk_dll_successor()/predecessor() do have the advantage of not having to
+ * allocate a free state when they are used. Therefore they are preferable.
  *
  *	@param header The header of dll (unneeded and declared for API matching)
  *	@param direction The direction for nextobj.
@@ -326,7 +337,7 @@ bk_dll_iterate(bk_dll_h header, enum dict_direction direction)
   struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
   struct bk_dll_iterator *di = NULL;
 
-  if (!(di = malloc(sizeof(*di))))
+  if (!(di = malloc(sizeof(struct bk_dll_iterator))))
     return((dict_iter)NULL);
 
   switch (direction)
@@ -353,7 +364,7 @@ bk_dll_iterate(bk_dll_h header, enum dict_direction direction)
  *	@param iter Iterator to destroy
  */
 static __inline__ void
-bk_dll_iterate_done(dict_iter iter)
+bk_dll_iterate_done(dict_h header, dict_iter iter)
 {
   // All seatbelts off..
   free(iter);
@@ -396,5 +407,19 @@ bk_dll_nextobj(dict_h header, dict_iter iter)
   return(cur);
 }
 
+
+/**
+ * Get an error string describing bk_dll error;
+ *
+ *	@param header The bk_dll header
+ *	@param iter The iterator in use.
+ *	@return <i>NULL</i> when list is at the end.<br>
+ *	@return <i>obj</i> on success.
+ */
+static __inline__ char *
+bk_dll_error_reason(dict_h handle, int *errnop)
+{
+  return("BAKA DLL has no internal error handing");
+}
 
 #endif /* _libbk_inline_h_ */
