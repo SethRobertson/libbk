@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.94 2003/07/02 03:13:31 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.95 2003/07/09 17:01:14 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -244,6 +244,12 @@ bk_strhash(const char *k, bk_flags flags)
  * Special case small buffers (lengths 1, 2, 4, or 8) on the assumption that
  * these are actually byte/short/int/long or double values rather than strings.
  * For other lengths, string hashing is used.
+ *
+ * <WARNING>For numeric values, this prevents endian bias in the hash, but for
+ * IPv4 addresses or string types, it creates an endian bias; to prevent that,
+ * the BK_HASH_STRING flag should be passed.  For CLC hash tables, this isn't
+ * an issue, but for hash tables that may be exported (e.g. FAD hash models)
+ * this is significant.</WARNING>
  *
  * THREADS: MT-SAFE
  *
