@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.256 2003/09/02 18:54:20 jtt Exp $
+ * $Id: libbk.h,v 1.257 2003/09/02 20:04:53 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1743,7 +1743,6 @@ extern const char *bk_string_registry_register_by_id(bk_s B, bk_str_registry_t h
 extern int bk_string_registry_delete_str(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags);
 extern int bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags);
 extern bk_str_id_t bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags);
-extern const char *bk_string_registry_strbyid(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags);
 extern char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **envdb, bk_flags flags);
 #define BK_STRING_EXPAND_FREE 1
 

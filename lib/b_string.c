@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.96 2003/09/02 18:54:20 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.97 2003/09/02 20:04:53 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2182,58 +2182,6 @@ bk_string_registry_register_by_id(bk_s B, bk_str_registry_t handle, bk_str_id_t 
   BK_RETURN(B,bsre->bsre_str);  
 }
 
-
-
-
-
-/**
- * Obtain the string associated with a known string-ID in the str registry
- *
- * <WARNING>
- * Despite the designation that this function is MT-SAFE (and I suppose it
- * is), this function is abslutely deprecated for use in applications which
- * might run in a a threaded mode. Since it does not increment the
- * reference count of the registry entry, the pointer returned might be
- * dangling before the function even completes!. Use
- * bk_string_registry_strbyid_register() instead.
- * </WARNING>
- *
- * THREADS: MT-SAFE
- *
- *	@param B BAKA thread/global state.
- *	@param id The ID to search for.
- *	@param flags Flags for future use.
- *	@return <i>NULL</i> on failure.<br>
- *	@return <i>str</i> on success.
- */
-const char *
-bk_string_registry_strbyid(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
-  struct bk_str_registry_element *bsre;
-
-  if (!bsr || id == 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_RETURN(B, NULL);
-  }
-
-  BK_SIMPLE_LOCK(B, &bsr->bsr_lock);
-
-  if ((id >= bsr->bsr_next_index) || (!(bsre = bsr->bsr_registry[id])))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "String registry object %d does not exist or has already been deleted\n", id);
-    BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
-    BK_RETURN(B,NULL);
-  }
-
-  BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
-
-  // <WARNING> DANGER WILL ROBINSON!! This string might get deleted beneath us.
-
-  BK_RETURN(B,bsre->bsre_str);
-}
 
 
 /**
