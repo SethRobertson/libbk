@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.44 2004/08/07 04:43:20 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.45 2004/08/09 07:13:01 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -639,35 +639,6 @@ do_net_init_dgram(bk_s B, struct addrgroup_state *as)
   }
   else
   {
-    /*
-     * <TODO> XXX - how do we handle UDP listeners?
-     * well, the question is really how do we handle UDP listeners in the
-     * automagic way which users of libbk might expect?  What might they expect?
-     * One example might be emulation of TCP behavior.  When a message comes in
-     * from a previously unknown host, somehow create a bound socket for that
-     * peer and go through normal accept procedure and let user create an IOH
-     * for that peer.  Of course, by that time the message has already appeared
-     * on the "wrong" (nee server) pcb input queue.  Insisting that all UDP
-     * applications send a throwaway startup packet seems unlikely at this
-     * late date...
-     *
-     * One way might be to simply only allow one UDP peer at a time.  When a message
-     * is received, connect to that peer, and game over.  Maybe send message to
-     * user to let them recreate the server socket.  Potential race condition.
-     * Too bad we cannot dup the server and connect one of the new sockets.  We
-     * cannot do that, right?
-     *
-     * Another option might be to somehow create pseudo IOHs which contain the real
-     * IOH and the address of the peer.  When messages are received, the list of
-     * pseudo IOHs is searched (and a new one created if necessary) and the user's
-     * handler is passed the pseudo IOH as if everything normal was happening.
-     * Of course, we have this new list we must support, and there must be some
-     * kind of type or union in the ioh structure now.  Sigh.</TODO>
-     *
-     * On the other hand, we *can* get the socket working without this garbage, so
-     * lets just do it.
-     */
-    bk_error_printf(B, BK_ERR_WARN, "UDP listening support is not quite ready for prime time, at least as far as IOHs are concerned\n");
     ret = do_net_init_listen(B, as);
   }
 
@@ -1606,12 +1577,14 @@ static void
 listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct addrgroup_state *as, *nas;
+  struct addrgroup_state *as;
+  struct addrgroup_state *nas = NULL;
   struct sockaddr sa;
   int len = sizeof(sa);
-  int newfd;
+  int newfd = -1;
   struct bk_addrgroup *bag = NULL;
   int socktype;
+  int swapped = 0;
 
   if (!run || !(as = args) || !(bag = as->as_bag))
   {
@@ -1689,19 +1662,24 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
     bk_sockaddr_t bs;
     socklen_t bs_len;
     char buf[sizeof(DGRAM_PREAMBLE)];
+    int one = 1;
 
-    if ((newfd = dup(as->as_sock)) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Failed to dup(2) dgram server socket: %s\n", strerror(errno));
-      goto error;
-    }
-
+    /* 
+     * Simulate accept(2) for DGRAM service. Obtain the premable (which is
+     * really mostly just a "dummy" clien write so the server has something
+     * to recvfrom(2) on before real data comes). Connect the server socket
+     * to the client and the create a *new* server socket. It *must* be
+     * done in this order or the second bind(2) will fail with
+     * EADDRINUSE). Finally swap the descriptors so as->as_sock is the
+     * server descriptor and newfd is the "accept(2)" descriptor, just as
+     * would the case in the STREAM situation.
+     */
     memset(&bs, 0, sizeof(bs));
     memset(buf, sizeof(buf), 0);
     bs_len = sizeof(bs);
 
     // Receive the preamble and verify it. Then connect to peer so read/write work
-    if (recvfrom(newfd, buf, sizeof(buf), 0, &(bs.bs_sa), &bs_len) < 0)
+    if (recvfrom(as->as_sock, buf, sizeof(buf), 0, &(bs.bs_sa), &bs_len) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not receive dgram preamble: %s\n", strerror(errno));
       goto error;
@@ -1713,11 +1691,51 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
       goto error;
     }
 
-    if (connect(newfd, &(bs.bs_sa), bs_len) < 0)
+    if (connect(as->as_sock, &(bs.bs_sa), bs_len) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create server dgram connection: %s\n", strerror(errno));
       goto error;
     }
+
+    bs_len = sizeof(bs);
+    if (getsockname(as->as_sock, &(bs.bs_sa), &bs_len))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not obtain local socket address: %s\n", strerror(errno));
+      goto error;
+    }
+
+    if ((newfd = socket(bs.bs_sa.sa_family, SOCK_DGRAM, (bag->bag_proto == BK_GENERIC_DGRAM_PROTO)?0:bag->bag_proto)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
+      goto error;
+    }
+
+    if (setsockopt(newfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set reuseaddr on socket: %s\n", strerror(errno));
+      goto error;
+    }
+
+    BK_GET_SOCKADDR_LEN(B, &(bs.bs_sa), bs_len);
+
+    // For AF_LOCAL we *must* remove the synch file before rebinding 
+    // <WARNNING> THIS CREATES A RACE CONDITION OF SOMEONE IS CONNECTING </WARNING?
+    if (bs.bs_sa.sa_family == AF_LOCAL && (unlink(bs.bs_sun.sun_path) < 0) && (errno != ENOENT))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not unlink AFL_LOCAL file %s prior to rebinding: %s\n", bs.bs_sun.sun_path, strerror(errno));
+      goto error;
+    }
+
+    // <WARNING> DO NOT INSERT CODE BETWEEN THE UNLINK(2) ABOVE AND THE BIND(2) BELOW </WARNING>
+
+    if (bind(newfd, &(bs.bs_sa), bs_len) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not rebind local DGRAM server address: %s\n", strerror(errno));
+      goto error;
+    }
+
+    BK_SWAP(as->as_sock, newfd);
+    swapped = 1;
   }
 
   if (!(nas = as_server_copy(B, as, newfd)))
@@ -1726,17 +1744,29 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
     goto error;
   }
 
+  newfd = -1;
+
   nas->as_state = BkAddrGroupStateConnected;
 
   stream_end(B, nas);
   BK_VRETURN(B);
 
  error:
+  if (swapped)
+    BK_SWAP(as->as_sock, newfd);
+
+  if (newfd != -1)
+    close(newfd);
+
   /*
    * <WARNING>We can probably abort since this should be running off the bk_run
    * loop</WARNING>
    */
   net_init_abort(B, as);
+
+  if (nas)
+    as_destroy(B, nas);
+
   BK_VRETURN(B);
 }
 

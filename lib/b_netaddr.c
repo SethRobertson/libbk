@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.17 2004/08/05 12:17:19 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.18 2004/08/09 07:13:01 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -576,7 +576,7 @@ bk_netaddr_nat2af(bk_s B, int type)
     break;
 
   case BkNetinfoTypeEther:
-    bk_error_printf(B, BK_ERR_ERR, "ETHER has not address family\n");
+    bk_error_printf(B, BK_ERR_ERR, "ETHER has no address family\n");
     af=-1;
     break;
 
