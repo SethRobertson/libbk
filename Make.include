@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Make.include,v 1.4 2001/09/11 03:35:09 seth Exp $
+# $Id: Make.include,v 1.5 2002/03/16 06:25:34 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -12,10 +12,8 @@
 #
 # --Copyright LIBBK--
 #
-# libbk group Makefile 
+# libbk group Make.include
 #
 GROUP_INCS=-I$(GROUPTOP)/include
 GROUP_LDS=-L$(GROUPTOP)/lib
 GROUP_LIBS=-lpopt
-
-vpath %.a $(GROUPTOP)/lib $(BK_LIBDIR)
