@@ -1,3 +1,8 @@
+2001-10-10  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_bits.c (bk_bits_save): save 0 bits as "0" [distinct from "00"]
+	(bk_bits_restore): restore "0" as 0 bits [allocate a byte anyhow]
+
 2001-09-30  Seth Robertson  <seth@yeah.baka.org>
 
 	* lib/b_run.c: Initial baka run environment
@@ -13,7 +18,7 @@
 	* lib/b_string.c (bk_string_tokenize_split): avoid segv for default ws
 	(bk_string_quote): generate NULL for NULL, if ok
 
-2001-09-25    <dupuy@sysdetect.com>
+2001-09-25  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk_include.h: include winsock.h, process.h, instead
 	of various unix-specific include files

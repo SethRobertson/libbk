@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bits.c,v 1.2 2001/09/29 13:25:31 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_bits.c,v 1.3 2001/10/11 01:05:33 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -78,6 +78,17 @@ char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
     BK_RETURN(B, NULL);
   }
 
+  if (size == 0)
+  {
+    if (!(ret = malloc(2)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate bits storage: %s\n",strerror(errno));
+      BK_RETURN(B, NULL);
+    }
+    strcpy(ret, "0");		/* distinct from "00" = zero byte */
+    BK_RETURN(B, ret);
+  }
+
   len = BK_BITS_SIZE(size)*2+1;
 
   if (!(ret = malloc(len)))
@@ -135,9 +146,16 @@ char *bk_bits_restore(bk_s B, char *saved, size_t *size, bk_flags flags)
   }
 
   len = strlen(saved);
+  if (len == 1)			/* zero bits */
+  {
+    if (size) *size = 0;
+
+    BK_ORETURN(B, malloc(1));	/* try to return a pointer if possible */
+  }
+
   if (size) *size = 4 * len;
 
-  if (!(ret = malloc(4 * len)))
+  if (!(ret = malloc(len / 2)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for bitfield: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
