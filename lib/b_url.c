@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.15 2002/01/16 08:56:10 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.16 2002/01/16 15:51:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -623,7 +623,8 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
   /* skip leading white-space, semicolons */
   for (p = *pathp; *p && (*p == ';' || *p == ' ' || *p == '\t'); ++p);
 
-  if (!*p) {
+  if (!*p) 
+  {
     *pathp = p;
     BK_RETURN(B, -1);
   }
@@ -632,19 +633,22 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
   for (param = p;
        *++p && *p != ';' && *p != '=' && *p != ' ' && *p != '\t';);
 
-  if (*p) {
+  if (*p) 
+  {
     /*
      * If there's an equals sign, set the value pointer, and
      * skip over the value part of the token.  Terminate the
      * token.
      */
-    if (*p == '=') {
+    if (*p == '=') 
+    {
       *p = '\0';
       for (*valuep = ++p;
 	   *p && *p != ';' && *p != ' ' && *p != '\t'; ++p);
       if (*p) 
 	*p++ = '\0';
-    } else
+    } 
+    else
       *p++ = '\0';
     /* Skip any whitespace or semicolons after this token. */
     for (; *p && (*p == ';' || *p == ' ' || *p == '\t'); ++p);
