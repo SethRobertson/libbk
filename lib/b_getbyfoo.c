@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.4 2001/11/07 22:34:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.5 2001/11/07 23:33:25 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -20,13 +20,39 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 /**
- * @file
- * This file is full of stuff
+ * @file 
+ * This file contains all the getbyFOO functions. These functions provide
+ * the caller with a "convenient" interface to the standard @a netdb.h
+ * functions (Windows people don't have @a netdb.h but you get the
+ * idea). The primary value-add is that the standard name or number/addr
+ * argument replaced by a string and the function determines dynamically
+ * what you have passed it and so makes the correct call. This is
+ * particularly useful in UI's where you ask the user for a "hostname/IP
+ * address". <em>You</em> do not have to worry about which he enters; you
+ * simply pass the string along to @a bk_gethostbyfoo and it takes care
+ * of everything.
  */
 
 
+/**
+ * This is the state which @a bk_gethostbyfoo must preserve in order to
+ * successfully invoke the caller's callback and set the caller's "copyout"
+ * @a struct @a hostent pointer.
+ */
+struct bk_gethostbyfoo_state
+{
+  struct hostent **	bgs_user_copyout;	/** Caller's pointer  */
+  struct hostent *	bgs_hostent;		/** Actual hostent info */
+  void 			(*bgs_callback)(bk_s B, struct bk_run *run, struct hostent **h, void *args); /** Caller's callback */
+  void *		bgs_args;		/* Caller's argument to @a callback */
+  bk_flags		bgs_flags;		/* Everyone needs flags */
+};
+
 static int copy_hostent(bk_s B, struct hostent **ih, struct hostent *h);
 static void gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval starttime, bk_flags flags);
+
+
+
 
 /** 
  * Get a protocol number no matter which type string you have. 
@@ -142,7 +168,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip)
 /**
  * Completely free up a protoent copied by the above function
  *	@param B BAKA thread/global state.
- *	@param p The <i>protoent</i> structure to destroy.
+ *	@param p The @a protoent structure to destroy.
  */
 void
 bk_protoent_destroy(bk_s B, struct protoent *p)
@@ -179,7 +205,7 @@ bk_protoent_destroy(bk_s B, struct protoent *p)
  *	@param servstr The string containing the service name or number.
  *	@param is Option copyout version of the service structure.
  *	@return <i>-1</i> on failure.
- *	@return <br><i>port_num</i> (in <emp>host</emp> order) on success.
+ *	@return <br><i>port_num</i> (in <em>host</em> order) on success.
  */
 int
 bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
@@ -294,7 +320,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
 /**
  * Completely free up a servent copied by the above function
  *	@param B BAKA thread/global state.
- *	@param s The <i>servent</i> structure to destroy
+ *	@param s The @a servent structure to destroy
  */
 void
 bk_servent_destroy(bk_s B, struct servent *s)
@@ -326,19 +352,34 @@ bk_servent_destroy(bk_s B, struct servent *s)
 
 
 
-struct bk_gethostbyfoo_state
-{
-  struct hostent **	bgs_user_copyout;
-  struct hostent *	bgs_hostent;
-  void 			(*bgs_callback)(bk_s B, struct bk_run *run, struct hostent **h, void *args);
-  void *		bgs_args;
-  bk_flags		bgs_flags;
-};
-
 /**
- * Get a hostent using whatever string you might happen to have.
- *	@param B BAKA thread/global state.
+ * Get a hostent using whatever string you might happen to have. If @a
+ * family is not 0, queries will be restricted to that address family,
+ * otherwise @a bk_gethostbyfoo will attempt to intuit the address
+ * family. @a ih is <em>required</em> in this functions (unlike @a
+ * bk_getservbyfoo and @a bk_getprotobyfoo). @a *ih will be pointing at an
+ * <em>allocated</em> @a struct @a hostent when query completes. You should
+ * free this data with @a bk_destroy_hostent when finished. <br> Since this
+ * function may take quite a long time to complete, and we shall at some
+ * time in the near future be integrating it with a nonblocking libresolv,
+ * you must supply both a @a bk_run structure and a @a callback. @a
+ * callback will be called when the answer arrives. If succesfull, @a *ih
+ * will be (as mentioned previously) at the @a struct @a hostent; if not,
+ * @a *ih will be NULL. <br><em>HACK ALERT:</em> In order to make sure that
+ * callers do not abuse this function while it still uses blocking queries,
+ * @a *ih is <em>guarenteed</em> to be NULL on the return from @a
+ * bk_gethostbyfoo. @a callback will be invoked (and @a *ih set) on the
+ * <em>subsequent</em> @a bk_run_once pass.
  *
+ *	@param B BAKA thread/global state.
+ *	@param name String to lookup.
+ *	@param family Address family to which to restrict queries.
+ *	@param ih Copyout @a struct @a hostent pointer.
+ *	@param run @a bk_run structure.
+ *	@param callback Function to invoke when answer is arrives.
+ *	@param args User args to return to @a callback when invoked.
+ *	@returns <i>-1</i> on failure.
+ *	@returns <i>0</i> on success.
  */
 int
 bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, void *args), void *args)
@@ -358,7 +399,8 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_r
     BK_RETURN(B, -1);
   }
 
-  *ih=NULL; /* Make sure this is initialized right away (see error section) */
+  /* Make sure this is initialized right away (see error section) */
+  *ih=NULL; 
 
   if (inet_pton(AF_INET, name, &in_addr))
   {
@@ -620,7 +662,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
 
 
 /**
- * The <i>gethostbyfoo</i> internal callback right now this does very
+ * The @a gethostbyfoo internal callback right now this does very
  * little but set the caller's pointer at the allocated data and call the
  * caller's callback (that's a lot of 'call's buddy), but eventually this
  * code will run when the answer has arrived. It will then need to decode
@@ -629,8 +671,8 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
  *
  *	@param B BAKA thread/global state.
  *	@param run bk_run structure pointer.
- *	@param args The state stored in <i>bk_gethostbyfoo</i>.
- *	@param starttime The start of the current <i>select</i> run.
+ *	@param args The state stored in @a bk_gethostbyfoo.
+ *	@param starttime The start of the current @a select(2) run.
  *	@param flags Random flags.
  */
 static void
@@ -655,17 +697,8 @@ gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval sta
 
 #ifdef CODE_REVIEW
 
-Lots of bad documention "this file is full of stuff", bk_gethostbyfoo(), etc
-structure bk_gethostbyfoo_state not documented.
-structure bk_gethostbyfoo_state should be at top of file:  (see chapter.langC "File layout")
-
 General API comment:   Not using fill-in bk_endpoint structure
 (e.g. bk_getservbyfoo(B, "http", NULL, NULL, endpoint) which would take the proto
  out of the endpoint, and fill out the port number in the endpoint)
-
-In-line comment on column 48
-----------------------------------------
-  *ih=NULL; /* Make sure this is initialized right away (see error section) */
-----------------------------------------
 
 #endif
