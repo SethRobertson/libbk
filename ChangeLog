@@ -1,3 +1,7 @@
+2001-09-04  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_cksum.c (b_in_cksum): Add in_cksum from Net4BSD
+
 2001-09-03  Seth Robertson  <seth@yeah.baka.org>
 
 	* lib/b_string.c: Create 64 bit version of atou and atoi.

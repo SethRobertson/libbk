@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.24 2001/09/04 05:00:06 seth Exp $
+ * $Id: libbk.h,v 1.25 2001/09/05 02:56:34 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -221,6 +221,10 @@ struct bk_config
   dict_h			bc_kv;		/* Hash of value dlls */
   int				bc_kv_error;	/* clc errno for bc_kv */
 };
+
+
+/* b_cksum.c */
+extern int b_in_cksum(register struct bk_vptr **m, register int len);
 
 
 /* b_config.c */
