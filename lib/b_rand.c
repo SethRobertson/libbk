@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_rand.c,v 1.1 2002/01/20 03:19:11 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_rand.c,v 1.2 2002/05/16 16:59:21 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -67,7 +67,7 @@ struct bk_randinfo *bk_rand_init(bk_s B, u_int entropy, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_randinfo *R;
 
-  if (!BK_MALLOC(R))
+  if (!BK_CALLOC(R))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate random structure: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
