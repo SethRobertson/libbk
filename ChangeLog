@@ -1,3 +1,9 @@
+2001-11-16  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_netinfo.c (bk_netinfo_update_hostent): pass bni *not*
+	bni->bni_addrs (sigh).
+	(bk_netinfo_destroy): Don't forget to destroy clc's
+
 2001-11-15  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* libbk: Too many changes to document here. Basic support for

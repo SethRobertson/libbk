@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.4 2001/11/15 22:19:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.5 2001/11/16 16:03:41 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -97,6 +97,7 @@ bk_netinfo_destroy(bk_s B, struct bk_netinfo *bni)
       netinfo_addrs_delete(bni->bni_addrs, bna);
       bk_netaddr_destroy(B, bna);
     }
+    netinfo_addrs_destroy(bni->bni_addrs);
   }
   
   if (bni->bni_bsi) bk_servinfo_destroy(B, bni->bni_bsi);
@@ -565,7 +566,7 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
 	  bk_error_printf(B, BK_ERR_ERR, "Could not create bna from addr\n");
 	  goto error;
 	}
-	if (bk_netinfo_add_addr(B,bni->bni_addrs, bna, NULL)<0)
+	if (bk_netinfo_add_addr(B,bni, bna, NULL)<0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not insert bna\n");
 	  bk_netaddr_destroy(B,bna);		/* Must clean up */
@@ -583,7 +584,7 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
 	  bk_error_printf(B, BK_ERR_ERR, "Could not create bna from addr\n");
 	  goto error;
 	}
-	if (bk_netinfo_add_addr(B,bni->bni_addrs, bna, NULL)<0)
+	if (bk_netinfo_add_addr(B,bni, bna, NULL)<0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not insert bna\n");
 	  bk_netaddr_destroy(B,bna);		/* Must clean up */
