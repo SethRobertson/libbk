@@ -5,7 +5,7 @@ Truth = Beauty
 TRUTH		:BEAUTY
 postgres\://sysd@sysd/ = postgres\://sysd:sysd@sysd/
 
-#include /home/dupuy/.idswatch/user_items.conf
+#include /home/dupuy/.antura/user_items.conf
 
 EOL = \r\n
 TAB = \t
