@@ -1,3 +1,8 @@
+2004-01-06  Seth Robertson  <seth@buscemi.sysdetect.com>
+
+	* lib/b_run.c (bk_run_enqueue): We can get trapped in select with
+	an event ready to fire, but select being unaware.  Resolve.
+
 2004-01-05  Seth Robertson  <seth@not.baka.org>
 
 	* lib/b_thread.c (bk_thread_continue): Const incorrect.

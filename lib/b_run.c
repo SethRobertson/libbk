@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.61 2003/07/02 18:54:14 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.62 2004/01/07 03:02:44 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -705,6 +705,12 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
   }
 
 #ifdef BK_USING_PTHREADS
+    if (run->br_selectcount)
+    {
+      bk_debug_printf_and(B, 64, "Asking for runrun rescheduling\n");
+      bk_run_select_changed(B, run, BK_RUN_GLOBAL_FLAG_ISLOCKED);
+    }
+
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
