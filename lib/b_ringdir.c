@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.21 2005/02/09 01:32:25 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.22 2005/02/15 19:31:50 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1576,7 +1576,7 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
  * @param current copy-out current file
  * @param oldest copy-out oldest file
  * @param max copy-out max number of files
- * @param flags Reserved.
+ * @param flags BK_RINGDIR_FLAG_EWARN - errors as warnings
  * @return <i>0</i> on success
  * @return <i>-1</i> on failure
  */
@@ -1590,23 +1590,33 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
   int len;
   int ret;
   int fd = -1;
+  int errlevel;
+
+  if (BK_FLAG_ISSET(flags, BK_RINGDIR_FLAG_EWARN))
+  {
+    errlevel = BK_ERR_WARN;
+  }
+  else
+  {
+    errlevel = BK_ERR_ERR;
+  }
 
   if (!(max_filename = bk_string_alloc_sprintf(B, 0, 0, "%s.max", pattern)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create max file name\n");
+    bk_error_printf(B, errlevel, "Could not create max file name\n");
     goto error;
   }
 
   if (!(chkpnt_filename = bk_string_alloc_sprintf(B, 0, 0, "%s", pattern)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create cache file name\n");
+    bk_error_printf(B, errlevel, "Could not create cache file name\n");
     goto error;
   }
 
   // Read the ringdir max file count
   if ((fd = open(max_filename, O_RDONLY)) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not open %s for reading: %s\n", max_filename, strerror(errno));
+    bk_error_printf(B, errlevel, "Could not open %s for reading: %s\n", max_filename, strerror(errno));
     goto error;
   }
 
@@ -1618,7 +1628,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
   {
     if ((ret = read(fd, max+sizeof(*max)-len, len)) < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Failed to read out check value: %s\n", strerror(errno));
+      bk_error_printf(B, errlevel, "Failed to read out check value: %s\n", strerror(errno));
       goto error;
     }
 
@@ -1640,7 +1650,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
     }
     else
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not open %s for reading: %s\n", chkpnt_filename, strerror(errno));
+      bk_error_printf(B, errlevel, "Could not open %s for reading: %s\n", chkpnt_filename, strerror(errno));
       goto error;
     }
   }
@@ -1651,7 +1661,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
     {
       if ((ret = read(fd, current+sizeof(*current)-len, len)) < 0)
       {
-	bk_error_printf(B, BK_ERR_ERR, "Failed to read out check value: %s\n", strerror(errno));
+	bk_error_printf(B, errlevel, "Failed to read out check value: %s\n", strerror(errno));
 	goto error;
       }
 
@@ -1668,7 +1678,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
     // Special check in case this ring buffer is new
     if (!(oldest_filename = create_file_name(B, pattern, *oldest, 0)))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not build filename for oldest file.\n");
+      bk_error_printf(B, errlevel, "Could not build filename for oldest file.\n");
       goto error;
     }
 
@@ -1681,7 +1691,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
       }
       else
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not check existence of oldest file\n");
+	bk_error_printf(B, errlevel, "Could not check existence of oldest file\n");
 	goto error;
       }
     }

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.317 2005/02/09 01:32:25 seth Exp $
+ * $Id: libbk.h,v 1.318 2005/02/15 19:31:49 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2403,6 +2403,7 @@ struct bk_ringdir_callbacks
 #define BK_RINGDIR_FLAG_OPEN_APPEND		0x20 ///< Rotate regardless of "size"
 #define BK_RINGDIR_FLAG_CANT_APPEND		0x40 ///< The "file" type does not support appending
 #define BK_RINGDIR_FLAG_ROTATION_OCCURED	0x80 ///< A "file" rotation occured on the last call to rotate().
+#define BK_RINGDIR_FLAG_EWARN			0x100 ///< Errors as warnings
 
 #define BK_RINGDIR_GET_SIZE_ERROR	UINT32_MAX
 #define BK_RINGDIR_GET_SIZE_MAX		(BK_RINGDIR_GET_SIZE_ERROR - 1)
