@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.8 2002/12/30 20:13:47 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.9 2002/12/30 21:24:45 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -310,12 +310,17 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
 #define XML_AMP_STR		"&amp;"
 
 /**
- * Convert a string to a valid xml string. The function allocates memory
- * which must be freed with free(3).
+ * Convert a string to a "valid" xml string. The function allocates memory
+ * which must be freed with free(3).  Note that 8-bit characters are mostly
+ * passed as-is, even though they are only valid if the appropriate encoding
+ * was specified in the <?xml?> processing instruction.
  *
  *	@param B BAKA thread/global state.
  *	@param str The string to convert
- *	@param flags Flags for future use.
+ *	@param flags
+ *	BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT to prevent entity-encoding<br>
+ *	BK_STRING_STR2XML_FLAG_ENCODE_WHITESPACE for entity-encoding of
+ *	whitespace other than SP (ASCII 0x20)
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>xml string</i> on success.
  */
@@ -341,12 +346,18 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
   while((c = *str))
   {
     /*
-     * <BUG bugid="963">Allow the caller to permit all non-printable
-     * characters or just whitespace and needed.</BUG>
+     * <BUG bugid="963">The use of numeric entity encoding here is only a
+     * partial fix, since libxml will reject files containing not only a naked
+     * ^A, but even an encoded &#x1;.  (The Java dom4j parser is more tolerant
+     * of the latter).  This seems to be a problem only for chars < 0x20, and
+     * note that strict XML interpretation of legal whitespace is not the same
+     * as isspace(), since XML doesn't allow FF or VT.</BUG>
      */
-    if (!isprint(c) && !(isspace(c) && 
-			 BK_FLAG_ISCLEAR(flags, BK_STRING_STR2XML_FLAG_EXCLUDE_WHITESPACE)) &&
-	BK_FLAG_ISCLEAR(flags, BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT))
+    if (!isprint(c) &&
+	(BK_FLAG_ISCLEAR(flags, BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT) &&
+	 !isspace(c)) ||
+	(BK_FLAG_ISSET(flags, BK_STRING_STR2XML_FLAG_ENCODE_WHITESPACE) &&
+	 isspace(c)))
     {
       char scratch[8];
       snprintf(scratch, sizeof(scratch), "&#x%02x;", (unsigned char) c);
