@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.152 2002/06/19 21:39:22 dupuy Exp $
+ * $Id: libbk.h,v 1.153 2002/07/09 01:05:44 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1082,7 +1082,12 @@ extern u_int bk_bitcount(bk_s B, u_int word);
 
 
 /* b_cksum.c */
-extern int bk_in_cksum(register struct bk_vptr **m, register int len);
+extern int bk_in_cksum(struct bk_vptr **m, int len);
+
+
+
+/* b_crc.c */
+extern u_int32_t bk_crc32(u_int32_t crc, void *buf, int len);
 
 
 

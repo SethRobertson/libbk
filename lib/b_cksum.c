@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_cksum.c,v 1.4 2001/11/18 20:00:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_cksum.c,v 1.5 2002/07/09 01:05:45 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -18,7 +18,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 /**
  * @file
- * Checksum routines.
+ * Checksum routine(s).
  */
 
 #include <libbk.h>
@@ -39,14 +39,14 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * This function is from Net4 BSD, and is NOT licensed under LGPL.
  *
  * 	@param m Null terminated array of vectored pointers to data
- *	@param len Total length of data encoded by m which should be checkpointed
- *	@return <i>checksum</i> of data of size 16 bits
+ *	@param len Length of data in m that should be checksummed
+ *	@return 16-bit <i>checksum</i> of data
  */
-int bk_in_cksum(register struct bk_vptr **m, register int len)
+int bk_in_cksum(struct bk_vptr **m, int len)
 {
-  register u_short *w;
-  register int sum = 0;
-  register int mlen = 0;
+  u_short *w;
+  int sum = 0;
+  int mlen = 0;
   int byte_swapped = 0;
 
   union
@@ -153,7 +153,7 @@ int bk_in_cksum(register struct bk_vptr **m, register int len)
   }
 
   if (len)
-    printf("cksum: out of data\n");
+    printf("cksum: out of data\n");		// <TODO>use bk_error</TODO>
 
   if (mlen == -1)
   {

@@ -1,3 +1,7 @@
+2002-07-08  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_crc.c: computation of CRC-32
+
 2002-06-28  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_memx.c (bk_memx_lop): use memmove, as overlap may occur
