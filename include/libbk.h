@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.169 2002/09/05 19:20:53 seth Exp $
+ * $Id: libbk.h,v 1.170 2002/09/05 21:33:16 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -156,6 +156,7 @@ struct bk_iohh_bnbio
 #define BK_IOHH_BNBIO_FLAG_LINGER	0x1	///< Linger on close untill all write data flushed.
 #define BK_IOHH_BNBIO_FLAG_SYNC		0x2	///< Linger on write until write completes.
 #define BK_IOHH_BNBIO_FLAG_NO_LINGER	0x4	///< Turn off LINGER or SYNC.
+#define BK_IOHH_BNBIO_FLAG_CANCEL	0x8	///< Cancel blocking call
   struct bk_polling_io *	bib_bpi;	///< Polling strucuture. 
 };
 
@@ -1241,6 +1242,10 @@ extern int bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *opaque, volatile int *demand, void **handle);
 extern int bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
+extern int bk_run_register_bnbio(bk_s B, struct bk_iohh_bnbio *bib);
+extern int bk_run_unregister_bnbio(bk_s B, struct bk_iohh_bnbio *bib);
+extern int bk_run_bnbio_cancel(bk_s B, struct bk_run *run);
+
 
 
 /* b_ioh.c */
@@ -1328,6 +1333,7 @@ extern int bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data,
 extern int bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, bk_flags flags);
 extern int64_t bk_iohh_bnbio_tell(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 extern void bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
+extern int bk_iohh_bnbio_cancel_bnbio(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags);
 
 
 /* b_stdfun.c */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.9 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.10 2002/09/05 21:33:17 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -132,6 +132,7 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, bk_flags 
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_ioh_status_e status;
+  int cancelled_call = 0;
   int ret;
 
   if (!bib || !datap)
@@ -141,9 +142,34 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, bk_flags 
   }
 
  reread:
+  // register so that the blocking call can be cancelled
+  if (bk_run_register_bnbio(B, bib) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not register blocking call\n");
+    BK_RETURN(B, -1);
+  }
+
   // first, generate *some* form of useful information
-  while ((ret = bk_polling_io_read(B, bib->bib_bpi, datap, &status, 0)) == 1)
+  while (BK_FLAG_ISCLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL) &&
+	 (ret = bk_polling_io_read(B, bib->bib_bpi, datap, &status, 0)) == 1)
     /* void */;
+
+  if (BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL))
+  {
+    cancelled_call = 1;
+  }
+
+  if (bk_run_unregister_bnbio(B, bib) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not unregister blocking call\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (cancelled_call)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "blocking read cancelled\n");
+    BK_RETURN(B, -1);
+  }
 
   if (ret < 0)
   {
@@ -217,6 +243,7 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
   bk_ioh_status_e status;
   bk_vptr *ddata = NULL;
   int linger = 0;
+  int cancelled_call = 0;
 
   if (!bib || !data)
   {
@@ -239,6 +266,13 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
     linger = 1;
   }
 
+  // register so that the blocking call can be cancelled
+  if (bk_run_register_bnbio(B, bib) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not register blocking call\n");
+    BK_RETURN(B, -1);
+  }
+
   // Do at least one poll to clean up the state from this write under normal conditions.
   do
   {
@@ -255,8 +289,25 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
      * quite possible for us to make forward progress in terms of *writing*
      * out data without the poll subsystem really knowing it.
      */
-  } while (linger && (bib->bib_bpi->bpi_ioh->ioh_writeq.biq_queuelen > 0));
+  } while (linger && BK_FLAG_ISCLEAR(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL) && 
+	   (bib->bib_bpi->bpi_ioh->ioh_writeq.biq_queuelen > 0));
 
+  if (BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL))
+  {
+    cancelled_call = 1;
+  }
+
+  if (bk_run_unregister_bnbio(B, bib) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not unregister blocking call\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (cancelled_call)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "blocking read cancelled\n");
+    BK_RETURN(B, -1);
+  }
 
   BK_RETURN(B,0);  
 }
@@ -409,4 +460,23 @@ bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
   bib->bib_bpi = NULL;
   bk_iohh_bnbio_destroy(B, bib);
   BK_VRETURN(B);
+}
+
+
+
+/**
+ *	@param B BAKA Thread/global state
+ *	@param bib The @a bk_iohh_bnbio structure to use.
+ *	@param flags Reserved
+ *	@return <i>0</i> on success
+ *	@return <i>-1</i> on failure
+ */
+int
+bk_iohh_bnbio_cancel_bnbio(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  BK_FLAG_SET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_CANCEL);
+
+  BK_RETURN(B, 0);
 }

@@ -1,3 +1,13 @@
+2002-09-05  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_run.c (bk_run_register_bnbio): 
+	(bk_run_unregister_bnbio): 
+	(bk_run_bnbio_cancel): Functions for managing blocking
+	[-non-blocking] i/o so that blocking calls can be cancelled.
+
+	* lib/b_bnbio.c (bk_iohh_bnbio_read, write): Check for new bnbio
+	cancel flag.
+
 2002-09-05  Seth Robertson  <seth@winwood.sysdetect.com>
 
 	* lib/b_relay.c (bk_relay_ioh): Add BK_RELAY_IOH_DONTCLOSEFDS for
