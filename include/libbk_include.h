@@ -1,4 +1,6 @@
 /*
+ * $Id: libbk_include.h,v 1.3 2001/06/18 19:29:49 seth Exp $
+ *
  * ++Copyright LIBBK++
  *
  * Copyright (c) 2001 The Authors.  All rights reserved.
