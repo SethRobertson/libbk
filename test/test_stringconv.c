@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.19 2004/07/08 04:40:19 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.20 2005/02/05 03:27:34 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -172,17 +172,17 @@ void progrun(bk_s B, struct program_config *pconfig)
 	ui64 = ~0;
 	ret = bk_string_atou64(B, line, &ui64, 0);
 	if (ret < 0)
-	  printf("bk_string_atou64 failed with %d -- converted to 0x%llx or %llu or 0%llo\n",ret,ui64,ui64,ui64);
+	  printf("bk_string_atou64 failed with %d -- converted to 0x%llx or %llu or 0%llo\n",ret,BUG_LLI_CAST(ui64),BUG_LLU_CAST(ui64),BUG_LLU_CAST(ui64));
 	else
-	  printf("Converted to 0x%llx or %llu or 0%llo\n",ui64,ui64,ui64);
+	  printf("Converted to 0x%llx or %llu or 0%llo\n",BUG_LLU_CAST(ui64),BUG_LLU_CAST(ui64),BUG_LLU_CAST(ui64));
 	break;
       case 3:
 	i64 = ~0;
 	ret = bk_string_atoi64(B, line, &i64, 0);
 	if (ret < 0)
-	  printf("bk_string_atoi64 failed with %d -- converted to 0x%llx or %lld or 0%llo\n",ret,(u_int64_t)i64,i64,(u_int64_t)i64);
+	  printf("bk_string_atoi64 failed with %d -- converted to 0x%llx or %lld or 0%llo\n",ret,BUG_LLU_CAST((u_int64_t)i64),BUG_LLI_CAST(i64),BUG_LLU_CAST((u_int64_t)i64));
 	else
-	  printf("Converted to 0x%llx or %lld or 0%llo\n",(u_int64_t)i64,i64,(u_int64_t)i64);
+	  printf("Converted to 0x%llx or %lld or 0%llo\n",BUG_LLU_CAST((u_int64_t)i64),BUG_LLI_CAST(i64),BUG_LLU_CAST((u_int64_t)i64));
 	break;
       case 4:
 	ui32 = bk_strhash(line, 0);

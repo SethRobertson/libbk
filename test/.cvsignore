@@ -18,3 +18,4 @@ mutex
 test_clc
 diskspeed
 test_threads
+test_ringdir

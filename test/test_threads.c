@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: test_threads.c,v 1.3 2004/07/08 04:40:19 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: test_threads.c,v 1.4 2005/02/05 03:27:34 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -221,7 +221,7 @@ void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval *star
   }
 
   foo = startide->tv_sec;
-  localtime_r(&foo, &tm);
+  (void)localtime_r(&foo, &tm);
   printf("Running event queue job at: %s\n",asctime_r(&tm, buf));
   usleep(pc->pc_seconds*1000);
 
