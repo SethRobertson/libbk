@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.76 2003/05/02 03:29:58 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.77 2003/05/02 23:12:45 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1039,7 +1039,7 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
     ioh->ioh_readallowedevent = NULL;
   }
 
-  bk_ioh_cancel_unregister(B, ioh, 0);
+  bk_ioh_cancel_unregister(B, ioh, BK_FD_ADMIN_FLAG_WANT_ALL);
 
   if (BK_FLAG_ISCLEAR(ioh->ioh_intflags, IOH_FLAGS_DONTCLOSEFDS))
   {						// Close FDs if we can
