@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.23 2002/05/17 01:06:05 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.24 2002/06/14 05:10:21 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -692,9 +692,6 @@ do_net_init_af_inet_udp_listen(bk_s B, struct addrgroup_state *as)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int s = -1;
   struct bk_addrgroup *bag;
-  struct bk_netinfo *local, slocal;
-  struct bk_netaddr bna;
-  struct sockaddr sa;
   int af;
 
   if (!as)
