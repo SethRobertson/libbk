@@ -1,3 +1,12 @@
+2003-12-10  James Tanis  <jtt@pearl.sysdetect.com>
+
+	* include/libbkxml.h (BKXML_CHECK_NEXT_NODE_NAME_CHECK_THIS_NODE):
+	Resist the name police. Strike a blow for personal freedom.
+
+	* xml/b_search.c (bkxml_check_next_node_name): Avoid core dump
+	from recent fix. [valgrind is stupid. How can *nodep be
+	uninitialized if we've already checked for nodep?].
+
 2003-12-10  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbkxml.h (BKXML_CHECK_THIS_NODE): stop the

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_search.c,v 1.11 2003/12/10 07:18:11 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_search.c,v 1.12 2003/12/10 14:32:03 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -271,7 +271,7 @@ bkxml_check_next_node_name(bk_s B, xmlNodePtr node, const xmlChar *name, xmlNode
     BK_RETURN(B, -1);
   }
 
-  if (BK_FLAG_ISCLEAR(flags, BKXML_CHECK_THIS_NODE))
+  if (BK_FLAG_ISCLEAR(flags, BKXML_CHECK_NEXT_NODE_NAME_CHECK_THIS_NODE))
     node = node->next;
 
   // Find next node
@@ -281,7 +281,8 @@ bkxml_check_next_node_name(bk_s B, xmlNodePtr node, const xmlChar *name, xmlNode
   // Compare
   if (!xmlStrEqual(node->name, name))
   {
-    *nodep = NULL;
+    if (nodep)
+      *nodep = NULL;
     BK_RETURN(B, 1);
   }
 
