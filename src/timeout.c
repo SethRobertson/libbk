@@ -64,7 +64,7 @@ int main(int argc, char **argv)
    
   if (!(pid=fork()))
   {
-    if (execvp(*argv++,argv)<0)
+    if (execvp(*argv,argv)<0)
     {
       perror("fork");
       exit(error_exit);
