@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.22 2002/04/02 02:06:52 seth Exp $
+ * $Id: libbk_oscompat.h,v 1.23 2002/04/26 21:26:32 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -104,6 +104,21 @@ asm (".long	" #mod "_init"); static void mod ## _init (void)
 #endif /* !HAVE_INSURE */
 #endif /* !HAVE_INIT_PRAGMA */
 #endif /* !HAVE_CONSTRUCTOR_ATTRIBUTE */
+
+
+// FreeBSD calls it O_FSYNC, not O_SYNC, and who can say why?
+#ifndef O_SYNC
+#ifdef O_FSYNC
+#define O_SYNC O_FSYNC
+#endif
+#endif
+
+// Just in case we're dealing with some anti-POSIX OS somewhere
+#ifndef O_NONBLOCK
+#ifdef O_NDELAY
+#define O_NONBLOCK O_NDELAY
+#endif
+#endif
 
 
 #ifdef __cplusplus

@@ -1,3 +1,8 @@
+2002-04-26  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk_oscompat.h: map O_SYNC->O_FSYNC, O_NONBLOCK->O_NDELAY
+	on any OS which feels the need to be different
+	
 2002-04-26  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_pollio.c (polling_io_ioh_handler): Using [0] to reference
