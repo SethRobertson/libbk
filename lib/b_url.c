@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.5 2001/12/11 20:06:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.6 2001/12/11 21:30:53 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,11 +27,13 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 static u_int count_colons(bk_s B, const char *str, const char *str_end);
 
+
+
 /**
  * Parse a url
  *
  *	@param B BAKA thread/global state.
- *	@param url_in Url to parse.
+ *	@param url Url to parse.
  *	@param flags Flags for the future.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_url on sucess.
@@ -41,8 +43,10 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_url *bu = NULL;
-  const char *host=NULL, *host_end;
-  const char *proto=NULL, *proto_end;
+  const char *host=NULL;
+  const char *host_end;
+  const char *proto=NULL;
+  const char *proto_end;
   const char *serv=NULL;
   const char *path=NULL;
   u_int cnt;
@@ -115,7 +119,7 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
     switch ((cnt = count_colons(B, host, host_end)))
     {
       /* host_part:serv_part */
-    case 1: /* AF_INET */
+    case 1: /* AF_INET or hostname or missing host_part */
     case 8: /* AF_INET6 */
       if (!(serv = strrchr(host,':')))
       {
@@ -137,7 +141,7 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
       break;
     
     /* host_part only. No service string */
-    case 0: /* AF_INET */
+    case 0: /* AF_INET or hostname or missing host_part */
     case 7: /* Af_INET6 */
       if (!(bu->bu_serv = strdup("")))
       {
