@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.66 2002/11/07 19:45:35 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.67 2002/11/14 21:12:37 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1280,13 +1280,17 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
  *		     IOH_FDCTL_RESET -- reset to original defaults.
  *	@return <i>-1</i> on call failure
  *	@return <br><i>0</i> no changes made
- *	@return <br><i>> 0</i> some changes made
+ *	@return <br><i>positive</i> some changes made
  */
 static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret = 0;
-  int fdflags, oobinline, linger, size;
+  int fdflags;
+  int oobinline = -1;
+  int linger = -1;
+  struct linger sling;
+  int size;
 
   if (!savestate)
   {
@@ -1302,15 +1306,32 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
     BK_RETURN(B,0);
   }
 
+  /*
+   * Contrary to Linux manpage, SO_LINGER only affects close(), not shutdown()
+   * (see http://www.cs.helsinki.fi/linux/linux-kernel/2001-06/0132.html) and
+   * in fact is rarely implemented correctly - most stacks act as if linger is
+   * off - and http://httpd.apache.org/docs/misc/perf-tuning.html#compiletime a
+   * few pages down describes a more dependable way to get lingering behavior.
+   *
+   * We knock ourselves out turning it off just in case.  It probably doesn't
+   * matter, since this code was using an int instead of struct linger, which
+   * hasn't been correct since 4.2BSD.  Incidentally, if you find a 4.2BSD
+   * machine (maybe SunOS 3?) on which the struct linger stuff doesn't compile,
+   * just comment it out - the cost/benefit ratio of this code is already far
+   * too high.
+   */
+
   // Examine file descriptor for proper file and socket options
   fdflags = fcntl(fd, F_GETFL);
   size = sizeof(oobinline);
-  if (getsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &oobinline, &size) < 0)
-    oobinline = -1;
-  size = sizeof(linger);
-  if (getsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, &size) < 0)
-    linger = -1;
-
+  if (getsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &oobinline, &size) == 0
+      || errno != ENOTSOCK)
+  {
+    // only bother trying linger if we have a socket
+    size = sizeof(sling);
+    if (getsockopt(fd, SOL_SOCKET, SO_LINGER, &sling, &size) == 0)
+      linger = sling.l_onoff != 0;
+  }
 
   if (BK_FLAG_ISSET(flags,IOH_FDCTL_SET))
   {
@@ -1328,18 +1349,21 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
     }
     if (linger > 0)
     {
-      // We need to save the linger value--some OSs overload this information.
-      // Bound it to 2^16-1, store in upper 16 bits of savestate;
-      if (linger > 65535) linger = 65535;
-      *savestate |= linger<<16;
-      linger = 0;
-      *savestate |= IOH_NUKED_LINGER;
+      /*
+       * Linger was turned on; some OS's may lose the actual linger time when
+       * we turn it off, so we have to stash this into savestate.  To make it
+       * fit in the upper 16 bits of savestate, we bound it to 2^16-1.
+       */
+      linger = MIN(sling.l_linger, USHRT_MAX);
+      sling.l_onoff = 0;
+      *savestate |= (linger << 16) | IOH_NUKED_LINGER;
     }
   }
 
   if (BK_FLAG_ISSET(flags,IOH_FDCTL_RESET))
   {
-    if (BK_FLAG_ISSET(*savestate, IOH_ADDED_NONBLOCK) && fdflags >= 0 && BK_FLAG_ISSET(fdflags, O_NONBLOCK))
+    if (BK_FLAG_ISSET(*savestate, IOH_ADDED_NONBLOCK) && fdflags >= 0 &&
+	BK_FLAG_ISSET(fdflags, O_NONBLOCK))
     {
       BK_FLAG_CLEAR(fdflags, O_NONBLOCK);
     }
@@ -1349,16 +1373,20 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
     }
     if (BK_FLAG_ISSET(*savestate, IOH_NUKED_LINGER) && linger == 0)
     {
-      linger = (*savestate >> 16)&0xffff;
+      sling.l_onoff = 1;
+      if (!sling.l_linger)			// appears to have been nuked
+	sling.l_linger = (*savestate >> 16) & 0xffff;
     }
   }
 
   // set modified file and socket options where appropriate
   if (fdflags >= 0 && fcntl(fd, F_SETFL, fdflags) >= 0)
     ret++;
-  if (oobinline >= 0 && setsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &oobinline, sizeof(oobinline)) >= 0)
+  if (oobinline >= 0 && setsockopt(fd, SOL_SOCKET, SO_OOBINLINE,
+				   &oobinline, sizeof(oobinline)) >= 0)
     ret++;
-  if (linger >= 0 && setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger)) >= 0)
+  if (linger >= 0 && setsockopt(fd, SOL_SOCKET, SO_LINGER,
+				&sling, sizeof(sling)) >= 0)
     ret++;
 
   BK_RETURN(B, ret);

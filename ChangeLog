@@ -1,3 +1,7 @@
+2002-11-14  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_ioh.c (bk_ioh_fdctl): implement SO_LINGER correctly
+
 2002-11-11  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk_include.h: defining _XOPEN_SOURCE breaks BSD compile
