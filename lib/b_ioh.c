@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.69 2003/03/07 20:29:43 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.70 2003/03/19 00:10:35 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -369,7 +369,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
     BK_FLAG_SET(curioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT);
   }
 
-  if (bk_string_atou(B, BK_GWD(B, "bk_follow_pause", "1"), &curioh->ioh_follow_pause, 0) < 0)
+  if (BK_STRING_ATOI(B, BK_GWD(B, "bk_follow_pause", "1"), &curioh->ioh_follow_pause, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not convert follow pause interval\n");
     goto error;

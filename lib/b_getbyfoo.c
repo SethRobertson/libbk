@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.21 2002/10/18 20:03:30 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.22 2003/03/19 00:10:35 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -108,7 +108,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
 
   
   /* MUTEX_LOCK */
-  if (bk_string_atoi(B,protostr,&num,0) == 0)
+  if (BK_STRING_ATOI(B,protostr,&num,0) == 0)
   {
     /* This is a number so only do search if forced */
     if (BK_FLAG_ISSET(flags, BK_GETPROTOBYFOO_FORCE_LOOKUP))
@@ -330,7 +330,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
   
   
   /* MUTEX_LOCK */
-  if (bk_string_atoi(B, servstr, &num, 0) == 0)
+  if (BK_STRING_ATOI(B, servstr, &num, 0) == 0)
   {
     /* This a a number so only do seach if forced */
     if (BK_FLAG_ISSET(flags, BK_GETSERVBYFOO_FORCE_LOOKUP))

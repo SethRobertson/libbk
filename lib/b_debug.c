@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.20 2003/01/20 23:37:22 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.21 2003/03/19 00:10:35 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -437,7 +437,7 @@ int bk_debug_setconfig_i(bk_s B, struct bk_debug *bdinfo, struct bk_config *conf
     if(strcmp(tokenized[0], program))
       goto next;				/* Incorrect program name */
 
-    if (bk_string_atou(B, tokenized[2], &level, 0) < 0)
+    if (bk_string_atou32(B, tokenized[2], &level, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_WARN, "%s: Invalid debugging level `%s' in `%s'\n",
 		      BK_FUNCNAME, tokenized[2], value);

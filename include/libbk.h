@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.215 2003/03/17 23:46:50 jtt Exp $
+ * $Id: libbk.h,v 1.216 2003/03/19 00:10:34 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1589,11 +1589,11 @@ extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
 #define BK_STRING_STR2XML_FLAG_ENCODE_WHITESPACE 0x2 ///< Encode whitespace other than space (\040).
 
 /* b_strconv.c */
-extern int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags);
-extern int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags);
+extern int bk_string_atou32(bk_s B, const char *string, u_int32_t *value, bk_flags flags);
+extern int bk_string_atoi32(bk_s B, const char *string, int32_t *value, bk_flags flags);
 extern int bk_string_atot(bk_s B, const char *string, time_t *value, bk_flags flags);
-extern int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flags);
-extern int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags);
+extern int bk_string_atou64(bk_s B, const char *string, u_int64_t *value, bk_flags flags);
+extern int bk_string_atoi64(bk_s B, const char *string, int64_t *value, bk_flags flags);
 extern int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *names, bk_flags flags);
 extern int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names, bk_flags flags);
 extern int bk_string_intcols(bk_s B, int64_t num, u_int base);
@@ -1603,6 +1603,37 @@ extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags fl
 extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags);
 #define BK_STRING_ATOF_FLAG_ALLOW_INF BK_STRING_ATOD_FLAG_ALLOW_INF
 #define BK_STRING_ATOF_FLAG_ALLOW_NAN BK_STRING_ATOD_FLAG_ALLOW_NAN
+
+#if SIZEOF_INT == 4
+#define BK_STRING_ATOI bk_string_atoi32
+#define BK_STRING_ATOU bk_string_atou32
+#endif
+
+#if SIZEOF_INT == 8
+#define BK_STRING_ATOI bk_string_atoi64
+#define BK_STRING_ATOU bk_string_atou64
+#endif
+
+#if SIZEOF_LONG == 4
+#define BK_STRING_ATOL bk_string_atoi32
+#define BK_STRING_ATOUL bk_string_atou32
+#endif
+
+#if SIZEOF_LONG == 8
+#define BK_STRING_ATOL bk_string_atoi64
+#define BK_STRING_ATOUL bk_string_atou64
+#endif
+
+
+#if SIZEOF_LONG_LONG == 4
+#define BK_STRING_ATOLL bk_string_atoi32
+#define BK_STRING_ATOULL bk_string_atou32
+#endif
+
+#if SIZEOF_LONG_LONG == 8
+#define BK_STRING_ATOLL bk_string_atoi64
+#define BK_STRING_ATOULL bk_string_atou64
+#endif
 
 
 /* b_string.c */

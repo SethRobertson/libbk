@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_bio.c,v 1.8 2002/09/10 21:53:26 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_bio.c,v 1.9 2003/03/19 00:10:35 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -393,7 +393,7 @@ do_read(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const st
       fgets(line, 1024, stdin);
 
       
-      if (bk_string_atou(B, line, &offset, 0) != 0)
+      if (BK_STRING_ATOU(B, line, &offset, 0) != 0)
       {
 	fprintf(stderr,"Bad integer: %s\n", line);
 	continue;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.11 2003/01/20 23:37:22 seth Exp $";
+static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.12 2003/03/19 00:10:35 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -154,33 +154,33 @@ void progrun(bk_s B, struct program_config *pconfig)
       {
       case 0:
 	ui32 = ~0;
-	ret = bk_string_atou(B, line, &ui32, 0);
+	ret = bk_string_atou32(B, line, &ui32, 0);
 	if (ret < 0)
-	  printf("bk_string_atou failed with %d -- converted to 0x%x or %u or 0%o\n",ret,ui32,ui32,ui32);
+	  printf("bk_string_atou32 failed with %d -- converted to 0x%x or %u or 0%o\n",ret,ui32,ui32,ui32);
 	else
 	  printf("Converted to 0x%x or %u or 0%o\n",ui32,ui32,ui32);
 	break;
       case 1:
 	i32 = ~0;
-	ret = bk_string_atoi(B, line, &i32, 0);
+	ret = bk_string_atoi32(B, line, &i32, 0);
 	if (ret < 0)
-	  printf("bk_string_atoi failed with %d -- converted to 0x%x or %d or 0%o\n",ret,(u_int)i32,i32,(u_int)i32);
+	  printf("bk_string_atoi32 failed with %d -- converted to 0x%x or %d or 0%o\n",ret,(u_int)i32,i32,(u_int)i32);
 	else
 	  printf("Converted to 0x%x or %d or 0%o\n",(u_int)i32,i32,(u_int)i32);
 	break;
       case 2:
 	ui64 = ~0;
-	ret = bk_string_atoull(B, line, &ui64, 0);
+	ret = bk_string_atou64(B, line, &ui64, 0);
 	if (ret < 0)
-	  printf("bk_string_atou failed with %d -- converted to 0x%llx or %llu or 0%llo\n",ret,ui64,ui64,ui64);
+	  printf("bk_string_atou64 failed with %d -- converted to 0x%llx or %llu or 0%llo\n",ret,ui64,ui64,ui64);
 	else
 	  printf("Converted to 0x%llx or %llu or 0%llo\n",ui64,ui64,ui64);
 	break;
       case 3:
 	i64 = ~0;
-	ret = bk_string_atoill(B, line, &i64, 0);
+	ret = bk_string_atoi64(B, line, &i64, 0);
 	if (ret < 0)
-	  printf("bk_string_atoi failed with %d -- converted to 0x%llx or %lld or 0%llo\n",ret,(u_int64_t)i64,i64,(u_int64_t)i64);
+	  printf("bk_string_atoi64 failed with %d -- converted to 0x%llx or %lld or 0%llo\n",ret,(u_int64_t)i64,i64,(u_int64_t)i64);
 	else
 	  printf("Converted to 0x%llx or %lld or 0%llo\n",(u_int64_t)i64,i64,(u_int64_t)i64);
 	break;
@@ -217,7 +217,7 @@ void progrun(bk_s B, struct program_config *pconfig)
 	  }
 	  *string++ = 0;
 
-	  if (bk_string_atou(B, line, &limit, 0) < 0 || bk_string_atou(B, flag, &flags, 0) < 0)
+	  if (BK_STRING_ATOU(B, line, &limit, 0) < 0 || bk_string_atou32(B, flag, &flags, 0) < 0)
 	  {
 	    printf("Could not convert limit or flags\n");
 	    break;

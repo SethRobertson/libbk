@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.9 2003/02/28 21:06:17 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.10 2003/03/19 00:10:35 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -41,7 +41,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, int *sign, bk_flags flags);
+static int bk_string_atou64_int(bk_s B, const char *string, u_int64_t *value, int *sign, bk_flags flags);
 
 
 
@@ -55,18 +55,18 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
  *	@param flags Fun for the future.
- *    	@see bk_string_atoull_int
+ *    	@see bk_string_atou64_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
  *	number conversion still performed
  */
-int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags)
+int bk_string_atou32(bk_s B, const char *string, u_int32_t *value, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
   u_int64_t tmp;
-  int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
+  int ret = bk_string_atou64_int(B, string, &tmp, &sign, flags);
 
   if (ret >= 0)
   {
@@ -94,18 +94,18 @@ int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags)
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
  *	@param flags Fun for the future.
- *    	@see bk_string_atoull_int
+ *    	@see bk_string_atou64_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
  *	number conversion still performed
  */
-int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags)
+int bk_string_atoi32(bk_s B, const char *string, int32_t *value, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
   u_int64_t tmp;
-  int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
+  int ret = bk_string_atou64_int(B, string, &tmp, &sign, flags);
 
   if (ret >= 0)
   {
@@ -130,7 +130,7 @@ int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags)
 
 
 /**
- * Convert ascii string to time_t.  This is the same as bk_string_atoi for now, 
+ * Convert ascii string to time_t.  This is the same as bk_string_atoi32 for now, 
  * but will keep us from casting to int32 all over the place.  We'll be happy 
  * about this if this code still exists in 2038.
  *
@@ -140,7 +140,7 @@ int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags)
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
  *	@param flags Fun for the future.
- *    	@see bk_string_atoull_int
+ *    	@see bk_string_atou64_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
@@ -151,7 +151,7 @@ int bk_string_atot(bk_s B, const char *string, time_t *value, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
   u_int64_t tmp;
-  int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
+  int ret = bk_string_atou64_int(B, string, &tmp, &sign, flags);
 
   if (ret >= 0)
   {
@@ -184,18 +184,18 @@ int bk_string_atot(bk_s B, const char *string, time_t *value, bk_flags flags)
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
  *	@param flags Fun for the future.
- *    	@see bk_string_atoull_int
+ *    	@see bk_string_atou64_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
  *	number conversion still performed
  */
-int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flags)
+int bk_string_atou64(bk_s B, const char *string, u_int64_t *value, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
   u_int64_t tmp;
-  int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
+  int ret = bk_string_atou64_int(B, string, &tmp, &sign, flags);
 
   if (sign < 0)					// not a valid unsigned
   {
@@ -220,18 +220,18 @@ int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flag
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
  *	@param flags Fun for the future.
- *    	@see bk_string_atoull_int
+ *    	@see bk_string_atou64_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
  *	number conversion still performed
  */
-int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags)
+int bk_string_atoi64(bk_s B, const char *string, int64_t *value, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
   u_int64_t tmp;
-  int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
+  int ret = bk_string_atou64_int(B, string, &tmp, &sign, flags);
 
   if (ret >= 0)
   {
@@ -267,13 +267,13 @@ int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags)
  *	@param value Copy-out of number the string represents
  *	@param sign Copy-out sign of number converted
  *	@param flags Fun for the future.
- *    	@see bk_string_atoull_int
+ *    	@see bk_string_atou64_int
  *	@return <i>-1</i> on call failure
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
  *	number conversion still performed
  */
-static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, int *sign, bk_flags flags)
+static int bk_string_atou64_int(bk_s B, const char *string, u_int64_t *value, int *sign, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   signed char decode[256];
@@ -576,7 +576,7 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
       in = end;
   }
 
-  ret = bk_string_atou(B, in, dst, 0);
+  ret = bk_string_atou32(B, in, dst, 0);
   if (ret)
     bk_error_printf(B, ret > 0 ? BK_ERR_WARN : BK_ERR_ERR,
 		    "Could not convert flags string \"%s\"\n", src);
