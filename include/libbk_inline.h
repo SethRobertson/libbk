@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_inline.h,v 1.9 2003/06/25 19:27:12 jtt Exp $
+ * $Id: libbk_inline.h,v 1.10 2003/06/25 23:50:51 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -106,6 +106,21 @@ static __inline__ char *bk_dll_error_reason(dict_h handle, int *errnop);
 
 
 /**
+ * Destroy a generic baka dll
+ *
+ *	@param gdh The header of the geneneric list.
+ */
+static __inline__ void
+bk_dll_destroy(bk_dll_h gdh)
+{
+  if (gdh)
+    free(gdh);
+  return;
+}
+
+
+
+/**
  * Create the header for a BAKA dll. NB: the usually expected "flags"
  * argument is not set here since it is assumed that this function might
  * replace dll_create in some code and the flags thus passed would be DICT
@@ -129,21 +144,6 @@ bk_dll_create(void)
     bk_dll_destroy(gdh);
   return(NULL); 
 }
-
-
-/**
- * Destroy a generic baka dll
- *
- *	@param gdh The header of the geneneric list.
- */
-static __inline__ void
-bk_dll_destroy(bk_dll_h gdh)
-{
-  if (gdh)
-    free(gdh);
-  return;
-}
-
 
 
 /**

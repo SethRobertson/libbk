@@ -1,5 +1,7 @@
 2003-06-25  James Tanis  <jtt@austin.sysdetect.com>
 
+	* include/libbk_inline.h: Reorder inline functions so they inline.
+
 	* lib/b_ioh.c: Convert bid queue from a nomal dll to bk_dll.
 	Convert biq_iterate/nextobj to biq_minimum/successor. See comments
 	in libbk_inline.h for explanation as to why this won't potentially
