@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.17 2002/04/26 00:47:59 lindauer Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.18 2002/04/26 14:46:39 lindauer Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -630,7 +630,7 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int m
     }
 
     // <WARNING>Assumes syslog levels are higher priority->lower numbers</WARNING>
-    if (minimumlevel >= 0 && minimumlevel > cur->ben_level)
+    if (minimumlevel >= 0 && (cur->ben_level > minimumlevel))
       continue;
 
     be_error_output(B, fh, sysloglevel, cur, 0);
@@ -718,7 +718,7 @@ char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, char *mark, int minimum
     }
 
     // <WARNING>Assumes syslog levels are higher priority->lower numbers</WARNING>
-    if (minimumlevel >= 0 && minimumlevel > cur->ben_level)
+    if (minimumlevel >= 0 && (cur->ben_level > minimumlevel))
       continue;
 
     be_error_append(B, str, cur, 0);
