@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.22 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.23 2003/10/07 17:46:41 brian Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -305,6 +305,7 @@ bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, char **servist
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
+ *	@return <i>>1</i> if BK_NETUTILS_ANY_LOCAL set, and successfully created a socket
  */
 int
 bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
@@ -315,6 +316,8 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
   char *protostr = NULL;
   struct bk_netinfo *bni = NULL;
   struct start_service_state *sss = NULL;
+  struct in_addr inaddr_any;
+  struct hostent fake_hostent;
   void *ghbf_info;
 
   if (!run || !callback)
@@ -372,12 +375,43 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
   securenets = NULL;
   sss->sss_backlog = backlog;
 
-  if (!(ghbf_info = bk_gethostbyfoo(B, hoststr, 0, sss->sss_lbni, run, sss_serv_gethost_complete, sss, 0)))
+  if (!(BK_FLAG_ISSET(flags, BK_NETUTILS_ANY_LOCAL)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not begin the hostname lookup process\n");
-    /* sss is destroyed */
-    sss = NULL;
-    goto error;
+    if (!(ghbf_info = bk_gethostbyfoo(B, hoststr, 0, sss->sss_lbni, run, sss_serv_gethost_complete, sss, 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not begin the hostname lookup process\n");
+      /* sss is destroyed */
+      sss = NULL;
+      goto error;
+    }
+  }
+  else
+  {
+    // skip the bk_gethostbyfoo business
+    // we don't need, and can't afford a callback later
+    
+    // we're not address family sensitive yet (we call gethostbyfoo(.,.,0,...)
+    inaddr_any.s_addr = INADDR_ANY;
+
+    // enter land of make-believe
+    memset(&fake_hostent,0,sizeof(fake_hostent));
+    fake_hostent.h_addrtype = AF_INET;
+    fake_hostent.h_length = sizeof(inaddr_any);
+    memmove(fake_hostent.h_addr_list[0], &inaddr_any, sizeof(inaddr_any));
+
+    if (bk_netinfo_update_hostent(B, sss->sss_lbni, &fake_hostent) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Unable to update netinfo with known hostent data\n");
+      goto error;
+    }
+
+    if (bk_net_init(B, run, sss->sss_lbni, NULL, 0, sss->sss_flags, sss->sss_callback, sss->sss_args, sss->sss_backlog) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not open service\n");
+      goto error;
+    }
+
+    sss_destroy(B, sss);
   }
 
   // <TODO>Return ghbf_info to the user somehow here point once there is a start_service_preservice_cancel--sss is not helpful.</TODO>
@@ -385,7 +419,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
   if (hoststr) free(hoststr);
   if (servstr) free(servstr);
   if (protostr) free(protostr);
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 
  error:
   if (hoststr) free(hoststr);

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.259 2003/09/11 23:11:45 seth Exp $
+ * $Id: libbk.h,v 1.260 2003/10/07 17:46:40 brian Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1806,6 +1806,7 @@ extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obs
 extern int bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa);
 extern int bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char **servicestr,  char *defservicestr, char **protostr, char *defprotostr);
 extern int bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defurl, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags);
+#define BK_NETUTILS_ANY_LOCAL 0x01
 extern int bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags);
 extern int bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *defurl, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags);
 extern int bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, char *rurl, char *defrhost, char *defrserv, char *lurl, char *deflhost, char *deflserv, char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags );
