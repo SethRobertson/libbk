@@ -1,3 +1,10 @@
+2002-03-18  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* test/Makefile (BK_SIMPLE_INTERNALPROGS): build test_fun with
+	funky path to test path stripping
+
+	* test/test_fun.c: simple tests for bk_fun
+
 2002-03-14  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_exec.c (bk_exec): use execvp where possible

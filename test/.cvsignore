@@ -2,6 +2,7 @@
 test_bio
 test_config
 test_errorstuff
+test_fun
 test_getbyfoo
 test_ioh
 test_locks
@@ -9,5 +10,5 @@ test_printbuf
 test_stringconv
 test_time
 test_url
-testrandidea
 testhashspeed
+testrandidea
