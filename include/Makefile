@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.10 2002/10/18 18:50:14 dupuy Exp $
+# $Id: Makefile,v 1.11 2003/03/19 00:03:05 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -14,7 +14,7 @@
 #
 # libbk Makefile
 #
-BK_PUBLIC_INC=libbk.h libbk_autoconf.h libbk_include.h libbk_oscompat.h libbk_i18n.h libbk_net.h
+BK_PUBLIC_INC=libbk.h libbk_autoconf.h libbk_include.h libbk_oscompat.h libbk_i18n.h libbk_net.h libbkxml.h
 
 GROUPTOP=..
 GROUPSUBDIR=include

@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.6 2003/03/19 00:03:04 seth Exp $
+# $Id: Makefile,v 1.1 2003/03/19 00:03:05 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -12,13 +12,18 @@
 #
 # --Copyright LIBBK--
 #
-# libbk group Makefile 
+# libbk Makefile
 #
-BK_INCLUDE_DIRS=include
-BK_SUBDIR=lib xml src man test
+BK_LARGE_LIB=libbkxml$(LIBEXT)
 
-GROUPTOP=.
-GROUPSUBDIR=.
+BK_LARGE_LIBSRC=		       		\
+		b_search.c			\
+# Line eater fodder -- leave
+
+LT_LDLIBS=-lxml2
+
+GROUPTOP=..
+GROUPSUBDIR=xml
 ##################################################
 ## BEGIN BKSTANDARD MAKEFILE
 -include ./Make.preinclude

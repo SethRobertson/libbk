@@ -1,3 +1,9 @@
+2003-03-18  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* xml/b_search.c: libbkxml for non-awb-specific XML routines
+	(licensing needed them and licensing is not AWB specific).
+	These should be used preferrentially over a_xml.
+	
 2003-03-17  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_time.c (bk_time_iso_format): Add copy out flag to indicate
