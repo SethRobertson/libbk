@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.73 2003/01/23 20:02:38 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.74 2003/01/23 20:28:32 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1994,7 +1994,7 @@ static ht_val bsr_oo_cmp(struct bk_str_registry_element *a, struct bk_str_regist
  * @param src Source string
  * @param kvht_vardb Key Value hash table for variables
  * @param envdb environ(5) style environment
- * @param flags BK_STRING_EXPAND_FLAG_FREE to free source string (whether successful or not!!!)
+ * @param flags BK_STRING_EXPAND_FREE to free source string (whether successful or not!!!)
  * @return <b>NULL</b> on call failure, allocation failure
  * @return <br><b>expanded string</b> on success
  */
@@ -2019,13 +2019,13 @@ char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **
   tokens[0] = NULL;				// <TRICKY>Preserve contents across destroy</TRICKY>
   bk_string_tokenize_destroy(B, tokens);
 
-  if (BK_FLAG_ISSET(flags, BK_STRING_EXPAND_FLAG_FREE))
+  if (BK_FLAG_ISSET(flags, BK_STRING_EXPAND_FREE))
     free(src);
 
   BK_RETURN(B, ret);
 
  error:
-  if (BK_FLAG_ISSET(flags, BK_STRING_EXPAND_FLAG_FREE))
+  if (BK_FLAG_ISSET(flags, BK_STRING_EXPAND_FREE))
     free(src);
 
   if (tokens)

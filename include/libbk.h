@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.199 2003/01/23 20:03:28 jtt Exp $
+ * $Id: libbk.h,v 1.200 2003/01/23 20:28:32 seth Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1555,8 +1555,6 @@ extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags fl
 extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags);
 #define BK_STRING_ATOF_FLAG_ALLOW_INF BK_STRING_ATOD_FLAG_ALLOW_INF
 #define BK_STRING_ATOF_FLAG_ALLOW_NAN BK_STRING_ATOD_FLAG_ALLOW_NAN
-extern char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **envdb, bk_flags flags);
-#define BK_STRING_EXPAND_FLAG_FREE	0x1
 
 
 /* b_string.c */
@@ -1607,6 +1605,8 @@ extern bk_str_id_t bk_string_registry_insert(bk_s B, struct bk_str_registry *bsr
 extern int bk_string_registry_delete(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags);
 extern bk_str_id_t bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags);
 extern const char *bk_string_registry_strbyid(bk_s B, struct bk_str_registry *bsr, bk_str_id_t id, bk_flags flags);
+extern char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **envdb, bk_flags flags);
+#define BK_STRING_EXPAND_FREE 1
 
 
 /* getbyfoo.c */
