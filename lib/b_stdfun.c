@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.3 2001/11/05 20:53:06 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.4 2001/11/06 00:41:54 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,17 +24,23 @@ static void bk_printserious(bk_s B, FILE *output, char *type, char *reason, bk_f
 
 
 
-/*
- * Die -- exit and print reasoning
+/**
+ * Die -- exit and print reasoning.
+ * Intentional lack of BK_ENTRY et al
+ * Does not return.
  *
- * Intentional lack of BK_ENTRY et al.
+ *	@param B BAKA thread/global state 
+ *	@param retcode Return code
+ *	@param output File handle to dump death information
+ *	@param reason Reason we are dying
+ *	@param flags Type of messages we should print
  */
 void bk_die(bk_s B, u_char retcode, FILE *output, char *reason, bk_flags flags)
 {
   if (!output || !reason)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid die arguments\n");
-    return;
+    bk_error_printf(B, BK_ERR_ERR, "Invalid die arguments\n"); // Not very useful
+    bk_exit(B, retcode);
   }
 
   bk_error_printf(B, BK_ERR_CRIT, "DIE: %s",reason);
@@ -46,8 +52,13 @@ void bk_die(bk_s B, u_char retcode, FILE *output, char *reason, bk_flags flags)
 
 /*
  * Warn -- print a strong warning message of major problems
- *
  * Intentional lack of BK_ENTRY et al.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param retcode Return code
+ *	@param output File handle to dump death information
+ *	@param reason Reason we are dying
+ *	@param flags Type of messages we should print
  */
 void bk_warn(bk_s B, FILE *output, char *reason, bk_flags flags)
 {
@@ -64,10 +75,15 @@ void bk_warn(bk_s B, FILE *output, char *reason, bk_flags flags)
 
 
 
-/*
- * Private warn/die message output
- *
+/**
+ * Private warn/die message output.
  * Intentional lack of BK_ENTRY et al.
+ #
+ *	@param B BAKA thread/global state 
+ *	@param output Output file handle to direct output
+ *	@param type of error message (warn/die)
+ *	@param reason that user specified
+ *	@param flags To control verbosity
  */
 static void bk_printserious(bk_s B, FILE *output, char *type, char *reason, bk_flags flags)
 {
@@ -91,8 +107,12 @@ static void bk_printserious(bk_s B, FILE *output, char *type, char *reason, bk_f
 
 
 
-/*
- * Normal program exit
+/**
+ * Normal program exit.
+ * Does not return.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param retcode Return code
  */
 void bk_exit(bk_s B, u_char retcode)
 {

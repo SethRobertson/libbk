@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.3 2001/11/05 20:53:06 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.4 2001/11/06 00:41:54 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -932,13 +932,15 @@ u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags)
  *	@param run The baka run environment state
  *	@param fd The file descriptor which should be monitored
  *	@param whattypes What preferences the user wishes to get notification on
+ *	@param wantmask What preferences the user is attempting to set
  *	@param flags Flags for the Future.
  *	@return -1 on error
  *	@return 0 on success
  */
-int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, bk_flags flags)
+int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wantmask, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  u_int oldtype = 0;
 
   if (!run && fd >= 0)
   {
@@ -946,15 +948,30 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, bk_flags
     BK_RETURN(B, -1);
   }
 
+  // Do we only want to modify one (or two) flags?
+  if (wantmask)
+  {
+    if (FD_ISSET(fd, &run->br_readset))
+      oldtype |= BK_RUN_WANTREAD;
+    if (FD_ISSET(fd, &run->br_writeset))
+      oldtype |= BK_RUN_WANTWRITE;
+    if (FD_ISSET(fd, &run->br_xcptset))
+      oldtype |= BK_RUN_WANTXCPT;
+
+    oldtype &= ~wantmask;
+  }
+  oldtype |= wanttypes;
+
+
   FD_CLR(fd, &run->br_readset);
   FD_CLR(fd, &run->br_writeset);
   FD_CLR(fd, &run->br_xcptset);
 
-  if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTREAD))
+  if (BK_FLAG_ISSET(oldtype, BK_RUN_WANTREAD))
     FD_SET(fd, &run->br_readset);
-  if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTWRITE))
+  if (BK_FLAG_ISSET(oldtype, BK_RUN_WANTWRITE))
     FD_SET(fd, &run->br_writeset);
-  if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTXCPT))
+  if (BK_FLAG_ISSET(oldtype, BK_RUN_WANTXCPT))
     FD_SET(fd, &run->br_xcptset);
 
   BK_RETURN(B, 0);

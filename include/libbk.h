@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.35 2001/11/05 20:53:06 seth Exp $
+ * $Id: libbk.h,v 1.36 2001/11/06 00:41:53 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -376,7 +376,7 @@ extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, void (*handler)(bk_
 extern int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 #define BK_RUN_NOTIFYANYWAY			1
 extern u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags);
-extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, bk_flags flags);
+extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wantmask, bk_flags flags);
 #define BK_RUN_WANTREAD				0x01
 #define BK_RUN_WANTWRITE			0x02
 #define BK_RUN_WANTXCPT				0x04
@@ -406,6 +406,7 @@ extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun
 #define BK_IOH_STATUS_WRITECOMPLETE	6	/* A previous write of a buffer has completed, and here is the buffer */
 #define BK_IOH_STATUS_WRITEABORTED	7	/* A previous write of a buffer was not fully completed before abort, and here is the buffer */
 #define BK_IOH_STATUS_READCOMPLETE	8	/* A previous write of a buffer has completed, and here is the buffer, which you must free */
+#define BK_IOH_STATUS_USERERROR		9	/* Some kind of user error being propagated in some unknown and unknowable fashion */
 extern int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iofunc readfun, bk_iofunc writefun, int (*handler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags), void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags);
 extern int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iofunc *readfun, bk_iofunc *writefun, int (**handler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags), void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags);
 extern int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);

@@ -1,5 +1,9 @@
 2001-11-05  Seth Robertson  <seth@startide.sysdetect.com>
 
+	* lib/b_ioh.c: More functions filled out.
+
+	* lib/b_stdfun.c: Document standard functions.
+
 	* lib/*.c: Change to new CLC iterate interface, updating all CLC #defines
 	
 	* lib/b_error.c: Add mark and filtering handling to error queue to improve its capabilities.
