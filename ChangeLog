@@ -1,3 +1,7 @@
+2002-05-07  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* include/libbk.h: BK_SWAP macro for swaping two values of any type.
+
 2002-05-06  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_listnum.c (bk_listnum_destroy): Free up clc.

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.142 2002/05/06 17:41:54 jtt Exp $
+ * $Id: libbk.h,v 1.143 2002/05/07 05:48:29 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -46,6 +46,11 @@ struct bk_polling_io;
  */
 #define BK_STRINGIFY(arg) BK_STRINGIFY2(arg)
 #define BK_STRINGIFY2(arg) #arg
+
+/**
+ * Swap two arbitrary values
+ */
+#define BK_SWAP(a,b) do { typeof(a) __bk_hold = (a); (a) = (b); (b) = __bk_hold; } while(0)
 
 
 #if defined(__GNUC__) && !defined(__INSURE__)
