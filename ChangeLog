@@ -1,5 +1,10 @@
 2001-12-11  James Tanis  <jtt@winwood.sysdetect.com>
 
+	* lib/b_ioh.c (bk_ioh_destroy): make this static.
+
+	* src/bttcp.c (connect_complete): noone other than ioh.c should
+	use bk_ioh_destroy.
+
 	* lib/b_url.c (bk_url_parse): Fix bk_strndup() usage to account
 	for its better behavior.
 	(bk_url_parse): Allow caller to pass in flag which makes bare path

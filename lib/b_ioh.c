@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.30 2001/12/06 16:53:23 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.31 2001/12/12 00:57:34 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -151,6 +151,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
 static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags);
 #define IOH_FDCTL_SET		1		///< Set the fd set to the ioh normal version
 #define IOH_FDCTL_RESET		1		///< Set the fd set to the original defaults
+static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
 
 
 
@@ -837,11 +838,20 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
  * User data queued on system probably will not be freed (use _close instead).
  * No user notification (use _close instead).
  * Did we mention you should use _close instead of this interface?
+ * 
+ * <WARNING>
+ * jtt made this static since noone outside this file was using it and
+ * you're really not supposed to. Seth is dubious; he feels that it just
+ * <em>might</em> happen that someone will get in a weird state where they
+ * <em>really</em> need to get rid of their ioh without getting called back
+ * or anything. So you may make this unstatic if you like, but it might
+ * nice to document the reason why.
+ * </WARNING>
  *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
  */
-void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
+static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
  

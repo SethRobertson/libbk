@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.21 2001/12/06 16:53:23 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.22 2001/12/12 00:57:34 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -374,8 +374,8 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   BK_VRETURN(B);
 
  error:
-  if (std_ioh) bk_ioh_destroy(B, std_ioh);
-  if (net_ioh) bk_ioh_destroy(B, net_ioh);
+  if (std_ioh) bk_ioh_close(B, std_ioh, 0);
+  if (net_ioh) bk_ioh_close(B, net_ioh, 0);
   bk_run_set_run_over(B,pc->pc_run);
   BK_VRETURN(B);
 }
