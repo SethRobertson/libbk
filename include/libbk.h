@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.50 2001/11/13 01:59:27 seth Exp $
+ * $Id: libbk.h,v 1.51 2001/11/13 06:04:25 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -607,7 +607,7 @@ extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
 /* b_ioh.c */
 typedef int (*bk_iorfunc)(int, caddr_t, __SIZE_TYPE__, bk_flags); ///< read style I/O function for bk_ioh (flags for specialized datagram handling, like peek)
 typedef int (*bk_iowfunc)(int, struct iovec *, __SIZE_TYPE__, bk_flags); ///< writev style I/O function for bk_ioh
-typedef int (*bk_iohhandler)(bk_vptr data[], void *opaque, struct bk_ioh *ioh, u_int state_flags);  ///< User callback for bk_ioh w/zero terminated array of data ptrs free'd after handler returns
+typedef void (*bk_iohhandler)(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh, u_int state_flags);  ///< User callback for bk_ioh w/zero terminated array of data ptrs free'd after handler returns
 extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iorfunc readfun, bk_iowfunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
 #define BK_IOH_STREAM		0x01		///< Stream (instead of datagram) oriented protocol, for bk_ioh
 #define BK_IOH_RAW		0x02		///< Any data is suitable, no special message blocking, for bk_ioh
@@ -636,6 +636,8 @@ extern void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 #define BK_IOH_NOTIFYANYWAY	0x02		///< During bk_ioh_close: Call handler notifying when close actually completes */
 #define BK_IOH_DONTCLOSEFDS	0x04		///< During bk_ioh_close: Don't close the file descriptors during close */
 extern void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
+extern int bk_ioh_stdrdfun(int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags);		///< read() when implemented in ioh style
+extern int bk_ioh_stdwrfun(int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags);	///< write() when implemented in ioh style
 
 
 

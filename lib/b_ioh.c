@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.9 2001/11/13 01:59:27 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.10 2001/11/13 06:04:25 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,7 +27,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-#define CALLBACK(ioh,data, state) ((*((ioh)->ioh_handler))((data), (ioh)->ioh_opaque, (ioh), (state))) ///< Function to evaluate user callback with new data/state information
+#define CALLBACK(B, ioh,data, state) ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state))) ///< Function to evaluate user callback with new data/state information
 #define IOH_DEFAULT_DATA_SIZE	128		///< Default read size
 #define IOH_VS			2		///< Number of vectors to hold length and msg
 #define IOH_EOLCHAR		'\n'		///< End of line character
@@ -812,7 +812,7 @@ void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
 
   // Notify user
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_NOTIFYDIE))
-    CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHCLOSING);
+    CALLBACK(B, ioh, NULL, BK_IOH_STATUS_IOHCLOSING);
 
   ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, IOH_FLUSH_DESTROY);
   ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, IOH_FLUSH_DESTROY);
@@ -987,14 +987,14 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
       {
 	// Error
 	ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
-	CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHREADERROR);
+	CALLBACK(B, ioh, NULL, BK_IOH_STATUS_IOHREADERROR);
 	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_INPUT);
       }
       else if (ret == 0)
       {
 	// EOF
 	ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
-	CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHREADEOF);
+	CALLBACK(B, ioh, NULL, BK_IOH_STATUS_IOHREADEOF);
 	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_INPUT);
       }
       else
@@ -1443,7 +1443,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	else if (cnt < 0)
 	{
 	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
-	  CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHWRITEERROR);
+	  CALLBACK(B, ioh, NULL, BK_IOH_STATUS_IOHWRITEERROR);
 	  ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
 	}
 	else
@@ -1452,7 +1452,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	  {					// Buffer fully output'd
 	    if (bid->bid_vptr)
 	    {						// Either give the data back to the user to free
-	      CALLBACK(ioh, bid->bid_vptr, BK_IOH_STATUS_WRITECOMPLETE);
+	      CALLBACK(B, ioh, bid->bid_vptr, BK_IOH_STATUS_WRITECOMPLETE);
 	    }
 	    else
 	    {						// Or free the data yourself
@@ -1540,7 +1540,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
       }
       biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
-      CALLBACK(ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
+      CALLBACK(B, ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
 
       // Nuke vector list
       free(sendup);
@@ -1682,8 +1682,8 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
       else if (cnt < 0)
       {
 	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
-	CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHWRITEERROR);
 	ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
+	CALLBACK(B, ioh, NULL, BK_IOH_STATUS_IOHWRITEERROR);
       }
       else
       {
@@ -1721,7 +1721,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	    // Buffer fully written
 	    if (bid->bid_vptr)
 	    {					// Either give the data back to the user to free
-	      CALLBACK(ioh, bid->bid_vptr, BK_IOH_STATUS_WRITECOMPLETE);
+	      CALLBACK(B, ioh, bid->bid_vptr, BK_IOH_STATUS_WRITECOMPLETE);
 	    }
 	    else
 	    {					// Or free the data yourself
@@ -1811,7 +1811,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	}
 	biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
-	CALLBACK(ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
+	CALLBACK(B, ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
 
 	// Nuke vector list
 	free(sendup);
@@ -1930,8 +1930,8 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	else if (cnt < 0)
 	{
 	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
-	  CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHWRITEERROR);
 	  ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
+	  CALLBACK(B, ioh, NULL, BK_IOH_STATUS_IOHWRITEERROR);
 	}
 	else
 	{					// Some (cnt) data written
@@ -1958,7 +1958,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	      // Buffer fully written
 	      if (bid->bid_vptr)
 	      {					// Either give the data back to the user to free
-		CALLBACK(ioh, bid->bid_vptr, BK_IOH_STATUS_WRITECOMPLETE);
+		CALLBACK(B, ioh, bid->bid_vptr, BK_IOH_STATUS_WRITECOMPLETE);
 	      }
 	      else
 	      {					// Or free the data yourself
@@ -2138,7 +2138,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
       }
       biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
-      CALLBACK(ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
+      CALLBACK(B, ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
 
       // Nuke vector list
       free(sendup);
@@ -2306,7 +2306,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
       }
       biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
-      CALLBACK(ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
+      CALLBACK(B, ioh, sendup, BK_IOH_STATUS_READCOMPLETE);
 
       // Nuke vector list
       free(sendup);
@@ -2381,7 +2381,7 @@ void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, u_i
     
     if (data->bid_vptr)
     {						// Either give the data back to the user to free
-      CALLBACK(ioh, data->bid_vptr, BK_IOH_STATUS_WRITEABORTED);
+      CALLBACK(B, ioh, data->bid_vptr, BK_IOH_STATUS_WRITEABORTED);
     }
     else
     {						// Or free the data yourself
@@ -2559,7 +2559,7 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
   }
   biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
 
-  CALLBACK(ioh, sendup, BK_IOH_STATUS_INCOMPLETEREAD);
+  CALLBACK(B, ioh, sendup, BK_IOH_STATUS_INCOMPLETEREAD);
 
   // Nuke vector list
   free(sendup);
@@ -2658,4 +2658,36 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, u_int32_t cmds, bk_flags
   }
 
   BK_RETURN(B,0);
+}
+
+
+
+/**
+ * Standard read() functionality in IOH api
+ *
+ *	@param fd File descriptor
+ *	@param buf Data to read
+ *	@param size Amount of data to read
+ *	@param flags Fun for the future
+ *	@return Standard @a read() return codes
+ */
+int bk_ioh_stdrdfun(int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags)
+{
+  return(read(fd, buf, size));
+}
+
+
+
+/**
+ * Standard write() functionality in IOH api
+ *
+ *	@param fd File descriptor
+ *	@param iovec Data to write
+ *	@param size Number of iovec buffers
+ *	@param flags Fun for the future
+ *	@return Standard @a writev() return codes
+ */
+int bk_ioh_stdwrfun(int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags)
+{
+  return(writev(fd, buf, size));
 }

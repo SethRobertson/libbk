@@ -1,3 +1,8 @@
+2001-11-13  Seth Robertson  <seth@yeah.baka.org>
+
+	* test/test_ioh.c: Add test program
+	* lib/b_ioh.c: Add stdio functions
+
 2001-11-12  Seth Robertson  <seth@yeah.baka.org>
 
 	* src/proto.c: Doxygenate
