@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.54 2002/07/26 07:34:00 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.55 2002/08/14 17:01:03 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -54,8 +54,8 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	///< Check to see if the limit on numbers of tokens has been reached or not.  Yes, limit>1 and limit-- will always have the same truth value
 
-#define FLAG_BEGIN  '<'
-#define FLAG_END    '>'
+#define FLAG_BEGIN  '['
+#define FLAG_END    ']'
 #define FLAG_APPROX '~'
 #define FLAG_SEP    ','
 
