@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.6 2003/08/26 00:45:25 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.7 2003/08/27 16:36:07 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -618,6 +618,67 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
   }
  
   BK_RETURN(B, NULL);
+}
+
+
+
+/**
+ * Take over a listening socket and handle its service. Despite it's name
+ * this function must appear here so it can reference a static callback
+ * routine. Oh well.
+ *
+ * THREADS: MT-SAFE (assuming s is not closed)
+ * THREADS: REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run @a bk_run structure.
+ *	@param s The socket to assume control over.
+ *	@param sercurenets IP address filtering.
+ *	@param callback Function to call back when there's a connection
+ *	@param args User arguments to supply to above.
+ *	@param flags User flags.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, int s, char *securenets, 
+				   bk_bag_callback_f callback, void *args, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct start_service_args *ssa = NULL;
+
+  if (!ssl_ctx || !ssl_ctx->bsc_ssl_ctx)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!BK_CALLOC(ssa))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Calloc failed: %s.\n", strerror(errno));
+    goto error;
+  }
+
+  ssa->ssa_user_callback = callback;
+  ssa->ssa_user_args = args;
+  ssa->ssa_run = run;
+  ssa->ssa_ssl_ctx = ssl_ctx->bsc_ssl_ctx;
+  ssa->ssa_task = SslTaskAccept;
+
+  if (bk_netutils_commandeer_service(B, run, s, securenets, ssl_newsock, ssa, flags) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Failed to commandeer service for SSL.\n");
+    goto error;
+  }
+
+  BK_RETURN(B, 0);
+
+ error:
+  if (ssa) 
+    free(ssa);
+
+  BK_RETURN(B, -1);
+
 }
 
 
