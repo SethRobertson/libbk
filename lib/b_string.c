@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.104 2004/03/26 09:03:22 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.105 2004/03/27 08:49:36 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2199,14 +2199,14 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t bsr, const char *str, bk_str
       bk_debug_printf_and(B, 1, "%d ==> %s\n", bsre->bsre_id, bsre->bsre_str);
     }
   }
-  else if (id >= bsr->bsr_next_index || (!forced &&
-					 !(bsre = bsr->bsr_registry[id])))
+  else if (id >= bsr->bsr_next_index || (!(bsre = bsr->bsr_registry[id])
+					 && !forced))
   {
     bk_error_printf(B, BK_ERR_ERR, "Registry object %d does not exist or has been deleted\n", id);
     BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
     BK_RETURN(B,0);
   }
-  else if (forced)
+  else if (forced && !bsre)
   {
     if (!(bsre = bsre_create(B, str, flags)))
     {
