@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_funlist.c,v 1.4 2001/11/07 21:35:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_funlist.c,v 1.5 2001/11/18 20:00:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -99,15 +99,6 @@ struct bk_funlist *bk_funlist_init(bk_s B, bk_flags flags)
   }
 
   BK_RETURN(B, funlist);
-
- error:
-  if (funlist)
-  {
-    if (funlist->bf_list)
-      funlist_destroy(funlist->bf_list);
-    free(funlist);
-  }
-  BK_RETURN(B, NULL);
 }
 
 
@@ -240,7 +231,7 @@ int bk_funlist_delete(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(bk_s, v
   for(curfun=funlist_minimum(funlist->bf_list);
       curfun && !(curfun->bf_fun == bf_fun && curfun->bf_args == args);
       curfun = funlist_successor(funlist->bf_list, curfun))
-    ;
+    ; // Intentionally void
 
   if (curfun)
   {

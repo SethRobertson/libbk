@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fun.c,v 1.12 2001/11/15 18:27:21 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.13 2001/11/18 20:00:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -283,7 +283,8 @@ const char *bk_fun_funname(bk_s B, int ancestordepth, bk_flags flags)
   if (!BK_GENERAL_FLAG_ISFUNON(B))
     return(NULL);				/* No function tracing, no function name */
 
-  for(cur = (struct bk_funinfo *)funstack_minimum(BK_BT_FUNSTACK(B)); cur && ancestordepth--; cur = (struct bk_funinfo *)funstack_successor(BK_BT_FUNSTACK(B), cur)) ;
+  for(cur = (struct bk_funinfo *)funstack_minimum(BK_BT_FUNSTACK(B)); cur && ancestordepth--; cur = (struct bk_funinfo *)funstack_successor(BK_BT_FUNSTACK(B), cur))
+    ; // Intentionally Void
 
   if (!cur)
     return(NULL);				/* Don't have that many ancestors! */

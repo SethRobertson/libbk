@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.21 2001/11/07 21:35:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.22 2001/11/18 20:00:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -389,7 +389,6 @@ void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *buffer;
   const char *parentname, *errorstr;
-  int len;
 
   if (!BK_GENERAL_FLAG_ISSYSLOGON(B))
     BK_VRETURN(B);
@@ -400,7 +399,7 @@ void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list
   if (BK_FLAG_ISSET(flags, BK_SYSLOG_FLAG_NOFUN) || !(parentname = bk_fun_funname(B, 1, 0)))
     parentname = "";
 
-  if (!(buffer = (char *)alloca(BK_SYSLOG_MAXLEN)))
+  if (!(buffer = (char *)alloca((u_int)BK_SYSLOG_MAXLEN)))
   {
     /*
      * Potentially recursive
@@ -535,7 +534,7 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
     int envc = 0;
 
 #define ARRAY_DUPLICATE(new,orig,size) \
-    { \
+    do { \
       int tmp; \
       \
       if (!((new) = (char **)malloc(((size)+1)*sizeof(char *)))) \
@@ -553,13 +552,14 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
 	} \
       } \
       (new)[tmp] = NULL; \
-    }
+    } while (0)
 
     /* Create duplicate argv */
     ARRAY_DUPLICATE(PT->bp_argv,*argv,argc);
 
     /* Spin through envp array looking for last element */
-    for(envc = 0; (*envp)[envc]; envc++) ;
+    for(envc = 0; (*envp)[envc]; envc++)
+      ; // Void
 
     /* Create duplicate envp */
     ARRAY_DUPLICATE(PT->bp_envp,*envp,envc);

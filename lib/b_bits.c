@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bits.c,v 1.6 2001/11/06 18:25:24 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_bits.c,v 1.7 2001/11/18 20:00:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -92,7 +92,7 @@ char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *ret, *cur;
-  int len,x,tmp;
+  int len,tmp;
 
   if (!base)
   {

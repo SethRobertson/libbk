@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.5 2001/11/16 23:42:42 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.6 2001/11/18 20:00:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -407,10 +407,6 @@ do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as)
   }
 
   BK_RETURN(B,ret);
-
- error:
-  net_init_abort(B, as, 0);
-  BK_RETURN(B,-1);
 }
 
 
@@ -435,10 +431,6 @@ do_net_init_af_local(bk_s B, struct addrgroup_state *as)
   }
   
   BK_RETURN(B,ret);
-  
- error:
-  net_init_abort(B, as, 0);
-  BK_RETURN(B,-1);
 }
 
 
@@ -464,10 +456,6 @@ do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
   }
   
   BK_RETURN(B,ret);
-  
- error:
-  net_init_abort(B, as, 0);
-  BK_RETURN(B,-1);
 }
 
 
@@ -483,7 +471,6 @@ static int
 do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int ret=0;
 
   if (!as)
   {
@@ -864,10 +851,6 @@ tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, struct timeval start
     bk_error_printf(B, BK_ERR_ERR, "Failed to attempt connection to new address\n");
   }
   BK_VRETURN(B);
-
- error:
-  net_init_abort(B, as, 0);
-  BK_VRETURN(B);
 }
 
 
@@ -995,7 +978,6 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
   int af;
   int s=-1;
   struct bk_addrgroup *bag;
-  int transport_type;
 
   if (!as)
   {

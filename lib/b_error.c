@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.13 2001/11/14 23:08:30 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.14 2001/11/18 20:00:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -232,7 +232,6 @@ void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *
 void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf)
 {
   const char *funname;
-  char *outline;
   time_t curtime = time(NULL);
   struct bk_error_node *node;
   int tmp;
