@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.22 2002/03/06 22:51:47 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.23 2002/05/03 04:11:43 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -694,6 +694,9 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   int use_deltapoll, check_idle;	
   struct timeval zero;
 
+  deltapoll.tv_sec = INT32_MAX;
+  deltapoll.tv_usec = INT32_MAX;
+
   if (!run)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -780,7 +783,8 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   if (BK_FLAG_ISSET(run->br_flags,BK_RUN_FLAG_NEED_POLL))
   {
     struct bk_run_func *brfn;
-    struct timeval tmp_deltapoll;
+    struct timeval tmp_deltapoll = deltapoll;
+
     for(brfn=brfl_minimum(run->br_poll_funcs);
 	brfn;
 	brfn=brfl_successor(run->br_poll_funcs,brfn))
@@ -1393,7 +1397,7 @@ bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *ru
 
   if (handle) *handle=NULL;
 
-  if (!brfn_alloc(B))
+  if (!(brfn = brfn_alloc(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf: %s\n", strerror(errno));
     goto error;
@@ -1483,7 +1487,7 @@ bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *ru
 
   if (handle) *handle=NULL;
 
-  if (!brfn_alloc(B))
+  if (!(brfn = brfn_alloc(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf: %s\n", strerror(errno));
     goto error;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.50 2002/04/29 23:02:54 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.51 2002/05/03 04:11:43 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -480,7 +480,7 @@ int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc *re
  *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
- *	@param data The data to be sent
+ *	@param data The data to be sent (vptr and inside data will be returned in callback for free or other handling--must remain valid until then)
  *	@param flags BK_IOH_BYPASSQUEUEFULL will bypass checks for queue size
  *	@return <i>-1</i> on call failure or subsystem refusal
  *	@return <i>0</i> on success

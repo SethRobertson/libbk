@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.26 2002/05/02 00:34:18 seth Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.27 2002/05/03 04:11:43 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -129,12 +129,12 @@ main(int argc, char **argv, char **envp)
     {"udp", 'u', POPT_ARG_NONE, NULL, 2, "Use UDP", NULL },
     {"multicast", 0, POPT_ARG_NONE, NULL, 3, "Multicast UDP packets", NULL },
     {"broadcast", 0, POPT_ARG_NONE, NULL, 4, "Broadcast UDP packets", NULL },
-    {"multicast_loop", 0, POPT_ARG_NONE, NULL, 5, "Loop multicast packets to local machine", NULL },
-    {"multicast_ttl", 0, POPT_ARG_INT, NULL, 6, "Set nondefault multicast ttl", "ttl" },
-    {"multicast_nomembership", 0, POPT_ARG_NONE, NULL, 7, "Don't want multicast membership management", NULL },
+    {"multicast-loop", 0, POPT_ARG_NONE, NULL, 5, "Loop multicast packets to local machine", NULL },
+    {"multicast-ttl", 0, POPT_ARG_INT, NULL, 6, "Set nondefault multicast ttl", "ttl" },
+    {"multicast-nomembership", 0, POPT_ARG_NONE, NULL, 7, "Don't want multicast membership management", NULL },
     {"buffersize", 0, POPT_ARG_INT, NULL, 8, "Size of I/O queues", "buffer size" },
-    {"I/O default length", 'l', POPT_ARG_INT, NULL, 9, "Default I/O chunk size", "default length" },
-    {"close_after_one", 'c', POPT_ARG_NONE, NULL, 10, "Shut down relay after only one side closes", NULL },
+    {"length", 'l', POPT_ARG_INT, NULL, 9, "Default I/O chunk size", "default length" },
+    {"close-after-one", 'c', POPT_ARG_NONE, NULL, 10, "Shut down relay after only one side closes", NULL },
     {"timeout", 'T', POPT_ARG_INT, NULL, 'T', "Set the connection timeout", "timeout" },
     POPT_AUTOHELP
     POPT_TABLEEND

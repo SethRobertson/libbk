@@ -1,3 +1,13 @@
+2002-05-02  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_run.c (bk_run_once): Unnecessary initialization that makes
+	be feel better.
+	(bk_run_poll_add): Uh, actually need to assign brfn after allocation
+
+	* src/bttcp.c (main): Switch to dash versions of argument names,
+	and while I'm at it, get rid of the spaces in a long option
+	names...(hey it works!)
+
 2002-05-01  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_stdsock.c (bk_stdsock_multicast): Move maddrgroup
