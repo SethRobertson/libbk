@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.9 2004/02/10 16:47:21 seth Exp $
+ * $Id: libbk_net.h,v 1.10 2004/06/23 23:32:43 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -199,5 +199,50 @@ struct baka_arphdr
   u_int16_t pkt_arp_opcode;                     ///< operation
   u_char    pkt_arp_payload[0];                 ///< Four dynamically sized arrays
 };
+
+
+/**
+ * OS independent if_req structure.
+ * Initially supports only those fields which appear to be supported by all OS's
+ * <TODO> Get hardware information (at least type and address). </TODO>
+ *
+ * The bii_avail fields may appear redundant since there is nothing
+ * contained there which is not computable from the bii_flags field, but
+ * once the hardware information is inserted there will likely be several
+ * fields which are not available for any given bii instance but which
+ * cannot have that fact determined from bii_fields.
+ *
+ */
+struct bk_interface_info
+{
+  bk_flags		bii_avail;		///< What non-required fields are available
+#define BK_INTINFO_FIELD_BROADCAST	0x1	///< The broadcast field has been filled out
+#define BK_INTINFO_FIELD_DSTADDR	0x2	///< The dstaddr fields has been filled out.
+  char *		bii_name;		///< Interface name
+  struct sockaddr	bii_addr;		///< Protocol address.
+  union
+  {
+    struct sockaddr	bau_dstaddr;		///< Peer protocol address
+    struct sockaddr	bau_broadaddr;		///< Protocol broadcast address
+  } bii_addr_un;
+  struct sockaddr	bii_netmask;		///< Protocol netmask
+  short			bii_flags;		///< Basic interface flags
+  int 			bii_mtu;		///< Maximum tx pkt size.
+  int 			bii_metric;		///< Metric.
+};
+
+
+#define bii_dstaddr 	bii_addr_un.bau_dstaddr
+#define bii_broadaddr 	bii_addr_un.bau_broadaddr
+
+typedef void *bk_intinfo_list_t;
+
+/* b_intinfo.c */
+extern bk_intinfo_list_t bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags);
+extern void bk_intinfo_list_destroy(bk_s B, bk_intinfo_list_t list);
+struct bk_interface_info *bk_intinfo_list_minimum(bk_s B, bk_intinfo_list_t list);
+struct bk_interface_info *bk_intinfo_list_successor(bk_s B, bk_intinfo_list_t list, struct bk_interface_info *bii);
+struct bk_interface_info *bk_intinfo_list_search(bk_s B, bk_intinfo_list_t list, const char *name, bk_flags flags);
+
 
 #endif /* _libbk_net_h_ */

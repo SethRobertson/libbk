@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.51 2004/05/22 00:11:36 jtt Exp $
+# $Id: Makefile,v 1.52 2004/06/23 23:32:42 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -32,6 +32,7 @@ BK_LARGE_LIBSRC=				\
 		b_funlist.c			\
 		b_general.c			\
 		b_getbyfoo.c			\
+		b_intinfo.c			\
 		b_ioh.c				\
 		b_listnum.c			\
 		b_md5.c				\
