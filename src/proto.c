@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: proto.c,v 1.29 2002/08/15 04:16:26 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: proto.c,v 1.30 2003/04/01 04:35:34 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -179,8 +179,6 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B, 254);
   }
-    
-  poptFreeContext(optCon);
 
   if (proginit(B, pconfig) < 0)
   {
@@ -188,6 +186,8 @@ main(int argc, char **argv, char **envp)
   }
 
   progrun(B, pconfig);
+    
+  poptFreeContext(optCon);
   bk_exit(B, 0);
   return(255);					// Stupid INSIGHT stuff.
 }
