@@ -1,3 +1,8 @@
+2003-03-21  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_url.c (bk_url_reconstruct): James' idea of a "valid" URL 
+	isn't quite the same as that of pcap or mailto.
+	
 2003-03-20  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* xml/b_search.c (bkxml_attrnode_data): Restore AWB default of
@@ -34,7 +39,7 @@
 2003-03-13  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_url.c (bk_url_reconstruct): Function to reconstruct a
-	valid url string from it's parsed components.
+	valid url string from its parsed components.
 
 2003-03-07  James Tanis  <jtt@saint.sysdetect.com>
 

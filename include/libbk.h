@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.218 2003/03/19 20:00:15 lindauer Exp $
+ * $Id: libbk.h,v 1.219 2003/03/21 21:33:14 dupuy Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1824,12 +1824,12 @@ extern char *bk_url_unescape_len(bk_s B, const char *component, size_t len);
 extern int bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep);
 extern struct bk_url_authority *bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags);
 extern void bk_url_authority_destroy(bk_s B, struct bk_url_authority *auth);
+extern char *bk_url_reconstruct(bk_s B, struct bk_url *bu, bk_flags sections, bk_flags flags);
 
 
 /* b_nvmap.c */
 extern int bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name);
 extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, int val);
-extern char *bk_url_reconstruct(bk_s B, struct bk_url *bu, bk_flags sections, bk_flags flags);
 
 
 /* b_exec.c */

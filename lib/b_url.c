@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_url.c,v 1.30 2003/03/13 23:58:03 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_url.c,v 1.31 2003/03/21 21:33:17 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001,2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -856,7 +856,11 @@ bk_url_authority_destroy(bk_s B, struct bk_url_authority *auth)
 
 /**
  * Reconstruct a URL from its parts, allowing the caller to specify those
- * parts in which he is interested. Returns a malloc(3)'ed string.
+ * parts in which s/he is interested. Returns a malloc(3)'ed string.
+ *
+ * <BUG id="1178">WARNING - this function does not work correctly for
+ * non-generic URLs, like pcap:eth0 and mailto:jtt@sysd.com - don't use this
+ * unless you know the scheme type.</BUG>
  *
  *	@param B BAKA thread/global state.
  *	@param bu The parsed url
