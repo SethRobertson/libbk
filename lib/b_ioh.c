@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.6 2001/11/10 01:25:31 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.7 2001/11/12 05:56:49 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -82,8 +82,8 @@ struct bk_ioh
 #define IOH_NUKED_LINGER	0x03
   int			ioh_fdout;		///< Output file descriptor
   u_int32_t		ioh_fdout_savestate;	///< Information about fdout which we changed
-  bk_iofunc 		ioh_readfun;		///< Function to read data
-  bk_iofunc		ioh_writefun;		///< Function to write data
+  bk_iorfunc 		ioh_readfun;		///< Function to read data
+  bk_iowfunc		ioh_writefun;		///< Function to write data
   bk_iohhandler		ioh_handler;		///< Callback function for event handling
   void		       *ioh_opaque;		///< Opaque data for handler
   u_int32_t		ioh_inbuf_hint;		///< Hint for input buffer sizes
@@ -105,11 +105,13 @@ struct bk_ioh
 
 
 
-int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, size_t len, bk_flags flags);
-void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, bk_flags flags);
-int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, bk_flags flags);
-int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, u_int32_t cmds, bk_flags flags);
-void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, u_int32_t *cmd, bk_flags flags);
+static int ioh_getlastbuf(bk_s B, struct bk_ioh_queue *queue, u_int32_t *size, char **data, bk_flags flags);
+static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, size_t len, bk_flags flags);
+static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, bk_flags flags);
+static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, bk_flags flags);
+static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, u_int32_t cmds, bk_flags flags);
+static void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, u_int32_t *cmd, bk_flags flags);
+#define IOH_FLUSH_DESTROY	1		///< Notify that queue is being destroyed
 static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t allocated, u_int32_t inuse, u_int32_t used, bk_vptr *vptr, bk_flags msgflags, bk_flags flags);
 static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime);
 static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags);
@@ -142,9 +144,8 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, b
 static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk_flags flags);
 static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk_flags flags);
 #define IOHT_HANDLER		1		///< Other command is a run_handler (determine size)
-#define IOHT_HANDLER_MSG	2		///< Other command is a run_handler (new data)
-#define IOHT_FLUSH		2		///< Other command is a flush
-#define IOHT_CLOSE		3		///< Other command is a close
+#define IOHT_HANDLER_RMSG	2		///< Other command is a run_handler (read new data)
+#define IOHT_FLUSH		3		///< Other command is a flush
 // @}
 
 
@@ -193,7 +194,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk
  *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
  *	@return <br><i>ioh structure</i> if successful.
  */
-struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_iofunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags)
+struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iorfunc readfun, bk_iowfunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *curioh = NULL;
@@ -279,16 +280,19 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_io
   }
 
   curioh->ioh_fdout = fdout;
-  if (curioh->ioh_fdout >= 0 && curioh->ioh_fdin != curioh->ioh_fdout)
+  if (curioh->ioh_fdout >= 0)
   {
-    if (bk_run_handle(B, curioh->ioh_run, curioh->ioh_fdout, ioh_runhandler, curioh, 0, 0) < 0)
+    if (curioh->ioh_fdin != curioh->ioh_fdout)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not put this new write ioh into the bk_run environment\n");
-      goto error;
-    }
+      if (bk_run_handle(B, curioh->ioh_run, curioh->ioh_fdout, ioh_runhandler, curioh, 0, 0) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not put this new write ioh into the bk_run environment\n");
+	goto error;
+      }
 
-    // Examine file descriptor for proper file and socket options
-    bk_ioh_fdctl(B, curioh->ioh_fdout, &curioh->ioh_fdout_savestate, IOH_FDCTL_SET);
+      // Examine file descriptor for proper file and socket options
+      bk_ioh_fdctl(B, curioh->ioh_fdout, &curioh->ioh_fdout_savestate, IOH_FDCTL_SET);
+    }
   }
   else
   {
@@ -333,7 +337,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_io
  *	@return <i>-1<i> on call failure.
  *	@return <br><i>0</i> on success.
  */
-int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iofunc readfun, bk_iofunc writefun, int (*handler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags), void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags)
+int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *curioh = NULL;
@@ -378,7 +382,7 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iofunc readfun, bk_iofunc write
  *	@return <i>-1</i> on call failure.
  *	@return <br><i>0</i> on success.
  */
-int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iofunc *readfun, bk_iofunc *writefun, int (**handler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags), void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags)
+int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc *readfun, bk_iowfunc *writefun, bk_iohhandler *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *curioh = NULL;
@@ -467,8 +471,6 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, BK_RUN_WANTWRITE, BK_RUN_WANTWRITE, 0);
-
   // <TODO>Consider trying a spontaneous write here, if nbio is set, especially if writes are not pending </TODO>
 
   BK_RETURN(B, 0);
@@ -541,15 +543,9 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   }
   if (how == SHUT_WR || how == SHUT_RDWR)
   {
-    if (ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, BID_FLAG_SHUTDOWN, 0) < 0)
+    if ((ret = ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, BID_FLAG_SHUTDOWN, 0)) < 0)
       shutdown(ioh->ioh_fdin, SHUT_WR);
   }
-
-  if (ioh->ioh_fdin >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
-    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0);
-  if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
-    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
-
   ret = ioh_execute_ifspecial(B, ioh, &ioh->ioh_writeq, 0);
 
   if (ret == -1)
@@ -567,10 +563,19 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   if (how == SHUT_WR || how == SHUT_RDWR)
   {
     if (ret > 0)
+    {
       BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT_PEND);
+      bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, BK_RUN_WANTWRITE, BK_RUN_WANTWRITE, 0);
+    }
     else
       BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT);
   }
+
+  if (ioh->ioh_fdin >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
+    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0);
+  if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
+    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
+
 
   BK_VRETURN(B);
 }
@@ -639,7 +644,6 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 void bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  u_int pref;
  
   if (!ioh)
   {
@@ -647,24 +651,16 @@ void bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flag
     BK_VRETURN(B);
   }
 
-  if (ioh->ioh_fdin < 0 || BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT))
+  if (ioh->ioh_fdin < 0 || BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT) ||
+      BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_ERROR_INPUT) ||
+      BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_DESTROYING))
   {
     bk_error_printf(B, BK_ERR_WARN, "You cannot manipulate the read desireability if input is technically impossible\n");
     BK_VRETURN(B);
   }
 
-  // Get old preference to preserve write/xcpt
-  if ((pref = bk_run_getpref(B, ioh->ioh_run, ioh->ioh_fdin, 0)) == (u_int)-1)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Cannot obtain I/O preferences\n");
-    BK_VRETURN(B);
-  }
-
-  pref &= ~BK_RUN_WANTREAD;
-  pref |= isallowed?BK_RUN_WANTREAD:0;
-
   // Set new preference
-  if (bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, pref, 0, 0) < 0)
+  if (bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, isallowed?BK_RUN_WANTREAD:0, BK_RUN_WANTREAD, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Cannot set I/O preferences\n");
     BK_VRETURN(B);
@@ -703,10 +699,15 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     BK_VRETURN(B);
   }
 
+  // Save flags for _destroy()
   if (BK_FLAG_ISSET(flags, BK_IOH_DONTCLOSEFDS))
     BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_DONTCLOSEFDS);
+  if (BK_FLAG_ISSET(flags, BK_IOH_NOTIFYANYWAY))
+    BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_NOTIFYDIE);
 
-  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_CLOSING) && BK_FLAG_ISCLEAR(flags, BK_IOH_ABORT) ||
+  // Don't do it if we are already doing it
+  if ((BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_CLOSING) &&
+       BK_FLAG_ISCLEAR(flags, BK_IOH_ABORT)) ||
       BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_DESTROYING))
   {
     bk_error_printf(B, BK_ERR_WARN, "Close already in progress\n");
@@ -718,26 +719,27 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   if (BK_FLAG_ISSET(flags, BK_IOH_ABORT))
     bk_ioh_flush(B, ioh, SHUT_RDWR, 0);
 
-  if (BK_FLAG_ISSET(flags, BK_IOH_NOTIFYANYWAY))
-    BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_NOTIFYDIE);
-
   ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
   BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_SHUTDOWN_OUTPUT_PEND);
+
+  // Queue up a close command after any pending data commands
   if (ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, BID_FLAG_CLOSE, 0) < 0)
   {
     ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
     cmds = BID_FLAG_CLOSE;
   }
 
-  if (ioh->ioh_fdin >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
-    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0);
-  if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
-    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
-
+  // Execute close if it is the only thing on the output queue
   if (cmds)
     ret = ioh_execute_cmds(B, ioh, cmds, 0);
   else
     ret = ioh_execute_ifspecial(B, ioh, &ioh->ioh_writeq, 0);
+
+  // Propagate close to RUN level
+  if (ioh->ioh_fdin >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
+    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0);
+  if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
+    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
 
   if (BK_FLAG_ISSET(ioh->ioh_intflags, BK_IOH_ABORT) || ret < 1)
     bk_ioh_destroy(B, ioh);
@@ -770,16 +772,16 @@ void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
     BK_VRETURN(B);
   }
 
+  // Prevent recursive activity
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_DESTROYING))
   {
     bk_error_printf(B, BK_ERR_WARN, "Close already in progress\n");
     BK_VRETURN(B);
   }
-
   BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_DESTROYING);
 
   if (BK_FLAG_ISCLEAR(ioh->ioh_intflags, IOH_FLAGS_DONTCLOSEFDS))
-  {
+  {						// Close FDs if we can
     if (ioh->ioh_fdin >= 0)
       close(ioh->ioh_fdin);
 
@@ -787,7 +789,7 @@ void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
       close(ioh->ioh_fdout);
   }
   else
-  {
+  {						// Reset FDs to origin states if we cannot
     if (ioh->ioh_fdin >= 0)
     {
       bk_ioh_fdctl(B, ioh->ioh_fdin, &ioh->ioh_fdin_savestate, IOH_FDCTL_RESET);
@@ -798,23 +800,18 @@ void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
     }
   }
 
+  // Remove from RUN level
   if (ioh->ioh_fdin >= 0)
     bk_run_close(B, ioh->ioh_run, ioh->ioh_fdin, 0);
-
   if (ioh->ioh_fdout >= 0 && ioh->ioh_fdout != ioh->ioh_fdin)
     bk_run_close(B, ioh->ioh_run, ioh->ioh_fdout, 0);
 
+  // Notify user
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_NOTIFYDIE))
     CALLBACK(ioh, NULL, BK_IOH_STATUS_IOHCLOSING);
 
-  // Nuke input queue, deleting queued data
-  DICT_NUKE_CONTENTS(ioh->ioh_readq.biq_queue, biq, data, break, if (data->bid_data) free(data->bid_data); free(data));
-  biq_destroy(ioh->ioh_readq.biq_queue);
-
-  // Nuke output queue, discarding queued data since it belongs to the user
-  DICT_NUKE_CONTENTS(ioh->ioh_writeq.biq_queue, biq, data, break, free(data));
-  biq_destroy(ioh->ioh_writeq.biq_queue);
-
+  ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, IOH_FLUSH_DESTROY);
+  ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, IOH_FLUSH_DESTROY);
   free(ioh);
 
   BK_VRETURN(B);
@@ -888,8 +885,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
   // Check for error or exceptional conditions
   if (BK_FLAG_ISSET(gottypes, BK_RUN_DESTROY) || BK_FLAG_ISSET(gottypes, BK_RUN_CLOSE))
   {
-    bk_ioh_flush(B, ioh, SHUT_WR, 0);
-    bk_ioh_close(B, ioh, BK_IOH_NOTIFYANYWAY);
+    bk_ioh_close(B, ioh, BK_IOH_ABORT|BK_IOH_NOTIFYANYWAY);
     BK_VRETURN(B);
   }
 
@@ -898,21 +894,22 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
       BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
   {
     BK_FLAG_CLEAR(gottypes, BK_RUN_READREADY);
-    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0);
+    bk_run_setpref(B, ioh->ioh_run, fd, 0, BK_RUN_WANTREAD, 0);
   }
 
   if (BK_FLAG_ISSET(gottypes, BK_RUN_WRITEREADY) &&
       BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
   {
-    BK_FLAG_CLEAR(gottypes, BK_RUN_READREADY);
-    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0);
+    BK_FLAG_CLEAR(gottypes, BK_RUN_WRITEREADY);
+    bk_run_setpref(B, ioh->ioh_run, fd, 0, BK_RUN_WANTWRITE, 0);
   }
 
   if (BK_FLAG_ISSET(gottypes, BK_RUN_XCPTREADY))
   {
-    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTXCPT, 0);
+    bk_run_setpref(B, ioh->ioh_run, fd, 0, BK_RUN_WANTXCPT, 0);
   }
 
+  // Write first to hopefully free memory for read if necessary
   if (ret >= 0 && BK_FLAG_ISSET(gottypes, BK_RUN_WRITEREADY))
   {
     if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
@@ -937,8 +934,10 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
     }
   }
 
+  // Time for reading
   if (ret >= 0 && BK_FLAG_ISSET(gottypes, BK_RUN_READREADY))
   {
+    // Ask each algorithm to specify how many bytes it wants
     if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
     {
       ret = ioht_raw_other(B, ioh, BK_RUN_READREADY, IOHT_HANDLER, 0);
@@ -960,18 +959,9 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
       bk_error_printf(B, BK_ERR_ERR, "Unknown message format type %x\n",ioh->ioh_extflags);
     }
 
-    for (bid = biq_maximum(ioh->ioh_readq.biq_queue); bid; bid = biq_predecessor(ioh->ioh_readq.biq_queue, bid))
+    if (ret >= 0 && ioh_getlastbuf(B, &ioh->ioh_readq, &room, &data, 0) == 0 && data && room > 0)
     {
-      if (bid->bid_data)
-      {
-	data = bid->bid_data + bid->bid_used;
-	room = bid->bid_inuse;
-	break;
-      }
-    }
-
-    if (ret >= 0 && data && room > 0)
-    {
+      // Get some data
       ret = ioh_internal_read(B, ioh, ioh->ioh_fdin, data, room, 0);
 
       if (ret < 0 && (
@@ -987,6 +977,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
 		      ))
       {
 	// Not ready after all.  Do nothing.
+	ret = 0;				// Don't claim we failed
       }
       else if (ret < 0)
       {
@@ -1007,19 +998,19 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
 	// Got ret bytes
 	if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
 	{
-	  ret = ioht_raw_other(B, ioh, BK_RUN_READREADY, IOHT_HANDLER_MSG, 0);
+	  ret = ioht_raw_other(B, ioh, ret, IOHT_HANDLER_RMSG, 0);
 	}
 	else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_BLOCKED))
 	{
-	  ret = ioht_block_other(B, ioh, BK_RUN_READREADY, IOHT_HANDLER_MSG, 0);
+	  ret = ioht_block_other(B, ioh, ret, IOHT_HANDLER_RMSG, 0);
 	}
 	else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_VECTORED))
 	{
-	  ret = ioht_vector_other(B, ioh, BK_RUN_READREADY, IOHT_HANDLER_MSG, 0);
+	  ret = ioht_vector_other(B, ioh, ret, IOHT_HANDLER_RMSG, 0);
 	}
 	else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_LINE))
 	{
-	  ret = ioht_line_other(B, ioh, BK_RUN_READREADY, IOHT_HANDLER_MSG, 0);
+	  ret = ioht_line_other(B, ioh, ret, IOHT_HANDLER_RMSG, 0);
 	}
 	else
 	{
@@ -1407,15 +1398,17 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
   switch (flags)
   {
   case IOHT_FLUSH:
-    // Nuke any algorithm private data
+    // Clean any algorithm private data
+    // NUKE if flags are ABORT
     break;
 
   case IOHT_HANDLER:
-    // XXX - needs lots of work
+    // XXX - aux==writeready write data out (check for shutdown pending and expidite
 
-      // XXX - type policy here
-      room = ioh->ioh_inbuf_hint?ioh->ioh_inbuf_hint:IOH_DEFAULT_DATA_SIZE;
-      if (!(data = malloc(room)))
+    // XXX - aux==readready, return number of bytes we want to read
+    // XXX - determine (and create if necessary) space available for input
+    ret = ioh->ioh_inbuf_hint?ioh->ioh_inbuf_hint:IOH_DEFAULT_DATA_SIZE;
+    if (!(data = malloc(room)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer for ioh %p of size %d: %s\n",ioh,room,strerror(errno));
 	ret = -1;
@@ -1433,25 +1426,16 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	}
       }
     break;
+
+  case IOHT_HANDLER_RMSG:
+    // XXX - determine message boundry, if full send up, if over size limit send up as incomplete
+
   default:
     bk_error_printf(B, BK_ERR_ERR, "Unknown command %d/%x\n",cmd,aux);
     BK_RETURN(B,-1);
   }
 
-    if (!ret)
-    {
-      if (ioh->ioh_fdin >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
-	bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0);
-      if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
-	bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
-
-      if (cmds)
-	ret = ioh_execute_cmds(B, ioh, cmds, 0);
-      else
-	ret = ioh_execute_ifspecial(B, ioh, &ioh->ioh_writeq, 0);
-    }
-    
-  BK_RETURN(B, 0);
+  BK_RETURN(B, ret);
 }
 
 
@@ -1549,6 +1533,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
 void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, u_int32_t *cmd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ioh_data *data;
 
   if (!ioh || !queue)
   {
@@ -1556,28 +1541,293 @@ void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, u_i
     BK_VRETURN(B);
   }
 
-  // XXX - flush from queue
+  if (cmd) *cmd = 0;
+
+  while (data = biq_minimum(queue))
+  {
+    if (data->bid_flags)
+    {
+      if (cmd)
+	*cmd |= data->bid_flags;
+    }
+
+    
+    if (data->bid_vptr)
+    {						// Either give the data back to the user to free
+      CALLBACK(ioh, data->bid_vptr, BK_IOH_STATUS_WRITEABORTED);
+    }
+    else
+    {						// Or free the data yourself
+      if (data->bid_data)
+	free(data->bid_data);
+    }
+  }
+
+  ioh->ioh_readq.biq_queuelen = 0;
 
   // Nuke any algorithm-private data
   if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
   {
-    ioht_raw_other(B, ioh, 0, IOHT_FLUSH, 0);
+    ioht_raw_other(B, ioh, 0, IOHT_FLUSH, flags);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_BLOCKED))
   {
-    ioht_block_other(B, ioh, 0, IOHT_FLUSH, 0);
+    ioht_block_other(B, ioh, 0, IOHT_FLUSH, flags);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_VECTORED))
   {
-    ioht_vector_other(B, ioh, 0, IOHT_FLUSH, 0);
+    ioht_vector_other(B, ioh, 0, IOHT_FLUSH, flags);
   }
   else if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_LINE))
   {
-    ioht_line_other(B, ioh, 0, IOHT_FLUSH, 0);
+    ioht_line_other(B, ioh, 0, IOHT_FLUSH, flags);
   }
   else
   {
     bk_error_printf(B, BK_ERR_ERR, "Unknown message format type %x\n",ioh->ioh_extflags);
     BK_VRETURN(B);
   }
+
+  if (BK_FLAG_ISSET(flags, IOH_FLUSH_DESTROY))
+  {
+    biq_destroy(queue);
+  }
+
+  BK_VRETURN(B);
+
+}
+
+
+
+/**
+ * Determine the last buffer on the input stack
+ *
+ *	@param B BAKA Thread/global state
+ *	@param queue Input data queue
+ *	@param size Size remaining in the last buffer
+ *	@param data Pointer to start of last free buffer
+ *	@param flags Flags
+ *	@return <i>-1</i> on call failure
+ *	@return <br><i>0</i> on success (including no bytes available)
+ *	@return <br><i>1</i> if no data could be found
+ */
+static int ioh_getlastbuf(bk_s B, struct bk_ioh_queue *queue, u_int32_t *size, char **data, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ioh_data *bid;
+
+  if (!queue || !size)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B,-1);
+  }
+
+  for (bid = biq_maximum(queue->biq_queue); bid; bid = biq_predecessor(queue->biq_queue, bid))
+  {
+    if (bid->bid_data)
+    {
+      if (data) *data = bid->bid_data + bid->bid_used;
+      *size = bid->bid_inuse;
+      BK_RETURN(B,0);
+    }
+  }
+
+  *size = 0;
+  if (data) *data = NULL;
+  BK_RETURN(B,1);
+}
+
+
+
+/**
+ * Read some data from the file represented by this IOH
+ *
+ *	@param B BAKA Thread/global state
+ *	@param ioh IOH state handle
+ *	@param fd File descriptor to read from
+ *	@param data Where to place the data
+ *	@param len Length to read
+ *	@param flags Flags
+ *	@return <i>-1</i> on call failure or read failure
+ *	@return <br><i>0</i> on EOF
+ *	@return <br><i>>0</i> indicating number of bytes read
+ */
+static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, size_t len, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ioh_data *bid;
+  int ret;
+
+  if (!ioh || !data || fd < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    errno = EINVAL;
+    BK_RETURN(B,-1);
+  }
+
+  // Worry about non-stream protocols--somehow
+  ret = (*ioh->ioh_readfun)(fd, data, len, flags);
+
+  BK_RETURN(B,ret);
+}
+
+
+
+/**
+ * Send all pending data on the input queue up to the user
+ *
+ *	@param B BAKA Thread/global state
+ *	@param ioh IOH state handle
+ *	@param filter Only send messages with this mark up
+ *	@param flags Flags
+ */
+static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ioh_data *bid;
+  int cnt = 0;
+  bk_vptr *sendup;
+  dict_iter iter;
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  // Find out how many data segments we have
+  iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+  while (bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter))
+  {
+    if (filter && BK_FLAG_ISCLEAR(bid->bid_flags, filter))
+      continue;
+    if (bid->bid_data)
+      cnt++;
+  }
+  biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+
+  if (cnt)
+    BK_VRETURN(B);
+
+  if (!BK_CALLOC_LEN(sendup,sizeof(*sendup)*(cnt+1)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate data vectors to return data: %s\n", strerror(errno));
+    BK_VRETURN(B);
+  }
+    
+  // Actually fill out the data list
+  cnt = 0;
+  iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
+  while (bid = biq_nextobj(ioh->ioh_readq.biq_queue, iter))
+  {
+    if (filter && BK_FLAG_ISCLEAR(bid->bid_flags, filter))
+      continue;
+    if (bid->bid_data)
+    {
+      sendup[cnt].ptr = bid->bid_data+bid->bid_used;
+      sendup[cnt].len = bid->bid_inuse;
+      cnt++;
+    }
+  }
+  biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
+
+  CALLBACK(ioh, sendup, BK_IOH_STATUS_INCOMPLETEREAD);
+
+  // Nuke vector list
+  free(sendup);
+
+  // Nuke everything in the input queue, we have "used" the necessary stuff
+  bk_ioh_flush(B, ioh, SHUT_RD, 0);
+
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Execute all special elements on the front of the stack, until we see the first
+ * non-special (note the first non-special may be the first).
+ *
+ *	@param B BAKA Thread/global state
+ *	@param ioh IOH state handle
+ *	@param queue I/O queue to look at
+ *	@param flags Flags
+ *	@return <i>-1</i> on call failure
+ *	@return <br><i>0</i> on success
+ *	@return <br><i>0</i> on success if there is no data pending (queue empty)
+ *	@return <br><i>1</i> on success if there is data pending on the queue
+ */
+static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ioh_data *bid;
+  u_int cmd = 0;
+
+  if (!ioh || !queue)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B,-1);
+  }
+
+  while (bid=biq_minimum(queue))
+  {
+    if (bid->bid_data)
+      break;
+
+    cmd |= bid->bid_flags;
+    biq_delete(queue, bid);
+    free(bid);
+  }
+
+  if (cmd)
+  {
+    if (ioh_execute_cmds(B, ioh, cmd, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not execute commands stored at front of list\n");
+      BK_RETURN(B,-1);
+    }
+  }
+
+  if (bid && bid->bid_data)
+    BK_RETURN(B,1);
+    
+  BK_RETURN(B,0);
+}
+
+
+
+/**
+ * Execute the commands indicated by the bitfield cmds.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param ioh IOH state handle
+ *	@param cmds Bitfield containing _CLOSE _SHUTDOWN commands
+ *	@param flags Flags
+ *	@return <i>-1</i> on call failure
+ *	@return <br><i>0</i> on success
+ */
+static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, u_int32_t cmds, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ioh_data *bid;
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B,-1);
+  }
+
+  if (BK_FLAG_ISSET(cmds, BID_FLAG_SHUTDOWN))
+  {
+    shutdown(ioh->ioh_fdin, SHUT_WR);
+    BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT_PEND);
+    BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT);
+  }
+
+  if (BK_FLAG_ISSET(cmds, BID_FLAG_CLOSE))
+  {
+    bk_ioh_destroy(B, ioh);
+  }
+
+  BK_RETURN(B,0);
 }
