@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.7 2001/06/18 19:29:49 seth Exp $
+ * $Id: libbk.h,v 1.8 2001/06/18 22:41:46 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -76,7 +76,7 @@ typedef struct __bk_thread
 
 /* b_debug.c */
 #define bk_debug_and(B,l) (((B)->bt_flags & BK_BGFLAGS_DEBUGON) && (B)->bt_curfun && ((B)->bt_curfun->bf_debuglevel & (l)))
-#define bk_debug_vprintf(B,l,f,ap) (bk_debug_and(B,l) && sos_debug_vprintf(B,f,ap))
+#define bk_debug_vprintf_and(B,l,f,ap) (bk_debug_and(B,l) && sos_debug_vprintf(B,f,ap))
 #define bk_debug_printf_and(B,l,f,args...) (bk_debug_and(B,l) && sos_debug_printf(B,f,##args))
 #define bk_debug_printbuf_and(B,l,v) (bk_debug_and(B,l) && sos_debug_printf(B,v))
 #define bk_debug_print(B,s) bk_debug_iprint(B,(B)->bt_general->bg_debug,s)
@@ -156,7 +156,7 @@ extern void bk_debug_destroy(bk_s B, struct bk_debug *bd);
 extern void bk_debug_reinit(bk_s B, struct bk_debug *bd);
 extern u_int32_t bk_debug_query(bk_s B, struct bk_debug *bdinfo, const char *funname, const char *pkgname, const char *program);
 extern int bk_debug_set(bk_s B, struct bk_debug *bdinfo, const char *name, u_int32_t level);
-extern int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, bk_config_t config, const char *program);
+extern int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config, const char *program);
 extern void bk_debug_config(bk_s B, struct bk_debug *bdinfo, FILE *fh, u_int8_t sysloglevel, bk_flags flags);
 extern void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf);
 extern void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, char *format, ...);
@@ -170,8 +170,6 @@ extern struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, u_in
 extern void bk_error_destroy(bk_s B, struct bk_error *beinfo);
 extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, u_int8_t sysloglevel, bk_flags flags);
 extern u_int32_t bk_error_query(bk_s B, struct bk_error *beinfo, const char *funname, const char *pkgname, const char *program);
-extern int bk_error_set(bk_s B, struct bk_error *beinfo, const char *name, u_int32_t level);
-extern int bk_error_setconfig(bk_s B, struct bk_error *beinfo, bk_config_t config, const char *program);
 extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, u_int8_t sysloglevel, bk_flags flags);
 extern void bk_error_iprint(bk_s B, struct bk_error *beinfo, char *buf);
 extern void bk_error_iprintf(bk_s B, struct bk_error *beinfo, char *format, ...);
@@ -183,9 +181,9 @@ extern void bk_error_ivprintf(bk_s B, struct bk_error *beinfo, char *format, va_
 /* b_fun.c */
 extern dict_h bk_fun_init();
 extern void bk_fun_destroy(dict_h funstack);
-extern bk_funinfo bk_fun_entry(bk_s B, const char *func, const char *package);
-extern void bk_fun_exit(bk_s B, bk_funinfo fh);
-extern void bk_fun_reentry(bk_s B, void);
+extern struct bk_funinfo bk_fun_entry(bk_s B, const char *func, const char *package);
+extern void bk_fun_exit(bk_s B, struct bk_funinfo fh);
+/* extern void bk_fun_reentry(bk_s B, void *); huh? */
 extern void bk_fun_trace(bk_s B, FILE *out, u_int8_t sysloglevel, bk_flags flags);
 extern void bk_fun_set(bk_s B, bk_flags flags);
 #define BK_FUN_OFF	0			/* Turn off function tracing */
