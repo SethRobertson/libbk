@@ -1,3 +1,8 @@
+2003-09-02  James Tanis  <jtt@cheviot.sysdetect.com>
+
+	* lib/b_string.c (bk_string_registry_insert_by_id): Function to
+	"insert" (ie register) by id but which returns the string.
+
 2003-08-25  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_ioh.c: fix for #2036: segfault after connection reset by peer
