@@ -1,5 +1,7 @@
 2002-05-06  James Tanis  <jtt@winwood.sysdetect.com>
 
+	* lib/b_listnum.c (bk_listnum_destroy): Free up clc.
+
 	* lib/b_general.c (bk_no_free): Function to do nothing but satisfy
 	the compiler. Used for "freeing" that which was allocated with alloca(3).
 
