@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.15 2004/12/27 23:59:34 dupuy Exp $
+ * $Id: libbk_net.h,v 1.16 2005/01/11 18:29:08 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -144,6 +144,16 @@ struct baka_icmphdr
   u_int8_t  pkt_icmp_code;			///< Type sub-code
   u_int16_t pkt_icmp_checksum;                  ///< Header+payload checksum
   u_char    pkt_icmp_payload[0];                ///< Possible ICMP additional data
+};
+
+
+/**
+ * OS independent ICMP ECHO header (typical, not RFC)
+ */
+struct baka_icmp_echohdr
+{
+  u_int16_t	pkt_icmp_echo_id;		///< ID of sender for differentiation with other gens
+  u_int16_t	pkt_icmp_echo_sequence;		///< Sequence number of sender
 };
 
 #define	BAKA_ICMP_MINLEN	8				// abs minimum
