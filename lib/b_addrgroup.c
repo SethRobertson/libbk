@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.42 2004/08/05 12:17:19 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.43 2004/08/05 13:44:26 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -91,19 +91,19 @@ static void as_destroy(bk_s B, struct addrgroup_state *as);
 static int net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remote, struct bk_addrgroup *bag);
 static int do_net_init_af_inet(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_local(bk_s B, struct addrgroup_state *as);
-static int do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as);
-static int do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as);
-static int do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as);
-static int do_net_init_af_inet_udp_listen(bk_s B, struct addrgroup_state *as);
-static int do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as);
-static int do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as);
-static int tcp_connect_start(bk_s B, struct addrgroup_state *as);
-static int open_inet_local(bk_s B, struct addrgroup_state *as);
-static void tcp_end(bk_s B, struct addrgroup_state *as);
-static void tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags);
-static void tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime);
+static int do_net_init_stream(bk_s B, struct addrgroup_state *as);
+static int do_net_init_dgram(bk_s B, struct addrgroup_state *as);
+static int do_net_init_dgram_connect(bk_s B, struct addrgroup_state *as);
+static int do_net_init_dgram_listen(bk_s B, struct addrgroup_state *as);
+static int do_net_init_stream_listen(bk_s B, struct addrgroup_state *as);
+static int do_net_init_stream_connect(bk_s B, struct addrgroup_state *as);
+static int stream_connect_start(bk_s B, struct addrgroup_state *as);
+static int open_local(bk_s B, struct addrgroup_state *as);
+static void stream_end(bk_s B, struct addrgroup_state *as);
+static void stream_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags);
+static void stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime);
 static void net_close(bk_s B, struct addrgroup_state *as);
-static void tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime);
+static void stream_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime);
 static void net_init_end(bk_s B, struct addrgroup_state *as);
 static void net_init_abort(bk_s B, struct addrgroup_state *as);
 static struct addrgroup_state *as_server_copy(bk_s B, struct addrgroup_state *oas , int s);
@@ -492,11 +492,11 @@ do_net_init_af_inet(bk_s B, struct addrgroup_state *as)
   switch (bag->bag_proto)
   {
   case IPPROTO_TCP:
-    ret = do_net_init_af_inet_tcp(B, as);
+    ret = do_net_init_stream(B, as);
     break;
 
   case IPPROTO_UDP:
-    ret = do_net_init_af_inet_udp(B, as);
+    ret = do_net_init_dgram(B, as);
     break;
 
   default:
@@ -525,7 +525,7 @@ do_net_init_af_inet(bk_s B, struct addrgroup_state *as)
  *	@return new socket on success.
  */
 static int
-do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as)
+do_net_init_stream(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_addrgroup *bag;
@@ -541,11 +541,11 @@ do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as)
 
   if (bag->bag_remote)
   {
-    ret = do_net_init_af_inet_tcp_connect(B, as);
+    ret = do_net_init_stream_connect(B, as);
   }
   else
   {
-    ret = do_net_init_af_inet_tcp_listen(B, as);
+    ret = do_net_init_stream_listen(B, as);
   }
 
   BK_RETURN(B, ret);
@@ -582,11 +582,11 @@ do_net_init_af_local(bk_s B, struct addrgroup_state *as)
   switch (bag->bag_proto)
   {
   case BK_GENERIC_STREAM_PROTO:
-    ret = do_net_init_af_inet_tcp(B, as);
+    ret = do_net_init_stream(B, as);
     break;
 
   case BK_GENERIC_DGRAM_PROTO:
-    ret = do_net_init_af_inet_udp(B, as);
+    ret = do_net_init_dgram(B, as);
     break;
 
   default:
@@ -616,7 +616,7 @@ do_net_init_af_local(bk_s B, struct addrgroup_state *as)
  *	@return a new socket on success.
  */
 static int
-do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
+do_net_init_dgram(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_addrgroup *bag;
@@ -632,7 +632,7 @@ do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
 
   if (bag->bag_remote)
   {
-    ret = do_net_init_af_inet_udp_connect(B, as);
+    ret = do_net_init_dgram_connect(B, as);
   }
   else
   {
@@ -665,7 +665,7 @@ do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
      * lets just do it.
      */
     bk_error_printf(B, BK_ERR_WARN, "UDP listening support is not quite ready for prime time, at least as far as IOHs are concerned\n");
-    ret = do_net_init_af_inet_udp_listen(B, as);
+    ret = do_net_init_dgram_listen(B, as);
   }
 
   BK_RETURN(B, ret);
@@ -685,7 +685,7 @@ do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
  *	@return a new socket on success.
  */
 static int
-do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
+do_net_init_dgram_connect(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int s = -1;
@@ -724,9 +724,9 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
      * select loop" as it were and return values are pretty meaningless
      * (certainly returning the socket number is meaningless). But much
      * more important than this is is the fact we *know* we're on the
-     * connecting side of a tcp association here and thus when tcp_end()
+     * connecting side of a tcp association here and thus when stream_end()
      * returns 'as' HAS BEEN DESTROYED. Now you *could* save as->as_sock
-     * before calling tcp_end(), but why bother?
+     * before calling stream_end(), but why bother?
      */
     BK_RETURN(B, 0);
   }
@@ -760,7 +760,7 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
   if (local)
   {
     // Bind to local address
-    if (open_inet_local(B, as) < 0)
+    if (open_local(B, as) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open the local side of the connection\n");
       goto error;
@@ -775,7 +775,7 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
   }
 
   as->as_state = BkAddrGroupStateConnected;
-  tcp_end(B, as);
+  stream_end(B, as);
 
   BK_RETURN(B, s);
 
@@ -798,7 +798,7 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
  *	@return a new socket on success.
  */
 static int
-do_net_init_af_inet_udp_listen(bk_s B, struct addrgroup_state *as)
+do_net_init_dgram_listen(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int s = -1;
@@ -842,14 +842,14 @@ do_net_init_af_inet_udp_listen(bk_s B, struct addrgroup_state *as)
   }
 
   // Bind to local address
-  if (open_inet_local(B, as) < 0)
+  if (open_local(B, as) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not open the local side of the connection\n");
     goto error;
   }
 
   as->as_state = BkAddrGroupStateReady;
-  tcp_end(B, as);
+  stream_end(B, as);
 
   BK_RETURN(B, s);
 
@@ -872,7 +872,7 @@ do_net_init_af_inet_udp_listen(bk_s B, struct addrgroup_state *as)
  *	@return a new socket on success.
  */
 static int
-do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as)
+do_net_init_stream_connect(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -882,7 +882,7 @@ do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as)
     BK_RETURN(B, -1);
   }
 
-  BK_RETURN(B, tcp_connect_start(B, as));
+  BK_RETURN(B, stream_connect_start(B, as));
 }
 
 
@@ -900,7 +900,7 @@ do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as)
  *	@return a new socket on success.
  */
 static int
-tcp_connect_start(bk_s B, struct addrgroup_state *as)
+stream_connect_start(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int s = -1;
@@ -939,9 +939,9 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
      * select loop" as it were and return values are pretty meaningless
      * (certainly returning the socket number is meaningless). But much
      * more important than this is is the fact we *know* we're on the
-     * connecting side of a tcp association here and thus when tcp_end()
+     * connecting side of a tcp association here and thus when stream_end()
      * returns 'as' HAS BEEN DESTROYED. Now you *could* save as->as_sock
-     * before calling tcp_end(), but why bother?
+     * before calling stream_end(), but why bother?
      */
     BK_RETURN(B, 0);
   }
@@ -990,7 +990,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
   if (local)
   {
     // Bind to local address
-    if (open_inet_local(B, as) < 0)
+    if (open_local(B, as) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open the local side of the connection\n");
       goto error;
@@ -1006,7 +1006,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
 
   if (as->as_timeout)
   {
-    if (bk_run_enqueue_delta(B, as->as_run, as->as_timeout, tcp_connect_timeout, as, &as->as_eventh, 0) < 0)
+    if (bk_run_enqueue_delta(B, as->as_run, as->as_timeout, stream_connect_timeout, as, &as->as_eventh, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not enqueue timeout event\n");
       goto error;
@@ -1018,7 +1018,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
   }
 
   /* Put the socket in the select loop waiting for *write* to come ready */
-  if (bk_run_handle(B, as->as_run, as->as_sock, tcp_connect_activity, as, BK_RUN_WANTWRITE, 0) < 0)
+  if (bk_run_handle(B, as->as_run, as->as_sock, stream_connect_activity, as, BK_RUN_WANTWRITE, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
     goto error;
@@ -1030,7 +1030,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
  error:
   net_close(B, as);
   as->as_state = bk_net_init_sys_error(B, errno);
-  tcp_connect_start(B, as);
+  stream_connect_start(B, as);
   BK_RETURN(B, -1);
 }
 
@@ -1048,7 +1048,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
  *	@return <i>0</i> on success.
  */
 static int
-open_inet_local(bk_s B, struct addrgroup_state *as)
+open_local(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_netinfo *local;
@@ -1102,7 +1102,7 @@ open_inet_local(bk_s B, struct addrgroup_state *as)
  *	@return <i>0</i> on success.
  */
 static void
-tcp_end(bk_s B, struct addrgroup_state *as)
+stream_end(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -1279,7 +1279,7 @@ net_init_abort(bk_s B, struct addrgroup_state *as)
  *	@param flags Random flags.
  */
 static void
-tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags)
+stream_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct addrgroup_state *as;
@@ -1299,7 +1299,7 @@ tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval
 
   /* Check for more addresses */
   as->as_state = BkAddrGroupStateTimeout;
-  if (tcp_connect_start(B, as) < 0)
+  if (stream_connect_start(B, as) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to attempt connection to new address\n");
   }
@@ -1324,7 +1324,7 @@ tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval
  *	@param starttide Official Time of activity
  */
 static void
-tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
+stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct sockaddr sa;
@@ -1449,11 +1449,11 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
     else
       as->as_state = bk_net_init_sys_error(B, errno);
 
-    tcp_connect_start(B, as);
+    stream_connect_start(B, as);
     BK_VRETURN(B);
   }
   as->as_state = BkAddrGroupStateConnected;
-  tcp_end(B, as);
+  stream_end(B, as);
 
   BK_VRETURN(B);
 
@@ -1480,7 +1480,7 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
  *	@return a new socket on success.
  */
 static int
-do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
+do_net_init_stream_listen(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int af;
@@ -1537,7 +1537,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
   }
 
   // Bind to local address
-  if (open_inet_local(B, as) < 0)
+  if (open_local(B, as) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not open the local side of the connection\n");
     goto error;
@@ -1552,7 +1552,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
   as->as_state = BkAddrGroupStateReady;
 
   /* Put the socket in the select loop waiting for *write* to come ready */
-  if (bk_run_handle(B, as->as_run, s, tcp_listen_activity, as, BK_RUN_WANTREAD, 0) < 0)
+  if (bk_run_handle(B, as->as_run, s, stream_listen_activity, as, BK_RUN_WANTREAD, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
     goto error;
@@ -1618,7 +1618,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
  *	@return <i>0</i> on success.
  */
 static void
-tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
+stream_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct addrgroup_state *as, *nas;
@@ -1697,7 +1697,7 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
 
   nas->as_state = BkAddrGroupStateConnected;
 
-  tcp_end(B, nas);
+  stream_end(B, nas);
   BK_VRETURN(B);
 
  error:
@@ -1926,7 +1926,7 @@ bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, const char *se
     goto error;
   }
 
-  if (bk_run_handle(B, as->as_run, s, tcp_listen_activity, as, BK_RUN_WANTREAD, 0)<0)
+  if (bk_run_handle(B, as->as_run, s, stream_listen_activity, as, BK_RUN_WANTREAD, 0)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
     goto error;
