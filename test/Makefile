@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.18 2002/03/26 22:16:08 dupuy Exp $
+# $Id: Makefile,v 1.19 2002/04/04 23:57:22 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -28,6 +28,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		test_locks 		\
 		test_printbuf 		\
 		testrandidea		\
+		test_string	 	\
 		test_stringconv 	\
 		test_time	 	\
 		test_url	 	\

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.33 2002/04/02 02:06:53 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.34 2002/04/04 23:57:21 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1436,6 +1436,62 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, u_int len)
   }
 
   BK_RETURN(B,NULL);  
+}
+
+
+
+/**
+ * Compare two possibly NUL-terminated strings, ignoring whitespace
+ * differences.  This is like @a strncasecmp(3) but does not do case folding;
+ * instead it treats any sequences of whitespace characters as identical.  The
+ * comparison length of both strings must be provided; the strings are
+ * considered identical if all of the characters in the first string are
+ * matched in the second string.  If there are characters left over in the
+ * first string after comparison with the second string
+ *
+ * Since multiple whitespace characters are equivalent to a single whitespace
+ * character, a single length cannot be used for both strings since that would
+ * cause strnspacecmp("a b", "a \t b", 3) to return non-zero even though the
+ * strings are effectively identical.  (Alternately, it would allow reads past
+ * the end of the strings)
+ *
+ *	@param B BAKA thread/global state.
+ *	@param s1 The first string
+ *	@param s2 The second string
+ *	@param len1 Max length of s1
+ *	@param len2 Max length of s2
+ *	@return <i>negative</i> if s1 compares less than s2<br>
+ *	@return <i>0</i> if s1 and s2 are equivalent ignoring whitespace<br>
+ *	@return <i>positive</i> if s1 compares greater than s2<br>
+ */
+int
+bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  u_int i1;
+  u_int i2;
+  int res;
+
+  for (i1 = i2 = 0; i1 < len1 && i2 < len2; )
+  {
+    if (isspace(s1[i1]) && isspace(s2[i2]))
+    {
+      while (++i2 < len2 && isspace(s2[i2]))
+	;
+      while (++i1 < len1 && isspace(s1[i1]))
+	;
+    }
+    else if ((res = s1[i1] - s2[i2]) || s1[i1] == '\0')
+      BK_RETURN(B, res);
+    else
+    {
+      ++i1;
+      ++i2;
+    }
+  }
+
+  // equality requires matching all characters from the first string
+  BK_RETURN(B, s1[i1] ? len1 - i1 : 0);
 }
 
 

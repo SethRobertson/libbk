@@ -1,3 +1,8 @@
+2002-04-04  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_string.c (bk_strnspacecmp): bounded string comparison
+	ignoring whitespace differences
+
 2002-04-01  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* include/libbk_oscompat.h: Size defintions for those who don't have 'em
