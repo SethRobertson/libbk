@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.51 2002/07/24 04:41:55 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.52 2002/07/24 07:06:50 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1302,14 +1302,14 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
   if ((end = strrchr(in, FLAG_APPROX)))		// hex is canonical
     goto justhex;
 
-  if (src[0] == FLAG_BEGIN && (end = strrchr(in, FLAG_END)))
+  if (in[0] == FLAG_BEGIN && (end = strrchr(in, FLAG_END)))
   {
     const char *tok;
     const char *sep;
     const char *symbol;
     bk_flags out = 0;
 
-    for (tok = in; tok < end; tok = sep + 1)
+    for (tok = in + 1; tok < end; tok = sep + 1)
     {
       if (!(sep = strchr(tok, FLAG_SEP)))
 	sep = end;
