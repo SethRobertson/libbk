@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.16 2001/11/07 21:35:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.17 2001/11/07 21:40:50 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -172,8 +172,8 @@ static int bcv_ko_cmp(void *a, void *bck2);
  *	@param filename The file from which to read the data.
  *	@param separator The string which separates keys from values.
  *	@param flags Random flags (see code for valid)
- *	@return NULL on call failure, allocation failure, or other fatal error.
- *	@return The initialized baka config structure if successful.
+ *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
+ *	@return <br><i>baka config structure</i> if successful.
  */
 struct bk_config *
 bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, bk_flags flags)
@@ -312,8 +312,8 @@ bk_config_destroy(bk_s B, struct bk_config *obc)
  *	@param B BAKA thread/global state 
  *	@param B bc The baka config strucuture to which the key/values pairs will be added.
  *	@param B bcf The file information.
- *	@return 0 on failure
- *	@return 1 on sucess
+ *	@return <i>0</i> on failure
+ *	@return <br><i>1</i> on sucess
  */
 static int
 load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *bcf)
@@ -451,8 +451,8 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
  *	@param value Replacement or added value.
  *	@param ovalue Value to overwrite or delete.
  *	@param lineno Line in file where this value should be.
- *	@return 0 on success.
- *	@return -1 on failure.
+ *	@return <i>0</i> on success.
+ *	@return <br><i>-1</i> on failure.
  * 
  */
 static int
@@ -582,8 +582,8 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
  *	is extracted from @a B.
  *	@param key The key in question.
  *	@param ovalue The previous value or NULL (see above).
- *	@return The value string (not copied) on success. 
- *	@return NULL on failure.
+ *	@return <i>value string</i> (not copied) on success. 
+ *	@return <br><i>NULL</i> on failure.
  */
 char *
 bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ovalue)
@@ -681,8 +681,8 @@ bk_config_delete_key(bk_s B, struct bk_config *ibc, const char *key)
  *	@param B BAKA thread/global state.
  *	@param filename The filename to use.
  *	@param obcf The fileinfo for the file that @a filename is included in.
- *	@return The new fileinfo strucutre on success.
- *	@return NULL on failure.
+ *	@return <i>new fileinfo structure</i> on success.
+ *	@return <br><i>NULL</i> on failure.
  */
 static struct bk_config_fileinfo *
 bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf)
@@ -762,8 +762,8 @@ bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf)
  *	@param B BAKA thread/global state.
  *	@param key Key name in string form.
  *	@param flags Flags to add to key (see code for valid flags).
- *	@return The new key structure on success.
- *	@return NULL on failure.
+ *	@return <i>new key structure</i> on success.
+ *	@return <br><i>NULL</i> on failure.
  */
 static struct bk_config_key *
 bck_create(bk_s B, const char *key, bk_flags flags)
@@ -851,8 +851,8 @@ bck_destroy(bk_s B, struct bk_config_key *bck)
  *	@param lineno The line number within the file where this value
  *	appears.
  *	@param flags Flags to add to @a value.
- *	@return The new value structure on success.
- *	@return NULL on failure.
+ *	@return <i>new value structure</i> on success.
+ *	@return <br><i>NULL</i> on failure.
  */
 static struct bk_config_value *
 bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags)
