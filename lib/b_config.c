@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.11 2001/09/11 17:20:09 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.12 2001/09/19 21:25:51 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -177,13 +177,13 @@ bk_config_init(bk_s B, const char *filename, bk_flags flags)
   if (load_config_from_file(B, bc, bcf) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not load config from file: %s\n", filename);
-    ret=-1;
+    ret=1;			/* non-fatal error */
     goto done;
   }
   
 
  done:
-  if (ret != 0)
+  if (ret < 0)			/* if fatal error */
   {
     if (bc) bk_config_destroy(B, bc);
     bc=NULL;

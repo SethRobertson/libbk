@@ -1,4 +1,9 @@
-2001-09-17  Alexander Dupuy  <dupuy@stevedore.sysdetect.com>
+2001-09-18  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_config.c (bk_config_init): failure of load_config_from_file
+	is non-fatal, and does not cause destruction of bk_config struct
+
+2001-09-17  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (BK_GENERAL_FLAGS): avoid Linux gcc warnings
 	about signed vs. unsigned
