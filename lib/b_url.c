@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_url.c,v 1.25 2002/08/22 21:25:04 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_url.c,v 1.26 2002/09/27 19:43:15 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -751,6 +751,7 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
 /**
  * Parse the authority section of a url assuming the
  * format is: [[user[:password]@]server[:port]]
+ * char* members of bk_url_authority are guaranteed to be non-null.
  * Caller must free the returned value with bk_url_authority_free
  *
  * @param B BAKA Thread/global astate

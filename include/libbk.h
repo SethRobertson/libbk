@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.177 2002/09/27 19:37:14 dupuy Exp $
+ * $Id: libbk.h,v 1.178 2002/09/27 19:43:15 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1008,6 +1008,7 @@ struct bk_url
 
 /**
  * Breakdown of url authority section
+ * char* members are guaranteed to be non-null.
  */
 struct bk_url_authority
 {
