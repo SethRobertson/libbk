@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.49 2002/04/26 22:21:55 lindauer Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.50 2002/04/29 23:02:54 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,7 +25,6 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
-
 
 
 #if defined(EWOULDBLOCK) && defined(EAGAIN)
@@ -608,7 +607,7 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 
   if (how == SHUT_WR || how == SHUT_RDWR)
   {
-    if ((ret = ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdShutdown, NULL, 0)) < 0)
+    if ((ret = ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdShutdown, NULL, BK_IOH_BYPASSQUEUEFULL)) < 0)
       shutdown(ioh->ioh_fdin, SHUT_WR);
   }
 
@@ -857,7 +856,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_SHUTDOWN_OUTPUT_PEND);
 
   // Queue up a close command after any pending data commands
-  if (ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdClose, NULL, 0) < 0)
+  if (ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdClose, NULL, BK_IOH_BYPASSQUEUEFULL) <  0)
   {
     ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
     
@@ -1764,7 +1763,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	{
 	  ioh_dequeue_byte(B, ioh, &ioh->ioh_writeq, (u_int32_t)cnt, 0);
 
-	  if (ioh->ioh_writeq.biq_queuelen < 1 && !biq_minimum(ioh->ioh_writeq.biq_queue))
+	  if (ioh->ioh_writeq.biq_queuelen < 1)
 	  {
 	    ioh->ioh_writeq.biq_queuelen = 0;
 	    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
@@ -1859,8 +1858,6 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 /**
  * Blocked--fixed length messages--IOH Type routines to perform I/O maintenance and activity
- * <TODO>Test not only that there is no more data in the pipeline, but also that there are 
- * no more commands to be processed, as in raw_other and vector_other</TODO>
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -2209,7 +2206,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	  // Figure out what buffers have been fully written
 	  ioh_dequeue_byte(B, ioh, &ioh->ioh_writeq, (u_int32_t)cnt, 0);
 
-	  if (ioh->ioh_writeq.biq_queuelen < 1 && !biq_minimum(ioh->ioh_writeq.biq_queue))
+	  if (ioh->ioh_writeq.biq_queuelen < 1)
 	  {					// Nothing more to do
 	    ioh->ioh_writeq.biq_queuelen = 0;
 	    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
@@ -3210,7 +3207,7 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
   isa->isa_offset = offset;
   isa->isa_whence = whence;
 
-  if (ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdSeek, isa, 0) < 0)
+  if (ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdSeek, isa, BK_IOH_BYPASSQUEUEFULL) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not enqueue message\n");
     goto error;
