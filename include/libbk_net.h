@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.7 2003/06/17 06:07:16 seth Exp $
+ * $Id: libbk_net.h,v 1.8 2004/01/29 18:28:57 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -71,11 +71,11 @@ struct baka_iphdr
  */
 struct baka_iphdr_overlay
 {
-  u_int32_t pkt_ip_src;                         ///< Source address
-  u_int32_t pkt_ip_dst;                         ///< Destination address
   u_int8_t  pkt_ip_zero;			///< Zero
   u_int8_t  pkt_ip_proto;			///< Protocol
   u_int16_t pkt_ip_len;                         ///< Length of packet
+  u_int32_t pkt_ip_src;                         ///< Source address
+  u_int32_t pkt_ip_dst;                         ///< Destination address
 };
 
 

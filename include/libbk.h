@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.274 2004/01/29 00:22:36 jtt Exp $
+ * $Id: libbk.h,v 1.275 2004/01/29 18:28:57 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1383,7 +1383,7 @@ extern u_int bk_bitcount(bk_s B, u_int word);
 
 
 /* b_cksum.c */
-extern int bk_in_cksum(bk_s B, struct bk_vptr **m, int len);
+extern int bk_in_cksum(bk_s B, struct bk_vptr *m, int len);
 
 
 

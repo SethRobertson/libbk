@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_cksum.c,v 1.10 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_cksum.c,v 1.11 2004/01/29 18:28:58 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -44,7 +44,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  *	@param len Length of data in m that should be checksummed
  *	@return 16-bit <i>checksum</i> of data
  */
-int bk_in_cksum(bk_s B, struct bk_vptr **m, int len)
+int bk_in_cksum(bk_s B, struct bk_vptr *m, int len)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   u_short *w;
@@ -66,9 +66,9 @@ int bk_in_cksum(bk_s B, struct bk_vptr **m, int len)
 
   for (;m && len; m++)
   {
-    if ((*m)->len == 0)
+    if (m->len == 0)
       break;
-    w = (*m)->ptr;
+    w = m->ptr;
 
     if (mlen == -1)
     {
@@ -83,11 +83,11 @@ int bk_in_cksum(bk_s B, struct bk_vptr **m, int len)
       s_util.c[1] = *(char *)w;
       sum += s_util.s;
       w = (u_short *)((char *)w + 1);
-      mlen = (*m)->len - 1;
+      mlen = m->len - 1;
       len--;
     }
     else
-      mlen = (*m)->len;
+      mlen = m->len;
 
     if (len < mlen)
       mlen = len;

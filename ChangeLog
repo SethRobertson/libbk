@@ -1,3 +1,7 @@
+2004-01-29  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_cksum.c (bk_in_cksum): Simplify interface
+
 2004-01-28  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_run.c (bk_run_once): Possibly required change for idle support.
