@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.111 2004/08/17 03:35:07 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.112 2005/01/25 21:53:36 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2323,7 +2323,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 	free(iov);
 
-	errno == ioh->ioh_errno;
+	errno = ioh->ioh_errno;
 	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKINGINTR))
 	{
 	  // Not quite ready for writing yet
