@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.23 2001/12/01 01:24:06 seth Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.24 2002/02/22 07:11:56 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -79,7 +79,8 @@ main(int argc, char **argv, char **envp)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "SIMPLE");
   int c;
   int getopterr = 0;
-  char i18n_localepath[_POSIX_PATH_MAX], *i18n_locale = NULL;
+  char i18n_localepath[_POSIX_PATH_MAX];
+  char *i18n_locale;
   struct program_config Pconfig, *pconfig = NULL;
   poptContext optCon = NULL;
   const struct poptOption optionsTable[] = 
@@ -103,8 +104,11 @@ main(int argc, char **argv, char **envp)
 
   // i18n stuff
   setlocale(LC_ALL, "");
-  if (!(i18n_locale = BK_GWD(B, STD_LOCALEDIR_KEY, NULL)) && (i18n_locale = (char *)&i18n_localepath))
+  if (!(i18n_locale = BK_GWD(B, STD_LOCALEDIR_KEY, NULL)))
+  {
+    i18n_locale = i18n_localepath;
     snprintf(i18n_localepath, sizeof(i18n_localepath), "%s/%s", BK_ENV_GWD(STD_LOCALEDIR_ENV,STD_LOCALEDIR_DEF), STD_LOCALEDIR_SUB);
+  }
   bindtextdomain(BK_GENERAL_PROGRAM(B), i18n_locale);
   textdomain(BK_GENERAL_PROGRAM(B));
   for (c = 0; optionsTable[c].longName || optionsTable[c].shortName; c++)
