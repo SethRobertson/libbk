@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.57 2002/05/21 19:35:12 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.58 2002/05/21 20:02:48 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3116,7 +3116,8 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
 	int comp_ret;
 	if ((comp_ret = compress2(dst, (uLongf *)&new_len, src, len, ioh->ioh_compress_level)) != Z_OK)
 	{
-	  bk_error_printf(B, BK_ERR_ERR, "Could not compress buffer: %s\n", bk_compress_strerror(B, comp_ret));
+	  // <TODO> Need compression perror message here </TODO>
+	  bk_error_printf(B, BK_ERR_ERR, "Could not compress buffer\n");
 	}
 	else
 	{
