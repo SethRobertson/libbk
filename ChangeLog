@@ -1,3 +1,7 @@
+2001-09-11  Seth Robertson  <seth@yeah.baka.org>
+
+	* include/libbk_oscompat.h: Move NULL/MAX/MIN issues to oscompat.
+
 2001-09-11    <dupuy@cs.columbia.edu>
 
 	* lib/b_debug.c (bk_debug_iprint): avoid Unix dependency here too

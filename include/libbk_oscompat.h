@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.2 2001/06/18 19:29:49 seth Exp $
+ * $Id: libbk_oscompat.h,v 1.3 2001/09/11 17:20:09 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -15,5 +15,21 @@
 
 #ifndef _libbk_oscompat_h_
 #define _libbk_oscompat_h_
+
+#ifdef SOMETHING_FOR_CPLUSPLUS
+#ifdef NULL
+#undef NULL
+#endif /* NULL */
+#define NULL ((void *)0)
+#endif /* SOMETHING_FOR_CPLUSPLUS */
+
+#ifndef MAX
+#define MAX(x,y) ((x) > (y) ? (x) : (y))
+#endif /* !MAX */
+
+#ifndef MIN
+#define MIN(x,y) ((x) > (y) ? (y) : (x))
+#endif /* !MIN */
+
 
 #endif /* _libbk_oscompat_h_ */

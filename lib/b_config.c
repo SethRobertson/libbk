@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.10 2001/08/30 19:57:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.11 2001/09/11 17:20:09 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,6 +24,19 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define LINELEN 1024
 #define CONFIG_MANAGE_FLAG_NEW_KEY	0x1
 #define CONFIG_MANAGE_FLAG_NEW_VALUE	0x2
+
+
+
+/*
+ * General configuration structure
+ */
+struct bk_config
+{
+  bk_flags			bc_flags;	/* Everyone needs flags */
+  struct bk_config_fileinfo *	bc_bcf;		/* Files of conf data */
+  dict_h			bc_kv;		/* Hash of value dlls */
+  int				bc_kv_error;	/* clc errno for bc_kv */
+};
 
 
 

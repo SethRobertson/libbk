@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.11 2001/08/27 03:10:22 seth Exp $
+ * $Id: libbk_internal.h,v 1.12 2001/09/11 17:20:09 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -27,23 +27,6 @@ struct bk_proctitle
   bk_flags	bp_flags;			/* Flags */
 #define BK_PROCTITLE_OFF	1
 };
-
-
-#if 0
-/* b_config.h */
-struct bk_config
-{
-  char 			*bc_filename;		/* Filename for re-read */
-  dict_h		bc_keylist;		/* List of keys (bk_config_key) */
-};
-
-struct bk_config_key
-{
-  char			*bc_key;		/* Key for values */
-  char			*bc_getnext;		/* State for getnext */
-  dict_h		bc_vallist;		/* List of values */
-};
-#endif
 
 
 /* b_debug.c */

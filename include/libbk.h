@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.29 2001/09/11 03:35:09 seth Exp $
+ * $Id: libbk.h,v 1.30 2001/09/11 17:20:09 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -18,23 +18,6 @@
 #include "libbk_include.h"
 #include "libbk_oscompat.h"
 
-/* XXX Seth want this moved, but for the moment */
-/* Define NULL the *proper* way. */
-#if 0
-#ifdef NULL
-#undef NULL
-#define NULL ((void *)0)
-#endif
-#endif
-
-#ifndef MAX
-#define MAX(x,y) ((x) > (y) ? (x) : (y))
-#endif
-
-#ifndef MIN
-#define MIN(x,y) ((x) > (y) ? (y) : (x))
-#endif
-
 
 
 /* Error levels & their syslog equivalents */
@@ -50,7 +33,7 @@
 /* Very generic (should not be used) application configuration file */
 #define BK_APP_CONF	"/etc/bk.conf"
 
-#define BK_ENV_GWD(e,d)		((char *)(getenv(e)?getenv(e):(d)))
+#define BK_ENV_GWD(e,d)	((char *)(getenv(e)?getenv(e):(d)))
 
 /* General constants */
 #define BK_SYSLOG_MAXLEN 256			/* Length of maximum user message we will syslog */
@@ -205,7 +188,7 @@ do {						\
 
 
 
-     /* b_fun.c */
+/* b_fun.c */
 struct bk_funinfo
 {
   const char *bf_funname;
@@ -236,15 +219,6 @@ extern const char *bk_general_errorstr(bk_s B, int level);
 extern int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags);
 extern void *bk_nullptr;			/* NULL pointer junk */
 extern int bk_zeroint;				/* Zero integer junk */
-
-struct bk_config
-{
-  bk_flags			bc_flags;	/* Everyone needs flags */
-  struct bk_config_fileinfo *	bc_bcf;		/* Files of conf data */
-  dict_h			bc_kv;		/* Hash of value dlls */
-  int				bc_kv_error;	/* clc errno for bc_kv */
-};
-
 
 
 /* b_bits.c */
