@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_signal.c,v 1.8 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_signal.c,v 1.9 2003/05/02 03:29:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -30,6 +30,10 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * correctly when restoring an original signal handler.</TODO>>
  */
 
+
+#define BK_SIGNAL_PRELOCKED	0x8000		///< Tell core routines no need to relock
+
+
 /**
  * Stuff to save when temporarily seizing control of an alarm.
  */
@@ -42,11 +46,20 @@ struct bk_signal_saved
 };
 
 
+
+pthread_mutex_t BkGlobalSignalLock = PTHREAD_MUTEX_INITIALIZER;		///< Prevent threads from trashing during signal management (note that signals and threads don't mix well anyhow)
+
+
+
 static struct bk_signal_saved *bss_create(bk_s B);
 static void bss_destroy(bk_s B, struct bk_signal_saved *bss);
 
+
+
 /**
  * Install a signal handler.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param signo Signal number
@@ -61,6 +74,7 @@ int bk_signal(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
   struct sigaction new;
+  int ret = 0;
 
   memset(&new, 0, sizeof(new));
 
@@ -68,20 +82,33 @@ int bk_signal(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags)
   sigemptyset(&new.sa_mask);
   new.sa_flags = BK_FLAG_ISSET(flags, BK_SIGNAL_FLAG_RESTART)?SA_RESTART:0;
 
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (sigaction(signo, &new, NULL) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not change signal handler for %d: %s\n",signo,strerror(errno));
-    BK_RETURN(B, -1);
+    ret = -1;
   }
 
-  BK_RETURN(B, 0);
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B, ret);
 }
 
 
 
 /**
  * Manage signal handlers. Install new and/or get current value. If @a new
- * is set, install @a new. If @a old is set return current. 
+ * is set, install @a new. If @a old is set return current.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param sig Signal to manage.
  *	@param new New hander to install (may be NULL).
@@ -95,13 +122,18 @@ bk_signal_mgmt(bk_s B, int sig, bk_sighandler_f new, bk_sighandler_f *old, bk_fl
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
   struct sigaction newa, olda;
   int ret;
-  
+
   /* Yes this I mean && not || */
   if (!new && !old)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (new)
   {
@@ -115,7 +147,12 @@ bk_signal_mgmt(bk_s B, int sig, bk_sighandler_f new, bk_sighandler_f *old, bk_fl
   {
     ret = sigaction(sig, NULL, &olda);
   }
-  
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (ret < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not set signal action: %s\n", strerror(errno));
@@ -124,12 +161,12 @@ bk_signal_mgmt(bk_s B, int sig, bk_sighandler_f new, bk_sighandler_f *old, bk_fl
 
   if (old)
     *old = olda.sa_handler;
-  
+
   BK_RETURN(B,0);
 
  error:
   BK_RETURN(B,-1);
-  
+
 }
 
 
@@ -145,10 +182,8 @@ bk_signal_mgmt(bk_s B, int sig, bk_sighandler_f new, bk_sighandler_f *old, bk_fl
  * should make it clear that this is not intended for temporary (or quick)
  * alarms only (since resetting is required). You may use it anyway you
  * wish, of course, but <i>caveat emptor</i>
- * 
- * <TODO> Technically this function can be caught in infinite, stack
- * blowing recursion. This is *extraordinarily* unlikely and requires the
- * continous loss of a race condition. We don't deal with this. </TODO>
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param signo The signal to take over.
@@ -167,17 +202,23 @@ bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags)
   int setmask = 0;
   bk_sighandler_f old2;
   struct bk_signal_saved *bss;
-  
-  
+
+
   if (!(bss = bss_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create bk_signal_saved\n");
-    goto error;
+    BK_RETURN(B, NULL);
   }
 
   /* Block out alarm while figuring out what to do */
   sigemptyset(&newmask);
   sigaddset(&newmask, signo);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   sigprocmask(SIG_BLOCK, &newmask, &oldmask);
   setmask = 1;
 
@@ -186,15 +227,15 @@ bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Could not retrieve current alarm action\n");
     goto error;
   }
-  
-  if (!(old.sa_handler == SIG_DFL || 
-	old.sa_handler == SIG_IGN || 
+
+  if (!(old.sa_handler == SIG_DFL ||
+	old.sa_handler == SIG_IGN ||
 	old.sa_handler == bk_run_signal_ihandler ||
 	BK_FLAG_ISSET(flags, BK_SIGNAL_SET_SIGNAL_FLAG_FORCE)))
   {
     goto done;
   }
-  
+
   bss->bss_signal = signo;
   BK_FLAG_SET(bss->bss_flags, BK_SIGNAL_SAVED_FLAG_ACT_SAVED);
   memmove(&bss->bss_sigact, &old, sizeof(old));
@@ -202,34 +243,31 @@ bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags)
   /* Release SIGALARM, just in case we've held one */
   sigprocmask(SIG_SETMASK, &oldmask, NULL);
   setmask = 0;
-  
-  if (bk_signal_mgmt(B, signo, handler, &old2, flags)<0)
+
+  if (bk_signal_mgmt(B, signo, handler, &old2, flags|BK_SIGNAL_PRELOCKED) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not install new alarm handler\n");
     goto error;
   }
 
-  if (old2 != old.sa_handler)
-  {
-    /* 
-     * YIKES! Handlers have changed underneath us, reset everything and try
-     * again.
-     */
-    if (bk_signal_mgmt(B, signo, old2, NULL, flags) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not reset signo in bizzare abort case. Things might be funky\n");
-      goto error;
-    }
-    /* Try again */
-    BK_RETURN(B, bk_signal_set(B, signo, handler, flags));
-  }
-  
  done:
   if (setmask) sigprocmask(SIG_SETMASK, &oldmask, NULL);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B,bss);
 
  error:
   if (setmask) sigprocmask(SIG_SETMASK, &oldmask, NULL);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (bss) bk_signal_reset(B, bss, 0);
   BK_RETURN(B,NULL);
 }
@@ -237,7 +275,13 @@ bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags)
 
 
 /**
- * Set an alarm for @a secs seconds in the future.
+ * Set an alarm for @a secs seconds in the future.  Note anyone
+ * calling this function before the alarm fires may cause the person
+ * who generated this call to be unhappy since it does not restore
+ * previously handlers/alarms.
+ *
+ * THREADS: MT-SAFE (technically, but see note above)
+ *
  *	@param B BAKA thread/global state.
  *	@param secs When the alarm should go off.
  *	@param handler Function to call when alarm goes off.
@@ -258,6 +302,12 @@ bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags)
   /* Sigh... we have to block the signal for the whole time */
   sigemptyset(&newmask);
   sigaddset(&newmask, SIGALRM);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   sigprocmask(SIG_BLOCK, &newmask, &oldmask);
   setmask = 1;
 
@@ -268,7 +318,7 @@ bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags)
     goto error;
   }
 
-  if (!(bss=bk_signal_set(B, SIGALRM, handler, flags)))
+  if (!(bss=bk_signal_set(B, SIGALRM, handler, flags|BK_SIGNAL_PRELOCKED)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Coudl not set SIGALRM handler\n");
     goto error;
@@ -278,6 +328,11 @@ bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags)
 
   sigprocmask(SIG_SETMASK, &oldmask, NULL);
   setmask = 0;					// protect against future code
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B,bss);
 
@@ -292,6 +347,9 @@ bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags)
 
 /**
  * Reset an alarm set with @a bk_signal_set_signal
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param args The opaque value returned from @a bk_signal_set_signal.
  *	@param flags Flags for future use.
@@ -322,10 +380,16 @@ bk_signal_reset(bk_s B, void *args, bk_flags flags)
 
   sigemptyset(&newmask);
   sigaddset(&newmask, bss->bss_signal);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   sigprocmask(SIG_BLOCK, &newmask, &oldmask);
   setmask = 1;
 
-  if (bk_signal_mgmt(B, bss->bss_signal, NULL, &old, 0) < 0)
+  if (bk_signal_mgmt(B, bss->bss_signal, NULL, &old, BK_SIGNAL_PRELOCKED) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not get current signo action\n");
     goto error;
@@ -341,25 +405,39 @@ bk_signal_reset(bk_s B, void *args, bk_flags flags)
   sigprocmask(SIG_SETMASK, &oldmask, NULL);
   setmask = 0;
 
-  if (bk_signal_mgmt(B, bss->bss_signal, bss->bss_sigact.sa_handler, NULL, 0) < 0)
+  if (bk_signal_mgmt(B, bss->bss_signal, bss->bss_sigact.sa_handler, NULL, BK_SIGNAL_PRELOCKED) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not reset signo action\n");
     goto error;
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   bss_destroy(B, bss);
 
   BK_RETURN(B,0);
-  
+
  error:
   if (setmask) sigprocmask(SIG_SETMASK, &oldmask, NULL);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B,-1);
 }
 
 
 
 /**
- * 
+ * Reset an alarm set with @a bk_signal_set_signal
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
@@ -380,34 +458,56 @@ bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags)
 
   sigemptyset(&newmask);
   sigaddset(&newmask, SIGALRM);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   sigprocmask(SIG_BLOCK, &newmask, &oldmask);
   setmask = 1;
 
-  if (bk_signal_reset(B, args, flags) <0)
+  if (bk_signal_reset(B, args, flags|BK_SIGNAL_PRELOCKED) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not reset alarm\n");
     goto error;
   }
 
-  /* 
+  /*
    * Since we know that reset our *own* handler and SIGALRM has been
    * blocked it's almost 100% certain that this is OK (ie that someone has
    * not sneaked in an alarm of his own which we are now nuking.
    */
   alarm(0);
-  
+
   sigprocmask(SIG_SETMASK, &oldmask, NULL);
   setmask = 0;					// protect against future code
 
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B,0);
-  
+
  error:
   if (setmask) sigprocmask(SIG_SETMASK, &oldmask, NULL);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, BK_SIGNAL_PRELOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B,-1);
 }
 
+
+
 /**
  * Create a ba
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_signal_saved on success.
@@ -432,6 +532,10 @@ bss_create(bk_s B)
 
 /**
  * Destroy a @a bk_signal_saved.
+ *
+ * THREADS: MT-SAFE (assuming different ba)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param ba The @a bk_signal_saved to destroy.
  */

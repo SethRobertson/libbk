@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_sysutils.c,v 1.3 2002/08/21 02:42:01 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_sysutils.c,v 1.4 2003/05/02 03:29:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -39,6 +39,8 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * the caller must free.
  *
  * <TODO>I am given to understand not everyone supports gethostname</TODO>
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>

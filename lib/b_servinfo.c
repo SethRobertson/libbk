@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_servinfo.c,v 1.5 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_servinfo.c,v 1.6 2003/05/02 03:29:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -38,6 +38,9 @@ static void bsi_destroy (bk_s B,struct bk_servinfo *bsi);
 
 /**
  * Allocate a @a servinfo.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a servinfo on success.
@@ -68,6 +71,9 @@ bsi_create (bk_s B)
  * it is destroyed too. This is probably not what you want in most
  * cases. Just make sure that you NULL it out if you don't want it nuked.
  *
+ * THREADS: MT-SAFE (assuming different bsi)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bsi to destroy.
  */
@@ -81,7 +87,7 @@ bsi_destroy (bk_s B,struct bk_servinfo *bsi)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   if (bsi->bsi_servstr) free (bsi->bsi_servstr);
   free(bsi);
 
@@ -92,6 +98,8 @@ bsi_destroy (bk_s B,struct bk_servinfo *bsi)
 
 /**
  * Create a @a servinfo from a traditional @a servent. Allocates memory.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param s @a servent to copy.
@@ -115,7 +123,7 @@ bk_servinfo_serventdup (bk_s B, struct servent *s)
     bk_error_printf(B, BK_ERR_ERR, "Could not create bsi\n");
     goto error;
   }
-  
+
   if (s->s_name)
   {
     if (!(bsi->bsi_servstr = strdup(s->s_name)))
@@ -154,6 +162,9 @@ bk_servinfo_serventdup (bk_s B, struct servent *s)
  * <em>host</em> order here (since the input comes from a user. If @a
  * servname is NULL, then a string made from the (host order) port is
  * quietly constructed.. Allocates memory.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param servname Optional name of the service.
  *	@param port Port number in <em>host</em> order.
@@ -166,7 +177,7 @@ bk_servinfo_user(bk_s B, char *servstr, u_short port, char *protostr)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_servinfo *bsi = NULL;
-  
+
   if (!(bsi = bsi_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bsdi\n");
@@ -207,6 +218,10 @@ bk_servinfo_user(bk_s B, char *servstr, u_short port, char *protostr)
 
 /**
  * Public @a servinfo destuctor
+ *
+ * THREADS: MT-SAFE (assuming different bsi)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bsi The @a servinfo to destroy.
  *	@return <i>-1</i> on failure.<br>
@@ -231,6 +246,10 @@ bk_servinfo_destroy (bk_s B,struct bk_servinfo *bsi)
 
 /**
  * Clone a @a servinfo. Allocates memory.
+ *
+ * THREADS: MT-SAFE (assuming different obsi)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param obsi The old @a bk_servinfo from which to clone.
  *	@return <i>NULL</i> on failure.<br>

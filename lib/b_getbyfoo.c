@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.23 2003/04/07 18:43:06 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.24 2003/05/02 03:29:58 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -645,6 +645,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
     if (family) 
     {
 #ifdef HAVE_INET6
+      // <BUG ID="881">Switch to RFC 2553 API functions like getaddrinfo and getnameinfo here and everywhere</BUG>
       h = BK_GETHOSTBYNAME2(name, family);
 #else
       if (family == AF_INET)

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.75 2003/04/28 21:59:12 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.76 2003/05/02 03:29:58 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3461,6 +3461,12 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
   {
     BK_FLAG_SET(in_flags, BK_IOH_COALESCE_FLAG_MUST_COPY);
     nulldata = 1;
+  }
+
+  if (cdata < 0 || nulldata < 0 || cdata+nulldata < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Overflow condition!  More than 2^31 bytes in queue...\n");
+    goto error;
   }
 
   if (cbuf > 1 || (curvptr && curvptr->ptr && curvptr->len > 0) || 

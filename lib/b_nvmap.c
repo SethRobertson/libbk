@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_nvmap.c,v 1.9 2003/01/24 18:20:24 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_nvmap.c,v 1.10 2003/05/02 03:29:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -28,6 +28,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * Convert the name to a value.
  *
+ * THREADS: MT-SAFE (assuming different or const nvmap)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param name The name to convert
  *	@return <i>-1</i> on failure.<br>
@@ -49,10 +52,10 @@ bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name)
   {
     if (BK_STREQ(n->bnvm_name, name))
     {
-      BK_RETURN(B,n->bnvm_val);      
+      BK_RETURN(B,n->bnvm_val);
     }
   }
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
 
 
@@ -60,6 +63,9 @@ bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name)
 
 /**
  * Convert a value to a name.
+ *
+ * THREADS: MT-SAFE (assuming different or const nvmap)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param val The value to match.
@@ -82,8 +88,8 @@ bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, int val)
   {
     if (n->bnvm_val == val)
     {
-      BK_RETURN(B,n->bnvm_name);      
+      BK_RETURN(B,n->bnvm_name);
     }
   }
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }

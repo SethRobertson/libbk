@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.5 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.6 2003/05/02 03:29:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -39,6 +39,8 @@ static void bpi_destroy (bk_s B,struct bk_protoinfo *bpi);
 /**
  * Allocate a @a protoinfo.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a protoinfo on success.
@@ -67,6 +69,9 @@ bpi_create (bk_s B)
 /**
  * Destroy a @a protoinfo.
  *
+ * THREADS: MT-SAFE (assuming different bpi)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bpi to destroy.
  */
@@ -80,7 +85,7 @@ bpi_destroy (bk_s B,struct bk_protoinfo *bpi)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   if (bpi->bpi_protostr) free(bpi->bpi_protostr);
   free(bpi);
 
@@ -91,6 +96,8 @@ bpi_destroy (bk_s B,struct bk_protoinfo *bpi)
 
 /**
  * Create a @a protoinfo from a traditional @a protoent. Allocates memory.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param s @a protoent to copy.
@@ -115,7 +122,7 @@ bk_protoinfo_protoentdup(bk_s B, struct protoent *p)
     bk_error_printf(B, BK_ERR_ERR, "Could not create bpi\n");
     goto error;
   }
-  
+
   if (p->p_name)
   {
     if (!(bpi->bpi_protostr = strdup(p->p_name)))
@@ -146,13 +153,15 @@ bk_protoinfo_protoentdup(bk_s B, struct protoent *p)
   BK_RETURN(B,NULL);
 }
 
-  
+
 
 #ifdef PROBABLY_NOT_USEFUL
 /**
  * Create a protoinfo from user information.  If @a
  * protoname is NULL, then a string made from the proto is
  * quietly constructed. Allocates memory.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param protoname Optional name of the protocol.
@@ -165,7 +174,7 @@ bk_protoinfo_user(bk_s B, char *protoname, int proto)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_protoinfo *bpi=NULL;
-  
+
   if (!(bpi=bpi_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bsdi\n");
@@ -191,10 +200,10 @@ bk_protoinfo_user(bk_s B, char *protoname, int proto)
       goto error;
     }
   }
-  
+
   bpi->bpi_flags=0;
   bpi->bpi_proto=proto;
-    
+
   BK_RETURN(B,bpi);
 
  error:
@@ -207,6 +216,9 @@ bk_protoinfo_user(bk_s B, char *protoname, int proto)
 
 /**
  * Public @a protoinfo destuctor
+ *
+ * THREADS: MT-SAFE (assuming different bpi)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a protoinfo to destroy.
@@ -232,6 +244,9 @@ bk_protoinfo_destroy (bk_s B,struct bk_protoinfo *bpi)
 
 /**
  * Clone a @a protoinfo. Allocates memory.
+ *
+ * THREADS: MT-SAFE (assuming different bpi)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>

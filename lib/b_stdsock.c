@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stdsock.c,v 1.7 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_stdsock.c,v 1.8 2003/05/02 03:29:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -29,7 +29,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * Enable multicasting for a certain FD
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state
  *	@param fd File descriptor (socket) to manipulate
  *	@param ttl Time to live to use
  *	@param maddrgroup IP address to join
@@ -57,7 +59,7 @@ int bk_stdsock_multicast(bk_s B, int fd, u_char ttl, struct bk_netaddr *maddrgro
     bk_error_printf(B, BK_ERR_ERR, "Could not set multicast ttl preference to %d: %s\n",ttl, strerror(errno));
     BK_RETURN(B, -1);
   }
-    
+
   if (BK_FLAG_ISCLEAR(flags, BK_MULTICAST_NOJOIN) && maddrgroup)
   {
     memset(&mreq, 0, sizeof(mreq));
@@ -70,7 +72,7 @@ int bk_stdsock_multicast(bk_s B, int fd, u_char ttl, struct bk_netaddr *maddrgro
       BK_RETURN(B, -1);
     }
   }
-    
+
   BK_RETURN(B, 0);
 }
 
@@ -79,7 +81,9 @@ int bk_stdsock_multicast(bk_s B, int fd, u_char ttl, struct bk_netaddr *maddrgro
 /**
  * Enable broadcasting for a certain FD
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state
  *	@param fd File descriptor (socket) to manipulate
  *	@param flags fun for the future
  *	@return <i>0</i> success
@@ -95,6 +99,6 @@ int bk_stdsock_broadcast(bk_s B, int fd, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Could not set broadcast preference: %s\n",strerror(errno));
     BK_RETURN(B, -1);
   }
-    
+
   BK_RETURN(B, 0);
 }

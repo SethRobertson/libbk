@@ -1,18 +1,18 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.10 2003/02/28 21:06:17 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.11 2003/05/02 03:29:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
- * 
+ *
  * Copyright (c) 2002 The Authors. All rights reserved.
- * 
+ *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- * 
+ *
  * Mail <projectbaka@baka.org> for further information
- * 
+ *
  * --Copyright LIBBK--
  */
 
@@ -37,15 +37,15 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  *
  * Copyright (c) 1991 Bell Communications Research, Inc. (Bellcore)
  *
- * Permission to use, copy, modify, and distribute this material 
- * for any purpose and without fee is hereby granted, provided 
- * that the above copyright notice and this permission notice 
- * appear in all copies, and that the name of Bellcore not be 
- * used in advertising or publicity pertaining to this 
- * material without the specific, prior written permission 
- * of an authorized representative of Bellcore.	BELLCORE 
- * MAKES NO REPRESENTATIONS ABOUT THE ACCURACY OR SUITABILITY 
- * OF THIS MATERIAL FOR ANY PURPOSE.  IT IS PROVIDED "AS IS", 
+ * Permission to use, copy, modify, and distribute this material
+ * for any purpose and without fee is hereby granted, provided
+ * that the above copyright notice and this permission notice
+ * appear in all copies, and that the name of Bellcore not be
+ * used in advertising or publicity pertaining to this
+ * material without the specific, prior written permission
+ * of an authorized representative of Bellcore.	BELLCORE
+ * MAKES NO REPRESENTATIONS ABOUT THE ACCURACY OR SUITABILITY
+ * OF THIS MATERIAL FOR ANY PURPOSE.  IT IS PROVIDED "AS IS",
  * WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
  */
 // @{
@@ -53,7 +53,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define MAX_LINE  76				///< size of encoded lines
 
 /// The characters used for encoding, in order of their usage
-static char basis_64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static const char basis_64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 #define XX      255				///< illegal base64 char
 #define EQ      254				///< padding
@@ -62,7 +62,7 @@ static char basis_64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01
 /**
  * The mime decode lookup table
  */
-static unsigned char index_64[256] = {
+static const unsigned char index_64[256] = {
     XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
     XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
     XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,62, XX,XX,XX,63,
@@ -90,6 +90,8 @@ static unsigned char index_64[256] = {
  * separate each line ("\n" used if the eol string is NULL).  If the eol
  * sequence is non-NULL, it will additionally be used to terminate the last
  * line. This function allocates memory which must be freed with free(3).
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/Global state
  *	@param src Source memory to convert
@@ -137,6 +139,12 @@ char *bk_encode_base64(bk_s B, const bk_vptr *src, const char *eolseq)
     rlen += ((rlen-1) / MAX_LINE + 1) * eollen;
   }
   rlen++;					// Add space for null termination
+
+  if (rlen < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Overflow situation, length is %d bytes\n", rlen);
+    BK_RETURN(B, NULL);
+  }
 
   /* allocate a result buffer */
   if (!(ret = BK_MALLOC_LEN(r, rlen)))
@@ -202,12 +210,14 @@ char *bk_encode_base64(bk_s B, const bk_vptr *src, const char *eolseq)
 /**
  * Decode a base64 encoded buffer into memory buffer.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA Thread/Global state
  *	@param src Source memory to convert
  *	@param eolseq End of line sequence.
  *	@return <i>NULL</i> on error
  *	@return <br><i>decoded buffer</i> on success which caller must free
- *	(both bk_vptr and allocated buffer ptr) 
+ *	(both bk_vptr and allocated buffer ptr)
  */
 bk_vptr *bk_decode_base64(bk_s B, const char *str)
 {
@@ -234,6 +244,14 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
   len = strlen(str);
   rlen = len * 3 / 4;				// Might be too much, but always enough
   rlen++;					// Add space for null termination
+
+  if (rlen < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Overflow situation, length is %d bytes\n", rlen);
+    free(ret);
+    BK_RETURN(B, NULL);
+  }
+
   if (!BK_MALLOC_LEN(ret->ptr, rlen))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate return structure\n");
@@ -274,7 +292,7 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
 	break;
       }
     } while (i < 4);
-	    
+
     if (c[0] == EQ || c[1] == EQ)
     {
       bk_error_printf(B, BK_ERR_WARN, "Premature padding of base64 data\n");
@@ -315,6 +333,8 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
  * passed as-is, even though they are only valid if the appropriate encoding
  * was specified in the <?xml?> processing instruction.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param str The string to convert
  *	@param flags
@@ -346,8 +366,8 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate xml string: %s\n", strerror(errno));
     goto error;
   }
-  
-  
+
+
   p = xml;
   while((c = *str))
   {
@@ -382,7 +402,7 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
 	len -= l;
 	p += l;
 	break;
-	
+
       case '>':
 	l = sizeof(XML_GT_STR) - 1;
 	memcpy(p, XML_GT_STR, l);
@@ -426,5 +446,5 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
   if (xml)
     free(xml);
 
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.12 2003/03/19 20:00:16 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.13 2003/05/02 03:29:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -34,7 +34,9 @@ static void bk_printserious(bk_s B, FILE *output, char *type, char *reason, bk_f
  * Intentional lack of BK_ENTRY et al
  * Does not return.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: EVIL (it exits, you see, otherwise MT-SAFE)
+ *
+ *	@param B BAKA thread/global state
  *	@param retcode Return code
  *	@param output File handle to dump death information
  *	@param reason Reason we are dying
@@ -59,7 +61,9 @@ void bk_die(bk_s B, u_char retcode, FILE *output, char *reason, bk_flags flags)
  * Warn -- print a strong warning message of major problems
  * Intentional lack of BK_ENTRY et al.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state
  *	@param retcode Return code
  *	@param output File handle to dump death information
  *	@param reason Reason we are dying
@@ -83,8 +87,10 @@ void bk_warn(bk_s B, FILE *output, char *reason, bk_flags flags)
 /**
  * Private warn/die message output.
  * Intentional lack of BK_ENTRY et al.
- #
- *	@param B BAKA thread/global state 
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state
  *	@param output Output file handle to direct output
  *	@param type of error message (warn/die)
  *	@param reason that user specified
@@ -118,7 +124,9 @@ static void bk_printserious(bk_s B, FILE *output, char *type, char *reason, bk_f
  * Normal program exit.
  * Does not return.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: EVIL (it exits, you see)
+ *
+ *	@param B BAKA thread/global state
  *	@param retcode Return code
  */
 void bk_exit(bk_s B, u_char retcode)
@@ -135,6 +143,8 @@ void bk_exit(bk_s B, u_char retcode)
 
 /**
  * Dmalloc shutdown the way that the destroy funlist likes
+ *
+ * THREADS: MT-SAFE (assuming dmalloc is safe)
  *
  * @param B Baka thread/global environment
  * @param opaque Opaque data

@@ -1,8 +1,28 @@
+2003-05-01  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_sysutils.c: Specify thread state
+
+	* lib/b_stdsock.c: Specify thread state
+
+	* lib/b_strcode.c: Specify thread state
+
+	* lib/b_skid.c: SKID is buggy and has never been tested, disable.
+
+	* lib/b_servinfo.c: Specify thread state
+
+	* lib/b_protoinfo.c: Specify thread state
+
+	* lib/b_nvmap.c: Specify thread state
+
+	* lib/b_memx.c (bk_memx_addstr): Update thread state
+
+	* lib/b_netaddr.c: Specify thread state
+
 2003-05-01  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_run.c (bk_run_fd_cancel_*): check that flags is set
 	[immediate cause of EOF ignoring bug in file-plug]
-	
+
 2003-04-28  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (BK_RETURN): eliminate umpteen billion calls to
@@ -13,16 +33,16 @@
 
 	* lib/b_fun.c (bk_fun_exit): make the billion calls to _errno_location
 	here, in a function only called if seatbelts are turned on
-	
+
 	* lib/b_strconv.c (bk_string_atou64_int): ignore trailing whitespace
 	[applies to all of bk_string_ato{flag,[ui]{32,64}}]
 	(bk_string_atod): return 1 for trailing junk, just like integers
 	[also applies to bk_string_atof]
-	
+
 2003-04-17  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_string.c (bk_string_registry_insert): Return the *correct*
-	value from registry insert. 
+	value from registry insert.
 
 2003-04-14  Seth Robertson  <seth@startide.sysdetect.com>
 
@@ -159,9 +179,9 @@
 
 2003-03-21  Alexander Dupuy  <dupuy@sysdetect.com>
 
-	* lib/b_url.c (bk_url_reconstruct): James' idea of a "valid" URL 
+	* lib/b_url.c (bk_url_reconstruct): James' idea of a "valid" URL
 	isn't quite the same as that of pcap or mailto.
-	
+
 2003-03-20  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* xml/b_search.c (bkxml_attrnode_data): Restore AWB default of
@@ -185,7 +205,7 @@
 	* xml/b_search.c: libbkxml for non-awb-specific XML routines
 	[licensing needed them and licensing is not AWB specific].
 	These should be used in preference to a_xml.
-	
+
 2003-03-17  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_time.c (bk_time_iso_format): Add copy out flag to indicate
@@ -285,7 +305,7 @@
 
 	* lib/b_pollio.c (bk_polling_io_unthrottle): unthrottle should be noop
 	if bpi isn't already throttled
-	
+
 	* lib/b_run.c (bk_run_destroy): fix for ticket #590 double free
 
 2003-01-20  Seth Robertson  <seth@startide.sysdetect.com>
@@ -310,7 +330,7 @@
 	* lib/b_strcode.c (bk_string_str2xml): partial fix for ticket #963:
 	always allow whitespace chars, implement entity-encoding correctly,
 	and use sizeof rather than strlen
-	
+
 2002-12-20  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_fileutils.c: note additional security flaws in this code
@@ -363,7 +383,7 @@
 	without initialization.
 
 2002-11-04  Seth Robertson  <seth@startide.sysdetect.com>
-	
+
 	* README.THREADS: Minor updates now that we are starting to do
 	this.  Keep list of functions converted so far, for quick
 	reference when trying to propagate thread safety.
@@ -428,7 +448,7 @@
 
 	* lib/b_error.c (bk_error_iprint): J.Brian thinks that omitting -O2
 	makes it easier to debug, but he just loses helpful compiler errors
-	
+
 2002-10-16  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_error.c (bk_error_iprint): Added rudimentary error
@@ -479,7 +499,7 @@
 2002-09-26  James Tanis  <jtt@hawking.sysdetect.com>
 
 	* include/libbk.h (BK_MAX_SHORT): Add a few constants, which are
-	_likely_ to exist on all archs, but let's be sure. 
+	_likely_ to exist on all archs, but let's be sure.
 
 2002-09-26  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
@@ -499,7 +519,7 @@
 	* lib/b_run.c (bk_run_set_dont_block_run_once): Add flag so that
 	asynchronous events can cause the current bk_run_once() not to
 	block, just as callers of bk_run_once() may with
-	BK_RUN_ONCE_FLAG_DONT_BLOCK. 
+	BK_RUN_ONCE_FLAG_DONT_BLOCK.
 
 2002-09-10  James Tanis  <jtt@saint.sysdetect.com>
 
@@ -521,8 +541,8 @@
 
 	* lib/b_time.c (bk_time_iso_format): Added BK_TIME_FORMAT_FLAG_NO_TZ.
 
-	* lib/b_run.c (bk_run_register_bnbio): 
-	(bk_run_unregister_bnbio): 
+	* lib/b_run.c (bk_run_register_bnbio):
+	(bk_run_unregister_bnbio):
 	(bk_run_bnbio_cancel): Functions for managing blocking
 	[-non-blocking] i/o so that blocking calls can be cancelled.
 
@@ -564,7 +584,7 @@
 	* lib/b_netutils.c (bk_inet_ntoa): Need to null terminate
 	addresses.  I *hope* this will not break anything, and it was
 	previously documented to require my change...
-	
+
 2002-08-27  Seth Robertson  <seth@winwood.sysdetect.com>
 
 	* lib/b_string.c (bk_strhash): Combine old and new string hash
@@ -577,7 +597,7 @@
 	* lib/b_string.c: weird insure++ error was just due to feeping
 	creaturism of string functions; splitting b_string.c into two files
 	eliminates the problem until we add another ten functions more...
-	
+
 	* lib/b_strconv.c: string conversion functions [bk_string_*to* et al.]
 
 2002-08-27  Seth Robertson  <seth@startide.sysdetect.com>
@@ -630,13 +650,13 @@
 2002-08-12  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_netutils.c (bk_inet_ntoa): "Thread safe" version of
-	inet_ntoa(). 
+	inet_ntoa().
 
 2002-08-05  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_url.c (bk_url_parse): break out host/service from authority
 	even if BK_URL_FLAG_STRICT_PARSE is specified.
-	
+
 2002-07-24  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_string.c (bk_string_flagtoa, bk_string_atoflag): avoid using
@@ -661,10 +681,10 @@
 
 	* include/libbk.h (BK_STRING_ATOD_FLAG_ALLOW_INF, NAN): new flags,
 	add const to some debug, error print arguments
-	
+
 	* lib/b_string.c (bk_string_atod, bk_string_atof): allow infinity or
 	not-a-number if you ask for it with flags
-	
+
 	* lib/b_debug.c (bk_debug_*print*): add const to some arguments
 
 	* lib/b_error.c (bk_error_*print*): add const to some arguments
@@ -867,7 +887,7 @@
 
 	* include/libbk_oscompat.h: map O_SYNC->O_FSYNC, O_NONBLOCK->O_NDELAY
 	on any OS which feels the need to be different
-	
+
 2002-04-26  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_pollio.c (polling_io_ioh_handler): Using [0] to reference
@@ -890,7 +910,7 @@
 
 	* lib/b_error.c: added bk_error_istrdump to dump errors to string
 	* include/libbk.h: same
-	
+
 2002-04-18  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* include/libbk_net.h: Internal version of common network headers
@@ -933,7 +953,7 @@
 	* lib/b_md5.c (bk_MD5_extract_printable): Copy out md5 digest into
 	32 byte printabe buffer.
 
-	* lib/b_ioh.c (ioht_vector_queue): Same fix as below. 
+	* lib/b_ioh.c (ioht_vector_queue): Same fix as below.
 
 	* lib/b_pollio.c (bk_polling_io_write): Keep trying to queue data
 	if refused until you either succeed or faile miserably.
@@ -971,7 +991,7 @@
 	* test/test_locks.c, test/test_stringconv.c, test/test_time.c:
 	* test/test_url.c, test/testhashspeed.c:
 	* test/testrandidea.c: use LOG_USER, not BK_ERR or LOG_LOCAL0
-	
+
 2002-03-19  James Tanis  <jtt@saint.sysdetect.com>
 
 	* include/libbk.h (BK_USECTONSEC): Convert usecs <=> nsecs.
@@ -1035,7 +1055,7 @@
 	(BK_STREQCASE, BK_STRNEQCASE): use str{n,}casecmp
 	(BK_URL_SCHEME_EQ, BK_URL_AUTHORITY_EQ, BK_URL_PATH_EQ): use correct
 	str{n,}{case,}cmp variant
-	
+
 2002-03-05  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (CONVERT_SUBSECSNTP2TIMEVAL): for completeness
@@ -1065,7 +1085,7 @@
 
 	* include/libbk_oscompat.h (BK_INIT_FUN, BK_FINISH_FUN) [__INSURE__]:
 	use asm() to set up ctors/dtors since that doesn't offend insure++
-	
+
 2002-02-27  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_time.c (bk_time_ntp_parse): Parse ntp time into struct
@@ -1087,7 +1107,7 @@
 	* include/libbk_oscompat.h (BK_FUNCNAME): portable use of __func__
 	(ntohll, htonll): cast everything to u_int64_t before 32 bit shifts
 	suppress Insure error
-	
+
 2002-02-20  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h: declare bk_ioh_print{,f}
@@ -1106,7 +1126,7 @@
 	interface.
 
 	* lib/b_ioh.c (bk_ioh_coalesce): New flags to force [on input] copies
-	and [on output] to indicate whether a copy had not happened. 
+	and [on output] to indicate whether a copy had not happened.
 	(bk_ioh_coalesce): Do *not* free input vptr [violation of IOH API].
 
 2002-02-11  Alexander Dupuy  <dupuy@sysdetect.com>
@@ -1115,7 +1135,7 @@
 
 	* include/libbk_oscompat.h: undef _CONSTRUCTOR_ATTRIBUTE,_INIT_PRAGMA
 	for Insure++ compilation
-	
+
 2002-02-11  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_string.c (bk_string_intcols): DOH Some real dumb errors.
@@ -1252,7 +1272,7 @@
 	(bk_url_parse): separate strict parse flag for function from flags
 	in structure
 	(count_colons): eliminated this obsolete static function
-	
+
 	* lib/b_general.c (bk_general_proctitle_init): don't confuse flag
 	for function with flag in structure; always turn off proctitle
 	stuff when running with Insure++
@@ -1287,7 +1307,7 @@
 2001-12-27  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_url.c (bk_url_parse): missed a few critical search
-	stopping characters in the fuzzy logic code. 
+	stopping characters in the fuzzy logic code.
 
 2001-12-27  Alexander Dupuy  <dupuy@sysdetect.com>
 
@@ -1370,7 +1390,7 @@
 	* lib/b_string.c (bk_strndup): Allocate extra space for NULL.
 
 	* lib/b_signal.c (bk_signal_mgmt): Allow users to manage signal
-	handlers. 
+	handlers.
 	(bk_signal_set_alarm): Function to safely seize control of a signal.
 	(bk_signal_reset_alarm): Function to safely reset the above.
 	(bk_signal_set): Function to safely seize control of any signal.
@@ -1436,7 +1456,7 @@
 	initialized [jtt must have dropped this somewhere today].
 
 	* src/bttcp.c (proginit): Patch up old service staring names to
-	new. 
+	new.
 
 	* lib/b_netutils.c (bk_parse_endpt_no_defaults): Convenience
 	function for parsing a url with no default values [as in a default
@@ -1459,7 +1479,7 @@
 	are not freed. Make sure that sss is not freed once callback has
 	been called [it was freed in the callback].
 	(bk_netutils_make_conn): make sure that all temporary values are
-	freed. 
+	freed.
 
 	* lib/b_netinfo.c (bk_netinfo_advance_primary_address): Function
 	to iterate thru address list, setting each to primary in turn.
@@ -1489,7 +1509,7 @@
 	* lib/b_servinfo.c: protostr nuked from servinfo.
 
 	* lib/b_netutils.c (bk_netutils_start_service): Conform to new
-	interface. 
+	interface.
 	(sss_serv_gethost_complete): Best effort callback.
 	(bk_netutils_make_conn): Get proto and serv info in one shot
 	(bk_netutils_make_conn): Best effort callback.
@@ -1660,7 +1680,7 @@
 	monstrously large heterogenous ones.
 
 	* lib/b_addrgroup.c (everywhere): replace net_close with
-	net_init_abort(). 
+	net_init_abort().
 
 2001-11-16  Seth Robertson  <seth@startide.sysdetect.com>
 
@@ -1690,7 +1710,7 @@
 	variables.
 
 	* b_netaddr.c: Properly updae a bk_netaddr on the basis of a net
-	address. 
+	address.
 
 	* b_getbyfoo.c: Fixes for allowing copyout structure to be NULL.
 
@@ -1727,7 +1747,7 @@
 	variable [switching on flags instead].
 	(ioh_getlastbuf): Must offset for both inuse [read] and used
 	[write]
-	
+
 	* lib/b_error.c (bk_error_iprint): File handles is another legal
 	output source.
 
@@ -1751,7 +1771,7 @@
 
 	* lib/b_ioh.c (ioht_raw_other): Remove data from queue after freeing it.
 	IOH now working [for some value of working] in RAW mode
-	
+
 	* test/test_ioh.c (relayer): Bug which caused us to trash memory
 
 	* lib/b_error.c (bk_error_idump): Change order--less recent comes first
@@ -1808,7 +1828,7 @@
 2001-11-06  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* test/test_getbyfoo.c (progrun): test program for getbyfoo
-	functions. 
+	functions.
 
 	* lib/b_getbyfoo.c (bk_getprotobyfoo): Get protoent by
 	anything [not yet mutex'ed].
@@ -1832,10 +1852,10 @@
 	* lib/b_stdfun.c: Document standard functions.
 
 	* lib/*.c: Change to new CLC iterate interface, updating all CLC #defines
-	
+
 	* lib/b_error.c: Add mark and filtering handling to error queue to improve its capabilities.
 	Document error handling.
-	
+
 2001-11-05  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* src/proto.c (main): Port to popt.
@@ -2011,7 +2031,7 @@
 	* lib/b_debug.c (bk_debug_iprint): Convert to using bk_general_syslog
 
 	* lib/*.c: CLC #defines had _uniq screwed up
-	
+
 	* lib/b_funlist.c: Fill out funlist functions
 
 	* lib/b_general.c: New funlist APIs.
@@ -2020,7 +2040,7 @@
 
 	* lib/b_fun.c (bk_fun_destroy): Convert to DICT_NUKE_CONTENTS
 	* lib/b_debug.c (bk_debug_destroy): Convert to DICT_NUKE_CONTENTS
-	
+
 	* lib/b_error.c: Write error functions
 
 	* lib/b_debug.c: error functions will have incorrect function name

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.12 2003/02/11 06:22:38 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.13 2003/05/02 03:29:58 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,13 +19,16 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  * Extendible buffer management routines (dynamicly sized arrays).
+ *
+ * Alex sez: we need an accessor function for bm_curused(definitely) and bm_unitsize(maybe).
+ *
+ * Seth sez: we already have one (for curused at least).  See bk_memx_get.
  */
 
 #include <libbk.h>
 #include "libbk_internal.h"
 
 
-// XX Alex sez: we need an accessor function for bm_curused(definitely) and bm_unitsize(maybe).
 
 /**
  * Information about an extensible buffer being managed
@@ -102,7 +105,7 @@ struct bk_memx *bk_memx_create(bk_s B, size_t unitsize, u_int start_hint, u_int 
  *
  * THREADS: MT-SAFE (as long as bm is thread-private)
  *
- *	@param B BAKA Thread/global state 
+ *	@param B BAKA Thread/global state
  *	@param bm Buffer management handle
  *	@param flags BK_MEMX_PRESERVE_ARRAY if the allocated memory
  *		must live on (will be free'd later) but the dynamic buffer
@@ -247,7 +250,7 @@ bk_memx_lop(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags)
   memmove(bm->bm_array, (char *)bm->bm_array + count * bm->bm_unitsize, (bm->bm_curused - count) * bm->bm_unitsize);
   bm->bm_curused -= count;
 
-  BK_RETURN(B,0);    
+  BK_RETURN(B,0);
 }
 
 
@@ -256,6 +259,8 @@ bk_memx_lop(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags)
  * Special hack in this is a string.  Create the necessary space and
  * append the supplied string on the end of the old string.
  * Maintaining NULL termination, of course.
+ *
+ * THREADS: MT-SAFE (as long as bm is thread-private)
  *
  * @param B Baka Thread/global environment
  * @param bm Memx structure

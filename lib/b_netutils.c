@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.20 2002/08/31 04:05:07 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.21 2003/05/02 03:29:58 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -17,9 +17,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 
 /**
- * @file 
+ * @file
  * Random network utility functions. This a sort of a catch-all file
- * (though clearly each functino should have somethig to do with network
+ * (though clearly each function should have something to do with network
  * code.
  */
 
@@ -33,15 +33,15 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-/** 
+/**
  * All the state which must be saved during hostname determination in order
  * to pass onto bk_net_init()
  */
 struct start_service_state
 {
   bk_flags			sss_flags;	///< Everyone needs flags.
-  struct bk_netinfo *  		sss_lbni;	///< bk_netinfo.
-  struct bk_netinfo *  		sss_rbni;	///< bk_netinfo.
+  struct bk_netinfo *		sss_lbni;	///< bk_netinfo.
+  struct bk_netinfo *		sss_rbni;	///< bk_netinfo.
   bk_bag_callback_f		sss_callback;	///< User callback.
   void *			sss_args;	///< User args.
   char *			sss_securenets;	///< Securenets info.
@@ -65,7 +65,7 @@ static void sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hos
  * Get the length of a sockaddr (not every OS supports sa_len);
  *
  *	@param B BAKA thread/global state.
- *	@param sa @a sockaddr 
+ *	@param sa @a sockaddr
  *	@return <i>-1</i> on failure.<br>
  *	@return @a sockaddr <i>length</i> on success.
  */
@@ -337,7 +337,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
   {
     bk_error_printf(B, BK_ERR_WARN, "Securenets are not yet implemented, Caveat emptor.\n");
   }
-  
+
   if (!hoststr || !servstr || !protostr)
   {
     bk_error_printf(B, BK_ERR_ERR, "Must specify all three of host/service/protocol\n");
@@ -386,7 +386,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
   if (servstr) free(servstr);
   if (protostr) free(protostr);
   BK_RETURN(B,0);
-  
+
  error:
   if (hoststr) free(hoststr);
   if (servstr) free(servstr);
@@ -394,7 +394,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
   if (bni) bk_netinfo_destroy(B, bni);
   if (sss) sss_destroy(B, sss);
   BK_RETURN(B,-1);
-  
+
 }
 
 
@@ -420,7 +420,7 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defurl, b
   char *defservstr = NULL;
   char *defprotostr = NULL;
   int ret;
-  
+
   if (!run || !(url || defurl))
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
@@ -438,11 +438,11 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defurl, b
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not start service\n");
   }
-  
+
   if (defhoststr) free(defhoststr);
   if (defservstr) free(defservstr);
   if (defprotostr) free(defprotostr);
-  
+
   BK_RETURN(B,ret);
 }
 
@@ -492,11 +492,11 @@ sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent *h, struct
     bk_error_printf(B, BK_ERR_ERR, "Could not open service\n");
     goto error;
   }
-  
+
   sss_destroy(B, sss);
   BK_VRETURN(B);
 
- error:  
+ error:
   if (sss)
   {
     /* This *really* sucks, we have to call back the user */
@@ -514,6 +514,9 @@ sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent *h, struct
 
 /**
  * Create a start_service_state structure.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new sss on success.
@@ -523,13 +526,13 @@ sss_create(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct start_service_state *sss;
-  
+
   if (!(BK_CALLOC(sss)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate sss: %s\n", strerror(errno));
     goto error;
   }
-  
+
   BK_RETURN(B,sss);
 
  error:
@@ -553,7 +556,7 @@ sss_destroy(bk_s B, struct start_service_state *sss)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   if (sss->sss_host) free(sss->sss_host);
   if (sss->sss_lbni) bk_netinfo_destroy(B,sss->sss_lbni);
   if (sss->sss_rbni) bk_netinfo_destroy(B,sss->sss_rbni);
@@ -624,7 +627,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
     bk_error_printf(B, BK_ERR_ERR, "Must specify all three of remote host/service/protocol\n");
     goto error;
   }
-  
+
   if (!deflhost) deflhost = BK_ADDR_ANY;
   if (!deflserv) deflserv = "0";
   if (!defproto) defproto = "tcp";
@@ -695,7 +698,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
     goto error;
   }
 
-  /* 
+  /*
    * In the following "pass off" means that the sss struct and the
    * callbacks for which it saves state are assuming control of these
    * puppies and will free them if required,
@@ -706,7 +709,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
   sss->sss_lbni = lbni;				/* Pass off lbni */
   lbni = NULL;
   sss->sss_callback = callback;			/* Pass off callback */
-  /* 
+  /*
    * From here on we do *not* want to manually call callback on error since
    * it will have already been called.
    */
@@ -737,7 +740,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
   if (lservstr) free(lservstr);
   if (lprotostr) free(lprotostr);
   BK_RETURN(B,0);
-  
+
  error:
   if (callback)
   {
@@ -778,7 +781,7 @@ bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *defurl, u_lon
   char *defservstr = NULL;
   char *defprotostr = NULL;
   int ret;
-  
+
   if (!run || !(url || defurl))
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
@@ -796,11 +799,11 @@ bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *defurl, u_lon
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not start connection\n");
   }
-  
+
   if (defhoststr) free(defhoststr);
   if (defservstr) free(defservstr);
   if (defprotostr) free(defprotostr);
-  
+
   BK_RETURN(B,ret);
 }
 
@@ -855,7 +858,7 @@ sss_connect_rgethost_complete(bk_s B, struct bk_run *run, struct hostent *h, str
   }
 
   BK_VRETURN(B);
-  
+
  error:
   if (sss)
   {
@@ -925,7 +928,7 @@ sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent *h, str
   sss_destroy(B,sss);
   BK_VRETURN(B);
 
- error:  
+ error:
   if (sss)
   {
     /* This *really* sucks, we have to call back the user */
@@ -971,14 +974,14 @@ bk_netutils_gethostname(bk_s B)
       perror("realloc failed");
       exit(1);
     }
-    
-    /* 
-     * <TRICKY> 
+
+    /*
+     * <TRICKY>
      * We set this NUL. If we're running on arch which truncates *
      * gethostname() (the "correct" behavior evidently), then this char *
      * will get overwritten. If the hostname is shorter or just the right *
      * length this character will stay the same.
-     * </TRICKY> 
+     * </TRICKY>
      */
     p[len-1] = '\0';
     if (gethostname(p, len) < 0 && errno != ENAMETOOLONG)
@@ -994,7 +997,7 @@ bk_netutils_gethostname(bk_s B)
     len *= 2;
   }
 
-  BK_RETURN(B,p);  
+  BK_RETURN(B,p);
 
  error:
   if (p)
@@ -1025,6 +1028,6 @@ bk_inet_ntoa(bk_s B, struct in_addr addr, char *buf)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   BK_RETURN(B, strncpy(buf, inet_ntoa(addr), BK_MAX_INET_ADDR_LEN+1));
 }

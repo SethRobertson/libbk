@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_skid.c,v 1.2 2002/07/19 21:44:47 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_skid.c,v 1.3 2003/05/02 03:29:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,6 +19,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  *
+ * WARNING WARNING WARNING:  This code has never been tested and is known
+ * to have bugs in it.
+ *
  * SKID3 -- Secret Key IDentification Protocol as described in
  * B. Schneier, Applied Crptography Modified to turn it into a
  * symmetric algorithm without hopefully losing any security.
@@ -27,12 +30,12 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * The original protocol as described in Schneier
  *
  * Step		ALICE		BOB
- * 
- * A 	       	Ra	-->
- * 
+ *
+ * A		Ra	-->
+ *
  *		Alice generates 64 bit random
  *		number (Ra) and sends to Bob
- * 
+ *
  * B			<--	Rb H(Ra,Rb,Bob,K)
  *
  *		Bob generates 64 bit random number
@@ -63,21 +66,21 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * Our modified protocol--modified to make it symmetric:
  *
  * Step		ALICE		BOB
- * 
- * A1 	       	MIME(Alice) " " MIME(Ra)	-->
- * 
+ *
+ * A1		MIME(Alice) " " MIME(Ra)	-->
+ *
  *		Alice generates 128 bit random
  *		number (Ra) and sends to Bob
- * 
- * A2 	       		<--	MIME(Bob) " " MIME(Rb)
- * 
+ *
+ * A2			<--	MIME(Bob) " " MIME(Rb)
+ *
  *		Bob generates 128 bit random number (Rb) and sends to
  *		Alice without waiting for Alice's A1 message
- * 
+ *
  * Aa		Alice and Bob verify that Bob-name, Alice-name,
  *		Ra, and Rb are all different.  If any match, then
  *		Alice and/or Bob go into anti-spoof mode.
- * 
+ *
  * B1		MIME(H(Ra,Rb,Alice,K)) -->
  *
  *		Alice computes MD5 keyed hash. Bob is Bob's
@@ -121,13 +124,13 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * 128 bit random number in place of the keyed hash for step "SKID B"
  * and will return failure to the user no matter what the remote party
  * sends.
- * 
+ *
  * If a caller does not know about the remote user's name--it does not
  * match the remote name passed in, or is not in the database of
  * remote name pairs, then the detector will silently (to the remote
  * party) send a random number in place of the keyed hash for step
  * "SKID B"
- * 
+ *
  * The skid protocol will not provide any confirmation of the success
  * of the protocol--that is left to the caller.
  */
@@ -135,6 +138,8 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
+
+#ifdef SKIDHASBEENDEBUGGEDANDTESTED
 
 
 #define BK_SKID_BITS		128		///< Number of bits of randomness and hash
@@ -172,7 +177,7 @@ struct bk_skid
   bk_vptr	        bs_Rme;			///< My random number
   bk_vptr	       *bs_Rhim;		///< His random number
   bk_skid_cb		bs_done;		///< Handler
-  void		       *bs_opaque;		///< Opaque data for done handler 
+  void		       *bs_opaque;		///< Opaque data for done handler
   bk_iohhandler_f       bs_oldhandler;		///< Once and future handler of IOH
   void		       *bs_oldopaque;		///< Once and future opaque of IOH
   bk_flags	        bs_oldflags;		///< Once and future flags of IOH
@@ -293,7 +298,7 @@ int bk_skid_authenticate(bk_s B, struct bk_ioh *ioh, bk_vptr *myname, bk_vptr *h
   vbuf->len = strlen(encode1) + strlen(encode2) + strlen(BK_SKIDA) + 4;
 
   if (!(BK_MALLOC_LEN(vbuf->ptr, vbuf->len)))
-  {	
+  {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate output string: %s\n", strerror(errno));
     BK_RETURN(B, -1);
   }
@@ -384,7 +389,7 @@ void bk_skid_destroy(bk_s B, struct bk_skid *bs, bk_flags flags)
   }
 
   free(bs);
-  
+
   BK_VRETURN(B);
 }
 
@@ -419,7 +424,7 @@ static void skid_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh 
   {
   case BkIohStatusIncompleteRead:
   case BkIohStatusReadComplete:
-    if (!(newcopy = bk_ioh_coalesce(B, data, NULL, 0)))
+    if (!(newcopy = bk_ioh_coalesce(B, data, NULL, BK_IO_COALESCE_FLAG_MUST_COPY)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not coalesce skid data\n");
       bk_ioh_close(B, ioh, 0);
@@ -460,7 +465,7 @@ static void skid_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh 
 	BK_VRETURN(B);
       }
 
-      if (!(tmp = bk_decode_base64(B, tokens[1])) || 
+      if (!(tmp = bk_decode_base64(B, tokens[1])) ||
 	  !(bs->bs_Rhim = bk_decode_base64(B, tokens[2])) ||
 	  bs->bs_Rhim->len != bs->bs_Rme.len || tmp->len < 1)
       {
@@ -497,6 +502,13 @@ static void skid_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh 
 	bk_vptr skidrmnt;
 	char *encname, *source, *value;
 
+	/*
+	 * <BUG ID="1250">This keylist code is pretty broken.
+	 * bs_hisname is specified to be NULL if keylist is in use.
+	 * Make sure when fixing this to avoid integer overflow
+	 * problems, if applicable.</BUG>
+	 */
+
 	if (!(BK_MALLOC_LEN(source,bs->bs_hisname->len + strlen("SKID-") + 1)))
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory for name lookup: %s\n", strerror(errno));
@@ -507,7 +519,7 @@ static void skid_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh 
 	memcpy(source + strlen("SKID-"), bs->bs_hisname->ptr, bs->bs_hisname->len);
 	source[strlen("SKID-") + bs->bs_hisname->len] = 0;
 
- 	if (!(value = bk_config_getnext(B, bs->bs_hisnamekeylist, source, NULL)))
+	if (!(value = bk_config_getnext(B, bs->bs_hisnamekeylist, source, NULL)))
 	{
 	  if (!bs->bs_key || !bs->bs_key->ptr)
 	  {
@@ -591,7 +603,7 @@ static void skid_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh 
       }
       sprintf(vbuf->ptr, "%s %s\n", BK_SKIDB, encode1);
       vbuf->len--;
-      
+
       if (bk_ioh_write(B, ioh, vbuf, BK_IOH_BYPASSQUEUEFULL) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not output SKID A message\n");
@@ -641,3 +653,5 @@ static void skid_status(bk_s B, struct bk_skid *bs, const char *str)
 {
   // XXX
 }
+
+#endif /*SKIDHASBEENDEBUGGEDANDTESTED*/
