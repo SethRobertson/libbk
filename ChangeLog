@@ -1,3 +1,8 @@
+2002-07-24  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_string.c (bk_string_flagtoa, bk_string_atoflag): avoid using
+	'=' [looks like parameter assignment]; use traditional <> delimiters
+
 2002-07-23  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_string.c (bk_string_atod): assign value when parsing zero val

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_string.c,v 1.3 2002/07/23 15:10:09 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: test_string.c,v 1.4 2002/07/24 04:23:59 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -163,29 +163,29 @@ void progrun(bk_s B, struct program_config *pconfig)
 	strcmp(buf, "0x5")), 0);
 
   // check partial symbolic
-  TEST((bk_string_flagtoa(B, 5, buf, 11, onebit, 0),
-	strcmp(buf, "onebit~0x5")), 0);
+  TEST((bk_string_flagtoa(B, 5, buf, 13, onebit, 0),
+	strcmp(buf, "<onebit>~0x5")), 0);
 
   TEST((bk_string_atoflag(B, buf, &flags, NULL, 0),flags), 5);
 
   TEST((bk_string_flagtoa(B, 5, buf, 256, onebit, 0),
-	strcmp(buf, "onebit~0x5")), 0);
+	strcmp(buf, "<onebit>~0x5")), 0);
 
   TEST((bk_string_atoflag(B, buf, &flags, twobits, 0),flags), 5);
 
   TEST((bk_string_flagtoa(B, 7, buf, 256, twobits, 0),
-	strcmp(buf, "onebit,threebit~0x7")), 0);
+	strcmp(buf, "<onebit,threebit>~0x7")), 0);
 
   TEST((bk_string_atoflag(B, buf, &flags, twobits, 0),flags), 7);
 
   // check full symbolic
-  TEST((bk_string_flagtoa(B, 5, buf, 20, twobits, 0),
-	strcmp(buf, "onebit,threebit=0x5")), 0);
+  TEST((bk_string_flagtoa(B, 5, buf, 22, twobits, 0),
+	strcmp(buf, "<onebit,threebit> 0x5")), 0);
 
   TEST((bk_string_atoflag(B, buf, &flags, onebit, 0),flags), 5);
 
   TEST((bk_string_flagtoa(B, 5, buf, 256, twobits, 0),
-	strcmp(buf, "onebit,threebit=0x5")), 0);
+	strcmp(buf, "<onebit,threebit> 0x5")), 0);
 
   TEST((bk_string_atoflag(B, buf, &flags, twobits, 0),flags), 5);
 

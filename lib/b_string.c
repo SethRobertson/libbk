@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.49 2002/07/24 01:51:45 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.50 2002/07/24 04:23:58 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -54,9 +54,17 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	///< Check to see if the limit on numbers of tokens has been reached or not.  Yes, limit>1 and limit-- will always have the same truth value
 
+/*
+ * <TRICKY>FLAG_EQUAL must be a whitespace char; we rely on bk_string_atou to
+ * skip over that character when ignoring initial whitespace.</TRICKY>
+ * FLAG_SEP could also be ' ' instead of ',' 
+ */
+#define FLAG_BEGIN  '<'
+#define FLAG_END    '>'
 #define FLAG_APPROX '~'
-#define FLAG_EQUAL  '='
+#define FLAG_EQUAL  ' '
 #define FLAG_SEP    ','
+
 
 
 static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, int *sign, bk_flags flags);
@@ -1211,8 +1219,7 @@ int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *n
       {
 	int c;
 
-	if (anybits)
-	  OUT(FLAG_SEP);
+	OUT(anybits ? FLAG_SEP : FLAG_BEGIN);
 	anybits = 1;
 
 	for ( ; (c = *names) > 32; names++)
@@ -1235,10 +1242,11 @@ int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *n
     }
 
     if (anybits)
-      if (in != 0)				// non-symbolic bits set
-	OUT(FLAG_APPROX);			// mark hex as authoritative
-      else
-	OUT(FLAG_EQUAL);
+    {
+      OUT(FLAG_END);
+      // use approx if non-symbolic bits still left in 'in'
+      OUT(in ? FLAG_APPROX : FLAG_EQUAL);
+    }
 
     in = src;
   }
@@ -1300,7 +1308,7 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
   if ((end = strrchr(in, FLAG_APPROX)))		// hex is canonical
     goto justhex;
 
-  if ((end = strrchr(in, FLAG_EQUAL)))
+  if (src[0] == FLAG_BEGIN && (end = strrchr(in, FLAG_END)))
   {
     const char *tok;
     const char *sep;
