@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_intinfo.c,v 1.5 2004/07/12 17:23:35 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_intinfo.c,v 1.6 2005/01/10 19:21:29 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -40,6 +40,7 @@ struct bk_name_value_map intinfo_ioctl_map[] =
   { "SIOCGIFMETRIC", 	SIOCGIFMETRIC		},
   { "SIOCGIFMTU",	SIOCGIFMTU		},
   { "SIOCGIFNETMASK", 	SIOCGIFNETMASK		},
+  { NULL, 0, },
 };
 
 
