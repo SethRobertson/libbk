@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.35 2003/04/13 00:24:39 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.36 2003/04/16 23:39:53 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -67,7 +67,7 @@ int bk_thread_safe_if_thread_ready = 0;		///< Convinience symbol for libbk routi
 /**
  * Grand creation of libbk state structure.
  *
- * THREADS: EVIL (config and funinit)
+ * THREADS: MT-SAFE
  *
  *	@param argc Number of arguments to program's argv
  *	@param argv Pointer to @a argv from @a main() which will be modified/replicated
@@ -119,6 +119,8 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
   // Config files should not be required, generally
   B->bt_general->bg_config = bk_config_init(B, configfile, bcup, 0);
 
+  // <TODO>Should register config with reinit</TODO>
+
   if (!(B->bt_general->bg_proctitle = bk_general_proctitle_init(B, argc, argv, envp, &program, 0)))
     goto error;
 
@@ -149,7 +151,8 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
 /**
  * Destroy libbk state (generally not a good idea :-)
  *
- * THREADS: EVIL
+ * THREADS: MT-SAFE (Assuming different B)
+ * THREADS: REENTRANT (Otherwise)
  *
  *	@param B BAKA Thread/global state
  */
@@ -230,7 +233,7 @@ void bk_general_destroy(bk_s B)
 /**
  * Go through reinitialization of core BAKA routines and anyone else who has registered for reinit() services
  *
- * THREADS: EVIL (bk_funlist inheritance: if functions modify bk_funlist as result, bad things may happen)
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global information
  */
@@ -249,7 +252,7 @@ void bk_general_reinit(bk_s B)
 /**
  * Add to the reinitialization database
  *
- * THREADS: EVIL (bk_funlist inheritance)
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global information
  *	@param bf_fun Function to be called on reinit
@@ -267,7 +270,7 @@ int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *
 /**
  * Remove from the reinitialization database
  *
- * THREADS: EVIL (bk_funlist inheritance)
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global information
  *	@param bf_fun Function to be deleted
@@ -285,7 +288,7 @@ int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *
 /**
  * Add to the destruction database
  *
- * THREADS: EVIL (bk_funlist inheritance)
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global information
  *	@param bf_fun Function to be called on reinit
@@ -303,7 +306,7 @@ int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void 
 /**
  * Remove from the reinitialization database
  *
- * THREADS: EVIL (bk_funlist inheritance)
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global information
  *	@param bf_fun Function to be deleted
@@ -601,7 +604,7 @@ int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags)
 /**
  * Initialize function statistics
  *
- * THREADS: REENTRANT
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param filename Filename to log function statistics to (NULL to disable)
@@ -616,6 +619,11 @@ int bk_general_funstat_init(bk_s B, char *filename, bk_flags flags)
   if (!B)
     BK_RETURN(B, -1);
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&BK_GENERAL_WRMUTEX(B)) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (BK_GENERAL_FUNSTATFILE(B))
     free(BK_GENERAL_FUNSTATFILE(B));
   BK_GENERAL_FUNSTATFILE(B) = NULL;
@@ -625,21 +633,34 @@ int bk_general_funstat_init(bk_s B, char *filename, bk_flags flags)
     if (!(BK_GENERAL_FUNSTATS(B) = bk_stat_create(B, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create stats structure\n");
-      BK_RETURN(B, -1);
+      goto error;
     }
 
     BK_GENERAL_FUNSTATFILE(B) = strdup(filename);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BK_GENERAL_WRMUTEX(B)) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B, 0);
+
+ error:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BK_GENERAL_WRMUTEX(B)) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+  BK_RETURN(B, -1);
 }
 
 
 /**
  * Initialize process title information & process name.
  *
- * Argv/envp is copied and original argv/envp is reset to new copies so that original memory can be reused
- * for process title stuff.  Also sets the program name.
+ * Argv/envp is copied and original argv/envp is reset to new copies
+ * so that original memory can be reused for process title stuff.
+ * Also sets the program name.
  *
  * THREADS: MT-SAFE
  *

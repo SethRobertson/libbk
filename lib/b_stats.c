@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.3 2003/03/28 20:35:08 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.4 2003/04/16 23:39:54 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -67,8 +67,11 @@ struct bk_stat_node
   u_quad_t		bsn_maxutime;		///< Maximum number of microseconds we have seen for this item
   u_quad_t		bsn_sumutime;		///< Sum of microseconds we have seen for this itme
   struct timeval	bsn_start;		///< Start time for current tracking
-  u_int			bsn_count;		///< Number of times we have tracked 
+  u_int			bsn_count;		///< Number of times we have tracked
   bk_flags		bsn_flags;		///< Flags for the future
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_t	bsn_lock;		///< Per-node locking
+#endif /* BK_USING_PTHREADS */
 };
 
 
@@ -107,6 +110,8 @@ static struct ht_args bsl_args = { 512, 1, (ht_func)bsl_obj_hash, (ht_func)bsl_k
 /**
  * Create a performance statistic tracking list
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param flags Fun for the future
  *	@return <i>NULL</i> on failure.<br>
@@ -123,7 +128,7 @@ struct bk_stat_list *bk_stat_create(bk_s B, bk_flags flags)
     BK_RETURN(B, NULL);
   }
 
-  if (!(blist->bsl_list = bsl_create((dict_function)bsl_oo_cmp, (dict_function)bsl_ko_cmp, DICT_UNIQUE_KEYS, &bsl_args)))
+  if (!(blist->bsl_list = bsl_create((dict_function)bsl_oo_cmp, (dict_function)bsl_ko_cmp, DICT_UNIQUE_KEYS|bk_thread_safe_if_thread_ready, &bsl_args)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate performance list: %s\n", bsl_error_reason(NULL, NULL));
     goto error;
@@ -141,6 +146,9 @@ struct bk_stat_list *bk_stat_create(bk_s B, bk_flags flags)
 
 /**
  * Destroy a performance statistic tracking list
+ *
+ * THREADS: MT-SAFE (Assuming different blist)
+ * THREADS: REENTRANT (Otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param blist List to destroy
@@ -169,6 +177,8 @@ void bk_stat_destroy(bk_s B, struct bk_stat_list *blist)
 
 /**
  * Create a performance statistic tracking node, attach to blist
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param blist Performance list
@@ -210,6 +220,8 @@ struct bk_stat_node *bk_stat_nodelist_create(bk_s B, struct bk_stat_list *blist,
 /**
  * Create a performance statistic tracking node
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param name1 Primary name
  *	@param name2 Secondary name
@@ -234,6 +246,11 @@ struct bk_stat_node *bk_stat_node_create(bk_s B, const char *name1, const char *
     BK_RETURN(B, NULL);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_init(&bnode->bsn_lock, NULL) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (!(bnode->bsn_name1 = strdup(name1)) || (name2 && !(bnode->bsn_name2 = strdup(name2))))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not duplicate performance node name: %s\n", strerror(errno));
@@ -254,6 +271,8 @@ struct bk_stat_node *bk_stat_node_create(bk_s B, const char *name1, const char *
 /**
  * Destroy a performance statistic tracking node
  *
+ * THREADS: THREAD-REENTRANT (Otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bnode Node to destroy
  */
@@ -273,6 +292,11 @@ void bk_stat_node_destroy(bk_s B, struct bk_stat_node *bnode)
   if (bnode->bsn_name2)
     free((void *)bnode->bsn_name2);
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   free(bnode);
 
   BK_VRETURN(B);
@@ -283,6 +307,8 @@ void bk_stat_node_destroy(bk_s B, struct bk_stat_node *bnode)
 /**
  * Start a performance interval, by name
  *
+ * THREADS: MT-SAFE
+
  * @param B BAKA thread/global environment
  * @param blist Performance list
  * @param name1 Primary name
@@ -323,6 +349,8 @@ void bk_stat_start(bk_s B, struct bk_stat_list *blist, const char *name1, const 
 /**
  * End a performance interval, by name
  *
+ * THREADS: MT-SAFE
+ *
  * @param B BAKA thread/global environment
  * @param blist Performance list
  * @param name1 Primary name
@@ -359,6 +387,9 @@ void bk_stat_end(bk_s B, struct bk_stat_list *blist, const char *name1, const ch
 /**
  * Start a performance interval
  *
+ * THREADS: MT-SAFE (assuming different bnode)
+ * THREADS: THREAD-REENTRANT (Otherwise)
+ *
  * @param B BAKA thread/global environment
  * @param bnode Node to start interval
  * @param flags Fun for the future
@@ -380,7 +411,17 @@ void bk_stat_node_start(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_lock(&bnode->bsn_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   gettimeofday(&bnode->bsn_start, NULL);
+
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_VRETURN(B);
 }
@@ -389,6 +430,9 @@ void bk_stat_node_start(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
 
 /**
  * End a performance interval
+ *
+ * THREADS: MT-SAFE (assuming different bnode)
+ * THREADS: THREAD-REENTRANT (Otherwise)
  *
  * @param B BAKA thread/global environment
  * @param bnode Node to end interval
@@ -414,6 +458,11 @@ void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
 
   gettimeofday(&end, NULL);
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_lock(&bnode->bsn_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_TV_SUB(&sum, &end, &bnode->bsn_start);
 
 #ifdef THISUS_IS_INT
@@ -437,6 +486,11 @@ void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
 
   bnode->bsn_start.tv_sec = 0;
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_VRETURN(B);
 }
 
@@ -444,6 +498,8 @@ void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
 
 /**
  * Return a string containing all performance information (which you must free)
+ *
+ * THREADS: MT-SAFE
  *
  * @param B BAKA thread/global environment
  * @param blist Performance list
@@ -476,6 +532,11 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
 
   for (bnode = bsl_minimum(blist->bsl_list); bnode; bnode = bsl_successor(blist->bsl_list, bnode))
   {
+#ifdef BK_USING_PTHREADS
+    if (pthread_mutex_lock(&bnode->bsn_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     if (BK_FLAG_ISSET(flags, BK_STAT_DUMP_HTML))
     {
       snprintf(perfbuf, sizeof(perfbuf), "<tr><td>%s</td><td>%s</td><td>%llu</td><td>%.3f</td><td>%llu</td><td>%u</td><td>%llu</td></tr>\n",bnode->bsn_name1, bnode->bsn_name2, bnode->bsn_minutime, bnode->bsn_count?(float)bnode->bsn_sumutime/bnode->bsn_count:0.0, bnode->bsn_maxutime, bnode->bsn_count,bnode->bsn_sumutime);
@@ -487,6 +548,11 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
     if (bk_vstr_cat(B, 0, &ostring, perfbuf) < 0)
       goto error;
   }
+
+#ifdef BK_USING_PTHREADS
+    if (pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
 
   if (BK_FLAG_ISSET(flags, BK_STAT_DUMP_HTML))
   {
@@ -510,6 +576,8 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
 
 /**
  * Return a performance interval
+ *
+ * THREADS: MT-SAFE
  *
  * @param B BAKA thread/global environment
  * @param blist Performance list
@@ -542,17 +610,7 @@ void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, const c
     BK_VRETURN(B);
   }
 
-  if (minusec)
-    *minusec = bnode->bsn_minutime;
-
-  if (maxusec)
-    *maxusec = bnode->bsn_maxutime;
-
-  if (sumutime)
-    *sumutime = bnode->bsn_sumutime;
-
-  if (count)
-    *count = bnode->bsn_count;
+  bk_stat_node_info(B, bnode, minusec, maxusec, sumutime, count, 0);
 
   BK_VRETURN(B);
 }
@@ -561,6 +619,9 @@ void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, const c
 
 /**
  * Return a performance interval
+ *
+ * THREADS: MT-SAFE (assuming different bnode)
+ * THREADS: THREAD-REENTRANT (Otherwise)
  *
  * @param B BAKA thread/global environment
  * @param bnode Node to return information for
@@ -580,6 +641,11 @@ void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_lock(&bnode->bsn_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (minusec)
     *minusec = bnode->bsn_minutime;
 
@@ -592,6 +658,11 @@ void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_
   if (count)
     *count = bnode->bsn_count;
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_VRETURN(B);
 }
 
@@ -599,6 +670,8 @@ void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_
 
 /**
  * Add units to a performance interval, by name
+ *
+ * THREADS: MT-SAFE
  *
  * @param B BAKA thread/global environment
  * @param blist Performance list
@@ -641,6 +714,9 @@ void bk_stat_add(bk_s B, struct bk_stat_list *blist, const char *name1, const ch
 /**
  * Add to a performance interval
  *
+ * THREADS: MT-SAFE (assuming different bnode)
+ * THREADS: THREAD-REENTRANT (Otherwise)
+ *
  * @param B BAKA thread/global environment
  * @param bnode Node to end interval
  * @param usec Units (usec usually) to add
@@ -656,6 +732,11 @@ void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, bk_flag
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_lock(&bnode->bsn_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (usec < bnode->bsn_minutime)
     bnode->bsn_minutime = usec;
 
@@ -665,11 +746,19 @@ void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, bk_flag
   bnode->bsn_sumutime += usec;
   bnode->bsn_count++;
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_VRETURN(B);
 }
 
 
 
+/*
+ * THREADS: MT-SAFE
+ */
 static int bsl_oo_cmp(struct bk_stat_node *a, struct bk_stat_node *b)
 {
   int ret;

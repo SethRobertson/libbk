@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.226 2003/04/13 00:24:39 seth Exp $
+ * $Id: libbk.h,v 1.227 2003/04/16 23:39:53 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1916,10 +1916,10 @@ extern const char *bk_getenv(bk_s B, const char *key);
 
 
 /* b_rand.c */
-extern struct bk_randinfo *bk_rand_init(bk_s B, u_int entropy, bk_flags flags);
-extern void bk_rand_destroy(bk_s B, struct bk_randinfo *R, bk_flags flags);
-extern u_int32_t bk_rand_getword(bk_s B, struct bk_randinfo *R, u_int32_t *co, bk_flags flags);
-extern int bk_rand_getbuf(bk_s B, struct bk_randinfo *R, u_char *buf, u_int len, bk_flags flags);
+extern struct bk_truerandinfo *bk_truerand_init(bk_s B, int reinitbits, bk_flags flags);
+extern void bk_truerand_destroy(bk_s B, struct bk_truerandinfo *R);
+extern u_int32_t bk_truerand_getword(bk_s B, struct bk_truerandinfo *R, u_int32_t *co, bk_flags flags);
+extern int bk_truerand_getbuf(bk_s B, struct bk_truerandinfo *R, u_char *buf, u_int len, bk_flags flags);
 
 
 /* b_skid.c */

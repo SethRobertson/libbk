@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.5 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.6 2003/04/16 23:39:54 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,65 +19,143 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  *
- * Generate random numbers, using OS scheduling jitter and other
- * random crap we find lying around.  Whiten with MD5.  Hopefully good
- * enough for cryptographical purposes.
+ * For our true random number generation system, we have chosen to use a
+ * spin counter to measure the randomness of the OS's scheduling and
+ * gettimeofday clock updates.  We sit in a loop incrementing a counter
+ * and calling gettimeofday (which provides the OS an opportunity for
+ * preemption) until we have at least N (100 in our example) microseconds
+ * of time accumulated.  The number of loops we have gone through
+ * represents 4 data bytes of input entropy.  Obviously some bytes,
+ * especially the higher ones, will be *highly* predictable, thus we go
+ * through many rounds to produce one byte of pure entropy.  A strong
+ * mixing function (e.g. MD5) is used to distill the entropy.
+ *
+ * The exact level of randomness is machine dependent.  During testing on
+ * available machines, we have observed at worst the ratio of 72 input
+ * bytes to one output byte, and at best 26 input bytes to one output
+ * byte.  We could hardcode the system to use the worst we have seen
+ * (plus a fudge-factor), but an actual measurement facility would be
+ * better--to avoid wasting time on more efficient/random machines.
+ *
+ * The proposed measurement facility is to take the maximum difference in
+ * the first 10 numbers generated through the scheme.  This number is
+ * inversely related to the number of input bytes required to generate
+ * one output byte.  Further analysis on four platforms ranging from a
+ * dual processor AMD Athlon 1.6GHz to an Mobile Intel 200MHz PII (18x
+ * performance difference) suggests that the formula for producing this
+ * number (and remaining stable for likely future numbers is):
+ *
+ *     y = 76.059 - 0.97271 x + 0.0045668 x^2 - 8.7497e-07 x^3
+ *
+ * It is expected that this formula will not be perfect, and it is
+ * expected that individual machines will vary in entropy produced,
+ * perhaps greatly--especially if an attacker can effect the
+ * system--during the lifetime of a single process.  Thus, in addition to
+ * proper seeing and replenishment of the entropy pool, we must ensure
+ * that our mixing function is cryptographically strong so that even
+ * minimal entropy will produce excellently non-predictable output.
+ * Also, it is critical that knowledge of the entropy pool (through page
+ * snooping of a root-privileged attacker) not be sufficient to predict
+ * future output.
+ *
+ * Note in general these functions are   S  L  O  W   so only use when
+ * appropriate.
  */
 
 #include <libbk.h>
 #include "libbk_internal.h"
 
-#define BK_TRUERAND_TIME	10000		///< usecs to spin, counting time
-#define BK_TRUERAND_BITS	128		///< Bits of entropy gathered per spin--underestimated by 23500% from measurements
-#define BK_TRUERAND_DEFAULT	8		///< Default minimum entropy level
+#define BK_TRUERAND_TIME	100		///< usecs to spin, counting time
+#define BK_TRUERAND_AX3		-8.7497e-07	///< Factor for x^3
+#define BK_TRUERAND_BX2		0.0045668	///< Factor for x^2
+#define BK_TRUERAND_CX		-0.97271	///< Factor for x
+#define BK_TRUERAND_D		76.059		///< Additive factor
+#define BK_ROUND_SIZE		sizeof(u_int32_t) ///< Number of bytes produced per round
+#define BK_MIN_ROUNDS		3		///< Min rounds per byte
+#define BK_MAX_ROUNDS		100		///< Min rounds per byte
+#define BK_POOLSIZE		16		///< Size of pool in bytes (related to hash size)
+#define BK_MAJOR_REFRESH	12		///< How often to mix into a new full batch of entropy
 
 
 
 /**
- * Information about our random pool
+ * "Function" to get one round's worth of random number
+ *
+ * @param cntr The counter which will contain the random number
+ * @param end struct timeval end
  */
-struct bk_randinfo
+#define BK_TRUERAND_GENROUND(cntr,cur,end)				\
+do {									\
+  gettimeofday((end),NULL);						\
+  (end)->tv_usec += BK_TRUERAND_TIME;					\
+  BK_TV_RECTIFY(end);							\
+  while (gettimeofday(cur, NULL) == 0 && BK_TV_CMP(cur,end) < 0)	\
+    cntr++;								\
+} while (0)
+
+
+
+/**
+ * Information about our random pool.  We suggest it be shared by all
+ * users and all threads to increase security through interleaved
+ * access.
+ */
+struct bk_truerandinfo
 {
-  u_int		br_entropy;			///< Desired minimum entropy level
-  u_int		br_cur;				///< Current entropy level
-  u_char	br_pool[16];			///< Entropy pool
-  u_int		br_cntr;			///< Output counter
-  bk_flags	br_flags;			///< Fun for future
-};
+  u_int			br_roundsperbyte;	///< How many measurement rounds per per output byte
+  u_int			br_usecounter;		///< Number of queries to pool
+  u_int			br_reinitmask;		///< Mask for major renewal of entropy pool
+  bk_flags		br_flags;		///< Fun for future
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_t	br_lock;		///< Someone using the EP
+#endif /* BK_USING_PTHREADS */
+  u_char		br_pool[BK_POOLSIZE];	///< Entropy pool
+} shared_random_pool;
 
 
 
-static int bk_rand_addentropy(bk_s B, struct bk_randinfo *R, bk_flags flags);
+static u_int bk_truerand_measuregen(bk_s B);
+static void bk_truerand_generate(bk_s B, bk_MD5_CTX *ctx, int rounds);
+static void bk_truerand_opertunistic(bk_s B, bk_MD5_CTX *ctx);
 
 
 
 /**
- * Initialize the cryptograpical secure (we hope) random number
- * generator.  Note it is suggested to keep bk_randinfo private for
- * cryptographical purposes (do not expose to attackers).
- *	
- *	@param B BAKA Thread/global state
- *	@param entropy Entropy level to maintain, number of bits per 128 bits (zero default)
- *	@param flags Fun for the future
- *	@return <i>NULL</i> on call failure, allocation failure, other failure
- *	@return <br><i>New random state</i> on success
+ * Initialize the random pool
+ *
+ * THREADS: MT-SAFE
+ *
+ * @param B BAKA Thread/global state
+ * @param flags Fun for the future
+ * @return <i>NULL</i> on call failure, allocation failure
+ * @return <br><i>structure</i> on success
  */
-struct bk_randinfo *bk_rand_init(bk_s B, u_int entropy, bk_flags flags)
+struct bk_truerandinfo *bk_truerand_init(bk_s B, int reinitbits, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_randinfo *R;
+  struct bk_truerandinfo *R;
+  bk_MD5_CTX ctx;
 
-  if (!BK_CALLOC(R))
+  if (!BK_MALLOC(R))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate random structure: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not create random structure: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
   }
 
-  R->br_flags = flags;
-  R->br_entropy = entropy?entropy:BK_TRUERAND_DEFAULT;
-  R->br_cur = 0;
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_init(&R->br_lock, NULL);
+#endif /* BK_USING_PTHREADS */
 
-  // Specifically do NOT initialize pool or cntr, for maximum randomness
+  R->br_roundsperbyte = 0;
+  R->br_usecounter = 0;
+  R->br_reinitmask = (1<<(reinitbits>0?reinitbits:BK_MAJOR_REFRESH)) - 1;
+
+  assert(sizeof(ctx.digest) == BK_POOLSIZE);
+
+  /*
+   * <TRICKY>Explicitly leave pool uninitialized to allow potential
+   * for addition randomness</TRICKY>
+   */
 
   BK_RETURN(B, R);
 }
@@ -85,15 +163,17 @@ struct bk_randinfo *bk_rand_init(bk_s B, u_int entropy, bk_flags flags)
 
 
 /**
- * Destroy the random number pool
- *	
- *	@param B BAKA Thread/global state
- *	@param R Random pool created by randinfo
- *	@param flags Fun for the future
- *	@return <i>NULL</i> on call failure, allocation failure, other failure
- *	@return <br><i>New random state</i> on success
+ * Destroy the random pool
+ *
+ * THREADS: MT-SAFE (assuming different R)
+ * THREADS: REENTRANT (assuming same R)
+ *
+ * @param B BAKA Thread/global state
+ * @param flags Fun for the future
+ * @return <i>NULL</i> on call failure, allocation failure
+ * @return <br><i>structure</i> on success
  */
-void bk_rand_destroy(bk_s B, struct bk_randinfo *R, bk_flags flags)
+void bk_truerand_destroy(bk_s B, struct bk_truerandinfo *R)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -103,6 +183,10 @@ void bk_rand_destroy(bk_s B, struct bk_randinfo *R, bk_flags flags)
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_destroy(&R->br_lock);
+#endif /* BK_USING_PTHREADS */
+
   free(R);
 
   BK_VRETURN(B);
@@ -111,64 +195,83 @@ void bk_rand_destroy(bk_s B, struct bk_randinfo *R, bk_flags flags)
 
 
 /**
- * Obtain a random word, performing necessary entropy management
- *	
+ * Slowly obtain a true random word, performing necessary entropy management
+ *
+ * THREADS: MT-SAFE (assuming different R)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
  *	@param B BAKA Thread/global state
- *	@param R Random pool created by randinfo
  *	@param co Copy-out random number, for speedups
  *	@param flags Fun for the future
  *	@return <i>-1</i> on call failure
  *	@return <br><i>random number</i> (including -1) on success
  */
-u_int32_t bk_rand_getword(bk_s B, struct bk_randinfo *R, u_int32_t *co, bk_flags flags)
+u_int32_t bk_truerand_getword(bk_s B, struct bk_truerandinfo *R, u_int32_t *co, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  union
-  {
-    // Sigh.. this shuts up bounds checking
-    u_int32_t 	val;
-    char 	buf[sizeof(u_int32_t)];
-  }randnum;
-
   bk_MD5_CTX ctx;
+  u_int32_t testnum = 0;
+  int x;
 
   if (!R)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
-    BK_RETURN(B, (u_int32_t)-1);		// Not very random, is it?
+    BK_RETURN(B, -1);				// <TRICKY>Cannot be told apart from success</TRICKY>
   }
+
   bk_MD5Init(B, &ctx);
 
   // Default buffer if user did not supply copyout
   if (!co)
-    co = &randnum.val;
+    co = &testnum;
 
-  // Check to make sure we have enough entropy
-  if (R->br_cur < R->br_entropy)
-    bk_rand_addentropy(B, R, 0);
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_lock(&R->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
-  // Add in previous entropy, some limited entropy
+  // <TODO>Ideally make this configurable</TODO>
+  if (!(R->br_usecounter & R->br_reinitmask))
+  {
+    // Need a major refresh of the entropy pool
+    bk_debug_printf_and(B, 1, "Counter %d, mask %x, major reinit\n", R->br_usecounter, R->br_reinitmask);
+
+    bk_MD5Init(B, &ctx);
+    bk_MD5Update(B, &ctx, R->br_pool, sizeof(R->br_pool)); // Ignore uninit memory errors
+    R->br_roundsperbyte = bk_truerand_measuregen(B);
+    bk_truerand_generate(B, &ctx, R->br_roundsperbyte * BK_POOLSIZE);
+    bk_truerand_opertunistic(B, &ctx);
+    bk_MD5Final(B, &ctx);
+    memcpy(R->br_pool, ctx.digest, BK_POOLSIZE);
+  }
+
+  bk_MD5Init(B, &ctx);
   bk_MD5Update(B, &ctx, R->br_pool, sizeof(R->br_pool));
-  bk_MD5Update(B, &ctx, randnum.buf, sizeof(randnum.buf));
-  bk_MD5Update(B, &ctx, (void *)&R->br_cntr, sizeof(R->br_cntr));
-  R->br_cntr++;
+
+  // Perform a pre-emptive replenish of the entropy bits we are removing
+  bk_truerand_generate(B, &ctx, R->br_roundsperbyte * sizeof(testnum));
+  bk_MD5Update(B, &ctx, (void *)&R->br_usecounter, sizeof(R->br_usecounter));
+  R->br_usecounter++;
   bk_MD5Final(B, &ctx);
 
-  // Expose only first chunk of pool
+  // First word is returned to user
   memcpy((void *)co, ctx.digest, sizeof(*co));
 
   /*
-   * Adjust estimates of remaining "unexposed" entropy.
+   * Other words are XORd back into the pool
    *
-   * We expose 32/128 (3/4) of the entropy remaining in the buffer
-   * so adjust our estimates in that way
-   *
-   * Note, we might be able to more even entropy in the output,
-   * and also maintain more time between entropy measurement
-   * by not using the entire pool, and rotating which part of the
-   * pools is used.  Probably.
+   * <WARNING>Yes, the last word of the pool is only modified during
+   * major pool refreshs.  Wanna make something of it?</WARNING>
    */
-  R->br_cur = R->br_cur * 3 / 4;
+  for (x=sizeof(*co);x<BK_POOLSIZE;x+=sizeof(u_int32_t))
+  {
+    *((u_int32_t *)&R->br_pool[x]) ^= *((u_int32_t *)&ctx.digest[x]);
+  }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_unlock(&R->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B, *co);
 }
@@ -177,7 +280,10 @@ u_int32_t bk_rand_getword(bk_s B, struct bk_randinfo *R, u_int32_t *co, bk_flags
 
 /**
  * Obtain a random buffer.
- *	
+ *
+ * THREADS: MT-SAFE (different R)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
  *	@param B BAKA Thread/global state
  *	@param R Random pool created by randinfo
  *	@param buf Buffer to fill (word aligned)
@@ -186,7 +292,7 @@ u_int32_t bk_rand_getword(bk_s B, struct bk_randinfo *R, u_int32_t *co, bk_flags
  *	@return <i>-1</i> on call failure
  *	@return <br><i>0</i> on success
  */
-int bk_rand_getbuf(bk_s B, struct bk_randinfo *R, u_char *buf, u_int len, bk_flags flags)
+int bk_truerand_getbuf(bk_s B, struct bk_truerandinfo *R, u_char *buf, u_int len, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -199,7 +305,7 @@ int bk_rand_getbuf(bk_s B, struct bk_randinfo *R, u_char *buf, u_int len, bk_fla
   // Fill entire buffer, except for trailing odd sized chunk
   while (len > sizeof(u_int32_t))
   {
-    bk_rand_getword(B, R, (u_int32_t *)buf, 0);
+    bk_truerand_getword(B, R, (u_int32_t *)buf, 0);
     len -= sizeof(u_int32_t);
     buf += sizeof(u_int32_t);
   }
@@ -207,7 +313,7 @@ int bk_rand_getbuf(bk_s B, struct bk_randinfo *R, u_char *buf, u_int len, bk_fla
   // Handle possible trailing odd sized chunk
   if (len > 0)
   {
-    u_int32_t randnum = bk_rand_getword(B, R, NULL, 0);
+    u_int32_t randnum = bk_truerand_getword(B, R, NULL, 0);
     memcpy(buf,(char *)&randnum, len);
   }
 
@@ -217,75 +323,144 @@ int bk_rand_getbuf(bk_s B, struct bk_randinfo *R, u_char *buf, u_int len, bk_fla
 
 
 /**
- * Add entropy to pool until it is full to bursting, for possible batching
- *	
- *	@param B BAKA Thread/global state
- *	@param R Random pool created by randinfo
- *	@param flags Fun for the future
- *	@return <i>-1</i> on call failure
- *	@return <br><i>0</i> on success
+ * Generate a round of (low) entropy by using timing and scheduling jitter
+ *
+ * THREADS: MT-SAFE
+ *
+ * @param B Baka thread/global environment
+ * @return <i>-1</i> on call failure
+ * @return <i>&gt; 0 - number of rounds</i> on success.
  */
-static int bk_rand_addentropy(bk_s B, struct bk_randinfo *R, bk_flags flags)
+static u_int bk_truerand_measuregen(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  bk_MD5_CTX ctx;
-  struct timeval end;
-  union 
+  volatile u_int32_t thisc;
+  u_int32_t minc,maxc;
+  struct timeval this,end;
+  int x;
+  u_int y;
+
+  minc = UINT_MAX;
+  maxc = 0;
+
+  for (x=10;x>0;x--)
   {
-    // sigh... this shuts up bounds checking
-    struct timeval	time;
-    char 		buf[sizeof(struct timeval)];
-  } cur;
-  
-  if (!R)
+    thisc = 0;
+    BK_TRUERAND_GENROUND(thisc, &this, &end);
+    minc = MIN(minc,thisc);
+    maxc = MAX(maxc,thisc);
+    bk_debug_printf_and(B, 2, "Test %d: cur: %d, min %d, max %d, %d.%06d %d.%06d\n", x, thisc, minc, maxc, (int)this.tv_sec, (int)this.tv_usec, (int)end.tv_sec, (int)end.tv_usec);
+  }
+
+  x = maxc - minc;
+
+  // Compute number of input bytes to one random output byte
+  y = (BK_TRUERAND_AX3 * x * x *x +
+       BK_TRUERAND_BX2 * x * x +
+       BK_TRUERAND_CX * x +
+       BK_TRUERAND_D);
+  bk_debug_printf_and(B, 1, "Computed difference %d: I need %d input bytes per output byte\n", x, y);
+
+  // Convert into rounds of 4 bytes
+  y = (y + sizeof(u_int32_t) - 1) / sizeof(u_int32_t);
+
+  // Ensure we don't go crazy do to formula instability in outliers
+  y = MIN(y,BK_MAX_ROUNDS);
+  y = MAX(y,BK_MIN_ROUNDS);
+
+  BK_RETURN(B, y);
+}
+
+
+
+/**
+ * Use available randomness in a number of rounds to influence the random number
+ *
+ * THREADS: MT-SAFE (assuming different ctx)
+ *
+ * @param B BAKA Thread/global state
+ * @param ctx Hash context we are updating
+ * @param rounds Number of rounds of data creation
+ */
+static void bk_truerand_generate(bk_s B, bk_MD5_CTX *ctx, int rounds)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  volatile u_int32_t thisc;
+  struct timeval this,end;
+
+  if (!ctx)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
-    BK_RETURN(B, -1);
+    BK_VRETURN(B);
   }
 
-  bk_MD5Init(B, &ctx);
+  // Stupid uninitialized variable warnings...
+  memcpy((void *)&thisc, (void *)&thisc, 0);
 
-  // Add in previous entropy, some limited entropy
-  bk_MD5Update(B, &ctx, R->br_pool, sizeof(R->br_pool));
-  gettimeofday(&end,NULL);
-  bk_MD5Update(B, &ctx, (char *)&end, sizeof(end));
-  bk_MD5Update(B, &ctx, (char *)&R->br_cntr, sizeof(R->br_cntr));
-  R->br_cntr++;
+  // Double check sanity
+  if (rounds < BK_MIN_ROUNDS)
+    rounds = BK_MAX_ROUNDS;
 
-  // Fill our pool chock full of entropy
-  while (R->br_cur < sizeof(R->br_pool) * 8)
+  while (rounds--)
   {
-    union 
-    {
-      // Sigh.. this shuts up bounds checking
-      int	val;
-      char	buf[sizeof(int)];
-    } cntr;
-    
-    cntr.val = 0;
+    BK_TRUERAND_GENROUND(thisc,&this,&end);
 
-    gettimeofday(&end,NULL);
-    end.tv_usec += BK_TRUERAND_TIME;
-    BK_TV_RECTIFY(&end);
-    bk_MD5Update(B, &ctx, (char *)&end, sizeof(end));
+    // Throw in one round's worth of data
+    bk_MD5Update(B, ctx, (void *)&thisc, sizeof(thisc));
 
-    cur.time.tv_sec = 0;
-    cur.time.tv_usec = 0;
-
-    while (BK_TV_CMP(&cur.time,&end) < 0)
-    {
-      gettimeofday(&cur.time,NULL);
-      bk_MD5Update(B, &ctx, cur.buf, sizeof(cur.buf));
-      cntr.val++;
-    }
-    bk_MD5Update(B, &ctx, cntr.buf, sizeof(cntr.buf));
-
-    R->br_cur += BK_TRUERAND_BITS;
+    // Opportunistically throw in timing information
+    bk_MD5Update(B, ctx, (void *)&this, sizeof(this));
+    bk_MD5Update(B, ctx, (void *)&end, sizeof(end));
   }
-  bk_MD5Final(B, &ctx);
-  memcpy(R->br_pool, ctx.digest, sizeof(R->br_pool));
 
-  R->br_cur = sizeof(R->br_pool) * 8;		// Cannot hold more than this
+  BK_VRETURN(B);
+}
 
-  BK_RETURN(B, 0);
+
+
+/**
+ * Opportunistically add other available randomness from the system.
+ *
+ * This could include things like vmstat/ps/netstat output, but we
+ * currently just use /dev/{random,srandom}
+ *
+ * THREADS: MT-SAFE (assuming different ctx)
+ *
+ * @param B Baka thread/global environment
+ * @param ctx Hash context
+ */
+void bk_truerand_opertunistic(bk_s B, bk_MD5_CTX *ctx)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int fd = -1;
+  char buf[BK_POOLSIZE];
+
+  if (!ctx)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_VRETURN(B);
+  }
+
+  // Precedence of devices is perhaps wrong...
+#ifdef HAVE_DEVSRANDOM				  // Strong random data (may block)
+  fd = open("/dev/srandom", O_RDONLY|O_NONBLOCK);
+#elsif HAVE_DEVURANDOM
+  fd = open("/dev/urandom", O_RDONLY|O_NONBLOCK); // Non-blocking random data
+#elsif HAVE_DEVRANDOM
+  fd = open("/dev/random", O_RDONLY|O_NONBLOCK);  // Nuclear random data (may block)
+#elsif HAVE_DEVRANDOM
+  fd = open("/dev/prandom", O_RDONLY|O_NONBLOCK); // Kernel pseudo random data
+#endif /* HAVE_DEV*RANDOM */
+
+  if (fd >= 0)
+  {
+    read(fd, buf, BK_POOLSIZE);			// Yes, I am intentionally ignoring return code
+    close(fd);
+    bk_MD5Update(B, ctx, buf, BK_POOLSIZE);
+    bk_MD5Update(B, ctx, (void *)&fd, sizeof(fd));	// Probably predictable, but what the hey
+  }
+
+  // <TODO>Add other opportunistic data sources</TODO>
+
+  BK_VRETURN(B);
 }

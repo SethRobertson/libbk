@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.16 2003/03/19 10:34:56 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.17 2003/04/16 23:39:53 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,12 +24,14 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
-#define MAXLINE 	1024
+#define MAXLINE	1024
+
+
 
 /**
  * Information on locked file to permit you unlock it.
  */
-struct file_lock 
+struct file_lock
 {
   bk_flags		fl_flags;		///< Everyone needs flags.
   char *		fl_path;		///< Path name of resource to be locked.
@@ -39,12 +41,17 @@ struct file_lock
 };
 
 
+
+/**
+ * Information about administrative file
+ */
 struct file_lock_admin
 {
   char *		fla_lock;		///< Name of lock file.
   char *		fla_admin;		///< Admin file name.
   char *		fla_tmpname;		///< Admin file name.
 };
+
 
 
 static struct file_lock_admin *lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *ilock_ext);
@@ -55,8 +62,11 @@ static struct file_lock_admin *fla_create(bk_s B);
 static void fla_destroy(bk_s B, struct file_lock_admin *fla);
 
 
+
 /**
  * Add a flag (or set of flags) to a descriptor
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param fd The descriptor to modify
@@ -121,12 +131,15 @@ bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_
  * really need to create a unique file name (with some sort of md5 thing
  * presumably) and create that instead.  This is not technically safer, but is
  * less likely to clash.</WARNING>
- * 
+ *
  * <WARNING>Using the template name returned by mkstemp (as these routines do)
  * may be insecure on a system where a daemon cleans out /tmp and/or /var/tmp
  * periodically; since this daemon may remove the file while the application is
  * SIGSTOP'ed or SIGTSTP'ed and later references to the file by name can get a
  * malicious link instead.  Yet another reason not to use this code.</WARNING>
+ *
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param resource The resource to lock.
@@ -151,7 +164,7 @@ bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char 
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (held) *held = 0;
 
   if (!(fl = fl_create(B)))
@@ -227,13 +240,13 @@ bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char 
     bk_error_printf(B, BK_ERR_ERR, "Could not strdup path name: %s\n", strerror(errno));
     goto error;
   }
-  
+
   if (!(fl->fl_lock_id = strdup(fla->fla_tmpname)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not strdup tmpname name: %s\n", strerror(errno));
     goto error;
   }
-  
+
   if (admin_ext)
   {
     if (!(fl->fl_admin_ext = strdup(admin_ext)))
@@ -242,7 +255,7 @@ bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char 
       goto error;
     }
   }
-  
+
   if (lock_ext)
   {
     if (!(fl->fl_lock_ext = strdup(lock_ext)))
@@ -258,7 +271,7 @@ bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char 
   // Clean up
   fclose(fp);
   unlock_admin_file(B, fla);
-  BK_RETURN(B,fl);  
+  BK_RETURN(B,fl);
 
  lock_held:
   if (held) *held = 1;
@@ -274,6 +287,8 @@ bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char 
 
 /**
  * Unlock a file locked with above function.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param opaque Data returned from @a bk_file_lock()
@@ -295,14 +310,14 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
   char line[MAXLINE];
   int found_lock = 0;
   int do_unlink = 0;
-  
+
 
   if (!fl)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (!fl->fl_lock_id)
   {
     bk_error_printf(B, BK_ERR_ERR, "No lock id to search for set!\n");
@@ -314,7 +329,7 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Could not lock admin file\n");
     goto error;
   }
-  
+
   if (!(fp = fopen(fla->fla_admin, "r+")))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not open admin file: %s\n", strerror(errno));
@@ -381,7 +396,7 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
 
   fclose(fp);
   free(tmpbuf);
-  if (do_unlink && (unlink(fla->fla_admin) < 0)) 
+  if (do_unlink && (unlink(fla->fla_admin) < 0))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not unlink: %s: %s\n", fla->fla_admin, strerror(errno));
     // Oh well forge on.
@@ -406,6 +421,9 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
 
 /**
  * Lock administrative file.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param path Name of <em>data</em> file we want lock (the admin file
  *		name is generated from this base).
@@ -433,7 +451,7 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   // make lock empty
   *lock = '\0';
   *tmpname = '\0';
@@ -475,7 +493,7 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
   }
   close(fd);
   fd = -1;
-  
+
   // Generate admin file lock file name.
   snprintf(lock, sizeof(lock), "%s.%s", path, lock_ext);
 
@@ -489,13 +507,13 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
   // Generate a uniqe string as a "link" name.
   // <TODO> mkstemp(3) is not good for NFS. use bk_mkstemp() when written.</TODO>
   snprintf(tmpname, MAXNAMLEN, "%s.XXXXXX", path);
-  
+
   if ((fd = mkstemp(tmpname)) < 0 )
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create unique lock file name correctly\n");
     goto error;
   }
-  
+
   if (link(tmpname, lock) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create lock link: %s\n", strerror(errno));
@@ -507,7 +525,7 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
     bk_error_printf(B, BK_ERR_ERR, "Could not stat temporary file: %s\n", strerror(errno));
     goto error;
   }
-    
+
   if (sb.st_nlink != 2)
   {
     bk_error_printf(B, BK_ERR_ERR, "Incorrect number of links. Is: %lu (should be 2)\n", (u_long)sb.st_nlink);
@@ -527,19 +545,19 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
     bk_error_printf(B, BK_ERR_ERR, "Could not strdup lock name: %s\n", strerror(errno));
     goto error;
   }
-  
+
   if (!(fla->fla_admin = strdup(admin)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not strdup admin name: %s\n", strerror(errno));
     goto error;
   }
-  
+
   if (!(fla->fla_tmpname = strdup(tmpname)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not strdup tmpname name: %s\n", strerror(errno));
     goto error;
   }
-  
+
   BK_RETURN(B,fla);
 
  error:
@@ -553,6 +571,9 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
 
 /**
  * Unlock the admin file.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param fl Lock info to use (and destroy).
  */
@@ -580,8 +601,8 @@ unlock_admin_file(bk_s B, struct file_lock_admin *fla)
   }
 
 
-  // Do NOT unlock admin file. It gets used over and over. 
-  
+  // Do NOT unlock admin file. It gets used over and over.
+
   fla_destroy(B, fla);
 
   BK_VRETURN(B);
@@ -592,6 +613,9 @@ unlock_admin_file(bk_s B, struct file_lock_admin *fla)
 
 /**
  * Allocate a fl
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a file_lock on success.
@@ -601,7 +625,7 @@ fl_create(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct file_lock *fl;
-  
+
   if (!(BK_CALLOC(fl)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate fl: %s\n", strerror(errno));
@@ -614,6 +638,9 @@ fl_create(bk_s B)
 
 /**
  * Destroy a fl
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param fl The @a file_lock to destroy.
  */
@@ -649,6 +676,8 @@ fl_destroy(bk_s B, struct file_lock *fl)
 /**
  * Create a @a file_lock_admin
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a file_lock_admin on success.
@@ -662,7 +691,7 @@ fla_create(bk_s B)
   if (!(BK_CALLOC(fla)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate fla: %s\n", strerror(errno));
-    BK_RETURN(B,NULL);    
+    BK_RETURN(B,NULL);
   }
   BK_RETURN(B,fla);
 }
@@ -672,6 +701,8 @@ fla_create(bk_s B)
 
 /**
  * Destroy a @a file_lock_admin
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param fla The @a file_lock_admin to destroy.
@@ -691,7 +722,7 @@ fla_destroy(bk_s B, struct file_lock_admin *fla)
 
   if (fla->fla_admin)
     free(fla->fla_admin);
-  
+
   if (fla->fla_lock)
     free(fla->fla_lock);
 
@@ -707,6 +738,8 @@ fla_destroy(bk_s B, struct file_lock_admin *fla)
 
 /**
  * Match a file name against a NULL terminated array of extensions.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param filename The filename to use.
@@ -727,33 +760,35 @@ bk_fileutils_match_extension(bk_s B, const char *path, const char * const *exts)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
 
   if (!(ext = strrchr(path, '.')))
   {
     // No extension marker so no match.
-    BK_RETURN(B,0);    
+    BK_RETURN(B,0);
   }
-  
+
   ext++;
-  
+
   for (cur = (const char **)exts; *cur; cur++)
   {
     if (BK_STREQ(ext, *cur))
-      BK_RETURN(B,1);      
+      BK_RETURN(B,1);
   }
 
-  BK_RETURN(B,0);  
+  BK_RETURN(B,0);
 }
 
 
 
 /**
  * Determines whether a file descriptor is a true (anonymous) pipe.
- * Anonymous pipes on Linux and FreeBSD have 0 device numbers, 
+ * Anonymous pipes on Linux and FreeBSD have 0 device numbers,
  * while named pipes have non-zero numbers.  On Solaris, the device
  * must be broken into major and minor numbers to get the correct
  * result.
+ *
+ * THREADS: MT-SAFE
  *
  * @param B Baka Thread/global state
  * @param fd The file descriptor
@@ -803,6 +838,8 @@ bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags)
 /**
  * Slurp a file--read it into on continuous chunk of memory
  *
+ * THREADS: MT-SAFE
+ *
  * @param B Baka thread/global environment
  * @param FH Stdio file handle to read (NULL to ignore)
  * @param fd File description in place of filename (-1 to ignore)
@@ -842,7 +879,7 @@ bk_vptr *bk_slurp(bk_s B, FILE *FH, int fd, const char *filename, int maxwastage
   while (FH && !feof(FH))
   {
     size += maxwastage - (size-ret->len);
-    
+
     if (!(tmp = realloc(ret->ptr, size)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not increase file size to %d: %s\n", size, strerror(errno));
@@ -866,7 +903,7 @@ bk_vptr *bk_slurp(bk_s B, FILE *FH, int fd, const char *filename, int maxwastage
   while (fd >= 0)
   {
     size += maxwastage - (size-ret->len);
-    
+
     if (!(tmp = realloc(ret->ptr, size)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not increase file size to %d: %s\n", size, strerror(errno));

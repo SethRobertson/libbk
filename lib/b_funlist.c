@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_funlist.c,v 1.7 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_funlist.c,v 1.8 2003/04/16 23:39:53 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -76,6 +76,8 @@ struct bk_fun
 /**
  * Create the function list
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA Thread/global state
  *	@param flags Fun for the future
  *	@return <i>NULL</i> on allocation failure
@@ -93,7 +95,7 @@ struct bk_funlist *bk_funlist_init(bk_s B, bk_flags flags)
   }
   funlist->bf_flags = flags;
 
-  if (!(funlist->bf_list = funlist_create(NULL, NULL, DICT_UNORDERED, NULL)))
+  if (!(funlist->bf_list = funlist_create(NULL, NULL, DICT_UNORDERED|bk_thread_safe_if_thread_ready, NULL)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate function list list: %s\n", funlist_error_reason(NULL, NULL));
     goto error;
@@ -110,6 +112,8 @@ struct bk_funlist *bk_funlist_init(bk_s B, bk_flags flags)
 
 /**
  * Get rid of the function list and its contents
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param funlist The function list handle
@@ -140,6 +144,8 @@ void bk_funlist_destroy(bk_s B, struct bk_funlist *funlist)
 /**
  * Call all functions in the function list
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA Thread/global state
  *	@param funlist The function list handle
  *	@param aux The auxiliary data argument to the functions
@@ -169,6 +175,8 @@ void bk_funlist_call(bk_s B, struct bk_funlist *funlist, u_int aux, bk_flags fla
 
 /**
  * Add a function to the end of the function list
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param funlist The function list handle
@@ -215,6 +223,8 @@ int bk_funlist_insert(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(bk_s, v
 
 /**
  * Get rid of the first function on the list which has the same fun/args
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param funlist Function list handle

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: testrandidea.c,v 1.8 2003/04/13 00:24:40 seth Exp $";
+static const char libbk__rcsid[] = "$Id: testrandidea.c,v 1.9 2003/04/16 23:39:54 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -207,6 +207,7 @@ main(int argc, char **argv, char **envp)
     {
       struct timeval end, cur;
       volatile u_int cntr;
+      static int last=0,diff;
 
       gettimeofday(&end,NULL);
       end.tv_usec += pconfig->pc_numusec;
@@ -218,10 +219,12 @@ main(int argc, char **argv, char **envp)
 	if (BK_TV_CMP(&end,&cur) < 0)
 	  break;
       }
+      diff = last-cntr;
+      last = cntr;
       if (BK_FLAG_ISSET(pconfig->pc_flags, PC_BINARY))
-	printf("%c%c%c%c",((char *)&cntr)[0],((char *)&cntr)[1],((char *)&cntr)[2],((char *)&cntr)[3]);
+	printf("%c%c%c%c",((char *)&diff)[0],((char *)&diff)[1],((char *)&diff)[2],((char *)&diff)[3]);
       else
-	printf("cntr %u\n",cntr);
+	printf("cntr %u diff %d\n",cntr,diff);
     }
     break;
 

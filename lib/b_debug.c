@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.22 2003/04/13 00:24:39 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.23 2003/04/16 23:39:53 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -150,6 +150,11 @@ void bk_debug_destroy(bk_s B, struct bk_debug *bd)
     DICT_NUKE_CONTENTS(bd->bd_leveldb, debug, cur, bk_error_printf(B, BK_ERR_ERR,"Could not delete item from front of CLC: %s\n",debug_error_reason(bd->bd_leveldb,NULL)), if (cur->bd_name) free(cur->bd_name); free(cur));
     debug_destroy(bd->bd_leveldb);
   }
+
+#ifdef BK_USING_PTHREADS
+  pthread_rwlock_destroy(&bd->bd_rwlock);
+#endif /* BK_USING_PTHREADS */
+
   free(bd);
 }
 

@@ -1,0 +1,27 @@
+
+Testing of Seth's random number generators:
+Times on startide 1GHz P3
+
+bzip2/gzip work better than ent for entropy measurement.
+
+* Test type 0 -- gettimeofday  usec precision
+2517 bits per second
+
+* Test type 1 -- setitimer real interrupt timer
+1434 bits per second
+
+* Test type 2 -- setitimer virtual interrupt timer
+899 bits per second
+
+* Test type 3 -- system call usec differences
+424 bits per second
+
+
+* Extended tests on type 0
+
+count -i 10 10 200 | while read t; do echo TIME $t; time ../testrandidea -b -T 0 -l 10000 -t $t | bzip2 -v > /dev/null; echo DONE; done 2>&1  | tee -a /tmp/z
+perl -ne '{ if (/TIME (\d+)/) { $T=$1; } if (/(\d+) out/) { $b = $1-37; } if (/real\s+(\d+)m([0-9.]+)s/) { $s = $1*60+$2; print "$T ".($b/$s)."\n"; }}' /tmp/z | sort -n > /tmp/z.gr
+DISPLAY=$D GRACE_HOME=/proj/linux/grace /proj/linux/grace/bin/xmgrace /tmp/z.gr
+
+../testrandidea -b -T 0 -l 1000000 -t 100 | bzip2 -v > /dev/null
+

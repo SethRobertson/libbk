@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.82 2003/03/20 17:47:01 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.83 2003/04/16 23:39:54 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -41,6 +41,9 @@ struct bk_str_registry
 {
   bk_flags		bsr_flags;		///< EVeryone needs flags. (NB Shares flags space with bk_str_registry_element
   dict_h		bsr_repository;		///< The repository of strings.
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_t	bsr_inslock;		///< Insert lock
+#endif /* BK_USING_PTHREADS */
 };
 
 
@@ -55,27 +58,31 @@ struct bk_str_registry_element
   const char *		bsre_str;		///< The saved string.
   bk_str_id_t		bsre_id;		///< The id of this string.
   u_int			bsre_ref;		///< Reference count
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_t	bsre_lock;		///< Registry Lock
+#endif /* BK_USING_PTHREADS */
+
 };
 
 
 
-#define TOKENIZE_FIRST		8		///< How many we will start with 
-#define TOKENIZE_INCR		4		///< How many we will expand if we need more 
-#define TOKENIZE_STR_FIRST	16		///< How many we will start with 
-#define TOKENIZE_STR_INCR	16		///< How many we will expand 
+#define TOKENIZE_FIRST		8		///< How many we will start with
+#define TOKENIZE_INCR		4		///< How many we will expand if we need more
+#define TOKENIZE_STR_FIRST	16		///< How many we will start with
+#define TOKENIZE_STR_INCR	16		///< How many we will expand
 #define MAXVARIABLESIZE		1024		///< Maximum size of a variable
 
-#define S_SQUOTE		0x1		///< In single quote 
-#define S_DQUOTE		0x2		///< In double quote 
+#define S_SQUOTE		0x1		///< In single quote
+#define S_DQUOTE		0x2		///< In double quote
 #define S_VARIABLE		0x4		///< In $variable (saw at least $)
-#define S_BSLASH		0x8		///< Backslash found 
-#define S_BSLASH_OCT		0x10		///< Backslash octal 
-#define S_SPLIT			0x20		///< In split character 
-#define S_BASE			0x40		///< Base state 
+#define S_BSLASH		0x8		///< Backslash found
+#define S_BSLASH_OCT		0x10		///< Backslash octal
+#define S_SPLIT			0x20		///< In split character
+#define S_BASE			0x40		///< Base state
 #define S_VARIABLEDELIM		0x80		///< In ${variable} (saw at least ${)
-#define INSTATE(x)		(state & (x))	///< Are we in this state 
-#define GOSTATE(x)		state = x	///< Become this state  
-#define ADDSTATE(x)		state |= x	///< Superstate (typically variable in dquote) 
+#define INSTATE(x)		(state & (x))	///< Are we in this state
+#define GOSTATE(x)		state = x	///< Become this state
+#define ADDSTATE(x)		state |= x	///< Superstate (typically variable in dquote)
 #define SUBSTATE(x)		state &= ~(x)	///< Get rid of superstate
 
 /**
@@ -97,14 +104,14 @@ static void bsre_destroy(bk_s B, struct bk_str_registry_element *bsre);
  * No 'B' passed in so that this can be used in CLC comparison functions.
  * (Huh?  That doesn't make sense.  The API is different.  SJR admits that
  * that it doesn't need it, but the argument made here is just *wrong*)
- *	
+ *
  * THREADS: MT-SAFE
- *	
+ *
  *	@param k The string to be hashed
  *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function, BK_HASH_V2 for better, but slower mixing
  *	@return <i>hash</i> of number
  */
-u_int 
+u_int
 bk_strhash(const char *k, bk_flags flags)
 {
   const u_int32_t P = 2147486459U;		// Arbitrary large prime
@@ -114,7 +121,7 @@ bk_strhash(const char *k, bk_flags flags)
   {
     /*
      * Hash a string.
-     *	
+     *
      * The Practice of Programming: Kernighan and Pike: 2.9 (i.e. not covered
      * under LGPL)
      *
@@ -131,9 +138,9 @@ bk_strhash(const char *k, bk_flags flags)
   {
     /*
      * Hash a string into tiny little bits.
-     *	
+     *
      * Not covered under the normal BK license.
-     * 
+     *
      * Returns a 32-bit value.  Every bit of the key affects every bit of
      * the return value.  Every 1-bit and 2-bit delta achieves avalanche.
      * About 6*len+35 instructions.
@@ -141,10 +148,10 @@ bk_strhash(const char *k, bk_flags flags)
      * The best hash table sizes are powers of 2.  There is no need to do
      * mod by a prime (mod is sooo slow!).  If you need less than 32 bits,
      * use a bitmask.
-     * 
+     *
      * By Bob Jenkins, 1996.  bob_jenkins@burtleburtle.net.  You may use this
      * code any way you wish, private, educational, or commercial.  It's free.
-     * 
+     *
      * See http://burtleburtle.net/bob/hash/evahash.html
      * Use for hash table lookup, or anything where one collision in 2^^32 is
      * acceptable.  Do NOT use for cryptographic purposes.
@@ -159,16 +166,16 @@ bk_strhash(const char *k, bk_flags flags)
      *   have at least 1/4 probability of changing.
      * * If mix() is run forward, every bit of c will change between 1/3 and
      *   2/3 of the time.  (Well, 22/100 and 78/100 for some 2-bit deltas.)
-     * mix() was built out of 36 single-cycle latency instructions in a 
+     * mix() was built out of 36 single-cycle latency instructions in a
      *   structure that could supported 2x parallelism, like so:
-     *       a -= b; 
+     *       a -= b;
      *       a -= c; x = (c>>13);
      *       b -= c; a ^= x;
      *       b -= a; x = (a<<8);
      *       c -= a; b ^= x;
      *       c -= b; x = (b>>13);
      *       ...
-     *   Unfortunately, superscalar Pentiums and Sparcs can't take advantage 
+     *   Unfortunately, superscalar Pentiums and Sparcs can't take advantage
      *   of that parallelism.  They've also turned some of those single-cycle
      *   latency instructions into multi-cycle latency instructions.  Still,
      *   this is the fastest good hash I could find.  There were about 2^^68
@@ -237,7 +244,7 @@ bk_strhash(const char *k, bk_flags flags)
 
 /**
  * Hash a buffer.
- *	
+ *
  * Equivalent to bk_oldstrhash() except that it works on bk_vptr buffers.
  *
  * THREADS: MT-SAFE
@@ -246,7 +253,7 @@ bk_strhash(const char *k, bk_flags flags)
  *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function
  *	@return <i>hash</i> of number
  */
-u_int 
+u_int
 bk_bufhash(const struct bk_vptr *b, bk_flags flags)
 {
   const u_int M = 37U;				// Multiplier
@@ -307,7 +314,7 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
     BK_RETURN(B,NULL);
   }
 
-  // addressbitspercol ^ hexaddresscols 
+  // addressbitspercol ^ hexaddresscols
   for(len=0,maxaddress=1;len<hexaddresscols;len++) maxaddress *= addressbitspercol;
 
   if (buf->len >= maxaddress)
@@ -654,7 +661,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	startseq++;
 	if ((curloc - startseq + 1) < MAXVARIABLESIZE)
 	{
-	  char *replace = NULL;
+	  const char *replace = NULL;
 	  int len;
 
 	  memcpy(varspace,startseq,curloc-startseq);
@@ -670,7 +677,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	  {
 	    char **tmpenv = environ;
 	    environ = (char **)variabledb;
-	    replace = getenv(varspace);
+	    replace = bk_getenv(B, varspace);
 	    environ = tmpenv;
 	  }
 
@@ -888,7 +895,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
   bk_memx_destroy(B, splitx, BK_MEMX_PRESERVE_ARRAY);
   bk_memx_destroy(B, tokenx, 0);
   BK_RETURN(B, ret);
-  
+
  error:
   /*
    * Note - contents of splitx (duplicated tokens) may be leaked
@@ -974,7 +981,7 @@ char *bk_string_rip(bk_s B, char *string, const char *terminators, bk_flags flag
  *
  * THREADS: MT-SAFE
  *
- * 	@param B BAKA Thread/global state
+ *	@param B BAKA Thread/global state
  *	@param src Source string to convert
  *	@param needquote Characters which need backslash quoting (double quote if NULL)
  *	@param flags BK_STRING_QUOTE_NULLOK will convert NULL @a src into BK_NULLSTR.  BK_STRING_QUOTE_NONPRINT will quote non-printable characters.
@@ -1062,16 +1069,16 @@ char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags f
  * the bound. NB: This function returns a @a ssize_t not a @a size_t as per
  * @a strlen(3). This is so we can return <i>-1</i>.`
  *
- * <TODO>Should this be replaced with memmem?</TODO>
+ * <TODO>Should this be replaced with memmem?  No, silly, this is a totally different function.</TODO>
  *
  * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state.
  *	@param s The string to check.
  *	@param max The maximum string size to check.
- *	@returns The <i>length</i> of the string on success. 
+ *	@returns The <i>length</i> of the string on success.
  *	@returns <i>-1</i> on failure (including string too long).
- * 	@bugs Does not return the same type as @a strlen(3). See description.
+ *	@bugs Does not return the same type as @a strlen(3). See description.
  */
 ssize_t /* this is not an error. See description */
 bk_strnlen(bk_s B, const char *s, size_t max)
@@ -1084,7 +1091,7 @@ bk_strnlen(bk_s B, const char *s, size_t max)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   for(c=0; *s && c < max; c++)
     s++; // Void
 
@@ -1120,14 +1127,14 @@ bk_strndup(bk_s B, const char *s, size_t len)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   // <TODO>Should this check len against strlen(s)?  Size/space</TODO>
   if (!(BK_MALLOC_LEN(new, len+1)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not malloc: %s\n", strerror(errno));
     BK_RETURN(B,NULL);
   }
-  
+
   snprintf(new,len+1, "%s", s);
   BK_RETURN(B,new);
 #else  /* !HAVE_STRNDUP */
@@ -1147,7 +1154,7 @@ bk_strndup(bk_s B, const char *s, size_t len)
  *
  *	@param B BAKA thread/global state.
  *	@param haystack The buffer in which to search.
- *	@param needle The fixed string to search for. 
+ *	@param needle The fixed string to search for.
  *	@param len The max length to search.
  *	@return <i>NULL</i> on failure.<br>
  *	@return pointer to @a needle in @a haystack on success.
@@ -1174,20 +1181,20 @@ bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len)
   if (len >= nlen)
   {
     upper_bound = haystack + len + 1 - nlen;
-  
+
     while(p < upper_bound)
     {
       if (!(q = memchr(p, *needle, upper_bound - p)))
 	break;					// Not found
 
       if (BK_STREQN(q, needle, nlen))
-	BK_RETURN(B, (char *)q);      
-      
+	BK_RETURN(B, (char *)q);
+
       p = q + 1;
     }
   }
 
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 #else  /* !HAVE_MEMMEM */
   if (!haystack || !needle)
   {
@@ -1210,7 +1217,7 @@ bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len)
  *
  *	@param B BAKA thread/global state.
  *	@param haystack The string in which to search.
- *	@param needle The buffer to search for. 
+ *	@param needle The buffer to search for.
  *	@param nlen The length of needle.
  *	@return <i>NULL</i> on failure.<br>
  *	@return pointer to @a needle in @a haystack on success.
@@ -1237,20 +1244,20 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t nlen)
   if (len >= nlen)
   {
     upper_bound = haystack + len + 1 - nlen;
-  
+
     while(p < upper_bound)
     {
       if (!(q = memchr(p, *needle, upper_bound - p)))
 	break;					// Not found
 
       if (BK_STREQN(q, needle, nlen))
-	BK_RETURN(B, (char *)q);      
-      
+	BK_RETURN(B, (char *)q);
+
       p = q + 1;
     }
   }
 
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 #else  /* !HAVE_MEMMEM */
   if (!haystack || !needle)
   {
@@ -1272,7 +1279,7 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t nlen)
  *
  *	@param B BAKA thread/global state.
  *	@param buffer The buffer in which to search.
- *	@param character The character to search for. 
+ *	@param character The character to search for.
  *	@param len The max length to search.
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>pos</i> of @a needle on success.
@@ -1288,9 +1295,9 @@ bk_memrchr(bk_s B, const void *buffer, int character, size_t len)
   p += len;
   while (--p >= (const char *)buffer)
     if (*p == character)
-      BK_RETURN(B, (void *)p);  
+      BK_RETURN(B, (void *)p);
 
-  BK_RETURN(B, NULL);  
+  BK_RETURN(B, NULL);
 #else  /* !HAVE_MEMRCHR */
   BK_RETURN(B, memrchr(buffer, character, len));
 #endif /* !HAVE_MEMRCHR */
@@ -1364,7 +1371,7 @@ bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2)
  *	@param B BAKA thread/global state.
  *	@param chunk Chunk size to use (0 means user the default)
  *	@param flags Flags.
- * 		BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY
+ *		BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY
  *	@param fmt The format string to use.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a malloc'ed <i>string</i> on success.
@@ -1395,7 +1402,7 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
  *	@param B BAKA thread/global state.
  *	@param chunk Chunk size to use (0 means user the default)
  *	@param flags Flags.
- * 		BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY
+ *		BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY
  *	@param fmt The format string to use.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a malloc'ed <i>string</i> on success.
@@ -1423,7 +1430,7 @@ bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, v
     goto error;
   }
 
-  while (1) 
+  while (1)
   {
     /* Try to print in the allocated space. */
     n = vsnprintf(p, size, fmt, ap);
@@ -1458,7 +1465,7 @@ bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, v
     p = tmp;
   }
 
-  BK_RETURN(B,p);      
+  BK_RETURN(B,p);
 
  error:
   if (p)
@@ -1479,7 +1486,7 @@ bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, v
  *
  *	@param B BAKA thread/global state.
  *	@param flags Flags.
- * 		BK_VSTR_CAT_FLAG_STINGY_MEMORY
+ *		BK_VSTR_CAT_FLAG_STINGY_MEMORY
  *	@param fmt The format string to use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
@@ -1500,7 +1507,7 @@ bk_vstr_cat(bk_s B, bk_flags flags, bk_vstr *dest, const char *src_fmt, ...)
   }
 
   // try with available space
-  while (1) 
+  while (1)
   {
     int available = dest->max - dest->cur;
 
@@ -1534,7 +1541,7 @@ bk_vstr_cat(bk_s B, bk_flags flags, bk_vstr *dest, const char *src_fmt, ...)
     dest->ptr = p;
     dest->max = size - 1;			// don't include NULL space
   }
-  
+
   if (BK_FLAG_ISSET(flags, BK_VSTR_CAT_FLAG_STINGY_MEMORY))
   {
     char *tmp;
@@ -1562,7 +1569,7 @@ bk_vstr_cat(bk_s B, bk_flags flags, bk_vstr *dest, const char *src_fmt, ...)
  * Generate a buffer which, as far as possible, is guaranteed to be
  * unique by the power of entropy.
  *
- * THREADS: EVIL (through possible contamination by bk_rand)
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param buf The buffer to fill.
@@ -1575,7 +1582,7 @@ int
 bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_randinfo *ri = NULL;
+  struct bk_truerandinfo *ri = NULL;
   char *p = buf;
   u_int32_t val;
 
@@ -1585,7 +1592,8 @@ bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  if (!(ri = bk_rand_init(B, 0, 0)))
+  // <TODO>Figure out some way to allow use of global random pool</TODO>
+  if (!(ri = bk_truerand_init(B, 0, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not initialize random state\n");
     goto error;
@@ -1606,22 +1614,22 @@ bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
       curlen = MIN(len, sizeof(val)*2);
       eos_space = 0;
     }
-    
-    val = bk_rand_getword(B, ri, NULL, 0);
+
+    val = bk_truerand_getword(B, ri, NULL, 0);
 
     snprintf(p, curlen + eos_space, "%08x", val);
-    
+
     len -= curlen;
     p += curlen;
   }
 
-  bk_rand_destroy(B, ri, 0);
-  BK_RETURN(B,0);  
-  
+  bk_truerand_destroy(B, ri);
+  BK_RETURN(B,0);
+
  error:
   if (ri)
-    bk_rand_destroy(B, ri, 0);
-  BK_RETURN(B,-1);  
+    bk_truerand_destroy(B, ri);
+  BK_RETURN(B,-1);
 }
 
 
@@ -1661,7 +1669,7 @@ void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset)
 /**
  * Initialize the string registry.
  *
- * THREADS: EVIL (from CLC--could be trivially via no-coalesce)
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
@@ -1679,18 +1687,18 @@ bk_string_registry_init(bk_s B)
     goto error;
   }
 
-  if (!(bsr->bsr_repository = bsr_create((int(*)(dict_obj, dict_obj))bsr_oo_cmp, NULL, DICT_ORDERED)))
+  if (!(bsr->bsr_repository = bsr_create((int(*)(dict_obj, dict_obj))bsr_oo_cmp, NULL, DICT_ORDERED|bk_thread_safe_if_thread_ready)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create string registry repository: %s\n", bsr_error_reason(NULL, NULL));
     goto error;
   }
-  
-  BK_RETURN(B,bsr);  
+
+  BK_RETURN(B,bsr);
 
  error:
   if (bsr)
     bk_string_registry_destroy(B, (bk_str_registry_t)bsr);
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }
 
 
@@ -1698,7 +1706,7 @@ bk_string_registry_init(bk_s B)
 /**
  * Destroy a string registry
  *
- * THREADS: EVIL (from CLC--could be trivially via no-coalesce)
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bsr The registry to fully destroy.
@@ -1715,7 +1723,7 @@ bk_string_registry_destroy(bk_s B, bk_str_registry_t handle)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   while(bsre = bsr_minimum(bsr->bsr_repository))
   {
     if (bsr_delete(bsr->bsr_repository, bsre) != DICT_OK)
@@ -1726,10 +1734,11 @@ bk_string_registry_destroy(bk_s B, bk_str_registry_t handle)
     bsre_destroy(B, bsre);
   }
   bsr_destroy(bsr->bsr_repository);
-  
+
   free(bsr);
   BK_VRETURN(B);
 }
+
 
 
 /**
@@ -1752,12 +1761,13 @@ bsre_create(bk_s B, const char *str, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (!(BK_CALLOC(bsre)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bsre: %s\n", strerror(errno));
     goto error;
   }
+  pthread_mutex_init(&bsre->bsre_lock, NULL);
 
   if (BK_FLAG_ISSET(flags, BK_STR_REGISTRY_FLAG_COPY_STR))
   {
@@ -1775,12 +1785,12 @@ bsre_create(bk_s B, const char *str, bk_flags flags)
   bsre->bsre_flags = flags;
   bsre->bsre_ref = 0;
 
-  BK_RETURN(B,bsre);  
+  BK_RETURN(B,bsre);
 
  error:
   if (bsre)
     bsre_destroy(B, bsre);
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }
 
 
@@ -1803,15 +1813,19 @@ bsre_destroy(bk_s B, struct bk_str_registry_element *bsre)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
-  if (BK_FLAG_ISSET(bsre->bsre_flags, BK_STR_REGISTRY_FLAG_COPY_STR) && 
+
+  if (BK_FLAG_ISSET(bsre->bsre_flags, BK_STR_REGISTRY_FLAG_COPY_STR) &&
       bsre->bsre_str)
   {
     free((void *)bsre->bsre_str);
   }
-  
+
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_destroy(&bsre->bsre_lock);
+#endif /* BK_USING_PTHREADS */
+
   free(bsre);
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -1821,12 +1835,12 @@ bsre_destroy(bk_s B, struct bk_str_registry_element *bsre)
  * used with caution. Don't cache the value too long as it may become
  * invalid.
  *
- * THREADS: EVIL (through CLC)
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param handle the registry handle to use.
  *	@param str The string to insert
-*	@param flag Flags.
+ *	@param flag Flags.
  *	@return <i>0</i> on FAILURE (!! THIS IS NOT NORMAL FOR LIBBK !!).<br>
  *	@return <i>positive</i> on success.
  */
@@ -1842,7 +1856,7 @@ bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, 0);
   }
-  
+
   for(bsre = bsr_minimum(bsr->bsr_repository);
       bsre;
       bsre = bsr_successor(bsr->bsr_repository, bsre))
@@ -1850,8 +1864,8 @@ bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk
     if (BK_STREQ(bsre->bsre_str, str))
       break;
   }
-  
-  BK_RETURN(B,bsre?bsre->bsre_id:0);  
+
+  BK_RETURN(B,bsre?bsre->bsre_id:0);
 }
 
 
@@ -1859,7 +1873,8 @@ bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk
 /**
  * Delete a string from the registry
  *
- * THREADS: EVIL (through CLC)
+ * THREADS: MT-SAFE (assuming different handle)
+ * THREADS: THREAD-REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param str The string to delete.
@@ -1873,7 +1888,8 @@ bk_string_registry_delete(bk_s B, bk_str_registry_t handle, const char *str, bk_
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre;
-  
+  int ret;
+
   if (!bsr || !str)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
@@ -1887,18 +1903,30 @@ bk_string_registry_delete(bk_s B, bk_str_registry_t handle, const char *str, bk_
     if (BK_STREQ(bsre->bsre_str, str))
       break;
   }
-	
+
   if (!bsre)
   {
     bk_error_printf(B, BK_ERR_WARN, "Could not locate string to delete in string registry\n");
     // We call this success.
-    BK_RETURN(B,0);    
+    BK_RETURN(B,0);
   }
 
-  if (--bsre->bsre_ref)
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_lock(&bsre->bsre_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  ret = --bsre->bsre_ref;
+
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_unlock(&bsre->bsre_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  if (ret)
   {
     /* Someone is still using this, so we're done */
-    BK_RETURN(B,0);    
+    BK_RETURN(B,0);
   }
 
   if (bsr_delete(bsr->bsr_repository, bsre) != DICT_OK)
@@ -1908,10 +1936,10 @@ bk_string_registry_delete(bk_s B, bk_str_registry_t handle, const char *str, bk_
   }
 
   bsre_destroy(B, bsre);
-  BK_RETURN(B,0);  
+  BK_RETURN(B,0);
 
  error:
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
 
 
@@ -1920,7 +1948,10 @@ bk_string_registry_delete(bk_s B, bk_str_registry_t handle, const char *str, bk_
  * Obtain the ID of a string which has been inserted into the
  * registry.
  *
- * THREADS: EVIL (through CLC)
+ * This is kinda, err, slow if there are many items in the list.
+ *
+ * THREADS: MT-SAFE (assuming different handle)
+ * THREADS: THREAD-REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param str The string to search for.
@@ -1944,7 +1975,12 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, 0);
   }
-  
+
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_lock(&bsr->bsr_inslock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   for(bsre = bsr_minimum(bsr->bsr_repository);
       bsre;
       bsre = bsr_successor(bsr->bsr_repository, bsre))
@@ -1968,6 +2004,11 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
     }
   }
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_unlock(&bsr->bsr_inslock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (!id && tmp)
     id = tmp;
 
@@ -1986,7 +2027,7 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
       bk_error_printf(B, BK_ERR_ERR, "Could not create string registry element\n");
       goto error;
     }
-    
+
     bsre->bsre_id = id;
 
     if (bsr_append(bsr->bsr_repository, bsre) != DICT_OK)
@@ -1999,9 +2040,17 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
     inserted = 1;
   }
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_lock(&bsre->bsre_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   bsre->bsre_ref++;
 
-  BK_RETURN(B,bsre->bsre_id);  
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_unlock(&bsre->bsre_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
  error:
   if (bsre)
@@ -2014,7 +2063,7 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
     }
     bsre_destroy(B, bsre);
   }
-  BK_RETURN(B,0);  
+  BK_RETURN(B,0);
 }
 
 
@@ -2022,7 +2071,7 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
 /**
  * Obtain the string associated with a known string-ID in the str registry
  *
- * THREADS: EVIL (through CLC)
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param id The ID to search for.
@@ -2036,7 +2085,7 @@ bk_string_registry_strbyid(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre;
-  
+
   if (!bsr || id == 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -2050,13 +2099,13 @@ bk_string_registry_strbyid(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_
     if (bsre->bsre_id == id)
       break;
   }
-  
+
   if (!bsre)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not locate ID %d in string registry\n", id);
-    BK_RETURN(B,NULL);    
+    BK_RETURN(B,NULL);
   }
-  BK_RETURN(B,bsre->bsre_str);  
+  BK_RETURN(B,bsre->bsre_str);
 }
 
 static ht_val bsr_oo_cmp(struct bk_str_registry_element *a, struct bk_str_registry_element *b)
@@ -2069,6 +2118,8 @@ static ht_val bsr_oo_cmp(struct bk_str_registry_element *a, struct bk_str_regist
 /**
  * Return string with variables expanded, optionally freed.  Allows backslash quoting ala
  * BK_STRING_TOKENIZE_BACKSLASH.
+ *
+ * THREADS: MT-SAFE
  *
  * @param B Baka Thread/global environment
  * @param src Source string
@@ -2116,5 +2167,3 @@ char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **
 
   BK_RETURN(B, NULL);
 }
-
- 
