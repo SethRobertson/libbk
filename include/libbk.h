@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.158 2002/07/23 15:10:08 dupuy Exp $
+ * $Id: libbk.h,v 1.159 2002/08/09 22:08:02 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1276,7 +1276,7 @@ extern bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flag
 // Out flags
 #define 	BK_IOH_COALESCE_OUT_FLAG_NO_COPY	0x1 ///< Data not copied.
 extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str);
-extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, char *format, ...);
+extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, const char *format, ...);
 extern int bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_alg, struct bk_vptr auth_key, char *auth_name , int encrypt_alg, struct bk_vptr encrypt_key, bk_flags flags);
 
 /* b_pollio.c */

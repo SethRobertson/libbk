@@ -1,3 +1,7 @@
+2002-08-09  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h: bk_ioh_printf takes const char *format
+
 2002-08-05  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_url.c (bk_url_parse): break out host/service from authority

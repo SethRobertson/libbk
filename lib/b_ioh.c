@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.60 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.61 2002/08/09 22:08:03 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3482,7 +3482,7 @@ extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str)
  * @return <i>0</i> on success<br>
  * @return <i>negative</i> on failure
  */
-extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, char *format, ...)
+extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, const char *format, ...)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   va_list args;
