@@ -1,4 +1,6 @@
 .depend
+test_config
+test_errorstuff
+test_getbyfoo
 test_printbuf
 test_stringconv
-test_errorstuff
