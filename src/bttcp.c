@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.8 2001/11/20 19:34:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.9 2001/11/20 19:56:13 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -95,7 +95,7 @@ static int parse_host_specifier(bk_s B, const char *url, char **name, char **por
 static int init_state(bk_s B, struct program_config *pc);
 static void remote_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args);
 static void local_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args);
-static void connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, bk_flags flags);
+static void connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_flags flags);
 static void relay_finish(bk_s B, void *args, u_int state);
 static void cleanup(bk_s B, struct program_config *pc);
 
@@ -459,13 +459,13 @@ init_state(bk_s B, struct program_config *pc)
     pc->pc_init_cur_state=BDTTCP_INIT_STATE_CONNECT;
     if (pc->pc_role==BTTCP_ROLE_RECEIVE)
     {
-      if (bk_netutils_start_service(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, "5001", "tcp", NULL, connect_complete, pc, 0, 0))
+      if (bk_netutils_start_service(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, "5001", "tcp", NULL, connect_complete, pc, 0, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not start service\n");
 	goto error;
       }
     }
-    else if (bk_net_init(B, pc->pc_run, pc->pc_local, pc->pc_remote, pc->pc_timeout, 0, connect_complete, pc, 0)<0)
+    else if (bk_net_init(B, pc->pc_run, pc->pc_local, pc->pc_remote, pc->pc_timeout, 0, connect_complete, pc, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP)<0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not begin connect\n");
       goto error;
@@ -558,7 +558,7 @@ local_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bn
  *	@return <i>0</i> on success.
  */
 static void 
-connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, bk_addrgroup_result_t result)
+connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_result_t result)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   struct program_config *pc;

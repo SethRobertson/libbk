@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.7 2001/11/20 19:34:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.8 2001/11/20 19:56:13 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -73,6 +73,7 @@ struct addrgroup_state
   void *		as_eventh;		///< Timeout event handle
   struct bk_run *	as_run;			///< run handle.
   int			as_backlog;		///< Listen backlog.
+  bk_flags		as_user_flags;		///< Flags passed in from user.
 };
 
 
@@ -226,7 +227,7 @@ as_destroy(bk_s B, struct addrgroup_state *as)
   /* If the callback has not been called already, do so with flag */
   if (as->as_callback)
   {
-    (*(as->as_callback))(B, as->as_args, -1, NULL, BK_ADDRGROUP_RESULT_DESTROYED);
+    (*(as->as_callback))(B, as->as_args, -1, NULL, NULL, BK_ADDRGROUP_RESULT_DESTROYED);
   }
 
   if (as->as_eventh) bk_run_dequeue(B, as->as_run, as->as_eventh, 0);
@@ -293,6 +294,7 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
   as->as_timeout=timeout;
   as->as_run=run;
   as->as_backlog=backlog;
+  as->as_user_flags=flags;
   
   /* This function also sets some of bag's fields */
   if (net_init_check_sanity(B, local, remote, bag) < 0)
@@ -767,9 +769,15 @@ net_init_end(bk_s B, struct addrgroup_state *as, struct bk_addrgroup *bag, bk_ad
     BK_VRETURN(B);
   }
 
+  if (bag && BK_FLAG_ISCLEAR(as->as_user_flags, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP))
+  {
+    bk_addrgroup_destroy(B,bag);
+    bag=NULL;
+  }
+
   if (as->as_callback)
   {
-    (*(as->as_callback))(B, as->as_args, as->as_sock, bag, result);
+    (*(as->as_callback))(B, as->as_args, as->as_sock, bag, NULL, result);
     as->as_callback=NULL;
 
     /*

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.61 2001/11/20 19:51:57 seth Exp $
+ * $Id: libbk.h,v 1.62 2001/11/20 19:56:13 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -252,7 +252,7 @@ typedef void (*bk_fd_handler_t)(bk_s B, struct bk_run *run, int fd, u_int gottyp
  * bogus owing to the fact that server listens (which aren't tehcnically
  * associations) and unconnected udp use this structure too. 
  */
-typedef void (*bk_bag_callback_t)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, bk_addrgroup_result_t result);
+typedef void (*bk_bag_callback_t)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_result_t result);
 
 struct bk_addrgroup
 {
@@ -274,7 +274,8 @@ struct bk_addrgroup
 #define BK_ADDRGROUP_ARGS(bag) ((bag)->bag_args)
 
 
-#define BK_ADDRGROUP_FLAG_DIVIDE_TIMEOUT	0x1 ///< Timeout should be divided among all addresses */
+#define BK_ADDRGROUP_FLAG_DIVIDE_TIMEOUT	0x1 ///< Timeout should be divided among all addresses
+#define BK_ADDRGROUP_FLAG_WANT_ADDRGROUP	0x2 ///< I want a filled out addrgroup on my callback
 
 
 // @}
@@ -846,6 +847,7 @@ extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obs
 extern int bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa);
 extern int bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char **servicestr,  char *defservicestr, char **protostr, char *defprotostr);
 extern int bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags);
+
 
 
 /* b_signal.c */

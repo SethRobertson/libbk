@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.2 2001/11/20 19:34:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.3 2001/11/20 19:56:13 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -254,6 +254,11 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhostst
     goto error;
   }
 
+  if (securenets)
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Securenets are not yet implemented, Caveat emptor.\n");
+  }
+  
   if (!hoststr || !servstr || !protostr)
   {
     bk_error_printf(B, BK_ERR_ERR, "Must specify all three of host/service/protocol\n");
@@ -315,8 +320,6 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhostst
 /**
  * Continue trying to set up a service following hostname determination.
  *	@param B BAKA thread/global state.
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
  */
 static void
 sss_gethost_complete(bk_s B, struct bk_run *run , struct hostent **h, struct bk_netinfo *bni, void *args)

@@ -5,6 +5,9 @@
 
 2001-11-20  James Tanis  <jtt@winwood.sysdetect.com>
 
+	* lib/b_addrgroup.c (tcp_end): Flag to request BAG on connection
+	completion, otherwise we clean it up.
+
 	* src/bttcp.c: Convert to use new service start interface.
 
 	* lib/b_netutils.c (bk_parse_endpt_spec): Parses BK "URL".
