@@ -1,11 +1,11 @@
 /*
- * $Id: libbk.h,v 1.238 2003/06/03 17:47:37 lindauer Exp $
+ * $Id: libbk.h,v 1.239 2003/06/03 21:03:07 seth Exp $
  *
  * ++Copyright LIBBK++
  *
  * Copyright (c) 2001-2003 The Authors. All rights reserved.
  *
- * This source code is licensed to you under the terms of the file
+ * This source code is licensed to you under the term of the file
  * LICENSE.TXT in this release for further details.
  *
  * Mail <projectbaka@baka.org> for further information
@@ -1324,6 +1324,7 @@ extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *co
 extern int bk_thread_safe_if_thread_ready;
 extern bk_s bk_general_thread_init(bk_s B, const char *name);
 extern void bk_general_thread_destroy(bk_s B);
+extern int bk_general_thread_unready(bk_s B);
 extern void bk_general_proctitle_set(bk_s B, char *);
 extern void bk_general_reinit(bk_s B);
 extern void bk_general_destroy(bk_s B);
@@ -1948,9 +1949,9 @@ extern int bk_child_istart(bk_s B, struct bk_child *bchild, void (*cc_callback)(
 extern void bk_child_isigfun(bk_s B, struct bk_run *run, int signum, void *opaque);
 
 /* b_thread.c */
-#ifdef BK_USING_PTHREADS
 extern int bk_atomic_addition(bk_s B, struct bk_atomic_cntr *bac, int delta, int *result, bk_flags flags);
 extern int bk_atomic_add_init(bk_s B, struct bk_atomic_cntr *bac, int start, bk_flags flags);
+#ifdef BK_USING_PTHREADS
 extern int bk_pthread_mutex_lock(bk_s B, struct bk_run *run, pthread_mutex_t *mutex, bk_flags flags);
 #endif /* BK_USING_PTHREADS */
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.33 2003/06/03 17:47:37 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.34 2003/06/03 21:03:08 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -595,12 +595,6 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
     goto error;
   }
 
-  if ((*clc_add)(bpi->bpi_data, pid) != DICT_OK)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not append data to data list: %s\n", pidlist_error_reason(bpi->bpi_data, NULL));
-    goto error;
-  }
-
   pid->pid_status = status;
 
   if (pid->pid_data)
@@ -612,11 +606,6 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
 
     bpi->bpi_size += pid->pid_data->len;
 
-#ifdef BK_USING_PTHREADS
-    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
-      abort();
-#endif /* BK_USING_PTHREADS */
-
     /*
      * Pause reading if buffer is full.  <TODO> if file open for only writing
      * mark the case so we don't bother.</TODO>
@@ -626,6 +615,17 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
       BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_SELF_THROTTLE);
       bk_polling_io_throttle(B, bpi, 0);
     }
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+   }
+
+  if ((*clc_add)(bpi->bpi_data, pid) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not append data to data list: %s\n", pidlist_error_reason(bpi->bpi_data, NULL));
+    goto error;
   }
 
   BK_VRETURN(B);
@@ -1002,6 +1002,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
     abort();
 #endif /* BK_USING_PTHREADS */
 
+  goto exit;					// Stupid gcc
  exit:
   BK_RETURN(B, ret);
 }

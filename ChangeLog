@@ -1,3 +1,17 @@
+2003-06-03  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_thread.c (bk_atomic_add_init): Reference counts useful
+	even when threading not enabled.  Also, fix thread destruction bug
+	(the thread list is a struct, not a CLC, baka)
+
+	* lib/b_pollio.c (polling_io_ioh_handler): Defer CLC add until
+	after we have totally fixed up pid, since peer thread may start
+	mucking with pid immediately.
+
+2003-06-02  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_ioh.c (ioht_raw_other): Batch multiple writes together
+
 2003-06-03  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* ssl/b_ssl.c (bk_ssl_create_context): Support authentication.

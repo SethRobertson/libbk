@@ -1,18 +1,18 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.42 2003/05/16 05:11:25 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.43 2003/06/03 21:03:08 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
- * 
+ *
  * Copyright (c) 2001-2003 The Authors. All rights reserved.
- * 
+ *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- * 
+ *
  * Mail <projectbaka@baka.org> for further information
- * 
+ *
  * --Copyright LIBBK--
  */
 
@@ -823,4 +823,43 @@ static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *PT, bk_fla
   free(PT);
 
   BK_VRETURN(B);
+}
+
+
+
+/**
+ * Modify threadready state.  Turn from ON to OFF if no threads yet
+ * created
+ *
+ * @param B BAKA Tread/global environment
+ * @return <i>-1</i> on error
+ * @return <br><i>0</i> on success
+ */
+int bk_general_thread_unready(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!B)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!BK_GENERAL_FLAG_ISTHREADREADY(B))
+  {
+    // Already off
+    BK_RETURN(B, 0);
+  }
+
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Threads are already in use, cannot disable now!\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADREADY);
+  bk_thread_safe_if_thread_ready = 0;
+  fsm_threaded_makeready(0);
+
+  BK_RETURN(B, 0);
 }

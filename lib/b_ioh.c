@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.81 2003/06/03 17:47:37 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.82 2003/06/03 21:03:08 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -28,6 +28,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <zlib.h>
 
 
+#define IOH_VECTOR_WRITE_BATCH_SIZE	64	///< Write this many buffers at a time (writev)
 #define IOH_FLAG_ALREADYLOCKED		0x80000	///< Signal functions that ioh is already locked
 
 
@@ -2149,7 +2150,8 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
     if (aux == BK_RUN_WRITEREADY)
     {
       int cnt = 0;
-      struct iovec iov;
+      struct iovec iov[IOH_VECTOR_WRITE_BATCH_SIZE];
+      int vectors_in_use = 0;
 
       // find first non-cmd bid
       bid = biq_minimum(ioh->ioh_writeq.biq_queue);
@@ -2161,8 +2163,13 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
       // process up to the next cmd bid
       while(bid && bid->bid_data)
       {
-	iov.iov_base = bid->bid_data + bid->bid_used;
-	iov.iov_len = bid->bid_inuse;
+	// Process first IOH_VECTOR_WRITE_BATCH_SIZE in one write
+	for (vectors_in_use = 0; vectors_in_use < IOH_VECTOR_WRITE_BATCH_SIZE && bid && bid->bid_data; vectors_in_use++)
+	{
+	  iov[vectors_in_use].iov_base = bid->bid_data + bid->bid_used;
+	  iov[vectors_in_use].iov_len = bid->bid_inuse;
+	  bid = biq_successor(ioh->ioh_writeq.biq_queue, bid);
+	}
 
 #ifdef BK_USING_PTHREADS
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -2173,7 +2180,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	}
 #endif /* BK_USING_PTHREADS */
 
-	cnt = compress_write(B, ioh, ioh->ioh_writefun, ioh->ioh_iofunopaque, ioh->ioh_fdout, &iov, 1, 0);
+	cnt = compress_write(B, ioh, ioh->ioh_writefun, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, vectors_in_use, 0);
 
 #ifdef BK_USING_PTHREADS
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -2202,9 +2209,6 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	}
 	else
 	{
-
-	  bid = biq_successor(ioh->ioh_writeq.biq_queue, bid);
-
 	  ioh_dequeue_byte(B, ioh, &ioh->ioh_writeq, (u_int32_t)cnt, 0);
 
 	  if (ioh->ioh_writeq.biq_queuelen < 1)

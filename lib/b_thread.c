@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.11 2003/05/16 17:20:29 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.12 2003/06/03 21:03:08 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -114,7 +114,7 @@ struct bk_threadcomm
 static void *bk_thread_continue(void *opaque);
 static void bk_thread_cleanup(void *opaque);
 static void bk_thread_unlock(void *opaque);
-
+#endif /* BK_USING_PTHREADS */
 
 
 
@@ -141,11 +141,13 @@ int bk_atomic_add_init(bk_s B, struct bk_atomic_cntr *bac, int start, bk_flags f
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
   if ((ret = pthread_mutex_init(&bac->bac_lock, NULL)) != 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not init mutex (%d): %s\n", ret, strerror(errno));
     BK_RETURN(B, -1);
   }
+#endif /* BK_USING_PTHREADS */
 
   bac->bac_cntr = start;
 
@@ -178,19 +180,23 @@ int bk_atomic_addition(bk_s B, struct bk_atomic_cntr *bac, int delta, int *resul
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
   if ((ret = pthread_mutex_lock(&bac->bac_lock)) != 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not lock mutex (%d): %s\n", ret, strerror(errno));
     BK_RETURN(B, -1);
   }
+#endif /* BK_USING_PTHREADS */
 
   myresult = bac->bac_cntr += delta;
 
+#ifdef BK_USING_PTHREADS
   if ((ret = pthread_mutex_unlock(&bac->bac_lock)) != 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not unlock mutex (%d): %s\n", ret, strerror(errno));
     BK_RETURN(B, -1);
   }
+#endif /* BK_USING_PTHREADS */
 
   if (result)
     *result = myresult;
@@ -200,6 +206,7 @@ int bk_atomic_addition(bk_s B, struct bk_atomic_cntr *bac, int delta, int *resul
 
 
 
+#ifdef BK_USING_PTHREADS
 /**
  * Blocking-non-blocking method to acquire pthread mutex lock.
  *
@@ -649,7 +656,7 @@ void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadn
   if (pthread_mutex_lock(&tlist->btl_lock))
     abort();
 
-  if (btl_delete(tlist, tnode) != DICT_OK)
+  if (btl_delete(tlist->btl_list, tnode) != DICT_OK)
     bk_error_printf(B, BK_ERR_WARN, "Could not delete %s from thread list\n",
 		    BK_BT_THREADNAME(tnode->btn_B));
 
