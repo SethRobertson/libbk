@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.33 2002/08/27 23:03:43 dupuy Exp $
+# $Id: Makefile,v 1.34 2002/09/04 17:57:11 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -48,6 +48,7 @@ BK_LARGE_LIBSRC=		       		\
 		b_signal.c			\
 		b_stdfun.c			\
 		b_stdsock.c			\
+		b_strcode.c			\
 		b_strconv.c			\
 		b_string.c			\
 		b_sysutils.c			\

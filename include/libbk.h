@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.167 2002/08/28 01:52:58 seth Exp $
+ * $Id: libbk.h,v 1.168 2002/09/04 17:57:11 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1340,6 +1340,12 @@ extern void bk_exit(bk_s B, u_char retcode);
 extern char *bk_gethostname(bk_s B);
 
 
+/* b_strcode.c */
+extern char *bk_encode_base64(bk_s B, const bk_vptr *str, const char *eolseq);
+extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
+extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
+
+
 /* b_strconv.c */
 extern int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags);
 extern int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags);
@@ -1347,9 +1353,6 @@ extern int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_fla
 extern int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags);
 extern int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *names, bk_flags flags);
 extern int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names, bk_flags flags);
-extern char *bk_encode_base64(bk_s B, const bk_vptr *str, const char *eolseq);
-extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
-extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
 extern int bk_string_intcols(bk_s B, int64_t num, u_int base);
 extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags);
 #define BK_STRING_ATOD_FLAG_ALLOW_INF 0x1
@@ -1357,7 +1360,6 @@ extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags fl
 extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags);
 #define BK_STRING_ATOF_FLAG_ALLOW_INF BK_STRING_ATOD_FLAG_ALLOW_INF
 #define BK_STRING_ATOF_FLAG_ALLOW_NAN BK_STRING_ATOD_FLAG_ALLOW_NAN
-
 
 
 /* b_string.c */
@@ -1404,7 +1406,6 @@ extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
 extern void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset);
 
 
-
 /* getbyfoo.c */
 extern int bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo *bni, bk_flags flags);
 #define BK_GETPROTOBYFOO_FORCE_LOOKUP	0x1	///< Do lookup even if argumnet suggests otherwise.
@@ -1436,6 +1437,7 @@ extern struct bk_netinfo *bk_netinfo_from_socket(bk_s B, int s, int proto, bk_so
 extern const char *bk_netinfo_info(bk_s B, struct bk_netinfo *bni);
 extern struct bk_netaddr * bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni);
 
+
 /* b_netaddr.c */
 extern struct bk_netaddr *bk_netaddr_create(bk_s B);
 extern void bk_netaddr_destroy(bk_s B, struct bk_netaddr *bna);
@@ -1455,6 +1457,7 @@ extern struct bk_protoinfo *bk_protoinfo_protoentdup (bk_s B, struct protoent *p
 extern struct bk_protoinfo *bk_protoinfo_user(bk_s B, char *protoname, int proto);
 extern void bk_protoinfo_destroy (bk_s B,struct bk_protoinfo *bsi);
 extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obsi);
+
 
 /* b_netutils.c */
 extern int bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa);
@@ -1479,9 +1482,11 @@ extern void *bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk
 extern int bk_signal_reset(bk_s B, void *args, bk_flags flags);
 extern int bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags);
 
+
 /* b_relay.c */
 extern int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb)(bk_s B, void *opaque, u_int state), void *opaque, bk_flags flags);
 #define BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE	0x1 ///< Shut down relay after only one side has closed
+
 
 /* b_fileutils.c */
 extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_e action);

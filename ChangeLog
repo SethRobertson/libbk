@@ -1,5 +1,10 @@
 2002-09-04  Alexander Dupuy  <dupuy@sysdetect.com>
 
+	* lib/Makefile (BK_LARGE_LIBSRC): add new b_strcode.c
+
+	* lib/b_strcode.c: split more functions out of b_strconv.c so that
+	Insure won't choke on it
+
 	* lib/b_strconv.c (bk_string_flagtoa): return 0 on success, per docs
 
 2002-08-31  Seth Robertson  <seth@hawking.sysdetect.com>
