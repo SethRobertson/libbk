@@ -1,3 +1,8 @@
+2003-07-09  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_ringbuf.c: Use liberal sprinkling of volatile to try and
+	reduce potential compiler optimization reordering.
+
 2003-07-09  James Tanis  <jtt@hawking.sysdetect.com>
 
 	* include/libbk_inline.h (bk_dll_insert_internal): General insert
