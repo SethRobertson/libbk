@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.77 2003/05/02 23:12:45 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.78 2003/05/09 03:25:02 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -28,6 +28,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <zlib.h>
 
 
+#define IOH_FLAG_ALREADYLOCKED		0x80000	///< Signal functions that ioh is already locked
+
+
 #if defined(EWOULDBLOCK) && defined(EAGAIN)
 #define IOH_EBLOCKING (errno == EWOULDBLOCK || errno == EAGAIN) ///< real error or just normal behavior?
 #else
@@ -42,9 +45,33 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif
 #endif
 
-#define IOH_COMPRESS_BLOCK_SIZE 	32768	///< Basic block size to use in compression.
+#define IOH_COMPRESS_BLOCK_SIZE	32768	///< Basic block size to use in compression.
 
 
+#ifdef BK_USING_PTHREADS
+// Call user function: precondition--ioh locked, not in user callback
+#define CALL_BACK(B, ioh, data, state)								\
+ do												\
+ {												\
+   BK_FLAG_SET((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK);					\
+   if (BK_GENERAL_FLAG_ISTHREADON(B))								\
+   {												\
+     ioh->ioh_userid = pthread_self();                                                          \
+     if (pthread_mutex_unlock(&ioh->ioh_lock) != 0)						\
+       abort();											\
+   }												\
+   bk_debug_printf_and(B, 2, "Calling user callback for ioh %p with state %d\n",(ioh),(state));	\
+   ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state)));			\
+   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)                \
+     abort();                                                                                   \
+   BK_FLAG_CLEAR((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK);					\
+   if (BK_GENERAL_FLAG_ISTHREADON(B))								\
+   {												\
+     BK_ZERO(&ioh->ioh_userid);                                                                 \
+     pthread_cond_broadcast(&ioh->ioh_cond);							\
+   }												\
+ } while (0)					///< Function to evaluate user callback with new data/state information
+#else /* BK_USING_PTHREADS */
 #define CALL_BACK(B, ioh, data, state)								\
  do												\
  {												\
@@ -53,6 +80,8 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
    ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state)));			\
    BK_FLAG_CLEAR((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK);					\
  } while (0)					///< Function to evaluate user callback with new data/state information
+#endif /* BK_USING_PTHREADS */
+
 
 #define IOH_DEFAULT_DATA_SIZE	128		///< Default read size (optimized for user and protocol traffic, not bulk data transfer)
 #define IOH_VS			2		///< Number of vectors to hold length and msg
@@ -230,7 +259,9 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk
 /**
  * Create and initialize the ioh environment.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state
  *	@param fdin The file descriptor to read from.  -1 if no input is desired.
  *	@param fdout The file descriptor to write to.  -1 if no output is desired.  (This will be different from fdin only for pipe(2) style fds where descriptors are only useful in one direction and occur in pairs.)
  *	@param handler The user callback to notify on complete I/O or other events
@@ -298,13 +329,19 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
     bk_error_printf(B, BK_ERR_WARN, "Follow mode may only be used when reading\n");
     BK_FLAG_CLEAR(flags, BK_IOH_FOLLOW);
   }
-    
+
 
   if (!BK_CALLOC(curioh))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate ioh structure: %s\n",strerror(errno));
     BK_RETURN(B, NULL);
   }
+
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_init(&curioh->ioh_lock, NULL);
+  if (pthread_cond_init(&curioh->ioh_cond, NULL) < 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   curioh->ioh_fdin = -1;
   curioh->ioh_fdout = -1;
@@ -331,7 +368,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
   curioh->ioh_run = run;
   curioh->ioh_extflags = flags;
   curioh->ioh_eolchar = IOH_EOLCHAR;
-  
+
 
   curioh->ioh_fdin = fdin;
   if (curioh->ioh_fdin >= 0)
@@ -396,7 +433,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
 
   bk_debug_printf_and(B, 1, "Created IOH %p for fds %d %d\n",curioh,fdin, fdout);
   BK_RETURN(B, curioh);
-  
+
  error:
   if (curioh)
   {
@@ -408,6 +445,10 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
       bk_run_close(B, curioh->ioh_run, curioh->ioh_fdin, 0);
     if (curioh->ioh_fdout >= 0 && curioh->ioh_fdin != curioh->ioh_fdout)
       bk_run_close(B, curioh->ioh_run, curioh->ioh_fdout, 0);
+    if (pthread_mutex_destroy(&curioh->ioh_lock) != 0)
+      abort();
+    if (pthread_cond_destroy(&curioh->ioh_cond) != 0)
+      abort();
     free(curioh);
   }
   BK_RETURN(B, NULL);
@@ -418,10 +459,13 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
 /**
  * Update various configuration parameters of a IOH instance
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
  *	@param ioh The IOH environment to update
  *	@param readfun The function to use to read data.
- *	@param writefun The function to use to write data.
+ *	@param writefun The function to use to write data
  *	@param iofunopaque The opaque data for the I/O functions
  *	@param handler The user callback to notify on complete I/O or other events
  *	@param opaque The opaque data for the user callback.
@@ -437,7 +481,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
 int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f writefun, void *iofunopaque, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
- 
+
   if (!ioh)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -445,6 +489,20 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
   }
 
   bk_debug_printf_and(B, 1, "Updating IOH parameters %p\n",ioh);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+  {
+    while (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_IN_CALLBACK) && !pthread_equal(ioh->ioh_userid, pthread_self()))
+    {
+      ioh->ioh_waiting++;
+      pthread_cond_wait(&ioh->ioh_cond, &ioh->ioh_lock);
+      ioh->ioh_waiting--;
+    }
+  }
+#endif /* BK_USING_PTHREADS */
 
   if (BK_FLAG_ISSET(updateflags, BK_IOH_UPDATE_READFUN))
     ioh->ioh_readfun = readfun;
@@ -465,6 +523,19 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
   if (BK_FLAG_ISSET(updateflags, BK_IOH_UPDATE_FLAGS))
     ioh->ioh_extflags = flags;
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+    pthread_cond_broadcast(&ioh->ioh_cond);
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
+  {
+    BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
+    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg);
+  }
+
   BK_RETURN(B, 0);
 }
 
@@ -473,7 +544,10 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
 /**
  * Request various configuration parameters of a IOH instance.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
  *	@param ioh The IOH environment to update
  *	@param fdin The file descriptor to read from.  -1 if no input is desired.
  *	@param fdout The file descriptor to write to.  -1 if no output is desired.
@@ -493,7 +567,7 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
 int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc_f *readfun, bk_iowfunc_f *writefun, void **iofunopaque, bk_iohhandler_f *handler, void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
- 
+
   if (!ioh)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -501,6 +575,11 @@ int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc_f *
   }
 
   bk_debug_printf_and(B, 1, "Obtaining IOH parameters %p\n",ioh);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (fdin) *fdin = ioh->ioh_fdin;
   if (fdout) *fdout = ioh->ioh_fdout;
@@ -515,6 +594,11 @@ int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc_f *
   if (run) *run = ioh->ioh_run;
   if (flags) *flags = ioh->ioh_extflags;
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B, 0);
 }
 
@@ -523,7 +607,10 @@ int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iorfunc_f *
 /**
  * Enqueue data for output, if allowed.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
  *	@param ioh The IOH environment to update
  *	@param data The data to be sent (vptr and inside data will be returned in callback for free or other handling--must remain valid until then)
  *	@param flags BK_IOH_BYPASSQUEUEFULL will bypass checks for queue size
@@ -535,7 +622,7 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret;
- 
+
   if (!ioh || !data)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -543,13 +630,18 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
   }
 
   bk_debug_printf_and(B, 1, "Writing %d bytes to IOH %p\n",data->len, ioh);
-  
+
 
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_CLOSING | IOH_FLAGS_SHUTDOWN_DESTROYING | IOH_FLAGS_ERROR_OUTPUT | IOH_FLAGS_SHUTDOWN_OUTPUT | IOH_FLAGS_SHUTDOWN_OUTPUT_PEND))
   {
     bk_error_printf(B, BK_ERR_ERR, "Cannot write after shutdown/close\n");
     BK_RETURN(B, -1);
   }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
   {
@@ -571,6 +663,12 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
   {
     bk_error_printf(B, BK_ERR_ERR, "Unknown message format type %x\n",ioh->ioh_extflags);
     CALL_BACK(B, ioh, data, BkIohStatusWriteAborted);
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     BK_RETURN(B, -1);
   }
 
@@ -578,10 +676,19 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not append user data to outgoing message queue\n");
     CALL_BACK(B, ioh, data, BkIohStatusWriteAborted);
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     BK_RETURN(B, -1);
   }
 
-  // <TODO>Consider trying a spontaneous write here, if nbio is set, especially if writes are not pending </TODO>
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B, ret);
 }
@@ -595,7 +702,10 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
  * If data is currently queued for output, this data will be drained before the shutdown takes effect.
  * See @a bk_ioh_flush for a way to avoid this.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
  *	@param ioh The IOH environment to update
  *	@param how -- SHUT_RD to shut down reads, SHUT_WR to shut down writes, SHUT_RDWR for both.
  *	@param flags Future expansion
@@ -607,7 +717,7 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret;
- 
+
   if (!ioh || (how != SHUT_RD && how != SHUT_WR && how != SHUT_RDWR))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -644,6 +754,20 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
     }
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, IOH_FLAG_ALREADYLOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+  {
+    while (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_IN_CALLBACK) && !pthread_equal(ioh->ioh_userid, pthread_self()))
+    {
+      ioh->ioh_waiting++;
+      pthread_cond_wait(&ioh->ioh_cond, &ioh->ioh_lock);
+      ioh->ioh_waiting--;
+    }
+  }
+#endif /* BK_USING_PTHREADS */
+
   if (how == SHUT_RD || how == SHUT_RDWR)
   {
     ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
@@ -659,7 +783,7 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   ret = ioh_execute_ifspecial(B, ioh, &ioh->ioh_writeq, 0); // Execute shutdown immediately if queue was empty
 
   if (ret == 2)
-    BK_VRETURN(B);				// IOH was destroyed
+    BK_VRETURN(B);				// IOH was destroyed (and thus unlocked)
 
   if (ret == -1)
   {
@@ -692,7 +816,7 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
      * anything, should be done here</TODO>
      */
     // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read
-    bk_ioh_readallowed(B, ioh, 0, 0);
+    bk_ioh_readallowed(B, ioh, 0, IOH_FLAG_ALREADYLOCKED);
   }
 
   if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
@@ -701,9 +825,15 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
   {
     BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
-    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg);
-    BK_VRETURN(B);
+    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg|IOH_FLAG_ALREADYLOCKED);
+    goto unlockexit;
   }
+
+ unlockexit:
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, IOH_FLAG_ALREADYLOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_VRETURN(B);
 }
@@ -715,7 +845,10 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
  *
  * Data may be queued for input or output.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
  *	@param ioh The IOH environment to update
  *	@param how -- SHUT_RD to flush input, SHUT_WR to flush output, SHUT_RDWR for both.
  *	@param flags BK_IOH_FLUSH_NOEXECUTE close telling us not to execute commands
@@ -726,7 +859,8 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   dict_h cmds = NULL;
- 
+  int ret = 0;
+
   if (!ioh || (how != SHUT_RD && how != SHUT_WR && how != SHUT_RDWR))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -741,6 +875,11 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, IOH_FLAG_ALREADYLOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (how == SHUT_RD || how == SHUT_RDWR)
   {
     ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, 0);
@@ -751,7 +890,12 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   }
 
   if (cmds && BK_FLAG_ISCLEAR(flags, BK_IOH_FLUSH_NOEXECUTE))
-    ioh_execute_cmds(B, ioh, cmds, 0);
+    ret = ioh_execute_cmds(B, ioh, cmds, 0);
+
+#ifdef BK_USING_PTHREADS
+  if (ret != 2 && BK_FLAG_ISCLEAR(flags, IOH_FLAG_ALREADYLOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_VRETURN(B);
 }
@@ -767,7 +911,10 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
  * reads and restart them without clobbering each other. Keep in mind that
  * we never permit throttle_cnt to dip below zero.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
  *	@param ioh The IOH environment to update
  *	@param isallowed Zero if no reads desired, non-zero if reads allowed
  *	@param flags Future expansion
@@ -779,7 +926,7 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int old_state;
   int new_state;
- 
+
   if (!ioh)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -791,6 +938,11 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
     bk_error_printf(B, BK_ERR_WARN, "You cannot manipulate the read desirability if input is technically impossible\n");
     BK_RETURN(B,-1);
   }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, IOH_FLAG_ALREADYLOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   old_state=bk_run_getpref(B, ioh->ioh_run, ioh->ioh_fdin, 0);
   old_state &= BK_RUN_WANTREAD;
@@ -813,9 +965,9 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
       // If we're the last to throttle turn on reads.
       new_state = 1;
     }
-    
+
     ioh->ioh_throttle_cnt--;
-    
+
     if (ioh->ioh_throttle_cnt < 0)
     {
       bk_error_printf(B, BK_ERR_WARN, "Throttle cnt dipped below zero. Resetting\n");
@@ -829,7 +981,7 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
   if (bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, new_state?BK_RUN_WANTREAD:0, BK_RUN_WANTREAD, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Cannot set I/O preferences\n");
-    BK_RETURN(B,-1);
+    goto error;
   }
 
   if (ioh->ioh_throttle_cnt < 1 && ioh->ioh_readq.biq_queuelen > 0 && BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_LINE) && !ioh->ioh_readallowedevent)
@@ -846,7 +998,21 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
     ioh->ioh_readallowedevent = NULL;
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, IOH_FLAG_ALREADYLOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+
   BK_RETURN(B,old_state);
+
+ error:
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, IOH_FLAG_ALREADYLOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B,-1);
 }
 
 
@@ -859,7 +1025,10 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
  * Additional callbacks may occur--WRITECOMPLETEs or IOHWRITEERRORs (if no
  * abort), WRITEABORTEDs (if abort), IOHCLOSING (if NOTIFYANYWAY)
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
  *	@param ioh The IOH environment to update
  *	@param flags BK_IOH_DONTCLOSEFDS to prevent close() from being
  *	executed on the fds, BK_IOH_ABORT to cause automatic flush of input
@@ -871,7 +1040,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret = -1;
   dict_h cmds = NULL;
- 
+
   if (!ioh)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -885,11 +1054,20 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_fun_trace(B, stderr, BK_ERR_NONE, 0);
   }
 
-  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_IN_CALLBACK))
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, IOH_FLAG_ALREADYLOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_IN_CALLBACK)
+#ifdef BK_USING_PTHREADS
+      || ioh->ioh_waiting || (ioh->ioh_userid && pthread_equal(ioh->ioh_userid, pthread_self()))
+#endif /* BK_USING_PTHREADS */
+      )
   {
     BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
     ioh->ioh_deferredclosearg = flags;
-    BK_VRETURN(B);
+    goto unlockexit;
   }
 
   // Save flags for _destroy()
@@ -902,13 +1080,13 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
       BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_DESTROYING))
   {
     bk_error_printf(B, BK_ERR_WARN, "Close already in progress\n");
-    BK_VRETURN(B);
+    goto unlockexit;
   }
 
   BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_CLOSING);
 
   if (BK_FLAG_ISSET(flags, BK_IOH_ABORT))
-    bk_ioh_flush(B, ioh, SHUT_RDWR, BK_IOH_FLUSH_NOEXECUTE);
+    bk_ioh_flush(B, ioh, SHUT_RDWR, BK_IOH_FLUSH_NOEXECUTE|IOH_FLAG_ALREADYLOCKED);
 
   ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
 
@@ -918,7 +1096,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   if (ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdClose, NULL, BK_IOH_BYPASSQUEUEFULL) <  0)
   {
     ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
-    
+
     // sigh.. Sometimes using a clc makes things easier sometimes it *really* doesn't...
     if ((cmds = cmd_list_create(NULL, NULL, DICT_UNORDERED)))
     {
@@ -961,14 +1139,22 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
      * anything, should be done here</TODO>
      */
     // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read
-    bk_ioh_readallowed(B, ioh, 0, 0);
+    bk_ioh_readallowed(B, ioh, 0, IOH_FLAG_ALREADYLOCKED);
   }
   if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
     bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0); // Clear write
 
   if (BK_FLAG_ISSET(flags, BK_IOH_ABORT) || ret < 1)
+  {
     bk_ioh_destroy(B, ioh);
+    BK_VRETURN(B);				// Already unlocked (well, destroyed even)
+  }
 
+ unlockexit:
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(flags, IOH_FLAG_ALREADYLOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   BK_VRETURN(B);
 }
 
@@ -981,7 +1167,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
  * User data queued on system probably will not be freed (use _close instead).
  * No user notification (use _close instead).
  * Did we mention you should use _close instead of this interface?
- * 
+ *
  * <WARNING>
  * jtt made this static since no one outside this file was using it and
  * you're really not supposed to. Seth is dubious; he feels that it just
@@ -989,15 +1175,19 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
  * <em>really</em> need to get rid of their ioh without getting called back
  * or anything. So you may make this extern if you like, but it might
  * nice to document the reason why.
+ *
+ * This policy is now law due to locking.
  * </WARNING>
  *
- *	@param B BAKA thread/global state 
+ * THREADS: REENTRANT (ioh must already be locked)
+ *
+ *	@param B BAKA thread/global state
  *	@param ioh The IOH environment to update
  */
 static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
- 
+
   if (!ioh)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -1067,6 +1257,13 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
   // Notify user
   CALL_BACK(B, ioh, NULL, BkIohStatusIohClosing);
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+    pthread_mutex_unlock(&ioh->ioh_lock);
+  pthread_mutex_destroy(&ioh->ioh_lock);
+  pthread_cond_destroy(&ioh->ioh_cond);
+#endif /* BK_USING_PTHREADS */
+
   free(ioh);
 
   bk_debug_printf_and(B, 1, "IOH %p is now gone\n", ioh);
@@ -1083,6 +1280,9 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
  * version thereof.  The message types may compress or expand the
  * number of bytes which get enqueued for transmission.
  *
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
  *	@param B BAKA Global/thread state
  *	@param ioh The IOH environment handle
  *	@param inqueue The copy-out size of the input queue
@@ -1094,7 +1294,7 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
 int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *outqueue, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
- 
+
   if (!ioh || (!inqueue && !outqueue))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
@@ -1103,10 +1303,20 @@ int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *ou
 
   bk_debug_printf_and(B, 1, "Getting queue length for IOH %p\n", ioh);
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (inqueue)
     *inqueue = ioh->ioh_readq.biq_queuelen;
   if (outqueue)
     *outqueue = ioh->ioh_writeq.biq_queuelen;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B, 0);
 }
@@ -1116,6 +1326,9 @@ int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *ou
 /**
  * Run's interface into the IOH.  The callback which it calls when activity
  * was referenced.
+ *
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
  *
  *	@param B BAKA Thread/global state
  *	@param run Handle into run environment
@@ -1135,7 +1348,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
   u_int32_t room = 0;
   int ret = 0;
   struct bk_ioh_data *bid;
- 
+
   if (!opaque)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
@@ -1171,6 +1384,20 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
   {
     bk_run_setpref(B, ioh->ioh_run, fd, 0, BK_RUN_WANTXCPT, 0);
   }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+  {
+    while (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_IN_CALLBACK) && !pthread_equal(ioh->ioh_userid, pthread_self()))
+    {
+      ioh->ioh_waiting++;
+      pthread_cond_wait(&ioh->ioh_cond, &ioh->ioh_lock);
+      ioh->ioh_waiting--;
+    }
+  }
+#endif /* BK_USING_PTHREADS */
 
   // Write first to hopefully free memory for read if necessary
   if (ret >= 0 && BK_FLAG_ISSET(gottypes, BK_RUN_WRITEREADY))
@@ -1282,7 +1509,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Unknown message format type %x\n",ioh->ioh_extflags);
 	}
-	
+
 	if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_FOLLOW))
 	  check_follow(B, ioh, 0);
       }
@@ -1293,21 +1520,31 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
   {
     BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
-    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg);
-    BK_VRETURN(B);
+    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg|IOH_FLAG_ALREADYLOCKED);
+    goto unlockexit;
   }
 
   if (ret >= 0)
     ret = ioh_execute_ifspecial(B, ioh, &ioh->ioh_writeq, 0);
-      
+
 
   if (ret < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Message type handler failed severely\n");
-    bk_ioh_close(B, ioh, BK_IOH_ABORT);
-    BK_VRETURN(B);
+    bk_ioh_close(B, ioh, BK_IOH_ABORT|IOH_FLAG_ALREADYLOCKED);
+    goto unlockexit;
   }
 
+ unlockexit:
+
+#ifdef BK_USING_PTHREADS
+  if (ret != 2 && BK_GENERAL_FLAG_ISTHREADON(B))
+  {
+    pthread_cond_broadcast(&ioh->ioh_cond);
+    if (pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+      abort();
+  }
+#endif /* BK_USING_PTHREADS */
   BK_VRETURN(B);
 }
 
@@ -1317,6 +1554,8 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
  * Get or set standard IOH file/network options.  Normally sets
  * O_NONBLOCK (nonblocking), OOBINLINE (urgent data is treated
  * normally), -SOLINGER (shutdown/close do not block).
+ *
+ * THREADS: MT_SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param fd File descriptor to set or reset
@@ -1443,6 +1682,8 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
 /**
  * Remove a certain number of bytes from the queue in question
  *
+ * THREADS: REENTRANT (ioh must already be locked)
+ *
  *	@param B BAKA Thread/global state
  *	@param iohq Input/Output Data Structure
  *	@param bytes Number of bytes to remove
@@ -1467,7 +1708,7 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
   // Figure out what buffers have been fully written
   iter = biq_iterate(iohq->biq_queue, DICT_FROM_START);
   while ((bid = biq_nextobj(iohq->biq_queue, iter)) && bytes > 0)
-  {	
+  {
     if (!bid->bid_data)
       continue;
 
@@ -1478,7 +1719,7 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
       continue;
     }
 
-    
+
     if (bytes < bid->bid_inuse)
     {					// Partially written--adjust
       bid->bid_used += bytes;
@@ -1500,6 +1741,8 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
 
 /**
  * Remove and destroy a bid from a queue
+ *
+ * THREADS: REENTRANT (ioh must already be locked)
  *
  *	@param B BAKA Thread/global state
  *	@param iohq Input/Output Data Structure
@@ -1547,6 +1790,8 @@ static int ioh_dequeue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *iohq, st
 
 /**
  * Insert data into an I/O queue.
+ *
+ * THREADS: REENTRANT (must already be locked)
  *
  *	@param B BAKA Thread/global state
  *	@param iohq Input/Output data structure
@@ -1632,6 +1877,8 @@ static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t al
 /**
  * Raw--no particular messaging format--IOH Type routines to queue data sent from user for output
  *
+ * THREADS: REENTRANT (must already be locked)
+ *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
  *	@param data Vectored data from user
@@ -1665,6 +1912,8 @@ static int ioht_raw_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags fl
 
 /**
  * Complete full block--IOH Type routines to queue data sent from user for output
+ *
+ * THREADS: REENTRANT (must already be locked)
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -1706,6 +1955,8 @@ static int ioht_block_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags 
 
 /**
  * Vectored (size sent before data)--IOH Type routines to queue data sent from user for output
+ *
+ * THREADS: REENTRANT (must already be locked)
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -1789,6 +2040,8 @@ static int ioht_vector_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags
  *
  * <TODO>Perhaps we *should* do "enforcement" in order to achieve buffering.  Worry about UDP case as well.</TODO>
  *
+ * THREADS: REENTRANT (must already be locked)
+ *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
  *	@param data Vectored data from user
@@ -1806,6 +2059,8 @@ static int ioht_line_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags f
 
 /**
  * Raw--no particular messaging format--IOH Type routines to perform I/O maintenance and activity
+ *
+ * THREADS: REENTRANT (ioh must already be locked)
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -1844,7 +2099,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
       struct iovec iov;
 
       // find first non-cmd bid
-      bid = biq_minimum(ioh->ioh_writeq.biq_queue); 
+      bid = biq_minimum(ioh->ioh_writeq.biq_queue);
       while (bid && !bid->bid_data)
       {
 	bid = biq_successor(ioh->ioh_writeq.biq_queue, bid);
@@ -1856,7 +2111,27 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	iov.iov_base = bid->bid_data + bid->bid_used;
 	iov.iov_len = bid->bid_inuse;
 
+#ifdef BK_USING_PTHREADS
+	if (BK_GENERAL_FLAG_ISTHREADON(B))
+	{
+	  ioh->ioh_userid = pthread_self();
+	  if (pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+	    abort();
+	}
+#endif /* BK_USING_PTHREADS */
+
 	cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, &iov, 1, 0);
+
+#ifdef BK_USING_PTHREADS
+	if (BK_GENERAL_FLAG_ISTHREADON(B))
+	{
+	  BK_ZERO(&ioh->ioh_userid);
+	  if (pthread_mutex_lock(&ioh->ioh_lock) != 0)
+	    abort();
+	  pthread_cond_broadcast(&ioh->ioh_cond);
+	}
+#endif /* BK_USING_PTHREADS */
+
 	ioh->ioh_errno = errno;
 
 	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
@@ -1940,7 +2215,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate data vectors to return data: %s\n", strerror(errno));
 	BK_RETURN(B,-1);
       }
-    
+
       // Actually fill out the data list
       cnt = 0;
       iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
@@ -1961,7 +2236,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
       free(sendup);
 
       // Nuke everything in the input queue, we have "used" the necessary stuff
-      bk_ioh_flush(B, ioh, SHUT_RD, 0);
+      bk_ioh_flush(B, ioh, SHUT_RD, IOH_FLAG_ALREADYLOCKED);
     }
     break;
 
@@ -1977,6 +2252,8 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 /**
  * Blocked--fixed length messages--IOH Type routines to perform I/O maintenance and activity
+ *
+ * THREADS: REENTRANT (ioh must already be locked)
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -2036,7 +2313,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
       cnt = 0;
       size = 0;
       for (bid = biq_minimum(ioh->ioh_writeq.biq_queue); bid; bid = biq_successor(ioh->ioh_writeq.biq_queue, bid))
-      {	
+      {
 	if (bid->bid_data)
 	{
 	  cnt++;
@@ -2066,7 +2343,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
       cnt = 0;
       size = 0;
       for (bid = biq_minimum(ioh->ioh_writeq.biq_queue); bid; bid = biq_successor(ioh->ioh_writeq.biq_queue, bid))
-      {	
+      {
 	if (bid->bid_data)
 	{
 	  iov[cnt].iov_base = bid->bid_data + bid->bid_used;
@@ -2078,7 +2355,27 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	}
       }
 
+#ifdef BK_USING_PTHREADS
+	if (BK_GENERAL_FLAG_ISTHREADON(B))
+	{
+	  ioh->ioh_userid = pthread_self();
+	  if (pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+	    abort();
+	}
+#endif /* BK_USING_PTHREADS */
+
       cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
+
+#ifdef BK_USING_PTHREADS
+	if (BK_GENERAL_FLAG_ISTHREADON(B))
+	{
+	  BK_ZERO(&ioh->ioh_userid);
+	  if (pthread_mutex_lock(&ioh->ioh_lock) != 0)
+	    abort();
+	  pthread_cond_broadcast(&ioh->ioh_cond);
+	}
+#endif /* BK_USING_PTHREADS */
+
       ioh->ioh_errno = errno;
       free(iov);
 
@@ -2174,7 +2471,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate data vectors to return data: %s\n", strerror(errno));
 	  BK_RETURN(B,-1);
 	}
-    
+
 	// Actually fill out the data list
 	size = cnt = 0;
 	iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
@@ -2194,7 +2491,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 
 	// Nuke vector list
 	free(sendup);
-    
+
 	// Delete buffers that have been used
 	ioh_dequeue_byte(B, ioh, &ioh->ioh_readq, (u_int32_t)size, 0);
       }
@@ -2214,6 +2511,8 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 
 /**
  * Vectored--length encoded messaging format--IOH Type routines to perform I/O maintenance and activity
+ *
+ * THREADS: REENTRANT (ioh must already be locked)
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -2293,7 +2592,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
       struct iovec iov[IOH_VS];
 
       for (bid = biq_minimum(ioh->ioh_writeq.biq_queue); bid; bid = biq_successor(ioh->ioh_writeq.biq_queue, bid))
-      {	
+      {
 	if (bid->bid_data)
 	{
 	  iov[cnt].iov_base = bid->bid_data + bid->bid_used;
@@ -2308,7 +2607,27 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 
       if (bid && cnt > 0)
       {
+#ifdef BK_USING_PTHREADS
+	if (BK_GENERAL_FLAG_ISTHREADON(B))
+	{
+	  ioh->ioh_userid = pthread_self();
+	  if (pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+	    abort();
+	}
+#endif /* BK_USING_PTHREADS */
+
 	cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
+
+#ifdef BK_USING_PTHREADS
+	if (BK_GENERAL_FLAG_ISTHREADON(B))
+	{
+	  BK_ZERO(&ioh->ioh_userid);
+	  if (pthread_mutex_lock(&ioh->ioh_lock) != 0)
+	    abort();
+	  pthread_cond_broadcast(&ioh->ioh_cond);
+	}
+#endif /* BK_USING_PTHREADS */
+
 	ioh->ioh_errno = errno;
 
 	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
@@ -2371,7 +2690,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	    room = MIN(room,lengthfromwire+sizeof(lengthfromwire)-size);
 	  else
 	    room = MIN(room,sizeof(lengthfromwire)-size);
-	    
+
 	}
 
 	/*
@@ -2414,10 +2733,10 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	   */
 	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_INPUT);
 	  // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTREAD, 0);
-	  bk_ioh_readallowed(B, ioh, 0, 0);
+	  bk_ioh_readallowed(B, ioh, 0, IOH_FLAG_ALREADYLOCKED);
 	  BK_RETURN(B, 0);
 	}
-	
+
 	bk_debug_printf_and(B, 2, "Attempting to allocate vectored storage of size %d (lengthfromwire %d)\n",room,lengthfromwire);
 	if (!(data = malloc(room)))
 	{
@@ -2500,7 +2819,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 
       // Nuke vector list
       free(sendup);
-    
+
       size += tmp;				// Include size of lengthfromwire
 
       // Delete buffers that have been used
@@ -2523,7 +2842,8 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
  * maintenance and activity.  A mechanism should be devised to specify
  * the EOL character (or preferably sequence but that would really
  * suck).
- * 
+ *
+ * THREADS: REENTRANT (ioh must already be locked)
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -2650,7 +2970,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
 
       // Nuke vector list
       free(sendup);
-    
+
       // Delete buffers that have been used
       ioh_dequeue_byte(B, ioh, &ioh->ioh_readq, (u_int32_t)size, 0);
     }
@@ -2677,13 +2997,15 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
 /**
  * Flush a input or output queue completely
  *
+ * THREADS: REENTRANT (ioh must already have been locked)
+ *
  *	@param B BAKA Thread/global state
  *	@param ioh IOH state handle
  *	@param queue I/O data queue
  *	@param cmd Copy-out pending commands on this queue
  *	@param flags Flags
  */
-void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, dict_h *cmdsp, bk_flags flags)
+static void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, dict_h *cmdsp, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh_data *data;
@@ -2779,6 +3101,8 @@ void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, dic
 /**
  * Determine the last buffer on the input stack and free space for writes.
  *
+ * THREADS: REENTRANT (ioh must already be locked)
+ *
  *	@param B BAKA Thread/global state
  *	@param queue Input data queue
  *	@param size Size remaining in the last buffer
@@ -2823,6 +3147,8 @@ static int ioh_getlastbuf(bk_s B, struct bk_ioh_queue *queue, u_int32_t *size, c
 /**
  * Read some data from the file represented by this IOH
  *
+ * THREADS: REENTRANT (ioh must already be locked)
+ *
  *	@param B BAKA Thread/global state
  *	@param ioh IOH state handle
  *	@param fd File descriptor to read from
@@ -2850,12 +3176,32 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
   if (bk_run_fd_is_closed(B, ioh->ioh_run, ioh->ioh_fdin))
   {
     bk_debug_printf_and(B,1,"IOH is adminstratively closed\n");
-    BK_RETURN(B,0);    
+    BK_RETURN(B,0);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+  {
+    ioh->ioh_userid = pthread_self();
+    if (pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+      abort();
+  }
+#endif /* BK_USING_PTHREADS */
+
   ret = (*ioh->ioh_readfun)(B, ioh, ioh->ioh_iofunopaque, fd, data, len, flags);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+  {
+    BK_ZERO(&ioh->ioh_userid);
+    if (pthread_mutex_lock(&ioh->ioh_lock) != 0)
+      abort();
+    pthread_cond_broadcast(&ioh->ioh_cond);
+  }
+#endif /* BK_USING_PTHREADS */
+
   ioh->ioh_errno = errno;
-  
+
   if (ret > 0)
     ioh->ioh_tell += ret;
 
@@ -2866,6 +3212,8 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
 
 /**
  * Send all pending data on the input queue up to the user
+ *
+ * THREADS: REENTRANT (ioh must already be locked)
  *
  *	@param B BAKA Thread/global state
  *	@param ioh IOH state handle
@@ -2904,7 +3252,7 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
   {
     // Only things left might be allocated but unused buffers.
     // No cmds can exist on the read queue.
-    bk_ioh_flush(B, ioh, SHUT_RD, 0);
+    bk_ioh_flush(B, ioh, SHUT_RD, IOH_FLAG_ALREADYLOCKED);
     BK_VRETURN(B);
   }
 
@@ -2913,7 +3261,7 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate data vectors to return data: %s\n", strerror(errno));
     BK_VRETURN(B);
   }
-    
+
   // Actually fill out the data list
   cnt = 0;
   iter = biq_iterate(ioh->ioh_readq.biq_queue, DICT_FROM_START);
@@ -2937,7 +3285,7 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
   free(sendup);
 
   // Nuke everything in the input queue, we have "used" the necessary stuff
-  bk_ioh_flush(B, ioh, SHUT_RD, 0);
+  bk_ioh_flush(B, ioh, SHUT_RD, IOH_FLAG_ALREADYLOCKED);
 
   BK_VRETURN(B);
 }
@@ -2947,6 +3295,8 @@ static void ioh_sendincomplete_up(bk_s B, struct bk_ioh *ioh, u_int32_t filter, 
 /**
  * Execute all special elements on the front of the stack, until we see the first
  * non-special (note the first non-special may be the first).
+ *
+ * THREADS: REENTRANT (ioh must already be locked)
  *
  *	@param B BAKA Thread/global state
  *	@param ioh IOH state handle
@@ -3027,7 +3377,7 @@ static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue
 
   if (bid && bid->bid_data)
     BK_RETURN(B,1);
-    
+
   BK_RETURN(B,0);
 }
 
@@ -3035,6 +3385,8 @@ static int ioh_execute_ifspecial(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue
 
 /**
  * Execute the commands indicated by the bitfield cmds.
+ *
+ * THREADS: REENTRANT (ioh must already be locked)
  *
  *	@param B BAKA Thread/global state
  *	@param ioh IOH state handle
@@ -3050,7 +3402,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
   struct ioh_data_cmd *idc;
   int ret = 0;
   struct ioh_seek_args *isa = NULL;
-  
+
 
   if (!ioh)
   {
@@ -3085,7 +3437,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
 	  bk_error_printf(B, BK_ERR_ERR, "Seek command contained no args! Seek failed\n");
 	  ret = -1;
 	}
-	else 
+	else
 	{
 	  isa = idc->idc_args;
 	  if (lseek(ioh->ioh_fdin, isa->isa_offset, isa->isa_whence) < 0)
@@ -3098,14 +3450,14 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
 	  }
 	}
 
-	bk_ioh_readallowed(B, ioh, 1, 0);
+	bk_ioh_readallowed(B, ioh, 1, IOH_FLAG_ALREADYLOCKED);
 	free(isa);
 
 	CALL_BACK(B, ioh, NULL, ret==0?BkIohStatusIohSeekSuccess:BkIohStatusIohSeekFailed);
 
 	break;
-    
-      default: 
+
+      default:
 	bk_error_printf(B, BK_ERR_ERR, "Unknown bid command: %d\n", idc->idc_type);
 	break;
       }
@@ -3127,6 +3479,8 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
 
 /**
  * Standard read() functionality in IOH API
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global stateid
  *	@param ioh The ioh to use (may be NULL for those not including libbk_internal.h)
@@ -3166,6 +3520,8 @@ int bk_ioh_stdrdfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t bu
 
 /**
  * Standard write() functionality in IOH API
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param ioh The ioh to use (may be NULL for those not including libbk_internal.h)
@@ -3258,6 +3614,9 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
 /**
  * Flush an ioh read queue.
  *
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param ioh The @a bk_ioh to use.
  *	@param flags Flags to pass to internal flush routines.
@@ -3272,8 +3631,19 @@ bk_ioh_flush_read(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, flags);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_VRETURN(B);
 }
 
@@ -3281,6 +3651,9 @@ bk_ioh_flush_read(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
 /**
  * Flush an ioh write queue.
+ *
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The @a bk_ioh to use.
@@ -3296,8 +3669,19 @@ bk_ioh_flush_write(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, flags);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_VRETURN(B);
 }
 
@@ -3306,6 +3690,9 @@ bk_ioh_flush_write(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
 /**
  * Create an @a ioh_data_cmd.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a ioh_data_cmd on success.
@@ -3328,6 +3715,10 @@ idc_create(bk_s B)
 
 /**
  * Destroy a idc.
+ *
+ * THREADS: MT-SAFE (assuming different idc)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param idc The @a ioh_cmd_data to destroy.
  *	@return <i>-1</i> on failure.<br>
@@ -3359,8 +3750,11 @@ idc_destroy(bk_s B, struct ioh_data_cmd *idc)
  * user, but we don't flush the input queue. The rest of the function is in
  * ioh_execute_cmds()
  *
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
- *	@param ioh The @a bk_ioh to use. 
+ *	@param ioh The @a bk_ioh to use.
  *	@param offset As described in @a lseek(2)
  *	@param whence As described in @a lseek(2)
  *	@return <i>-1</i> on failure.<br>
@@ -3379,7 +3773,12 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
     BK_RETURN(B, -1);
   }
 
-  bk_ioh_readallowed(B, ioh, 0, 0);
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  bk_ioh_readallowed(B, ioh, 0, IOH_FLAG_ALREADYLOCKED);
 
   if (!(BK_CALLOC(isa)))
   {
@@ -3403,11 +3802,20 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
   if (ioh_execute_ifspecial(B, ioh, &ioh->ioh_writeq, 0) == 2)
     BK_RETURN(B,2);				// IOH was destroyed
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B,0);
 
  error:
   if (isa) free(isa);
-  bk_ioh_readallowed(B, ioh, 1, 0);
+  bk_ioh_readallowed(B, ioh, 1, IOH_FLAG_ALREADYLOCKED);
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   BK_RETURN(B,-1);
 }
 
@@ -3418,6 +3826,8 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
  * w/optimizations for simple cases. NB @a data is <em>not</em> freed. This
  * routine is written to the ioh read API and according to that API the ioh
  * system frees the data it has read.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA global/thread state
  *	@param data NULL terminated array of vectored pointers
@@ -3469,7 +3879,7 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
     goto error;
   }
 
-  if (cbuf > 1 || (curvptr && curvptr->ptr && curvptr->len > 0) || 
+  if (cbuf > 1 || (curvptr && curvptr->ptr && curvptr->len > 0) ||
       BK_FLAG_ISSET(in_flags, BK_IOH_COALESCE_FLAG_MUST_COPY))
   {
     if (!BK_MALLOC(new) || !BK_MALLOC_LEN(new->ptr, cdata + nulldata))
@@ -3480,7 +3890,7 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
     new->len = cdata + nulldata;
     optr = new->ptr;
 
-    if (curvptr && curvptr->ptr && curvptr->len > 0)    
+    if (curvptr && curvptr->ptr && curvptr->len > 0)
     {
       memcpy(optr, curvptr->ptr, curvptr->len);
       optr += curvptr->len;
@@ -3523,6 +3933,9 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
  * Copies string for output to IOH
  * This function is only safe for C99 compliant (glibc 2.1+) compilers
  *
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
  * @param B BAKA Thread/global state
  * @param ioh IOH for output
  * @param str String to output
@@ -3564,7 +3977,7 @@ extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str)
   data = NULL;
 
   BK_RETURN(B, 0);
-  
+
  error:
   if (data)
   {
@@ -3582,6 +3995,9 @@ extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str)
 /*
  * Formatted output for IOH.
  * This function is only safe for C99 compliant (glibc 2.1+) compilers
+ *
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
  *
  * @param B BAKA Thread/global state
  * @param ioh IOH for output
@@ -3629,7 +4045,7 @@ extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, const char *format, ...)
     // unrecoverable error
     bk_error_printf(B, BK_ERR_ERR, "vsnprintf failed\n");
     goto error;
-  } 
+  }
   else if (ret > 0)
   {
     // we just didn't allocate enough space
@@ -3698,6 +4114,9 @@ extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, const char *format, ...)
  * Event queue job to ask for the user IOH queue to be drained of any
  * pending input
  *
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
  * @param B BAKA Thread/global environment
  * @param run Run environment
  * @param opaque Private data
@@ -3715,7 +4134,18 @@ static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, cons
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   ioh->ioh_readallowedevent = NULL;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   ioh_runhandler(B, run, BK_RUN_USERFLAG1, ioh->ioh_fdin, ioh, starttime);
 
   BK_VRETURN(B);
@@ -3726,6 +4156,9 @@ static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, cons
 
 /**
  * Set various and sudry "extras" available to the ioh. NB Not everything may be fully supported
+ *
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The @a bk_ioh to use.
@@ -3743,6 +4176,11 @@ bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_al
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (compression_level)
   {
@@ -3765,11 +4203,21 @@ bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_al
     bk_error_printf(B, BK_ERR_ERR, "May not turn of compression once it's started\n");
     goto error;
   }
-  
-  BK_RETURN(B,0);  
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B,0);
 
  error:
-  BK_RETURN(B,-1);  
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B,-1);
 }
 
 
@@ -3777,6 +4225,8 @@ bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_al
 
 /**
  * Register an ioh for cancellation. NB: this only does input.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The ioh to register.
@@ -3794,7 +4244,7 @@ bk_ioh_cancel_register(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,bk_run_fd_cancel_register(B, ioh->ioh_run, ioh->ioh_fdin, flags));  
+  BK_RETURN(B,bk_run_fd_cancel_register(B, ioh->ioh_run, ioh->ioh_fdin, flags));
 }
 
 
@@ -3802,6 +4252,8 @@ bk_ioh_cancel_register(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
 /**
  * Unregister an ioh for cancellation. NB: this only does input.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The ioh to unregister.
@@ -3819,7 +4271,7 @@ bk_ioh_cancel_unregister(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,bk_run_fd_cancel_unregister(B, ioh->ioh_run, ioh->ioh_fdin, flags));  
+  BK_RETURN(B,bk_run_fd_cancel_unregister(B, ioh->ioh_run, ioh->ioh_fdin, flags));
 }
 
 
@@ -3827,6 +4279,8 @@ bk_ioh_cancel_unregister(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
 /**
  * Check to see if an ioh has been canceled.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The @a bk_ioh to use.
@@ -3845,8 +4299,8 @@ bk_ioh_is_canceled(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
-  BK_RETURN(B,bk_run_fd_is_canceled(B, ioh->ioh_run, ioh->ioh_fdin));  
+
+  BK_RETURN(B,bk_run_fd_is_canceled(B, ioh->ioh_run, ioh->ioh_fdin));
 }
 
 
@@ -3854,6 +4308,8 @@ bk_ioh_is_canceled(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
 /**
  * Cancel an ioh
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The @a bk_ioh to cancel.
@@ -3871,7 +4327,7 @@ bk_ioh_cancel(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  BK_RETURN(B,bk_run_fd_cancel(B, ioh->ioh_run, ioh->ioh_fdin, flags));  
+  BK_RETURN(B,bk_run_fd_cancel(B, ioh->ioh_run, ioh->ioh_fdin, flags));
 }
 
 
@@ -3880,13 +4336,15 @@ bk_ioh_cancel(bk_s B, struct bk_ioh *ioh, bk_flags flags)
  * Get the last errno from this ioh.  This would be a macro
  * excpet that the ioh internals are private to libbk.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param ioh The @a bk_ioh to check.
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>errno</i> on success.
  */
-int 
+int
 bk_ioh_last_error(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -3908,6 +4366,8 @@ bk_ioh_last_error(bk_s B, struct bk_ioh *ioh, bk_flags flags)
  * it from the read set, and enqueue an event to check again after a short
  * pause. If it's not at the end of the line insert it in the read set
  * (yikes!) and update the ioh stat info.
+ *
+ * THREADS: REENTRANT (ioh must already be locked)
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The ioh to check.
@@ -3939,7 +4399,7 @@ check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags)
       bk_error_printf(B, BK_ERR_ERR, "Could not stat input file descriptor: %s\n", strerror(errno));
       goto error;
     }
-    
+
     ioh->ioh_size = st.st_size;
   }
 
@@ -3947,14 +4407,16 @@ check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   {
     // Wtihdraw from read set
     bk_debug_printf_and(B,1,"Checking if read allowed for follow...NO\n");
-    
+
     if (bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not withdraw fdin from read set\n");
       goto error;
     }
 
-    // Enqueue event to recheck after a short delay.
+    /*
+     * Enqueue event to recheck after a short delay.
+     */
     if (bk_run_enqueue_delta(B, ioh->ioh_run, BK_SECS_TO_EVENT(ioh->ioh_follow_pause), recheck_follow, ioh, &ioh->ioh_recheck_event, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not enqueue event to recheck the file size in follow mode\n");
@@ -3965,7 +4427,7 @@ check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   {
     // Allow reads again.
     bk_debug_printf_and(B,1,"Checking if read allowed for follow...YES\n");
-    
+
     if (bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 1, BK_RUN_WANTREAD, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not insert fdin into read set\n");
@@ -3974,7 +4436,7 @@ check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   }
 
  error:
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -4001,8 +4463,19 @@ recheck_follow(bk_s B, struct bk_run *run, void *opaque, const struct timeval *s
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   ioh->ioh_recheck_event = NULL;
-  
+
   check_follow(B, ioh, 0);
-  BK_VRETURN(B);  
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_VRETURN(B);
 }

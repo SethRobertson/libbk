@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_listnum.c,v 1.7 2003/02/02 13:45:31 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_listnum.c,v 1.8 2003/05/09 03:25:03 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -79,6 +79,8 @@ static const struct ht_args listnum_args = { 512, 1, (ht_func)listnum_obj_hash, 
  * item is on), this can be *far* more efficient than normal time
  * based event expiration.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA Thread/global environment
  *	@param flags Fun for the future
  *	@return <i>NULL</i> on call failure, allocation failure.
@@ -119,6 +121,9 @@ struct bk_listnum_main *bk_listnum_create(bk_s B, bk_flags flags)
 
 /**
  * Get the doubly linked list associated with "number".
+ *
+ * THREADS: MT-SAFE (different mainl)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA Thread/global environment
  *	@param mainl The list management list
@@ -172,6 +177,9 @@ struct bk_listnum_head *bk_listnum_get(bk_s B, struct bk_listnum_main *mainl, u_
  * Destroy the list management list and all sub-lists (but not the
  * items on the sub-lists!)
  *
+ * THREADS: MT-SAFE (assuming different mainl)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA Thread/global environment
  *	@param mainl The list management list
  */
@@ -197,6 +205,9 @@ void bk_listnum_destroy(bk_s B, struct bk_listnum_main *mainl)
 
 /**
  * Get all lists for all numbers, one at a time
+ *
+ * THREADS: MT-SAFE (different mainl)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA Thread/global environment
  *	@param mainl The list management list

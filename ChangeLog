@@ -1,3 +1,9 @@
+2003-05-08  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_ioh.c: Threadize
+
+	* lib/b_listnum.c: Specify thread state
+
 2003-05-07  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_run.c: Threadize (stage one)

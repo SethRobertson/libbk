@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.42 2003/05/08 04:14:58 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.43 2003/05/09 03:25:03 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -774,9 +774,12 @@ int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msec, void (*event)(b
   brec->brec_opaque = opaque;
 
 #ifdef BK_USING_PTHREADS
-  BK_ZERO(&brec->brec_userid);		// Here's hoping zero is reserved
-  if (pthread_cond_init(&brec->brec_cond, NULL) < 0)
-    abort();
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+  {
+    BK_ZERO(&brec->brec_userid);		// Here's hoping zero is reserved
+    if (pthread_cond_init(&brec->brec_cond, NULL) < 0)
+      abort();
+  }
 #endif /* BK_USING_PTHREADS */
 
   ret = bk_run_enqueue_delta(B, run, brec->brec_interval, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), 0);
@@ -817,28 +820,29 @@ int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags)
   {
     bre = brec->brec_equeue;
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
-    abort();
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+      abort();
 
-  if (brec->brec_userid)
-  {
-    int isme = pthread_equal(brec->brec_userid, pthread_self());
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && brec->brec_userid)
+    {
+      int isme = pthread_equal(brec->brec_userid, pthread_self());
 
-    BK_ZERO(&brec->brec_userid);		// Mark as deleted
+      BK_ZERO(&brec->brec_userid);		// Mark as deleted
 
-    // Wait for the current user to finish
-    if (!isme)
-      pthread_cond_wait(&brec->brec_cond, &run->br_lock);
+      // Wait for the current user to finish
+      if (!isme)
+	pthread_cond_wait(&brec->brec_cond, &run->br_lock);
 
-    BK_RETURN(B, 0);				// Running thread handled everything
-  }
-  else
-  {
-    free(brec);
-  }
+      BK_RETURN(B, 0);				// Running thread handled everything
+    }
+    else
+    {
+      pthread_cond_destroy(&brec->brec_cond);
+      free(brec);
+    }
 
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
-    abort();
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+      abort();
 #else /* BK_USING_PTHREADS */
     free(brec);
 #endif /* BK_USING_PTHREADS */
@@ -1031,10 +1035,13 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
       if (*brof->brof_demand)
       {
 #ifdef BK_USING_PTHREADS
-	if (brof->brof_userid)
-	  continue;				// Someone already calling this function
+	if (BK_GENERAL_FLAG_ISTHREADON(B))
+	{
+	  if (brof->brof_userid)
+	    continue;				// Someone already calling this function
 
-	brof->brof_userid = pthread_self();	// Who is has a soft-lock on this structure
+	  brof->brof_userid = pthread_self();	// Who is has a soft-lock on this structure
+	}
 
 	if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
 	  abort();
@@ -1054,7 +1061,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
 #ifdef BK_USING_PTHREADS
 	// Look again, we may have been deleted in the interim
-	if (brof = brfl_search(run->br_ondemand_funcs, brof))
+	if (BK_GENERAL_FLAG_ISTHREADON(B) && (brof = brfl_search(run->br_ondemand_funcs, brof)))
 	{
 	  BK_ZERO(&brof->brof_userid);		// Here's hoping zero is reserved
 	  pthread_cond_signal(&brof->brof_cond);
@@ -1098,10 +1105,13 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     while (brfn = brfl_nextobj(run->br_poll_funcs, iter))
     {
 #ifdef BK_USING_PTHREADS
-      if (brfn->brfn_userid)
-	continue;				// Someone already calling this function
+      if (BK_GENERAL_FLAG_ISTHREADON(B))
+      {
+	if (brfn->brfn_userid)
+	  continue;				// Someone already calling this function
 
-      brfn->brfn_userid = pthread_self();	// Who is has a soft-lock on this structure
+	brfn->brfn_userid = pthread_self();	// Who is has a soft-lock on this structure
+      }
 
       if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
 	abort();
@@ -1130,7 +1140,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
 #ifdef BK_USING_PTHREADS
       // Look again, we may have been deleted in the interim
-      if (brfn = brfl_search(run->br_ondemand_funcs, brfn))
+      if (BK_GENERAL_FLAG_ISTHREADON(B) && (brfn = brfl_search(run->br_ondemand_funcs, brfn)))
       {
 	BK_ZERO(&brfn->brfn_userid);  // Here's hoping zero is reserved
 	pthread_cond_signal(&brfn->brfn_cond);
@@ -1405,10 +1415,13 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	  continue;
 	}
 #ifdef BK_USING_PTHREADS
-	if (curfd->brf_userid)
-	  continue;				// Someone already calling this function
+	if (BK_GENERAL_FLAG_ISTHREADON(B))
+	{
+	  if (curfd->brf_userid)
+	    continue;				// Someone already calling this function
 
-	curfd->brf_userid = pthread_self();	// Who is has a soft-lock on this structure
+	  curfd->brf_userid = pthread_self();	// Who is has a soft-lock on this structure
+	}
 
 	if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
 	  abort();
@@ -1424,7 +1437,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
 #ifdef BK_USING_PTHREADS
 	// Look again, we may have been deleted in the interim
-	if (curfd = fdassoc_search(run->br_fdassoc, &x))
+	if (BK_GENERAL_FLAG_ISTHREADON(B) && (curfd = fdassoc_search(run->br_fdassoc, &x)))
 	{
 	  BK_ZERO(&curfd->brf_userid); // Here's hoping zero is reserved
 	  pthread_cond_signal(&curfd->brf_cond);
@@ -1468,10 +1481,13 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
       while (brfn = brfl_nextobj(run->br_poll_funcs, iter))
       {
 #ifdef BK_USING_PTHREADS
-	if (brfn->brfn_userid)
-	  continue;				// Someone already calling this function
+	if (BK_GENERAL_FLAG_ISTHREADON(B))
+	{
+	  if (brfn->brfn_userid)
+	    continue;				// Someone already calling this function
 
-	brfn->brfn_userid = pthread_self();	// Who is has a soft-lock on this structure
+	  brfn->brfn_userid = pthread_self();	// Who is has a soft-lock on this structure
+	}
 
 	if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
 	  abort();
@@ -1490,7 +1506,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
 #ifdef BK_USING_PTHREADS
 	// Look again, we may have been deleted in the interim
-	if (brfn = brfl_search(run->br_ondemand_funcs, brfn))
+	if (BK_GENERAL_FLAG_ISTHREADON(B) && (brfn = brfl_search(run->br_ondemand_funcs, brfn)))
 	{
 	  BK_ZERO(&brfn->brfn_userid); // Here's hoping zero is reserved
 	  pthread_cond_signal(&brfn->brfn_cond);
@@ -1571,6 +1587,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
  *	@param run The baka run environment state
  *	@param fd The file descriptor which should be monitored
  *	@param handler The function to call when activity is monitored on the fd
+ *	@param opaque Opaque data to for handler
  *	@param wanttypes What types of activities you want notification on
  *	@param flags Flags for the Future.
  *	@return <i><0</i> on call failure, or other error.
@@ -1710,7 +1727,7 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 
 #ifdef BK_USING_PTHREADS
   // See if someone (other than myself) is currently using this function
-  if (curfda->brf_userid && !pthread_equal(curfda->brf_userid, pthread_self()))
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && curfda->brf_userid && !pthread_equal(curfda->brf_userid, pthread_self()))
   {
     // Wait for the current user to finish
     pthread_cond_wait(&curfda->brf_cond, &run->br_lock);
@@ -1943,10 +1960,13 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
     bk_run_enqueue(B, run, addtv, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), 0);
 
 #ifdef BK_USING_PTHREADS
-  if (brec->brec_userid)
-    BK_VRETURN(B);			// Someone already calling this function
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+  {
+    if (brec->brec_userid)
+      BK_VRETURN(B);			// Someone already calling this function
 
-  brec->brec_userid = pthread_self();	// Who is has a soft-lock on this structure
+    brec->brec_userid = pthread_self();	// Who is has a soft-lock on this structure
+  }
 #endif /* BK_USING_PTHREADS */
 
   (*brec->brec_event)(B, run, brec->brec_opaque, starttime, flags);
@@ -1956,17 +1976,21 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
     abort();
 
-  if (!brec->brec_userid)
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
   {
-    // Someone (partially) deleted us...finish up
-    pthread_cond_broadcast(&brec->brec_cond);
-    pq_delete(run->br_equeue, brec->brec_equeue);
-    free(brec->brec_equeue);
-    free(brec);
-  }
-  else
-  {
-    BK_ZERO(&brec->brec_userid);		// Here's hoping zero is reserved
+    if (!brec->brec_userid)
+    {
+      // Someone (partially) deleted us...finish up
+      pthread_cond_broadcast(&brec->brec_cond);
+      pq_delete(run->br_equeue, brec->brec_equeue);
+      free(brec->brec_equeue);
+      pthread_cond_destroy(&brec->brec_cond);
+      free(brec);
+    }
+    else
+    {
+      BK_ZERO(&brec->brec_userid);		// Here's hoping zero is reserved
+    }
   }
 
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
@@ -2186,12 +2210,15 @@ bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle)
   }
 
 #ifdef BK_USING_PTHREADS
-  // See if someone (other than myself) is currently using this function
-  if (brf->brfn_userid && !pthread_equal(brf->brfn_userid, pthread_self()))
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
   {
-    // Wait for the current user to finish
-    pthread_cond_wait(&brf->brfn_cond, &run->br_lock);
-    goto again;
+    // See if someone (other than myself) is currently using this function
+    if (brf->brfn_userid && !pthread_equal(brf->brfn_userid, pthread_self()))
+    {
+      // Wait for the current user to finish
+      pthread_cond_wait(&brf->brfn_cond, &run->br_lock);
+      goto again;
+    }
   }
 #endif /* BK_USING_PTHREADS */
 
@@ -2324,12 +2351,15 @@ bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle)
   }
 
 #ifdef BK_USING_PTHREADS
-  // See if someone (other than myself) is currently using this function
-  if (brfn->brfn_userid && !pthread_equal(brfn->brfn_userid, pthread_self()))
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
   {
-    // Wait for the current user to finish
-    pthread_cond_wait(&brfn->brfn_cond, &run->br_lock);
-    goto again;
+    // See if someone (other than myself) is currently using this function
+    if (brfn->brfn_userid && !pthread_equal(brfn->brfn_userid, pthread_self()))
+    {
+      // Wait for the current user to finish
+      pthread_cond_wait(&brfn->brfn_cond, &run->br_lock);
+      goto again;
+    }
   }
 #endif /* BK_USING_PTHREADS */
 
@@ -2407,7 +2437,8 @@ brfn_destroy(bk_s B, struct bk_run_func *brfn)
   }
 
 #ifdef BK_USING_PTHREADS
-  pthread_cond_broadcast(&brfn->brfn_cond);
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+    pthread_cond_broadcast(&brfn->brfn_cond);
 #endif /* BK_USING_PTHREADS */
 
   free(brfn);
@@ -2529,7 +2560,7 @@ bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle)
 
 #ifdef BK_USING_PTHREADS
   // See if someone (other than myself) is currently using this function
-  if (brof->brof_userid && !pthread_equal(brof->brof_userid, pthread_self()))
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && brof->brof_userid && !pthread_equal(brof->brof_userid, pthread_self()))
   {
     // Wait for the current user to finish
     pthread_cond_wait(&brof->brof_cond, &run->br_lock);
@@ -2611,7 +2642,8 @@ brof_destroy(bk_s B, struct bk_run_ondemand_func *brof)
   }
 
 #ifdef BK_USING_PTHREADS
-  pthread_cond_broadcast(&brof->brof_cond);
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+    pthread_cond_broadcast(&brof->brof_cond);
 #endif /* BK_USING_PTHREADS */
 
   free(brof);
@@ -2705,6 +2737,8 @@ bk_run_set_dont_block_run_once(bk_s B, struct bk_run *run)
 
 /**
  * Add a descriptor to the cancel list.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param run The @a bk_run structure to use.

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.37 2003/05/08 01:08:43 seth Exp $
+ * $Id: libbk_internal.h,v 1.38 2003/05/09 03:25:02 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -89,9 +89,15 @@ struct bk_ioh
 #define IOH_FLAGS_DONTCLOSEFDS		0x40	///< Don't close FDs on death
 #define IOH_FLAGS_ERROR_INPUT		0x80	///< Input had I/O error or EOF
 #define IOH_FLAGS_ERROR_OUTPUT		0x100	///< Output had I/O error
-#define IOH_FLAGS_CLOSE_PENDING		0x200	///< We want to close, but are in a user callback
+#define IOH_FLAGS_CLOSE_PENDING		0x200	///< We want to close, but others are using the IOH
 #define IOH_FLAGS_IN_CALLBACK		0x400	///< We are in a user callback
-#define IOH_FLAGS_COMPRESS		0x800	///< We are in a user callback
+#define IOH_FLAGS_COMPRESS		0x800	///< We want to go through output compression
+#ifdef BK_USING_PTHREADS
+  u_int			ioh_waiting;		///< Number of people waiting
+  pthread_t		ioh_userid;		///< Thread ID of person in user callback
+  pthread_cond_t	ioh_cond;		///< Pthread condition for other threads to wait on
+  pthread_mutex_t	ioh_lock;		///< Lock on this ioh
+#endif /* BK_USING_PTHREADS */
 };
 
 
