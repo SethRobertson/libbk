@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.15 2002/01/20 03:19:11 seth Exp $
+# $Id: Makefile,v 1.16 2002/03/16 07:59:34 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -12,11 +12,11 @@
 #
 # --Copyright LIBBK--
 #
-# libbk Makefile
+# libbk test Makefile
 #
 BK_SUBDIR=entropy
 
-BK_SIMPLE_PROGS=			\
+BK_SIMPLE_INTERNALPROGS=		\
 		test_bio		\
 		test_config		\
 		test_errorstuff		\
