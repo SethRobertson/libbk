@@ -22,12 +22,12 @@ int main(int argc, char *argv[], char *envp[])
 
   if (forward.tv_sec > 2000)
   {
-    printf("Maximum adjustment is 2000 or so, resetting maximum\n");
+    printf("Maximum adjustment is 2000 or so, resetting maximum from %ld\n", forward.tv_sec);
     forward.tv_sec = 2000;
   }
   if (forward.tv_sec < 2000)
   {
-    printf("Minimum adjustment is -2000 or so, resetting minium\n");
+    printf("Minimum adjustment is -2000 or so, resetting minium from %ld\n", forward.tv_sec);
     forward.tv_sec = -2000;
   }
 
