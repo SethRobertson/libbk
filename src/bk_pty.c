@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bk_pty.c,v 1.2 2005/01/20 23:27:21 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bk_pty.c,v 1.3 2005/01/23 00:23:59 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,7 +25,20 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 #include <libbk.h>
 #include <libbk_i18n.h>
-#include <pty.h>  /* for openpty and forkpty */
+
+
+// Declaration of openpty and forkpty
+#ifdef HAVE_OPENPTY
+#ifdef HAVE_PTY_H
+#include <pty.h>
+#endif /* HAVE_PTY_H */
+#ifdef HAVE_UTIL_H
+#include <util.h>
+#endif /* HAVE_UTIL_H */
+#ifdef HAVE_LIBUTIL_H
+#include <libutil.h>
+#endif /* HAVE_LIBUTIL_H */
+#endif /* HAVE_OPENPTY */
 
 
 #define STD_LOCALEDIR_KEY     "LOCALEDIR"	///< Key in bkconfig to find the locale translation files
@@ -58,7 +71,6 @@ struct program_config
   char **			pc_cmd;		///< Command to execute.
   pid_t				pc_pid;		///< Child pid.
 };
-
 
 
 static int proginit(bk_s B, struct program_config *pc);
@@ -299,6 +311,7 @@ static void progrun(bk_s B, struct program_config *pc)
     goto error;
   }
 
+#ifdef HAVE_OPENPTY
   switch (pc->pc_pid = forkpty(&fd, NULL, NULL, NULL))
   {
   case -1:
@@ -344,6 +357,10 @@ static void progrun(bk_s B, struct program_config *pc)
 
     break;
   }
+#else  /* !HAVE_OPENPTY */
+  fprintf(stderr, "no forkpty on this system; use socketpair or two pipes\n");
+  bk_exit(B, 254); // DO NOT GOTO ERROR HERE.
+#endif
 
   bk_run_destroy(B, run);
   BK_VRETURN(B);
