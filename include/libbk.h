@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.15 2001/07/09 07:08:17 jtt Exp $
+ * $Id: libbk.h,v 1.16 2001/07/12 20:15:08 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -18,6 +18,12 @@
 #include "libbk_include.h"
 #include "libbk_oscompat.h"
 
+/* XXX Seth want this moved, but for the moment */
+/* Define NULL the *proper* way. */
+#ifdef NULL
+#undef NULL
+#define NULL ((void *)0)
+#endif
 
 /* Error levels & their syslog equivalents */
 #define BK_ERR_NONE	-1
@@ -37,16 +43,18 @@
 #define BK_SYSLOG_MAXLEN 256			/* Length of maximum user message we will syslog */
 
 /* General purpose macros */
-#define BK_FLAG_SET(var,bit) (var) |= (bit)
+#define BK_FLAG_SET(var,bit) ((var) |= (bit))
 #define BK_FLAG_ISSET(var,bit) ((var) & (bit))
-#define BK_FLAG_CLEAR(var,bit) (var) &= ~(bit)
+#define BK_FLAG_CLEAR(var,bit) ((var) &= ~(bit))
 #define BK_FLAG_ISCLEAR(var,bit) (!((var) & (bit)))
 
+/* String equality functions */
 #define BK_STREQ(a,b) ((a) && (b) && !strcmp((a),(b)))
 #define BK_STREQN(a,b,n) ((a) && (b) && ((int)n>=0) && !strncmp(a,b,n))
 
-
-
+/* Malloc functions (g++ sucks -- it *requires* casts from (void *) */
+#define BK_MALLOC_LEN(o,l) do { if ((o)=(typeof(o))malloc(l)) memset((o),0,l); } while(0)
+#define BK_MALLOC(o) BK_MALLOC_LEN((o),sizeof(*(o)))
 
 typedef u_int32_t bk_flags;
 
@@ -167,7 +175,7 @@ struct bk_funinfo
 
 
 /* b_general.c */
-extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, bk_flags flags);
+extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, int error_queue_length, int log_facility, bk_flags flags);
 #define BK_GENERAL_NOPROCTITLE 1
 extern void bk_general_proctitle_set(bk_s B, char *);
 extern void bk_general_reinit(bk_s B);
@@ -187,18 +195,16 @@ extern const char *bk_general_errorstr(bk_s B, int level);
 struct bk_config
 {
   bk_flags			bc_flags;	/* Everyone needs flags */
-  struct bk_config_fileinfo *	bc_files;	/* Files of conf data */
-  dict_h			bc_kv;	/* Hash of value dlls */
-  int				bc_kv_error;/* clc errno for bc_kv */
+  struct bk_config_fileinfo *	bc_bcf;		/* Files of conf data */
+  dict_h			bc_kv;		/* Hash of value dlls */
+  int				bc_kv_error;	/* clc errno for bc_kv */
 };
 
 
 /* b_config.c */
-/*extern struct bk_config *bk_config_init(bk_s B, char *filename, bk_flags flags);*/
-extern int bk_config_init(bk_s B, char *filename, bk_flags flags);
+extern struct bk_config *bk_config_init(bk_s B, const char *filename, bk_flags flags);
 extern int bk_config_reinit(bk_s B, struct bk_config *config);
-/*extern void bk_config_destroy(bk_s B, struct bk_config *config);*/
-extern void bk_config_destroy(bk_s B);
+extern void bk_config_destroy(bk_s B, struct bk_config *config);
 extern void bk_config_write(bk_s B, struct bk_config *config, char *outfile);
 extern int bk_config_insert(bk_s B, struct bk_config *config, char *key, char *value);
 extern char *bk_config_first(bk_s B, struct bk_config *config, char *key);
