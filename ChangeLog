@@ -1,3 +1,9 @@
+2004-06-30  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_intinfo.c (bk_intinfo_list_create): What the heck. Get the
+	HW addr in the linux way (but how do you "properly" determine the
+	HW *type*...)
+
 2004-06-24  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_intinfo.c (bk_intinfo_list_create): FreeBSD fixes

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.10 2004/06/23 23:32:43 jtt Exp $
+ * $Id: libbk_net.h,v 1.11 2004/06/30 15:28:35 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -217,7 +217,8 @@ struct bk_interface_info
 {
   bk_flags		bii_avail;		///< What non-required fields are available
 #define BK_INTINFO_FIELD_BROADCAST	0x1	///< The broadcast field has been filled out
-#define BK_INTINFO_FIELD_DSTADDR	0x2	///< The dstaddr fields has been filled out.
+#define BK_INTINFO_FIELD_DSTADDR	0x2	///< The dstaddr field has been filled out.
+#define BK_INTINFO_FIELD_HARDWARE	0x4	///< The hardware address field is filled out
   char *		bii_name;		///< Interface name
   struct sockaddr	bii_addr;		///< Protocol address.
   union
@@ -226,6 +227,7 @@ struct bk_interface_info
     struct sockaddr	bau_broadaddr;		///< Protocol broadcast address
   } bii_addr_un;
   struct sockaddr	bii_netmask;		///< Protocol netmask
+  struct sockaddr	bii_hwaddr;		///< Hardware address
   short			bii_flags;		///< Basic interface flags
   int 			bii_mtu;		///< Maximum tx pkt size.
   int 			bii_metric;		///< Metric.

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_intinfo.c,v 1.2 2004/06/25 00:30:48 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_intinfo.c,v 1.3 2004/06/30 15:28:34 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -165,18 +165,21 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
   ifc.ifc_len = sizeof(ifc_buffer);
   ifc.ifc_buf = (char *) ifc_buffer;
 
+  // Look at IP interfaces only
   if ((s = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not open socket on ip protocol: %s\n", strerror(errno));
     goto error;
   }
 
+  // Get interface list
   if (ioctl(s, SIOCGIFCONF, &ifc) < 0) 
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not obtain interface list from kernel: %s\n", strerror(errno));
     goto error;
   }
 
+  // Create baka interface list
   if (!(bii_list = intinfo_list_create(NULL, NULL, DICT_UNORDERED)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create new interface info list: %s\n", intinfo_list_error_reason(NULL, NULL));
@@ -189,6 +192,7 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
   {
     struct ifreq *ifr = &ifc.ifc_req[cnt];
 
+    // Get interface flags.
     IF_GET_INFO(B, s, SIOCGIFFLAGS, ifr);
 
     // If pos_filter is set, then all the flags in the filter must exist.
@@ -199,6 +203,7 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
     if (neg_filter && (ifr->ifr_flags & neg_filter))
       continue;
 
+    // Create baka interface information struct.
     if (!(bii = bii_create(B, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create intinfo structure\n");
@@ -213,10 +218,12 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
 
     bii->bii_flags = ifr->ifr_flags;
 
+    // Get interface local address
     IF_GET_INFO(B, s, SIOCGIFADDR, ifr);
 
     bii->bii_addr = ifr->ifr_addr;
 
+    // Get brocast addr.
     if (flags & IFF_BROADCAST)
     {
       IF_GET_INFO(B, s, SIOCGIFBRDADDR, ifr);
@@ -226,6 +233,7 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
       BK_FLAG_SET(bii->bii_avail, BK_INTINFO_FIELD_BROADCAST);
     }
 
+    // Get foreign addr
     if (flags & IFF_POINTOPOINT)
     {
       IF_GET_INFO(B, s, SIOCGIFDSTADDR, ifr);
@@ -235,6 +243,7 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
       BK_FLAG_SET(bii->bii_avail, BK_INTINFO_FIELD_DSTADDR);
     }
 
+    // Get netmask
     IF_GET_INFO(B, s, SIOCGIFNETMASK, ifr);
 
 #ifdef ifr_netmask
@@ -243,14 +252,29 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
     bii->bii_netmask = ifr->ifr_addr;
 #endif
     
+    // Get MTU
     IF_GET_INFO(B, s, SIOCGIFMTU, ifr);
     
     bii->bii_mtu = ifr->ifr_mtu;
     
+    // Get metric
     IF_GET_INFO(B, s, SIOCGIFMETRIC, ifr);
     
     bii->bii_metric = ifr->ifr_metric;
+
+#ifdef SIOCGIFHWADDR
+    // Get hardware address
+    if (!(bii->bii_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)))
+    {
+      IF_GET_INFO(B, s, SIOCGIFHWADDR, ifr);
     
+      bii->bii_hwaddr = ifr->ifr_hwaddr;
+      
+      BK_FLAG_SET(bii->bii_avail, BK_INTINFO_FIELD_HARDWARE);
+    }
+#endif /* SIOCGIFHWADDR */
+
+    // Insert in list
     if (intinfo_list_insert(bii_list, bii) != DICT_OK)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not insert new intinfo into list: %s\n", intinfo_list_error_reason(bii_list, NULL));
