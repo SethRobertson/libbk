@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_listnum.c,v 1.6 2002/08/15 01:16:14 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_listnum.c,v 1.7 2003/02/02 13:45:31 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -229,8 +229,8 @@ struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *mainl, s
     // Delete empty lists
     if (BK_FLAG_ISSET(flags, BK_LISTNUM_PRUNE_EMPTY) && next->blh_first == next)
     {
-      free(next);
       listnum_delete(mainl->blm_list, next);
+      free(next);
       next = NULL;
     }
   }
