@@ -8,3 +8,4 @@ test_printbuf
 test_stringconv
 test_url
 testrandidea
+test_locks
