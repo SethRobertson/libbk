@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.19 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.20 2004/04/07 19:07:18 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -800,7 +800,7 @@ bk_fileutils_match_extension(bk_s B, const char *path, const char * const *exts)
 int
 bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "netpcap");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct stat st;
 #if (defined makedev && defined NODEV)
   int i = 8 * sizeof(long long);
@@ -851,7 +851,7 @@ bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags)
  */
 bk_vptr *bk_slurp(bk_s B, FILE *FH, int fd, const char *filename, int maxwastage, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "netpcap");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_vptr *ret = NULL;
   int size = 0;
   void *tmp;

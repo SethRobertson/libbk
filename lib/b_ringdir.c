@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.2 2004/04/06 23:32:25 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.3 2004/04/07 19:07:18 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -31,6 +31,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 
+#define INCREMENT_FILE_NUM(brd)	 do { (brd)->brd_cur_file_num = ((brd)->brd_cur_file_num + 1) % (brd)->brd_max_num_files; } while(0)
+
+
 /**
  * Internal state for managing ring directories.
  */
@@ -46,6 +49,20 @@ struct bk_ring_directory
   const char *				brd_cur_filename; ///< The current file we are updating.
   void *				brd_opaque; ///< User data.
   struct bk_ringdir_callbacks	brd_brc; ///< Callback structure.
+};
+
+
+
+/**
+ * Private state for the "standard" ring directory implementation. 
+ */
+struct bk_ringdir_standard
+{
+  bk_flags	brs_flags;			///< Everyone needs flags.
+  int		brs_fd;				///< Currently active fd
+  const char *	brs_chkpnt_filename;		///< Name of checkpoint file.
+  const char *	brs_cur_filename;		///< Current filename (for sanity check).
+  void *	brs_opaque;			///< Private data for those who are only using some of the standard callbacks.
 };
 
 
@@ -185,11 +202,28 @@ brd_destroy(bk_s B, struct bk_ring_directory *brd)
  * pattern (if desired), and the maximum files in directory. If the
  * directory does not exist it will be created unless caller demurs.
  *
+ *
+ * BK_RINGDIR_FLAG_NUKE_DIR_ON_DESTROY: If passed in here, this flag will
+ * be saved for use in in bk_ringdir_destroy().
+ *
+ * BK_RINGDIR_FLAG_DO_NOT_CREATE: Do not create non-existent directories;
+ * return an error instead.
+ *
+ * BK_RINGDIR_FLAG_NO_CONTINUE: Do not pick up at checkpointed spot. Simply
+ * start over.
+ *
+ * BK_RINGDIR_FLAG_NO_CONTINUE: Do not pick up at checkpointed spot. Simply
+ *
+ * BK_RINGDIR_FLAG_CANT_APPEND: The underlying "file" object does not
+ * support append so checkpoints must simply start with the next "file"
+ * name instead of continuing right where the last job left off.
+ *
  *	@param B BAKA thread/global state.
- *	@param B BAKA thread/global state.
- *	@param B BAKA thread/global state.
- *	@param B BAKA thread/global state.
- *	@param B BAKA thread/global state.
+ *	@param directory The name of the ring "directory"
+ *	@param rotate_size The size threshold which triggers a rotation on the next check.
+ *	@param max_num_files How many "files" to create in the "directory" before reuse kicks in.
+ *	@param file_name_pattern sprintf(3) pattern (must contain %d) from which the "directory" "file" names will be generated. May be NULL.
+ *	@param callbacks Ponter to the structure summarizing the underlying implementation callbacks.
  *	@param flags Flags for future use.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_ringdir_t on success.
@@ -231,7 +265,16 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
       goto error;
       
     case 0:  // Checkpoint found. Open for append
-      ringdir_open_flags = BK_RINGDIR_FLAG_OPEN_APPEND;
+      if (BK_FLAG_ISCLEAR(flags, BK_RINGDIR_FLAG_CANT_APPEND))
+      {
+	// The underlying "file" supports append, so set the append flag.
+	ringdir_open_flags = BK_RINGDIR_FLAG_OPEN_APPEND;
+      }
+      else
+      {
+	// The underlying "file" does not support append. Just skip to the next "file" name.
+	INCREMENT_FILE_NUM(brd);
+      }
       break;
       
     case 1: // Checkpoint not found. Do normal truncate open.
@@ -283,8 +326,7 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
  * nuke directory.
  *
  * BK_RINGDIR_FLAG_NO_NUKE: Override BK_RINGDIR_FLAG_NUKE_DIR_ON_DESTROY
- * flag in @a brd
- *
+ * flag which might be cached in @a brdh
  *
  *	@param B BAKA thread/global state.
  *	@param brdh Ring directory handle.
@@ -401,7 +443,7 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     free((char *)brd->brd_cur_filename);
     brd->brd_cur_filename = NULL;
 
-    brd->brd_cur_file_num = (brd->brd_cur_file_num + 1) % brd->brd_max_num_files;
+    INCREMENT_FILE_NUM(brd);
 
     if (!(brd->brd_cur_filename = create_file_name(B, brd->brd_path, brd->brd_cur_file_num, 0)))
     {
@@ -955,4 +997,113 @@ bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions 
     close(fd);
 
   BK_RETURN(B, -1);  
+}
+
+
+
+/**
+ * Update the private data of the standard struct
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@param opaque The pointer to cache in the standard structure.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ringdir_standard_update_private_data(bk_s B, bk_ringdir_t brdh, void *opaque, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ringdir_standard *brs;
+
+  if (!brdh || !opaque || !(brs = bk_ringdir_get_private_data(B, brdh, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  brs->brs_opaque = opaque;
+
+  BK_RETURN(B, 0);  
+}
+
+
+
+/**
+ * Retrieve the private of the standadrd struct
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@param flags Flags for future use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>private data</i> on success.
+ */
+void *
+bk_ringdir_standard_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ringdir_standard *brs;
+
+  if (!brdh || !(brs = bk_ringdir_get_private_data(B, brdh, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  BK_RETURN(B,brs->brs_opaque);  
+}
+
+
+
+
+/**
+ * Update the private data of the standard struct by the standard struct
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ringdir_standard_update_private_data_by_standard(bk_s B, void *brsh, void *opaque, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)brsh;
+
+  if (!brsh)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  brs->brs_opaque = opaque;
+
+  BK_RETURN(B,0);  
+}
+
+
+
+/**
+ * Retrieve the private of the standadrd struct by the standard struct
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+void *
+bk_ringdir_standard_get_private_data_by_standard(bk_s B, void *brsh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)brsh;
+
+  if (!brsh)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+  
+  BK_RETURN(B,brs->brs_opaque);  
+  
 }
