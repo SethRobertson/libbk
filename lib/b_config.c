@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.24 2001/12/05 00:29:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.25 2001/12/05 20:33:34 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -651,6 +651,12 @@ bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ov
   }
 
   SET_CONFIG(bc, B, ibc);
+  
+  if (!bc)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not locate config structure\n");
+    BK_RETURN(B,NULL);
+  }
 
   if (!(bck=config_kv_search(bc->bc_kv, (char *)key)))
   {
@@ -712,6 +718,14 @@ bk_config_delete_key(bk_s B, struct bk_config *ibc, const char *key)
   }
   
   SET_CONFIG(bc, B, ibc);
+
+  if (!bc)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not locate config structure\n");
+    BK_RETURN(B,-1);
+  }
+
+
 
   if (!(bck=config_kv_search(bc->bc_kv, (char *)key)))
   {
@@ -996,6 +1010,13 @@ bk_config_print(bk_s B, struct bk_config *ibc, FILE *fp)
   }
 
   SET_CONFIG(bc,B,ibc);
+
+  if (!bc)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not locate config structure\n");
+    BK_VRETURN(B);
+  }
+
 
   for (bck=config_kv_minimum(bc->bc_kv);
        bck;
