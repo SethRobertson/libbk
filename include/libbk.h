@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.200 2003/01/23 20:28:32 seth Exp $
+ * $Id: libbk.h,v 1.201 2003/01/23 22:15:15 dupuy Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -491,12 +491,14 @@ typedef enum
 
 /**
  * Name <=> value map. 
- * <WARNING> values should be non-negative or becareful of @abk_nvmap_name2value
+ *
+ * <WARNING>Storing negative values (or UINT_MAX) in map doesn't work as it may
+ * be confused with -1 failure return from @a bk_nvmap_name2value.</WARNING>
  */
 struct bk_name_value_map
 {
   const char *		bnvm_name;		///< The name of pair
-  u_int64_t		bnvm_val;		///< The value of the pair
+  unsigned int		bnvm_val;		///< The value of the pair
 };
 
 
@@ -1742,8 +1744,8 @@ extern void bk_url_authority_destroy(bk_s B, struct bk_url_authority *auth);
 
 
 /* b_nvmap.c */
-extern u_int64_t bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name);
-extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, u_int64_t val);
+extern int bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name);
+extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, int val);
 
 
 /* b_exec.c */

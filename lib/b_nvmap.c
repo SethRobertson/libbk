@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_nvmap.c,v 1.6 2003/01/23 17:28:03 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_nvmap.c,v 1.7 2003/01/23 22:15:16 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -33,7 +33,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  *	@return <i>-1</i> on failure.<br>
  *	@return value on success.
  */
-u_int64_t
+int
 bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -67,7 +67,7 @@ bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name)
  *	@return <i>const string</i> on success.
  */
 const char *
-bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, u_int64_t val)
+bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, int val)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_name_value_map *n;
