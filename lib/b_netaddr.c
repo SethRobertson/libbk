@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.1 2001/11/13 03:38:04 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.2 2001/11/13 20:42:17 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -236,16 +236,20 @@ bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags)
   }
 
   bna->bna_flags=flags;
+  bna->bna_type=type;
+  
   
   switch (type)
   {
   case BK_NETINFO_TYPE_INET:
     bk_debug_printf_and(B,1,"Copying INET");
     memmove(&bna->bna_inet, addr, sizeof(struct in_addr));
+    bna->bna_len=sizeof(struct in_addr);
     break;
   case BK_NETINFO_TYPE_INET6:
     bk_debug_printf_and(B,1,"Copying INET6");
     memmove(&bna->bna_inet6, addr, sizeof(struct in6_addr));
+    bna->bna_len=sizeof(struct in6_addr);
     break;
   case BK_NETINFO_TYPE_LOCAL:
     bk_debug_printf_and(B,1,"Copying LOCAL");
@@ -254,10 +258,12 @@ bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags)
       bk_error_printf(B, BK_ERR_ERR, "Could not strdup addr path: %s\n", strerror(errno));
       goto error;
     }
+    bna->bna_len=strlen((char *)addr);		/* XXX Should this be +1? */
     break;
   case BK_NETINFO_TYPE_ETHER:
     bk_debug_printf_and(B,1,"Copying ETHER");
     memmove(&bna->bna_ether, addr, sizeof(struct ether_addr));
+    bna->bna_len=sizeof(struct ether_addr);
     break;
   default: 
     bk_error_printf(B, BK_ERR_ERR, "Unsupported BK_NETINFO_TYPE: %d\n", type);

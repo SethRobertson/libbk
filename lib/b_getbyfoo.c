@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.8 2001/11/12 20:54:43 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.9 2001/11/13 20:42:17 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -427,16 +427,18 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
   char **buf[2];				/* Buf. for addrs of fake */
   char *buf2[400];				/* Buf. for addrs of fake */
   void *addr=NULL;				/*  */
+  struct hostent *tmp_h=NULL;			/* Temporary version. */
+  
 
   /* No point to using *this* func. without copyout, so we check ih */
-  if (!name || !ih || !callback) 
+  if (!name || (!ih && !bni) || !callback) 
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   /* Make sure this is initialized right away (see error section) */
-  *ih=NULL; 
+  if (ih) *ih=NULL; 
 
   /* Clear these too. */
   memset(buf,0,sizeof(buf));
@@ -530,7 +532,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
     }
   }
 
-  if (copy_hostent(B,ih,h)<0)
+  if (copy_hostent(B,&tmp_h,h)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not copy hostent\n");
     /* MUTEX_UNLOCK */
@@ -555,8 +557,8 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
     goto error;
     
   }
-  bgs->bgs_hostent = *ih;
-  *ih=NULL; /*Make sure this isn't set, so call can't use it before its time */
+  bgs->bgs_hostent = tmp_h;
+  /* Do *not*  NULL tmp_h here. If there's an error we do want to free this */
   bgs->bgs_user_copyout=ih;
   bgs->bgs_callback=callback;
   bgs->bgs_args=args;
@@ -572,9 +574,9 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
   BK_RETURN(B,0);
 
  error:
-  if (*ih) bk_destroy_hostent(B, *ih);
+  if (tmp_h) bk_destroy_hostent(B, tmp_h);
   if (bgs) free(bgs);
-  *ih=NULL;
+  if (ih) *ih=NULL;
   BK_RETURN(B,-1);
 }
 
@@ -758,7 +760,10 @@ gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval sta
   }
   
   /* Finally associate the user's pointer with the hostent data */
-  *bgs->bgs_user_copyout=bgs->bgs_hostent;
+  if (bgs->bgs_user_copyout)
+  {
+    *bgs->bgs_user_copyout=bgs->bgs_hostent;
+  }
 
   if (bgs->bgs_bni && bgs->bgs_hostent)
   {
@@ -769,16 +774,23 @@ gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval sta
 
   }
 
-  (*bgs->bgs_callback)(B, run, bgs->bgs_user_copyout, bgs->bgs_bni, bgs->bgs_args);
+  if (bgs->bgs_callback)
+  {
+    /* 
+     * In *theory* the user doesn't have to have a callback, he can just
+     * "poll" his data structures waiting for the info to show up. Rather
+     * stupid in general, but might be reasonable in "quick hacks".
+     */
+    (*bgs->bgs_callback)(B, run, bgs->bgs_user_copyout, bgs->bgs_bni, bgs->bgs_args);
+  }
+
+  if (!bgs->bgs_user_copyout)
+  {
+    /* The user didn't save the info to a direct copyout. We must free */
+    bk_error_printf(B, BK_ERR_WARN, "The caller didn't save the hostent info in any way ?\n");
+    bk_destroy_hostent(B, bgs->bgs_hostent);
+  }
+
   free(bgs);
   BK_VRETURN(B);
 }
-
-
-#ifdef CODE_REVIEW
-
-General API comment:   Not using fill-in bk_endpoint structure
-(e.g. bk_getservbyfoo(B, "http", NULL, NULL, endpoint) which would take the proto
- out of the endpoint, and fill out the port number in the endpoint)
-
-#endif
