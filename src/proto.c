@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.7 2001/11/05 21:07:21 jtt Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.8 2001/11/05 21:24:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -45,7 +45,6 @@ struct program_config
 
 
 
-void usage(bk_s B);
 int proginit(bk_s B, struct program_config *pconfig);
 void progrun(bk_s B, struct program_config *pconfig);
 
