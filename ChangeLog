@@ -18,6 +18,8 @@
 
 	* lib/b_debug.c (bk_debug_iprint): avoid Unix dependency here too
 
+	also cleanup unneeded /**/ for string concatenation
+
 2001-09-10  Alexander Dupuy  <dupuy@cs.columbia.edu>
 
 	* lib/b_error.c (be_error_output): avoid infinite recursion, Unix
