@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.12 2002/10/21 03:36:20 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_time.c,v 1.13 2003/03/17 22:22:15 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -49,6 +49,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * "2002-06-22 18:46:12.012345".  Note that although no 'Z' timezone designator
  * is present, this timestamp uses GMT/UTC.
  *
+ * The output flags BK_TIME_FORMAT_OUTFLAG_TRUNCATED means that the
+ * function failed to find enough space.
+ *
  * Note that on some systems, use of gmtime() can make this unsafe to call
  * from signal handlers, so don't do that unless HAVE_GMTIME_R is defined.
  *
@@ -56,12 +59,13 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  *	@param str buffer to use on output
  *	@param max size of buffer (including space for NUL)
  *	@param timep struct timespec pointer to use.
+ *	@param out_flagsp CO flags.
  *	@param flags Flags (see above)
  *	@return <i>0</i> on failure.<br>
  *	@return number of bytes (not including terminating NUL) on success.
  */
 size_t
-bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags flags)
+bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags *out_flagsp, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   // the size of the array is that of base output "YYYY-mm-ddTHH:MM:SSZ\0"
@@ -75,12 +79,14 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
   struct tm t;
   size_t len;
 
-
   if (!timep || !str)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, 0);
   }
+
+  if (out_flagsp)
+    *out_flagsp = 0;
 
   if (BK_FLAG_ISCLEAR(flags, BK_TIME_FORMAT_FLAG_NO_TZ))
   {
@@ -131,12 +137,20 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
   }
 
   if (sizeof(FORMAT_WITH_T) + 2 + precision > max)	// check space in advance
+  {
+    if (out_flagsp)
+      BK_FLAG_SET(*out_flagsp, BK_TIME_FORMAT_OUTFLAG_TRUNCATED);
     BK_RETURN(B, 0);
+  }
 
   tp = gmtime_r(&timep->tv_sec, &t);
 
   if (!(len = strftime(str, max - 1 - precision, format, tp)))
+  {
+    if (out_flagsp)
+      BK_FLAG_SET(*out_flagsp, BK_TIME_FORMAT_OUTFLAG_TRUNCATED);
     BK_RETURN(B, 0);
+  }
 
   if (precision)
     len += snprintf(&str[len], max - len, ".%0*u%s", precision, fraction, Z);

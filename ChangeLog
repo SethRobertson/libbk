@@ -1,3 +1,8 @@
+2003-03-17  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_time.c (bk_time_iso_format): Add copy out flag to indicate
+	that too little space was passed in.
+
 2003-03-14  Seth Robertson  <seth@winwood.sysdetect.com>
 
 	* lib/b_fileutils.c (bk_slurp): Add routines to slurp files.

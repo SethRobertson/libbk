@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_time.c,v 1.7 2002/09/05 23:31:07 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: test_time.c,v 1.8 2003/03/17 22:22:15 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -205,7 +205,7 @@ void progrun(bk_s B, struct program_config *pconfig)
 		(long) t.tv_sec, (long) t.tv_nsec);
       else
 	fprintf(stdout, "formatted = \"%s\"\n", scratch);
-      if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, pconfig->pc_format_flags)))
+      if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, NULL, pconfig->pc_format_flags)))
 	fprintf(stderr,"Could not format converted time: %ld.%ld\n",
 		(long) t.tv_sec, (long) t.tv_nsec);
       else
@@ -213,7 +213,7 @@ void progrun(bk_s B, struct program_config *pconfig)
     }
   }
 
-  if (!(bk_time_iso_format(B, inputline, sizeof(inputline), &t, pconfig->pc_format_flags)))
+  if (!(bk_time_iso_format(B, inputline, sizeof(inputline), &t, NULL, pconfig->pc_format_flags)))
     fprintf(stderr,"Could not iso format current time: %ld.%ld\n",
 	    (long) t.tv_sec, (long) t.tv_nsec);
   else
@@ -251,7 +251,7 @@ void progrun(bk_s B, struct program_config *pconfig)
 
       case 0:
 	fprintf(stdout, "input = \"%s\"\n", inputline);
-	if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, pconfig->pc_format_flags)))
+	if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, NULL, pconfig->pc_format_flags)))
 	  fprintf(stderr,"Could not format converted time: %ld.%ld\n",
 		  (long) t.tv_sec, (long) t.tv_nsec);
 	else
@@ -270,7 +270,7 @@ void progrun(bk_s B, struct program_config *pconfig)
 
       case 0:
 	fprintf(stdout, "input = \"%s\"\n", inputline);
-	if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, pconfig->pc_format_flags)))
+	if (!(bk_time_iso_format(B, scratch, sizeof(scratch), &t, NULL, pconfig->pc_format_flags)))
 	  fprintf(stderr,"Could not format converted time: %ld.%ld\n",
 		  (long) t.tv_sec, (long) t.tv_nsec);
 	else
