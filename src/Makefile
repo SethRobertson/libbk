@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.26 2003/12/30 05:41:59 seth Exp $
+# $Id: Makefile,v 1.27 2004/03/30 04:18:34 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -56,6 +56,9 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 
 ifneq ($(strip $(BK_USING_SSL)),false)
 LOCAL_LIBS=-lbkssl
+ifeq ($(BK_WANT_LIBTOOL),false)
+LOCAL_LIBS+=-lssl -lcrypto
+endif # BK_WANT_LIBTOOL
 else
 LOCAL_DEFINES+=-DNO_SSL
 endif # BK_USING_SSL
