@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.63 2001/11/20 21:07:24 jtt Exp $
+ * $Id: libbk.h,v 1.64 2001/11/20 22:20:26 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -852,6 +852,7 @@ extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils
 /* b_addrgroup.c */
 extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_t callback, void *args, int backlog);
 void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
+extern int bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securenets, bk_bag_callback_t callback, void *args, bk_flags flags);
 
 #if 0
 /* b_server.c */

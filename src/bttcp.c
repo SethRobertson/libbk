@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.10 2001/11/20 21:07:24 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.11 2001/11/20 22:20:26 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -251,12 +251,6 @@ proginit(bk_s B, struct program_config *pc)
   pc->pc_init_cur_state=BDTTCP_INIT_STATE_RESOLVE_START;
   pc->pc_init_next_state=BDTTCP_INIT_STATE_RESOLVE_REMOTE;
 
-  if (!(pc->pc_local=bk_netinfo_create(B)))
-  {
-    fprintf(stderr,"Could not create local bk_netaddr structure\n");
-    goto error;
-  }
-
   if (pc->pc_remname && (!(pc->pc_remote=bk_netinfo_create(B))))
   {
     fprintf(stderr,"Could not create remote bk_netaddr structure\n");
@@ -266,22 +260,27 @@ proginit(bk_s B, struct program_config *pc)
   /* Set protocol before starting */
   if (!pc->pc_remproto && !(pc->pc_remproto=strdup(DEFAULT_PROTO_STR)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup default proto str: %s\n", strerror(errno));
+    fprintf(stderr,"Could not strdup default proto str: %s\n", strerror(errno));
     goto error;
   }
 
-  if (pc->pc_remport &&bk_getservbyfoo(B, (char *)pc->pc_remport, (char *)pc->pc_remproto, NULL , pc->pc_remote,0)<0)
-  {
-    fprintf(stderr,"Could not set remote port\n");
-    goto error;
-  }
- 
  if (bk_getprotobyfoo(B, (char *)pc->pc_remproto, NULL , pc->pc_remote,0)<0)
   {
     fprintf(stderr,"Could not set remote proto\n");
     goto error;
   }
 
+ if (!pc->pc_remport && !(pc->pc_remport=strdup(DEFAULT_PORT_STR)))
+ {
+   fprintf(stderr, "Could not strdup remport: %s\n", strerror(errno));
+   goto error;
+ }
+ if (pc->pc_remport &&bk_getservbyfoo(B, (char *)pc->pc_remport, (char *)pc->pc_remproto, NULL , pc->pc_remote,0)<0)
+ {
+   fprintf(stderr,"Could not set remote port\n");
+   goto error;
+ }
+ 
   init_state(B, pc);
   
   BK_RETURN(B, 0);
@@ -457,21 +456,29 @@ init_state(bk_s B, struct program_config *pc)
     break;
   case BDTTCP_INIT_STATE_CONNECT:
     pc->pc_init_cur_state=BDTTCP_INIT_STATE_CONNECT;
-    if (pc->pc_role==BTTCP_ROLE_RECEIVE)
+    switch (pc->pc_role)
     {
-      if (bk_netutils_start_service(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, "5001", "tcp", NULL, connect_complete, pc, 0, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP))
+      case BTTCP_ROLE_RECEIVE:
+	if (bk_netutils_start_service(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, "5001", "tcp", NULL, connect_complete, pc, 0, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not start service\n");
+	  goto error;
+	}
+	break;
+
+    case BTTCP_ROLE_TRANSMIT:
+      if (bk_net_init(B, pc->pc_run, NULL, pc->pc_remote, pc->pc_timeout, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP, connect_complete, pc, 0)<0)
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not start service\n");
+	bk_error_printf(B, BK_ERR_ERR, "Could not begin connect\n");
 	goto error;
       }
-    }
-    else if (bk_net_init(B, pc->pc_run, pc->pc_local, pc->pc_remote, pc->pc_timeout, 0, connect_complete, pc, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP)<0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not begin connect\n");
+      break;
+    default: 
+      fprintf(stderr,"Uknown role: %d\n", pc->pc_role);
       goto error;
+      break;
     }
     pc->pc_init_next_state=BDTTCP_INIT_STATE_DONE;
-    break;
   case BDTTCP_INIT_STATE_DONE:
     pc->pc_init_cur_state=BDTTCP_INIT_STATE_DONE;
     break;

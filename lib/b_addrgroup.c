@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.9 2001/11/20 21:07:24 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.10 2001/11/20 22:20:26 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -66,7 +66,7 @@ struct addrgroup_state
 #define ADDRGROUP_STATE_FLAG_CONNECTING	0x1	///< We are connecting.
 #define ADDRGROUP_STATE_FLAG_ACCEPTING	0x2	///< We are accepting.
   int			as_sock;		///< Socket
-  struct bk_addrgroup 	as_bag;			///< Addrgroup info
+  struct bk_addrgroup *	as_bag;			///< Addrgroup info
   u_long		as_timeout;		///< Timeout in usecs
   bk_bag_callback_t	as_callback;		///< Called when sock ready
   void *		as_args;		///< User args for callback
@@ -198,7 +198,13 @@ as_create(bk_s B)
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate as: %s\n", strerror(errno));
     goto error;
   }
-    
+
+  if (!(as->as_bag=bag_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create bk_addrgroup: %s\n", strerror(errno));
+    goto error;
+  }
+
   BK_RETURN(B,as);
  error:
   if (as) as_destroy(B, as);
@@ -217,11 +223,17 @@ static void
 as_destroy(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_addrgroup *bag;
 
   if (!as)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
+  }
+
+  if (as->as_bag)
+  {
+    bag_destroy(B,as->as_bag);
   }
 
   /* If the callback has not been called already, do so with flag */
@@ -288,14 +300,26 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
   }
 
   as->as_sock=-1;
-  bag=&as->as_bag;
+  bag=as->as_bag;
   as->as_callback=callback;
   as->as_args=args;
   as->as_timeout=timeout;
   as->as_run=run;
   as->as_backlog=backlog;
   as->as_user_flags=flags;
+
+  if (local && !(bag->bag_local=bk_netinfo_clone(B,local)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not clone local netinfo\n");
+    goto error;
+  }
   
+  if (remote && !(bag->bag_remote=bk_netinfo_clone(B,remote)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not clone remote netinfo\n");
+    goto error;
+  }
+
   /* This function also sets some of bag's fields */
   if (net_init_check_sanity(B, local, remote, bag) < 0)
   {
@@ -319,14 +343,6 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
     bk_error_printf(B, BK_ERR_ERR, "Unknown netinfo type: %d\n", bag->bag_type);
     goto error;
   }
-#if 0
-  if (remote) bk_netinfo_reset_primary_address(B,remote);
-  if (addrgroup_apply(B,as, BK_ADDRGROUP_STATE_FLAG_OK)<0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not perform required network operations\n");
-    goto error;
-  }
-#endif
   BK_RETURN(B,ret);
 
  error:
@@ -356,7 +372,7 @@ do_net_init_af_inet(bk_s B, struct addrgroup_state *as)
     BK_RETURN(B, -1);
   }
   
-  bag=&as->as_bag;
+  bag=as->as_bag;
 
   switch (bag->bag_proto)
   {
@@ -400,7 +416,7 @@ do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as)
     BK_RETURN(B, -1);
   }
   
-  bag=&as->as_bag;
+  bag=as->as_bag;
 
   if (bag->bag_remote)
   {
@@ -484,7 +500,7 @@ do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as)
   }
   
   /* Make sure that this is not set before we begin to make connection */
-  if (bk_netinfo_reset_primary_address(B, as->as_bag.bag_remote)<0)
+  if (bk_netinfo_reset_primary_address(B, as->as_bag->bag_remote)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not reset primary address\n");
     goto error;
@@ -526,7 +542,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state
     BK_RETURN(B, -1);
   }
   
-  bag=&as->as_bag;
+  bag=as->as_bag;
   local=bag->bag_local;
   remote=bag->bag_remote;
 
@@ -569,7 +585,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state
     goto error;
   }
 
-  if (bk_netinfo_to_sockaddr(B, remote, bna, as->as_bag.bag_type, &sa, 0)<0)
+  if (bk_netinfo_to_sockaddr(B, remote, bna, as->as_bag->bag_type, &sa, 0)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not remote local sockaddr\n");
     goto error;
@@ -662,7 +678,7 @@ open_inet_local(bk_s B, struct addrgroup_state *as)
     BK_RETURN(B, -1);
   }
   
-  bag=&as->as_bag;
+  bag=as->as_bag;
   local=bag->bag_local;
   s=as->as_sock;
 
@@ -717,8 +733,8 @@ tcp_end(bk_s B, struct addrgroup_state *as, bk_addrgroup_state_t state)
       goto error;
     }
     /* The proto and type have to be the same as the cached. */
-    bag->bag_proto=as->as_bag.bag_proto;
-    bag->bag_type=as->as_bag.bag_type;
+    bag->bag_proto=as->as_bag->bag_proto;
+    bag->bag_type=as->as_bag->bag_type;
 
     if (!(bag->bag_local=bk_netinfo_from_socket(B,as->as_sock, bag->bag_proto, BK_SOCKET_SIDE_LOCAL)))
     {
@@ -857,7 +873,7 @@ tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, struct timeval start
   /* Make darn sure this is NULL in the case of emegency :-) */
   as->as_eventh=NULL;
   
-  bk_error_printf(B, BK_ERR_WARN, "Connection to %s timed out\n", as->as_bag.bag_remote->bni_pretty);
+  bk_error_printf(B, BK_ERR_WARN, "Connection to %s timed out\n", as->as_bag->bag_remote->bni_pretty);
 
   net_close(B, as);
 
@@ -893,7 +909,7 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
     BK_VRETURN(B);
   }
   
-  bag=&as->as_bag;
+  bag=as->as_bag;
 
   /*
    * Make sure that the timeout event cannot fire and null out event handle.
@@ -1001,7 +1017,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
     BK_RETURN(B, -1);
   }
 
-  bag=&as->as_bag;
+  bag=as->as_bag;
 
   af=bk_netaddr_nat2af(B,bag->bag_type); 
   
@@ -1063,8 +1079,8 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
 	goto error;
       }
       /* The proto and type have to be the same as the cached. */
-      bag->bag_proto=as->as_bag.bag_proto;
-      bag->bag_type=as->as_bag.bag_type;
+      bag->bag_proto=as->as_bag->bag_proto;
+      bag->bag_type=as->as_bag->bag_type;
       if (!(bag->bag_local=bk_netinfo_from_socket(B,as->as_sock, bag->bag_proto, BK_SOCKET_SIDE_LOCAL)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not generate local side netinfo\n");
@@ -1076,7 +1092,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
     (*(as->as_callback))(B, as->as_args, s, bag, NULL /* XXX server handle */, BK_ADDRGROUP_STATE_READY);
 
     /* Now restore bag to it's previous definition */
-    bag=&as->as_bag;
+    bag=as->as_bag;
   }
   
   BK_RETURN(B,s);
@@ -1195,18 +1211,21 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
     BK_RETURN(B, -1);
   }
   
-  bag->bag_local=local;
-  bag->bag_remote=remote;
-
   /* Just a bit of sanity checking */
-  if ((local && !local->bni_bpi) || 
-      (remote && !remote->bni_bpi))
+  if (local && local->bni_bpi)
+  {
+    bag->bag_proto = local->bni_bpi->bpi_proto;		/* Cache the proto */
+  }
+  else if (remote && remote->bni_bpi)
+  {
+    bag->bag_proto = remote->bni_bpi->bpi_proto;	/* Cache the proto */
+  }
+  else
   {
     /* We require that both local and remote have proto entries */
     bk_error_printf(B, BK_ERR_ERR, "netinfo structs *must* contain protocol information\n");
     goto error;
   }
-  bag->bag_proto = local->bni_bpi->bpi_proto;		/* Cache the proto */
 
   if (local && remote)
   { 
@@ -1257,6 +1276,70 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
   BK_RETURN(B,0);
 
  error:
+  BK_RETURN(B,-1);
+  
+}
+
+
+
+
+/**
+ * Take over a listening socket and handle its service. Despite it's name
+ * this function must appear here so it can reference a static callback
+ * routine. Oh well.
+ *	@param B BAKA thread/global state.
+ *	@param run @a bk_run structure.
+ *	@param s The socket to assume control over.
+ *	@param sercurenets IP address filtering.
+ *	@param callback Function to call back when there's a connection
+ *	@param args User arguments to supply to above.
+ *	@param flags User flags.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securenets, bk_bag_callback_t callback, void *args, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct addrgroup_state *as=NULL; 
+
+  if (!callback)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!(as=as_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate addrgroup state: %s\n", strerror(errno));
+    goto error;
+  }
+
+  as->as_flags=ADDRGROUP_STATE_FLAG_ACCEPTING;
+  as->as_sock=s;
+  as->as_timeout=0;
+  as->as_callback=callback;
+  as->as_args=args;
+  as->as_user_flags=flags;
+  as->as_run=run;
+
+  if (!(as->as_bag->bag_local = bk_netinfo_from_socket(B, s, 0, BK_SOCKET_SIDE_LOCAL)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not determine local address information\n");
+    goto error;
+  }
+  
+  /* Put the socket in the select loop waiting for *write* to come ready */
+  if (bk_run_handle(B, as->as_run, s, tcp_listen_activity, as, BK_RUN_WANTREAD, 0)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
+    goto error;
+  }
+
+  BK_RETURN(B,0);
+
+ error:
+  if (as) as_destroy(B,as);
   BK_RETURN(B,-1);
   
 }

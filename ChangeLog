@@ -3,6 +3,11 @@
 	* lib/b_addrgroup.c (do_net_init_af_inet_tcp_listen): Call back on
 	server ready.
 	Convert everybody to use state.
+	(bk_netutils_commandeer_service): Take over an existing server socket.
+	Convert back to as->as_bag as pointer.
+	(as_destroy): Destroy as completely.
+	(net_init_check_sanity): Make sure you don't reference a pointer
+	after you've verified that it DOESN'T EXIST!! sheesh...
 
 2001-11-20  Seth Robertson  <seth@startide.sysdetect.com>
 
