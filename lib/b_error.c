@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.3 2001/08/30 19:57:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.4 2001/08/31 05:03:35 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -169,10 +169,10 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf
     /* XXX - cannot allocate storage for error message */
     goto error;
   }
-  snprintf(node->ben_msg, tmp, "%s/%c: %s\n",funname, level, buf);
+  snprintf(node->ben_msg, tmp, "%s/%c: %s",funname, level, buf);
 
   /* Encoded information about OS LOG_* manifest constant numbering */
-  if (sysloglevel < beinfo->be_hilo_pivot && sysloglevel != BK_ERR_NONE)
+  if (sysloglevel <= beinfo->be_hilo_pivot && sysloglevel != BK_ERR_NONE)
   {
     be_queue = beinfo->be_hiqueue;
     be_cursize = &beinfo->be_curHiSize;
@@ -201,6 +201,7 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf
     /* XXX - CLC insert failed for some reason or another */
     goto error;
   }
+  (*be_cursize)++;
 
   be_error_output(B, beinfo->be_fh, beinfo->be_sysloglevel, node, 0);
   return;
@@ -288,8 +289,8 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, int sysloglevel, 
 {
   struct bk_error_node *hi, *lo, *cur;
 
-  hi = errq_minimum(beinfo->be_hiqueue);
-  lo = errq_minimum(beinfo->be_lowqueue);
+  hi = errq_maximum(beinfo->be_hiqueue);
+  lo = errq_maximum(beinfo->be_lowqueue);
 
   while (hi || lo)
   {
@@ -303,12 +304,12 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, int sysloglevel, 
     if (wanthi)
     {
       cur = hi;
-      hi = errq_successor(beinfo->be_hiqueue, hi);
+      hi = errq_predecessor(beinfo->be_hiqueue, hi);
     }
     else
     {
       cur = lo;
-      lo = errq_successor(beinfo->be_hiqueue, lo);
+      lo = errq_predecessor(beinfo->be_lowqueue, lo);
     }
 
     be_error_output(B, fh, sysloglevel, cur, 0);
@@ -341,17 +342,20 @@ static char bk_error_sysloglevel_char(int sysloglevel)
 static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_node *node, bk_flags flags)
 {
   int tmp;
+  char timeprefix[40];
   char fullprefix[40];
   struct tm *tm = localtime(&node->ben_time);
 
-  if ((tmp = strftime(fullprefix, sizeof(fullprefix), "%m/%d %T", tm)) != 14)
+  if ((tmp = strftime(timeprefix, sizeof(timeprefix), "%m/%d %T", tm)) != 14)
   {
     bk_error_printf(B, BK_ERR_ERR, __FUNCTION__/**/": Somehow strftime produced %d bytes instead of the expected\n",tmp);
     return;
   }
 
   if (BK_GENERAL_PROGRAM(B))
-    snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", fullprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
+    snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
+  else
+    strncpy(fullprefix,timeprefix,sizeof(fullprefix));
   fullprefix[sizeof(fullprefix)-1] = 0;		/* Ensure terminating NULL */
 
  if (sysloglevel != BK_ERR_NONE)

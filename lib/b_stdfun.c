@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.1 2001/08/30 19:57:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.2 2001/08/31 05:03:35 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -37,7 +37,7 @@ void bk_die(bk_s B, u_char retcode, FILE *output, char *reason, bk_flags flags)
     return;
   }
 
-  bk_error_printf(B, BK_ERR_CRIT, "DIE: %s\n",reason);
+  bk_error_printf(B, BK_ERR_CRIT, "DIE: %s",reason);
   bk_printserious(B, output, "DIE", reason, flags);
   bk_exit(B, retcode);
 }
@@ -57,8 +57,8 @@ void bk_warn(bk_s B, FILE *output, char *reason, bk_flags flags)
     return;
   }
 
-  bk_error_printf(B, BK_ERR_WARN, "WARN: %s\n",reason);
-  bk_printserious(B, output, "warn", reason, flags);
+  bk_error_printf(B, BK_ERR_WARN, "WARN: %s",reason);
+  bk_printserious(B, output, "WARN", reason, flags);
   return;
 }
 
@@ -83,7 +83,9 @@ static void bk_printserious(bk_s B, FILE *output, char *type, char *reason, bk_f
   {
     fprintf(output,"---------- Start %s Error Queue ----------\n",BK_GENERAL_PROGRAM(B));
     bk_error_dump(B, output, BK_ERR_NONE, 0);
-    fprintf(output,"---------- End %s Error Queue ----------\n",BK_GENERAL_PROGRAM(B));
+    fprintf(output,"---------- Start %s Function Trace ----------\n",BK_GENERAL_PROGRAM(B));
+    bk_fun_trace(B, output, BK_ERR_NONE, 0);
+    fprintf(output,"---------- End %s ----------\n",BK_GENERAL_PROGRAM(B));
   }
 }
 

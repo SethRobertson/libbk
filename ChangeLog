@@ -1,3 +1,8 @@
+2001-08-31  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_error.c (bk_error_idump): Get working, reverse order.
+	(be_error_output): Enable time output.
+
 2001-08-30  Seth Robertson  <seth@yeah.baka.org>
 
 	* test/test_stringconv.c: Test program now operational.  atoish
