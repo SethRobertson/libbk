@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.240 2003/06/03 21:52:00 seth Exp $
+ * $Id: libbk.h,v 1.241 2003/06/04 16:25:01 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -27,7 +27,7 @@
 #include "libbk_autoconf.h"
 #include "libbk_include.h"
 #include "libbk_oscompat.h"
-
+#include "libbk_inline.h"
 
 
 /* Forward references */
@@ -88,7 +88,6 @@ struct bk_threadnode;
 
 
 typedef u_int32_t bk_flags;			///< Normal bitfield type
-
 
 
 /* Error levels & their syslog equivalents */

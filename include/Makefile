@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.12 2003/06/03 17:47:37 lindauer Exp $
+# $Id: Makefile,v 1.13 2003/06/04 16:25:01 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -14,7 +14,17 @@
 #
 # libbk Makefile
 #
-BK_PUBLIC_INC=libbk.h libbk_autoconf.h libbk_include.h libbk_oscompat.h libbk_i18n.h libbk_net.h libbkxml.h
+BK_PUBLIC_INC=				\
+		libbk.h 		\
+		libbk_autoconf.h	\
+		libbk_i18n.h		\
+		libbk_include.h		\
+		libbk_inline.h 		\
+		libbk_net.h		\
+		libbk_oscompat.h	\
+		libbkxml.h		\
+# Line fodder. Don not remove.
+
 ifneq ($(strip $(HAVE_LIBSSL)),false)
 BK_PUBLIC_INC+=libbkssl.h
 endif # HAVE_LIBSSL

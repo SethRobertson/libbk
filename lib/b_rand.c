@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.6 2003/04/16 23:39:54 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.7 2003/06/04 16:25:01 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -385,7 +385,13 @@ static u_int bk_truerand_measuregen(bk_s B)
 static void bk_truerand_generate(bk_s B, bk_MD5_CTX *ctx, int rounds)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+#ifndef __INSURE__
+  // Seth specifically wants this variable uninitialized for entropy....
   volatile u_int32_t thisc;
+#else
+  // ... but that results in a pointless Insight error, so we initialize it in that case only.
+  volatile u_int32_t thisc = 0;
+#endif
   struct timeval this,end;
 
   if (!ctx)
