@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.133 2002/04/04 23:57:21 dupuy Exp $
+ * $Id: libbk.h,v 1.134 2002/04/05 22:47:45 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1300,7 +1300,8 @@ extern const char *bk_strstrn(bk_s B, const char *haystack, const char *needle, 
 extern int bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2);
 extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
 extern int bk_string_intcols(bk_s B, int64_t num, u_int base);
-extern char *bk_string_alloc_sprintf(bk_s B, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
+#define BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY	0x1 ///< Take more time to return use as little memory as possible.
 extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags);
 
 

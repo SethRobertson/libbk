@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.34 2002/04/04 23:57:21 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.35 2002/04/05 22:47:46 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1655,12 +1655,15 @@ bk_string_intcols(bk_s B, int64_t num, u_int base)
  * something like that. User must free space with free(3).
  *
  *	@param B BAKA thread/global state.
+ *	@param chunk Chunk size to use (0 means user the default)
+ *	@param flags Flags.
+ * 		BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY
  *	@param fmt The format string to use.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a malloc'ed <i>string</i> on success.
  */
 char *
-bk_string_alloc_sprintf(bk_s B, const char *fmt, ...)
+bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int n, size = 2048;
@@ -1672,6 +1675,9 @@ bk_string_alloc_sprintf(bk_s B, const char *fmt, ...)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
+
+  if (chunk)
+    size = chunk;
 
 
   if (!(p = malloc (size)))
@@ -1689,7 +1695,7 @@ bk_string_alloc_sprintf(bk_s B, const char *fmt, ...)
 
     /* If that worked, return the string. */
     if (n > -1 && n < size)
-      BK_RETURN(B,p);      
+      break;
 
     /* Else try again with more space. */
     if (n > -1)    /* glibc 2.1 */
@@ -1702,6 +1708,22 @@ bk_string_alloc_sprintf(bk_s B, const char *fmt, ...)
       goto error;
     }
   }
+
+  if (BK_FLAG_ISSET(flags, BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY))
+  {
+    char *tmp;
+
+    if (!(tmp = strdup(p)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy string to minimize memory usage: %s\n", strerror(errno));
+      goto error;
+    }
+    free(p);
+    p = tmp;
+  }
+
+  BK_RETURN(B,p);      
+
 
  error:
   if (p)
