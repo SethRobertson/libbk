@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.93 2003/06/25 21:12:55 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.94 2003/07/02 03:13:31 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -35,7 +35,7 @@ struct bk_str_registry
 {
   bk_flags				bsr_flags; ///< EVeryone needs flags. (NB Shares flags space with bk_str_registry_element
   struct bk_str_registry_element **	bsr_registry; ///< Array of registry items.
-  u_int 				bsr_next_index;	///< The next registry index to assign.
+  u_int				bsr_next_index;	///< The next registry index to assign.
   u_int					bsr_registrysz;	///< The current allocated size of the registry.
 #ifdef BK_USING_PTHREADS
   pthread_mutex_t			bsr_lock; ///< Insert lock
@@ -1041,7 +1041,7 @@ char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags f
 
   for(;*src;src++)
   {
-    if (*src == '\\' || strchr(needquote, *src) || BK_FLAG_ISSET(flags, BK_STRING_QUOTE_NONPRINT)?!isprint(*src):0)
+    if (*src == '\\' || strchr(needquote, *src) || (BK_FLAG_ISSET(flags, BK_STRING_QUOTE_NONPRINT)?!isprint(*src):0))
     {						/* Must convert to octal  */
       snprintf(scratch,sizeof(scratch),"\\0%o",(u_char)*src);
       if (!(ret = bk_memx_get(B, outputx, strlen(scratch), NULL, BK_MEMX_GETNEW)))
@@ -1750,7 +1750,7 @@ bk_string_registry_destroy(bk_s B, bk_str_registry_t handle)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   if (bsr->bsr_registry)
   {
     for(cnt = 0; cnt < bsr->bsr_next_index; cnt++)
@@ -1936,7 +1936,7 @@ bk_string_registry_delete_str(bk_s B, bk_str_registry_t handle, const char *str,
   BK_RETURN(B,bk_string_registry_delete_id(B, handle, cnt, flags));
 }
 
-  
+
 
 
 /**
@@ -1967,7 +1967,7 @@ bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, b
   {
     bk_error_printf(B, BK_ERR_WARN, "Registry element %d either does not exist or has already been deleted\n", id);
     // We call this success.
-    BK_RETURN(B,0);    
+    BK_RETURN(B,0);
   }
 
   BK_SIMPLE_LOCK(B, &bsre->bsre_lock);
@@ -1983,9 +1983,9 @@ bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, b
   }
 
   bsre_destroy(B, bsre);
-  
+
   BK_SIMPLE_LOCK(B, &bsr->bsr_lock);
-  
+
   bsr->bsr_registry[id] = NULL;
   /*
    * If we're acutally deleting the entry with the highest index then we
@@ -2031,7 +2031,7 @@ bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, b
  *
  *	@param B BAKA thread/global state.
  *	@param str The string to search for.
- *	@param id The id to use. 
+ *	@param id The id to use.
  *	@param flags Flags for future use.
  *	@return <i>0</i> on FAILURE (!! NB THIS IS NOT NORMAL FOR LIBBK !!).<br>
  *	@return <i>positive</i> on success.
@@ -2079,7 +2079,7 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
       if (bsre && BK_STREQ(str, bsre->bsre_str))
 	break;
     }
-    
+
     if (cnt == bsr->bsr_next_index)
     {
       if (!(bsre = bsre_create(B, str, flags)))
@@ -2095,9 +2095,9 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
   else if (id >= bsr->bsr_next_index || !(bsre = bsr->bsr_registry[id]))
   {
     bk_error_printf(B, BK_ERR_ERR, "Registry object %d does not exist or has been deleted\n", id);
-    BK_RETURN(B,0);      
+    BK_RETURN(B,0);
   }
-  
+
   BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
   locked = 0;
 
@@ -2152,7 +2152,7 @@ bk_string_registry_strbyid(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   BK_SIMPLE_LOCK(B, &bsr->bsr_lock);
 
   if ((id >= bsr->bsr_next_index) || (!(bsre = bsr->bsr_registry[id])))

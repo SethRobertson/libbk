@@ -1,3 +1,7 @@
+2003-07-01  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_string.c (bk_string_quote): Operation precedence snafu
+
 2003-07-01  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_run.c (bk_run_fd_cancel): Signal select when state of
