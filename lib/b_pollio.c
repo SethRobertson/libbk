@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.38 2003/06/07 18:21:44 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.39 2003/06/13 03:31:43 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -274,7 +274,7 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     {
       while (bpi->bpi_wroutstanding)
       {
-	if (bk_run_once(B, bpi->bpi_ioh->ioh_run, 0) < 0)
+	if (bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
 	  break;

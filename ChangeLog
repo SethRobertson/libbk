@@ -1,5 +1,7 @@
 2003-06-12  Seth Robertson  <seth@startide.sysdetect.com>
 
+	* lib/b_pollio.c (bk_polling_io_close): Race condition.
+
 	* lib/b_thread.c (struct bk_threadcomm): Try to preserve
 	ITIMER_PROF so that profiling will work across threads (into one
 	pool--not per-thread).
