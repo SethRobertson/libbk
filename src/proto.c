@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.24 2002/02/22 07:11:56 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.25 2002/02/26 23:44:34 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -165,8 +165,9 @@ main(int argc, char **argv, char **envp)
    * name).  argc remains the number of elements in the argv array.
    */
   argv = (char **)poptGetArgs(optCon);
-  if (!(argc = 0) && argv)
-    for (argc=0; argv[argc]; argc++)
+  argc = 0;
+  if (argv)
+    for (; argv[argc]; argc++)
       ; // Void
 
   if (c < -1 || getopterr)
