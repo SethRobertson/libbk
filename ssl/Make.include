@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Make.include,v 1.7 2003/10/08 04:26:20 dupuy Exp $
+# $Id: Make.include,v 1.8 2003/12/29 20:02:14 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -14,8 +14,8 @@
 #
 # libbkssl local Makefile
 #
-LOCAL_INCS=-I$(GROUPTOP)/include -I$(BK_SSL_INCLUDE)
-LOCAL_LDS=-L$(GROUPTOP)/lib -L$(BK_SSL_LIBDIR)
+LOCAL_LDS=-L$(BK_SSL_LIBDIR)
+LOCAL_INCS=-I$(BK_SSL_INCLUDE)
 
 BK_EXTERNAL_RPATH=-R $(BK_SSL_RPATH)
 

@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.24 2003/12/25 06:27:18 seth Exp $
+# $Id: Makefile,v 1.25 2003/12/29 20:02:15 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -41,7 +41,7 @@ GROUPSUBDIR=src
 
 # This has to go here so we get the benefit of $(TEST) which is included by one of the above.
 BK_TMP_PROG:=$(shell if [ -f tmp.c ]; then echo tmp; fi)
-LOCAL_LDS=-L$(GROUPTOP)/ssl -L$(GROUPTOP)/xml
+
 
 ##################################################
 ## BEGIN BKSTANDARD MAKEFILE
@@ -55,16 +55,14 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
 
-
 ifneq ($(strip $(BK_USING_SSL)),false)
 LOCAL_LIBS=-lbkssl
-seth:
-	echo vpath $(BK_VPATH_A)
 else
 LOCAL_DEFINES+=-DNO_SSL
 endif # BK_USING_SSL
 
 ifneq ($(BK_WANT_LIBTOOL),false)
+
 
 # If we are using libtool, we can rely on libraries to specify their own
 # dependencies, and therefore should specify only the minimal and absolutely
