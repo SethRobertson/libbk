@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.119 2005/02/17 02:11:14 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.120 2005/02/22 21:53:34 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1706,10 +1706,12 @@ bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, v
 
   while (1)
   {
-    ap = xap;
+    va_copy(ap, xap);
 
     /* Try to print in the allocated space. */
     n = vsnprintf(p, size, fmt, ap);
+
+    va_end(ap);
 
     /* If that worked, return the string. */
     if (n > -1 && n < size)
