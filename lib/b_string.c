@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.61 2002/08/23 03:01:39 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.62 2002/08/27 11:17:38 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2489,6 +2489,22 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
 
 
 
+#ifdef __INSIGHT__
+/*
+ * For some reason insight barfs during compile of this function.  Wierd.
+ * I *think* this is mostly a replacement for normal strings.
+ */
+int
+bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
+{
+  double tmp;
+  int ret;
+
+  ret = bk_string_atod(B, string, &tmp, flags);
+  *value = tmp;
+  return(ret);
+}
+#else // __INSIGHT__
 /**
  * Convert a string to a float in the BAKA way.
  *
@@ -2537,6 +2553,7 @@ bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
   
   BK_RETURN(B,ret);  
 }
+#endif // __INSIGHT__
 
 
 
