@@ -1,3 +1,7 @@
+2001-09-30  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_run.c: Initial baka run environment
+
 2001-09-29  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (BK_STRING_QUOTE_NULLOK): allow NULL char *

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.32 2001/09/29 13:25:31 dupuy Exp $
+ * $Id: libbk.h,v 1.33 2001/10/01 02:46:52 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -188,6 +188,41 @@ do {						\
 
 
 
+/* time functions */
+#define BK_TV_ADD(sum,a,b)				\
+    do							\
+    {							\
+      (sum)->tv_sec = (a)->tv_sec + (b)->tv_sec;	\
+      (sum)->tv_usec = (a)->tv_usec + (b)->tv_usec;	\
+      BK_TV_RECTIFY(sum);				\
+    } while (0)
+#define BK_TV_SUB(sum,a,b)				\
+    do							\
+    {							\
+      (sum)->tv_sec = (a)->tv_sec - (b)->tv_sec;	\
+      (sum)->tv_usec = (a)->tv_usec - (b)->tv_usec;	\
+      BK_TV_RECTIFY(sum);				\
+    } while (0)
+#define BK_TV_CMP(a,b) (((a)->tv_sec==(b)->tv_sec)?((a)->tv_usec-(b)->tv_usec):((a)->tv_sec-(b)->tv_sec))
+#define BK_TV_RECTIFY(sum)					\
+    do								\
+    {								\
+      if ((sum)->tv_usec >= BK_TV_SECTOUSEC(1))			\
+      {								\
+	(sum)->tv_sec += (sum)->tv_usec / BK_TV_SECTOUSEC(1);	\
+	(sum)->tv_usec %= BK_TV_SECTOUSEC(1);			\
+      }								\
+								\
+      if ((sum)->tv_usec <= -BK_TV_SECTOUSEC(1))		\
+      {								\
+	(sum)->tv_sec += (sum)->tv_usec / BK_TV_SECTOUSEC(1);	\
+	(sum)->tv_usec %= -BK_TV_SECTOUSEC(1);			\
+      }								\
+    } while (0)
+#define BK_TV_SECTOUSEC(s) ((s)*1000000)
+
+
+
 /* b_fun.c */
 struct bk_funinfo
 {
@@ -306,14 +341,29 @@ extern int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags
 
 
 /* b_run.c */
-extern struct bk_run *bk_run_init(bk_s B, int (*pollfun)(void *opaque, time_t starttime), void *pollopaque, volatile int *demand, int (*ondemand)(void *opaque, volatile int *demand, time_t starttime), void *demandopaque, bk_flags flags);
+extern struct bk_run *bk_run_init(bk_s B, int (*pollfun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *pollopaque, volatile int *demand, int (*ondemand)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime), void *demandopaque, bk_flags flags);
 extern void bk_run_destroy(bk_s B, struct bk_run *run);
-extern int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(int signum, void *opaque, time_t starttime), void *opaque);
-extern int bk_run_designal(bk_s B, int signum);
-extern int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval *when, void (*event)(void *opaque, time_t starttime), void *opaque, void **handle);
-extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(void *opaque, time_t starttime), void *opaque, void **handle);
-extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(void *opaque, time_t starttime), void *opaque, void **handle);
-extern int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle);
+extern int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B, struct bk_run *run, int signum, void *opaque, struct timeval starttime), void *opaque, bk_flags flags);
+#define BK_RUN_SIGNAL_CLEARPENDING		0x01	// Clear pending signal count for this signum
+#define BK_RUN_SIGNAL_INTR			0x02	// Interrupt system calls
+#define BK_RUN_SIGNAL_RESTART			0x04	// Restart system calls
+extern int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags);
+#define BK_RUN_DEQUEUE_EVENT			0x01	// Normal event to dequeue
+#define BK_RUN_DEQUEUE_CRON			0x02	// Cron event to dequeue
+extern int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags);
+extern int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags);
+extern int bk_run_handle(bk_s B, struct bk_run *run, void (*handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime), void *opaque, u_int wanttypes, bk_flags flags);
+#define BK_RUN_READREADY			0x01
+#define BK_RUN_WRITEREADY			0x02
+#define BK_RUN_XCPTREADY			0x04
+extern u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags);
+extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, bk_flags flags);
+#define BK_RUN_WANTREAD				0x01
+#define BK_RUN_WANTWRITE			0x02
+#define BK_RUN_WANTXCPT				0x04
 
 
 

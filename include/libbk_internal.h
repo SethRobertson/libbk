@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.12 2001/09/11 17:20:09 seth Exp $
+ * $Id: libbk_internal.h,v 1.13 2001/10/01 02:46:52 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -105,16 +105,15 @@ struct bk_memx
 struct br_equeue
 {
   struct timeval	bre_when;		/* Time to run event */
-  void			(*bre_event)(void *opaque, time_t starttime); /* Event to run */
+  void			(*bre_event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime); /* Event to run */
   void			*bre_opaque;		/* Data for opaque */
 };
 
 /* Cron structure */
 struct br_equeuecron
 {
-  u_int			brec_allones;		/* All ones for structure discrimination */
-  time_t		brec_interval;		/* Interval timer */
-  void			(*brec_event)(void *opaque, time_t starttime); /* Event to run */
+  time_t		brec_interval;		/* usec Interval timer */
+  void			(*brec_event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime); /* Event to run */
   void			*brec_opaque;		/* Data for opaque */
   struct br_equeue	*brec_equeue;		/* Current event */
 };
@@ -122,8 +121,16 @@ struct br_equeuecron
 /* Signal handler to run */
 struct br_sighandler
 {
-  void			(*brs_handler)(int signum, void *opaque, time_t starttime); /* Handler */
+  void			(*brs_handler)(bk_s B, struct bk_run *run, int signum, void *opaque, struct timeval starttime); /* Handler */
   void			*brs_opaque;		/* Opaque data */
+};
+
+/* fd association structure */
+struct bk_run_fdassoc
+{
+  u_int			brf_fd;			/* Fd we are handling */
+  void		      (*brf_handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottype, void *opaque, struct timeval starttime);		/* Function to handle */
+  void		       *brf_opaque;		/* Opaque information */
 };
 
 /* Fundamental run information */
@@ -132,18 +139,18 @@ struct bk_run
   fd_set		br_readset;		/* FDs interested in this operation */
   fd_set		br_writeset;		/* FDs interested in this operation */
   fd_set		br_xcptset;		/* FDs interested in this operation */
+  u_int			br_selectn;		/* Highest FD (+1) in fdsets */
   dict_h		br_fdassoc;		/* FD to callback association */
   volatile int		*br_ondemandtest;	/* Should on-demand function be called */
-  int			(*br_ondemand)(void *opaque, volatile int *demand, time_t starttime); /* On-demand function */
+  int			(*br_ondemand)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime); /* On-demand function */
   void			*br_ondemandopaque;	/* On-demand opaque */
-  int			(*br_pollfun)(void *opaque, time_t starttime); /* Polling function */
+  int			(*br_pollfun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime); /* Polling function */
   void			*br_pollopaque;		/* Polling opaque */
-  struct br_equeue	*br_equeue;		/* Event queue ARRAY */
-  u_int16_t		br_eq_cursize;		/* Equeue current size */
-  u_int16_t		br_eq_maxsize;		/* Equeue current size */
-  u_int8_t		br_signums[NSIG];	/* Number of signal events we have received */
+  pq_h			*br_equeue;		/* Event queue */
+  volatile u_int8_t	br_signums[NSIG];	/* Number of signal events we have received */
   struct br_sighandler	br_handlerlist[NSIG];	/* Handlers for signals */
   bk_flags		br_flags;		/* General flags */
+#define BK_RUN_RUN_OVER			0x01	/* bk_run_run should terminate */
 };
 
 #endif /* _libbk_h_ */
