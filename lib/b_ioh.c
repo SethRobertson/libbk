@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.67 2002/11/14 21:12:37 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.68 2002/11/18 19:17:03 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1811,6 +1811,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	iov.iov_len = bid->bid_inuse;
 
 	cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, &iov, 1, 0);
+	ioh->ioh_errno = errno;
 
 	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
 	{
@@ -2032,6 +2033,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
       }
 
       cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
+      ioh->ioh_errno = errno;
       free(iov);
 
       bk_debug_printf_and(B, 2, "Post-write, cnt %d, size %d\n", cnt, size);
@@ -2261,6 +2263,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
       if (bid && cnt > 0)
       {
 	cnt = (*ioh->ioh_writefun)(B, ioh, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
+	ioh->ioh_errno = errno;
 
 	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
 	{
@@ -2800,6 +2803,7 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
 
   // Worry about non-stream protocols--somehow
   ret = (*ioh->ioh_readfun)(B, ioh, ioh->ioh_iofunopaque, fd, data, len, flags);
+  ioh->ioh_errno = errno;
 
   BK_RETURN(B,ret);
 }
@@ -3808,4 +3812,30 @@ bk_ioh_cancel(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     BK_RETURN(B, -1);
   }
   BK_RETURN(B,bk_run_fd_cancel(B, ioh->ioh_run, ioh->ioh_fdin, flags));  
+}
+
+
+
+/**
+ * Get the last errno from this ioh.  This would be a macro
+ * excpet that the ioh internals are private to libbk.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ioh The @a bk_ioh to check.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>errno</i> on success.
+ */
+int 
+bk_ioh_last_error(bk_s B, struct bk_ioh *ioh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Internal Error!\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_RETURN(B, ioh->ioh_errno);
 }

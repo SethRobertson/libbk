@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.188 2002/11/14 22:02:46 lindauer Exp $
+ * $Id: libbk.h,v 1.189 2002/11/18 19:17:02 lindauer Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1460,7 +1460,7 @@ extern int bk_ioh_cancel_register(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern int bk_ioh_cancel_unregister(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern int bk_ioh_is_canceled(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern int bk_ioh_cancel(bk_s B, struct bk_ioh *ioh, bk_flags flags);
-
+extern int bk_ioh_last_error(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 
 /* b_pollio.c */
 extern struct bk_polling_io *bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags);
