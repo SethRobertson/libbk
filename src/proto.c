@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.11 2001/11/13 03:44:26 seth Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.12 2001/11/13 03:49:28 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,7 +16,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
-/*
+/**
  * @file
  *
  * Example libbk user with main() prototype.
@@ -176,7 +176,7 @@ int proginit(bk_s B, struct program_config *pconfig)
 
 
 
-/*
+/**
  * Normal processing of program
  *
  *	@param B BAKA Thread/Global configuration
