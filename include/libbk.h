@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.211 2003/03/07 20:29:41 jtt Exp $
+ * $Id: libbk.h,v 1.212 2003/03/13 23:58:02 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1106,6 +1106,7 @@ struct bk_url
 #define BK_URL_FLAG_FRAGMENT		0x10	///< Fragment section set.
 #define BK_URL_FLAG_HOST		0x20	///< Host authority section set.
 #define BK_URL_FLAG_SERV		0x40	///< Service authority section set.
+#define BK_URL_FLAG_ALL (BK_URL_FLAG_SCHEME | BK_URL_FLAG_AUTHORITY | BK_URL_FLAG_PATH | BK_URL_FLAG_QUERY | BK_URL_FLAG_FRAGMENT) ///< Convenience "sections" flag for bk_url_reconstruct
   bk_url_parse_mode_e		bu_mode;	///< Mode of URL
   char *			bu_url;		///< Entire URL
   union bk_url_element_u	bu_scheme;	///< Scheme specification
@@ -1819,6 +1820,7 @@ extern void bk_url_authority_destroy(bk_s B, struct bk_url_authority *auth);
 /* b_nvmap.c */
 extern int bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name);
 extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, int val);
+extern char *bk_url_reconstruct(bk_s B, struct bk_url *bu, bk_flags sections, bk_flags flags);
 
 
 /* b_exec.c */

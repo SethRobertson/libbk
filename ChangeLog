@@ -1,3 +1,8 @@
+2003-03-13  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_url.c (bk_url_reconstruct): Function to reconstruct a
+	valid url string from it's parsed components.
+
 2003-03-07  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_run.c (bk_run_event_comparator): Priority queues want

@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_url.c,v 1.29 2002/10/21 03:36:20 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_url.c,v 1.30 2003/03/13 23:58:03 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001,2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -89,13 +89,13 @@ do {									  \
  * structure with any missing values set to NULL.  This function sets the
  * BK_URL_foo flag for each section foo which is actually located.
  *
- * If BK_URL_STRICT_PARSE is <em>not</em> set in the flags passed to this
- * function, it will attempt to apply some fuzzy (non-RFC 2396 compliant) logic
- * to make URLs like "wump:foobar.baka.org" come out more like James and Seth
- * might expect in a network environment.  The only time you would <em>not</em>
- * want BK_URL_STRICT_PARSE is if you are implementing a protocol like *UMP; if
- * the URL is supposed to identify a resource object, rather than a server, you
- * want strict RFC 2396 parsing.
+ * If BK_URL_FLAG_STRICT_PARSE is <em>not</em> set in the flags passed to
+ * this function, it will attempt to apply some fuzzy (non-RFC 2396
+ * compliant) logic to make URLs like "wump:foobar.baka.org" come out more
+ * like James and Seth might expect in a network environment.  The only
+ * time you would <em>not</em> want BK_URL_FLAG_STRICT_PARSE is if you are
+ * implementing a protocol like *UMP; if the URL is supposed to identify a
+ * resource object, rather than a server, you want strict RFC 2396 parsing.
  *
  * <TODO>Explain modes, rationalize them w.r.t flags</TODO>
  *
@@ -850,4 +850,108 @@ bk_url_authority_destroy(bk_s B, struct bk_url_authority *auth)
   }
 
   BK_VRETURN(B);
+}
+
+
+
+/**
+ * Reconstruct a URL from its parts, allowing the caller to specify those
+ * parts in which he is interested. Returns a malloc(3)'ed string.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bu The parsed url
+ *	@param sections A bit field containing a list of the desired sections
+ *	@param flags Flags for future use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>url string</i> on success.
+ */
+char *
+bk_url_reconstruct(bk_s B, struct bk_url *bu, bk_flags sections, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *url = NULL;
+  char *tmp;
+  int len, tmp_len;
+  char *insert;
+
+  if (!bu || !BK_URL_SCHEME_DATA(bu))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  // Space for scheme and "://" and NUL
+  len = strlen(BK_URL_SCHEME_DATA(bu)) + 4;
+
+  if (!(BK_MALLOC_LEN(url, len)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for scheme: %s\n", strerror(errno));
+    goto error;
+  }
+  snprintf(url, len, "%s://", BK_URL_SCHEME_DATA(bu));
+
+  if (BK_FLAG_ISSET(sections, BK_URL_FLAG_AUTHORITY) &&  BK_URL_AUTHORITY_DATA(bu))
+  {
+    tmp_len = strlen(BK_URL_AUTHORITY_DATA(bu));
+    if (!(tmp = realloc(url, len + tmp_len)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not realloc space for athority section: %s\n", strerror(errno));
+      goto error;
+    }
+    url = tmp;
+    insert = url + strlen(url);
+    snprintf(insert, tmp_len+1, "%s", BK_URL_AUTHORITY_DATA(bu));
+    len += tmp_len;
+  }
+
+
+  if (BK_FLAG_ISSET(sections, BK_URL_FLAG_PATH) &&  BK_URL_PATH_DATA(bu))
+  {
+    tmp_len = strlen(BK_URL_PATH_DATA(bu));
+    if (!(tmp = realloc(url, len + tmp_len)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not realloc space for path section: %s\n", strerror(errno));
+      goto error;
+    }
+    url = tmp;
+    insert = url + strlen(url);
+    snprintf(insert, tmp_len+1, "%s", BK_URL_PATH_DATA(bu));
+    len += tmp_len;
+  }
+
+  if (BK_FLAG_ISSET(sections, BK_URL_FLAG_QUERY) &&  BK_URL_QUERY_DATA(bu))
+  {
+    tmp_len = strlen(BK_URL_QUERY_DATA(bu)) + 1;
+    if (!(tmp = realloc(url, len + tmp_len)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not realloc space for query section: %s\n", strerror(errno));
+      goto error;
+    }
+    url = tmp;
+    insert = url + strlen(url);
+    snprintf(insert, tmp_len+1, "?%s", BK_URL_QUERY_DATA(bu));
+    len += tmp_len;
+  }
+
+  if (BK_FLAG_ISSET(sections, BK_URL_FLAG_FRAGMENT) &&  BK_URL_FRAGMENT_DATA(bu))
+  {
+    tmp_len = strlen(BK_URL_FRAGMENT_DATA(bu)) + 1;
+    if (!(tmp = realloc(url, len + tmp_len)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not realloc space for fragment section: %s\n", strerror(errno));
+      goto error;
+    }
+    url = tmp;
+    insert = url + strlen(url);
+    snprintf(insert, tmp_len+1, "#%s", BK_URL_FRAGMENT_DATA(bu));
+    len += tmp_len;
+  }
+
+  BK_RETURN(B,url);  
+
+ error:
+  if (url)
+    free(url);
+
+  BK_RETURN(B,NULL);  
 }
