@@ -1,10 +1,14 @@
+2002-04-05  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_string.c (bk_memrchr): bounded string [buffer] strrchr
+
 2002-04-05  James Tanis  <jtt@saint.sysdetect.com>
 
 	* awb/awb-ids (multiple_places) Convert to use new jobstep stat
 	struct instead of two "copyout" u_int's.
 
 	* lib/b_string.c (bk_string_alloc_sprintf): Add more user
-	tweakable things to API (and then fix up callers).
+	tweakable things to API [and then fix up callers].
 
 2002-04-04  Alexander Dupuy  <dupuy@sysdetect.com>
 

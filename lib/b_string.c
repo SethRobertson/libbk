@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.35 2002/04/05 22:47:46 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.36 2002/04/05 23:00:17 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -391,7 +391,7 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
     neg = 1; string++; break;
   }
 
-  /* Base determiniation */
+  /* Base determination */
   if (*string == '0')
   {
     switch(*(string+1))
@@ -443,15 +443,15 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
  *	@param B BAKA Thread/global state
  *	@param src Source string to tokenize
  *	@param limit Maximum number of tokens to generate--last token contains "rest" of string.  Zero for unlimited.
- *	@param spliton The string containing the character(s) which seperate tokens
+ *	@param spliton The string containing the character(s) which separate tokens
  *	@param variabledb Future expansion--variable substitution.  Set to NULL for now.
  *	@param flags BK_STRING_TOKENIZE_SKIPLEADING, if set will cause
- *		leading seperator characters to be ignored; otherwise,
+ *		leading separator characters to be ignored; otherwise,
  *		an initial zero-length token will be generated.
  *		BK_STRING_TOKENIZE_MULTISPLIT, if set, will cause
- *		multiple seperators in a row to be treated as the same
- *		seperator; otherwise, zero-length tokens will be
- *		generated for every subsequent seperator character.
+ *		multiple separators in a row to be treated as the same
+ *		separator; otherwise, zero-length tokens will be
+ *		generated for every subsequent separator character.
  *		BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR, if set,
  *		will cause ANSI-C backslash sequences to be
  *		interpolated (\n); otherwise, ANSI-C backslash
@@ -469,12 +469,12 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
  *		treated specially (modulo BACKSLASH_INTERPOLATE).
  *		BK_STRING_TOKENIZE_SINGLEQUOTE, if set, will cause
  *		single quotes to create a string in which the
- *		seperator character, backslashes, and other magic
+ *		separator character, backslashes, and other magic
  *		characters may exist without interpolation; otherwise
  *		single quote is not treated specially.
  *		BK_STRING_TOKENIZE_DOUBLEQUOTE, if set, will cause
  *		double quotes to create a string in which the
- *		seperator character may exist without causing
+ *		separator character may exist without causing
  *		tokenization separation (backslashes are still magic
  *		and may quote a double quote); otherwise, double
  *		quotes are not treated specially.  At some point in
@@ -528,17 +528,17 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
   {
     if (INSTATE(S_SPLIT))
     {
-      /* Are we still looking at a seperator? */
+      /* Are we still looking at a separator? */
       if (strchr(spliton, *curloc) && LIMITNOTREACHED)
       {
 	/* Is that separator a NULL? */
 	if (!*curloc)
 	  break;
-	/* Are multiple seperators the same? */
+	/* Are multiple separators the same? */
 	if (BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_MULTISPLIT))
 	  continue;
 
-	/* Multiple seperators are additional tokens */
+	/* Multiple separators are additional tokens */
 	goto tokenizeme;
       }
       else
@@ -933,7 +933,7 @@ char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags f
 
   if (!(outputx = bk_memx_create(B, sizeof(char), strlen(src)+5, TOKENIZE_STR_INCR, 0)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create expandable output space for quotization\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not create expandable output space for quotation\n");
     BK_RETURN(B, NULL);
   }
 
@@ -1058,10 +1058,10 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, bk_flags flags)
  * 	@bugs Does not return the same type as @a strlen(3). See description.
  */
 ssize_t /* this is not an error. See description */
-bk_strnlen(bk_s B, const char *s, ssize_t max)
+bk_strnlen(bk_s B, const char *s, size_t max)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  ssize_t c=0;
+  size_t c=0;
 
   if (!s)
   {
@@ -1082,8 +1082,9 @@ bk_strnlen(bk_s B, const char *s, ssize_t max)
 
 /**
  * @name MIME routines
- * Convert raw memory coding to and from an efficient portable representation (MIMEB64)
- * ala RFC2045
+ *
+ * Convert raw memory coding to and from an efficient portable representation
+ * (MIMEB64) a la RFC2045
  *
  * These routines are from the perl module MIME::Base64 (i.e. not covered
  * under LGPL) converted into C by the Authors (e.g. a derivative work).
@@ -1140,7 +1141,7 @@ static unsigned char index_64[256] = {
 /**
  * Encode a memory buffer into a base64 string.  The buffer will be broken
  * in to a series of lines 76 characters long, with the eol string used to
- * seperate each line ("\n" used if the eol string is NULL).  If the eol
+ * separate each line ("\n" used if the eol string is NULL).  If the eol
  * sequence is non-NULL, it will additionally be used to terminate the last
  * line. This function allocates memory which must be freed with free(3).
  *
@@ -1353,6 +1354,7 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
 
 
 
+// <TODO>This can be removed ifdef HAVE_STRNDUP once B is gone</TODO>
 /**
  * @a strdup at <em>most</em> @a n bytes of data. Returns NULL terminated.
  *
@@ -1363,9 +1365,10 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
  *	@return <i>duplicated</i> string on success.
  */
 char *
-bk_strndup(bk_s B, const char *s, u_int len)
+bk_strndup(bk_s B, const char *s, size_t len)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+#ifndef HAVE_STRNDUP
   char *new;
 
   if (!s)
@@ -1374,7 +1377,7 @@ bk_strndup(bk_s B, const char *s, u_int len)
     BK_RETURN(B, NULL);
   }
   
-  if (!(BK_CALLOC_LEN(new, len+1)))
+  if (!(BK_MALLOC_LEN(new, len+1)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not malloc: %s\n", strerror(errno));
     BK_RETURN(B,NULL);
@@ -1382,12 +1385,14 @@ bk_strndup(bk_s B, const char *s, u_int len)
   
   snprintf(new,len+1, "%s", s);
   BK_RETURN(B,new);
+#else  /* !HAVE_STRNDUP */
+  BK_RETURN(B, strndup(s, len));
+#endif /* !HAVE_STRNDUP */
 }
 
 
 
-
-
+// <TODO>This can be removed ifdef HAVE_MEMMEM once B is gone</TODO>
 /**
  * Search for a fixed string within a buffer without exceeding a specified
  * max.  This is like @a strstr(3) but doesn't assume that the supplied
@@ -1399,12 +1404,13 @@ bk_strndup(bk_s B, const char *s, u_int len)
  *	@param needle The fixed string to search for. 
  *	@param len The max length to search.
  *	@return <i>NULL</i> on failure.<br>
- *	@return <i>pos</i> of @a needle on success.
+ *	@return pointer to @a needle in @a haystack on success.
  */
-const char *
-bk_strstrn(bk_s B, const char *haystack, const char *needle, u_int len)
+char *
+bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+#ifndef HAVE_MEMMEM
   const char *p;
   const char *q;
   const char *upper_bound;
@@ -1429,13 +1435,48 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, u_int len)
 	break;					// Not found
 
       if (BK_STREQN(q, needle, nlen))
-	BK_RETURN(B,q);      
+	BK_RETURN(B, (char *)q);      
       
       p = q + 1;
     }
   }
 
   BK_RETURN(B,NULL);  
+#else  /* !HAVE_MEMMEM */
+  BK_RETURN(B, memmem(haystack, len, needle, strlen(needle)));
+#endif /* !HAVE_MEMMEM */
+}
+
+
+
+// <TODO>This can be removed ifdef HAVE_MEMRCHR once B is gone</TODO>
+/**
+ * Search len bytes of buffer for the final occurrence of character.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param buffer The buffer in which to search.
+ *	@param character The character to search for. 
+ *	@param len The max length to search.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>pos</i> of @a needle on success.
+ */
+void *
+bk_memrchr(bk_s B, const void *buffer, int character, size_t len)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+#ifndef HAVE_MEMRCHR
+  const char *p;
+
+  p = buffer;
+  p += len;
+  while (--p >= (const char *)buffer)
+    if (*p == character)
+      BK_RETURN(B, (void *)p);  
+
+  BK_RETURN(B, NULL);  
+#else  /* !HAVE_MEMRCHR */
+  BK_RETURN(B, memrchr(buffer, character, len));
+#endif /* !HAVE_MEMRCHR */
 }
 
 
@@ -1444,16 +1485,14 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, u_int len)
  * Compare two possibly NUL-terminated strings, ignoring whitespace
  * differences.  This is like @a strncasecmp(3) but does not do case folding;
  * instead it treats any sequences of whitespace characters as identical.  The
- * comparison length of both strings must be provided; the strings are
- * considered identical if all of the characters in the first string are
- * matched in the second string.  If there are characters left over in the
- * first string after comparison with the second string
+ * comparison length of both strings must be provided; strings are considered
+ * identical only if all characters in the both strings are matched.
  *
  * Since multiple whitespace characters are equivalent to a single whitespace
- * character, a single length cannot be used for both strings since that would
- * cause strnspacecmp("a b", "a \t b", 3) to return non-zero even though the
+ * character, a single length cannot be used for both strings since
+ * strnspacecmp("a b", "a \t b", 3) would return non-zero even though the
  * strings are effectively identical.  (Alternately, it would allow reads past
- * the end of the strings)
+ * the end of the strings).
  *
  *	@param B BAKA thread/global state.
  *	@param s1 The first string
@@ -1651,7 +1690,7 @@ bk_string_intcols(bk_s B, int64_t num, u_int base)
 
 /**
  * Allocate a string based on a printf like format. This algorithm does
- * waste some space. Worst case (size-1), exected case ((size-1)/2) (or
+ * waste some space. Worst case (size-1), expected case ((size-1)/2) (or
  * something like that. User must free space with free(3).
  *
  *	@param B BAKA thread/global state.
@@ -1735,7 +1774,7 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
 
 
 /**
- * Generate a buffer which, to the extent possible is guarenteed to be unique. 
+ * Generate a buffer which, as far as possible, is guaranteed to be unique. 
  *
  *	@param B BAKA thread/global state.
  *	@param buf The buffer to fill.
@@ -1782,7 +1821,7 @@ bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
   free(hostname);
   hostname = NULL;
 
-  // Get something unique within this host (Let'ss ignore clock steps)
+  // Get something unique within this host (Let's ignore clock steps)
   if (gettimeofday(&tv, NULL) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not determine the time of day (unique string may not be so unique)\n");
