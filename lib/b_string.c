@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.20 2001/12/21 22:12:31 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.21 2001/12/31 23:37:41 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1376,4 +1376,53 @@ bk_strndup(bk_s B, const char *s, u_int len)
   
   snprintf(new,len+1, "%s", s);
   BK_RETURN(B,new);
+}
+
+
+
+
+
+/**
+ * Search for a fixed string within a buffer without exceeding a specified
+ * max. IOW this is @a strstr(3) but doesn't assume that the supplied
+ * haystack is null terminated. The needle is assumed to be null
+ * terminated.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param haystack The buffer in which to search.
+ *	@param needle The fixed string to search for. 
+ *	@param len The max length to search.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>pos</i> of @a needle on success.
+ */
+const char *
+bk_strstrn(bk_s B, const char *haystack, const char *needle, u_int len)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  const char *p;
+  const char *q;
+  const char *upper_bound;
+
+  if (!haystack || !needle)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  p = haystack;
+
+  upper_bound = haystack + len - strlen(needle);
+  
+  while(p < upper_bound)
+  {
+    if (!(q = memchr(p, *needle, upper_bound - p)))
+      break;					// Not found
+
+    if (BK_STREQN(q, needle, strlen(needle)))
+      BK_RETURN(B,q);      
+
+    p = q+1;
+  }
+
+  BK_RETURN(B,NULL);  
 }
