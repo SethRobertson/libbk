@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.50 2004/06/21 02:02:52 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.51 2004/06/21 04:23:36 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -41,6 +41,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define DEFAULT_PROTO_STR	"tcp"		///< Default protocol
 #define DEFAULT_PORT_STR	"5001"		///< Default port
 #define DEFAULT_BLOCK_SIZE	8192		///< Default ioh block size
+#define DEFAULT_BUFFER_SIZE	1024*1024	///< Default ioh buffering
 #define ANY_PORT		"0"		///< Any port is OK
 
 
@@ -209,6 +210,7 @@ main(int argc, char **argv, char **envp)
   pc->pc_timeout=BK_SECS_TO_EVENT(30);
   pc->pc_proto=DEFAULT_PROTO_STR;
   pc->pc_len=DEFAULT_BLOCK_SIZE;
+  pc->pc_buffer=DEFAULT_BUFFER_SIZE;
 
   if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0)))
   {
