@@ -5,11 +5,12 @@ libbk is reentrant in and of itself, but at the moment NOT
 thread-safe, thread-reentrant, MT-safe, or Cancel-safe.  Life sucks.
 
 libbk may not be communicatively reentrant if libclc has COALESCE
-support (which can be disabled at compile-time) enabled.  libbk is
-nominally async-safe , but this is less than impressive since this is
-only because it does not lock anything--without being thread-safe, the
-signal handler is enjoined from using any data which might potentially
-be used by the libbk function.
+support (which can be disabled at run-time via DICT_NOCOALESCE)
+enabled.  libbk is nominally async-safe , but this is less than
+impressive since this is only because it does not lock
+anything--without being thread-safe, the signal handler is enjoined
+from using any data which might potentially be used by the libbk
+function.
 
 What does this mean?  Well, it means that if you are in a threaded
 environment, you cannot call the bg_general functions (most notably
