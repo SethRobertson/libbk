@@ -1,3 +1,12 @@
+2003-12-05  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h: declare bk_vptr_* functions
+
+	* lib/b_vptr.c: add bk_ prefix to all functions
+	(bk_vptr_append): moved from tagsets.c
+	(bk_vptr_trimleft): work if realloc() returns new ptr for smaller block
+	(bk_vptr_cmp): moved from fad_cluster.c/upad_plug.c
+
 2003-12-04  Zhi-Da Zhong  <zz@sysdetect.com>
 
 	* lib/b_vptr.c: vptr utilities -- just vptr_*trimleft() right now

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.267 2003/12/06 00:14:11 jtt Exp $
+ * $Id: libbk.h,v 1.268 2003/12/06 01:22:01 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2060,5 +2060,11 @@ extern void volatile *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
 //#define BK_RING_WAIT			0x1000	///< Wait for ring to have room to read
 //#define BK_RING_NOLOCK		0x2000	///< Multiple read locking not required
 extern int bk_ring_length(bk_s B, struct bk_ring *ring, bk_flags flags);
+
+/* b_vptr.c */
+extern int bk_vptr_append(bk_s B, struct bk_vptr *dp, struct bk_vptr *sp);
+extern int bk_vptr_trimleft(bk_s B, struct bk_vptr *vptr, const void *ptr);
+extern int bk_vptr_ntrimleft(bk_s B, struct bk_vptr *vptr, size_t n);
+extern int bk_vptr_cmp(bk_vptr *v1, bk_vptr *v2);
 
 #endif /* _BK_h_ */
