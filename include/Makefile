@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.8 2002/07/13 04:58:58 jtt Exp $
+# $Id: Makefile,v 1.9 2002/07/14 02:59:24 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -18,6 +18,7 @@ BK_PUBLIC_INC=libbk.h libbk_autoconf.h libbk_include.h libbk_oscompat.h libbk_i1
 
 GROUPTOP=..
 GROUPSUBDIR=include
+
 ##################################################
 ## BEGIN BKSTANDARD MAKEFILE
 -include ./Make.preinclude
