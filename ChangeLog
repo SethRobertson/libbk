@@ -1,3 +1,7 @@
+2001-09-21  James Tanis  <jtt@outpost.tanis.org>
+
+	* lib/b_bits.c: libbk not libphadm.
+
 2001-10-11  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_bits.c (bk_bits_create): allocate a byte for zero bits

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bits.c,v 1.4 2001/10/11 23:47:16 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_bits.c,v 1.5 2001/10/20 13:48:30 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -28,7 +28,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  */
 char *bk_bits_create(bk_s B, size_t size, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libphadm");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *ret;
 
   /* always allocate something */
@@ -49,7 +49,7 @@ char *bk_bits_create(bk_s B, size_t size, bk_flags flags)
  */
 void bk_bits_destroy(bk_s B, char *base)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libphadm");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
   if (!base)
   {
@@ -69,7 +69,7 @@ void bk_bits_destroy(bk_s B, char *base)
  */
 char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libphadm");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *ret, *cur;
   int len,x,tmp;
 
@@ -135,7 +135,7 @@ char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
  */
 char *bk_bits_restore(bk_s B, char *saved, size_t *size, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libphadm");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *ret, *cur;
   int len;
   u_int tmp;
