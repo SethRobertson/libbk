@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.56 2002/08/14 17:17:00 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.57 2002/08/14 21:37:04 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1530,25 +1530,30 @@ char *bk_encode_base64(bk_s B, const bk_vptr *src, const char *eolseq)
     }
 
     c1 = *str++;
-    c2 = *str++;
     *r++ = basis_64[c1>>2];
-    *r++ = basis_64[((c1 & 0x3)<< 4) | ((c2 & 0xF0) >> 4)];
 
-    if (len > 2)
+    if (len == 1)
     {
-      c3 = *str++;
-      *r++ = basis_64[((c2 & 0xF) << 2) | ((c3 & 0xC0) >>6)];
-      *r++ = basis_64[c3 & 0x3F];
-    }
-    else if (len == 2)
-    {
-      *r++ = basis_64[(c2 & 0xF) << 2];
+      *r++ = basis_64[(c1 & 0x3) << 4];
+      *r++ = '=';
       *r++ = '=';
     }
-    else /* len == 1 */
+    else
     {
-      *r++ = '=';
-      *r++ = '=';
+      c2 = *str++;
+      *r++ = basis_64[((c1 & 0x3) << 4) | ((c2 & 0xF0) >> 4)];
+
+      if (len == 2)
+      {
+	*r++ = basis_64[(c2 & 0xF) << 2];
+	*r++ = '=';
+      }
+      else
+      {
+	c3 = *str++;
+	*r++ = basis_64[((c2 & 0xF) << 2) | ((c3 & 0xC0) >>6)];
+	*r++ = basis_64[c3 & 0x3F];
+      }
     }
   }
 

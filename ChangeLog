@@ -1,6 +1,7 @@
 2002-08-14  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_string.c (FLAG_BEGIN, FLAG_END): use [], not <>, for XML compat
+	(bk_encode_base64): don't read past end of buffer when len==1
 
 2002-08-09  Alexander Dupuy  <dupuy@sysdetect.com>
 
