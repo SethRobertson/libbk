@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.16 2004/11/10 17:11:07 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.17 2004/11/10 17:17:12 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -261,7 +261,7 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ring_directory *brd = NULL;
 
-  if (!directory || !file_name_pattern || !rotate_size || !max_num_files || !callbacks)
+  if (!directory || !rotate_size || !max_num_files || !callbacks)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
