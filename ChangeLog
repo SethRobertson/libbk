@@ -1,5 +1,7 @@
 2003-05-16  Seth Robertson  <seth@hawking.sysdetect.com>
 
+	* lib/b_ioh.c (bk_ioh_flush): Don't leak CLCs.
+
 	* lib/b_pollio.c (bk_polling_io_close): Handle Linger more
 	correctly (actually wait for output to drain).
 

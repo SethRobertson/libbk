@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.79 2003/05/09 09:00:36 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.80 2003/05/16 21:53:30 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -887,7 +887,7 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   }
   if (how == SHUT_WR || how == SHUT_RDWR)
   {
-    ioh_flush_queue(B, ioh, &ioh->ioh_writeq, &cmds, 0);
+    ioh_flush_queue(B, ioh, &ioh->ioh_writeq, BK_FLAG_ISCLEAR(flags, BK_IOH_FLUSH_NOEXECUTE)?&cmds:0, 0);
   }
 
   if (cmds && BK_FLAG_ISCLEAR(flags, BK_IOH_FLUSH_NOEXECUTE))
@@ -3060,7 +3060,15 @@ static void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *que
       }
     }
 
-    ioh_dequeue(B, NULL, queue, data, IOH_DEQUEUE_ABORT);
+    /*
+     * <WARNING>There was a NULL in place of the ioh here, but the
+     * user callback is not called when the ioh is not present.  This
+     * means we leak memory (the bounding vptr and other associated
+     * data--and perhaps other bad things) when the data queue is
+     * freed.  But it seems unlikely that this was done without a good
+     * reason, so if you encounter problems...</WARNING>
+     */
+    ioh_dequeue(B, ioh, queue, data, IOH_DEQUEUE_ABORT);
   }
 
   ioh->ioh_readq.biq_queuelen = 0;
