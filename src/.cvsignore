@@ -15,3 +15,4 @@ runsize
 timeout
 tmp
 tmp.c
+adjtime

@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.33 2005/01/20 21:31:36 jtt Exp $
+# $Id: Makefile,v 1.34 2005/03/16 18:53:26 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -25,6 +25,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 # programs for testing things.  Test programs that provide a regression suite
 # for a set of libbk features should be committed to ../test.
 BK_SIMPLE_PROGS=			\
+	adjtime				\
 	b_chill				\
 	bdtee				\
 	bk_daemon			\
