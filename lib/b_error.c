@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.19 2002/05/01 23:46:29 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.20 2002/05/14 20:27:05 lindauer Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -441,7 +441,7 @@ void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
     // Iterate over queue
     if (iter = errq_iterate(*curq, DICT_FROM_START))
     {
-      while (node = errq_nextobj(beinfo->be_markqueue, iter))
+      while (node = errq_nextobj(*curq, iter))
       {
 
 	// Tode is set if we have a mark we need to filter for and have not see it before
@@ -460,8 +460,18 @@ void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
 
 	if (node->ben_msg)
 	  free(node->ben_msg);
-	errq_delete(beinfo->be_markqueue, node);
+	errq_delete(*curq, node);
 	free(node);
+
+	// decrement counter
+	if (*curq == beinfo->be_hiqueue)
+	{
+	  beinfo->be_curHiSize--;
+	}
+	else if (*curq == beinfo->be_lowqueue)
+	{
+	  beinfo->be_curLowSize--;
+	}
       }
       errq_iterate_done(*curq, iter);
     }

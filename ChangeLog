@@ -1,3 +1,8 @@
+2002-04-25 Brian Lindauer <lindauer@sysd.com
+
+	* lib/b_error.c: when flushing error queues, decrement queue count
+	for each error removed.
+
 2002-05-07  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* include/libbk.h: BK_SWAP macro for swaping two values of any type.
