@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.186 2002/11/07 01:31:13 lindauer Exp $
+ * $Id: libbk.h,v 1.187 2002/11/11 22:53:58 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -267,6 +267,10 @@ struct bk_general
 #define BK_BGFLAGS_FUNON	0x1		///< Is function tracing on?
 #define BK_BGFLAGS_DEBUGON	0x2		///< Is debugging on?
 #define BK_BGFLAGS_SYSLOGON	0x4		///< Is syslog on?
+#define BK_BGFLAGS_THREADON	0x8		///< Is threading on?
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_t	bg_wrmutex;		///< Lock on writing of general structure <TODO>Verify that readers either get old or new value--otherwise this needs to be a rdwr lock and all hell starts breaking loose</TODO>
+#endif /* BK_USING_PTHREADS */
 };
 #define BK_GENERAL_ERROR(B)	((B)?(B)->bt_general->bg_error:(struct bk_error *)bk_nullptr) ///< Access the bk_general error queue
 #define BK_GENERAL_DEBUG(B)	((B)?(B)->bt_general->bg_debug:(struct bk_debug *)bk_nullptr) ///< Access the bk_general debug queue
@@ -277,9 +281,11 @@ struct bk_general
 #define BK_GENERAL_CONFIG(B)	((B)?(B)->bt_general->bg_config:(struct bk_config *)bk_nullptr) ///< Access the bk_general config info
 #define BK_GENERAL_PROGRAM(B)	((B)?(B)->bt_general->bg_program:(char *)bk_nullptr) ///< Access the bk_general program name
 #define BK_GENERAL_FLAGS(B)	((B)?(B)->bt_general->bg_flags:bk_zerouint) ///< Access the bk_general flags
+#define BK_GENERAL_WRMUTEX(B)	((B)->bt_general->bg_wrmutex) ///< Access to wrmutex (only if threading is on)
 #define BK_GENERAL_FLAG_ISFUNON(B)   BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON) ///< Is function tracing on?
 #define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON) ///< Is debugging on?
 #define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON) ///< Is system logging on?
+#define BK_GENERAL_FLAG_ISTHREADON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADON) ///< Is threading on?
 // @}
 
 
@@ -948,6 +954,24 @@ struct bk_netinfo
   char *		bni_pretty;		///< Printable forms
 };
 
+
+
+#ifdef BK_USING_PTHREADS
+/**
+ * Atomic counter -- an integer with a lock for protection.
+ *
+ * Access only through bk_atomic_addition for safety/sanity.
+ */
+struct bk_atomic_cntr
+{
+  pthread_mutex_t	bac_lock;		///< Lock to make this atomic
+  int			bac_cntr;		///< Counter that we protect
+};
+
+#endif /* BK_USING_PTHREADS */
+
+
+
 /**
  * @name Defines: netinfo_addrs_clc
  * list of addresses within a @a struct @bk_netinfo.
@@ -1196,6 +1220,8 @@ struct bk_str_id
 /* b_general.c */
 extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, struct bk_config_user_pref *bcup, int error_queue_length, int log_facility, bk_flags flags);
 #define BK_GENERAL_NOPROCTITLE 1		///< Specify that proctitle is not desired during general baka initialization
+extern bk_s bk_general_thread_init(bk_s B, char *name);
+extern void bk_general_thread_destroy(bk_s B);
 extern void bk_general_proctitle_set(bk_s B, char *);
 extern void bk_general_reinit(bk_s B);
 extern void bk_general_destroy(bk_s B);
@@ -1476,6 +1502,8 @@ extern void bk_die(bk_s B, u_char retcode, FILE *output, char *reason, bk_flags 
 extern void bk_warn(bk_s B, FILE *output, char *reason, bk_flags flags);
 #define BK_WARNDIE_WANTDETAILS		1	///< Verbose output of error logs during bk_die/bk_warn
 extern void bk_exit(bk_s B, u_char retcode);
+extern void bk_dmalloc_shutdown(bk_s B, void *opaque, u_int other);
+
 
 
 /* b_sysutils.c */
@@ -1751,5 +1779,12 @@ extern int bk_child_istart(bk_s B, struct bk_child *bchild, void (*cc_callback)(
 #define BK_CHILD_WANTEASW	0x08		///< Want error pipe on stdout
 #define BK_CHILD_NOTIFYSTOP	0x10		///< Want stop notification
 extern void bk_child_isigfun(bk_s B, struct bk_run *run, int signum, void *opaque);
+
+/* b_thread.c */
+#ifdef BK_USING_PTHREADS
+extern int bk_atomic_addition(bk_s B, struct bk_atomic_cntr *bac, int delta, int *result, bk_flags flags);
+extern int bk_atomic_add_init(bk_s B, struct bk_atomic_cntr *bac, int start, bk_flags flags);
+#endif /* BK_USING_PTHREADS */
+
 
 #endif /* _BK_h_ */

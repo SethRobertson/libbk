@@ -1,3 +1,51 @@
+2002-11-11  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk_include.h: defining _XOPEN_SOURCE breaks BSD compile
+
+2002-11-08  Seth Robertson  <seth@hawking.sysdetect.com>
+
+	* lib/b_error.c (bk_error_iprint): Free duplicate messages...
+
+2002-11-07  Seth Robertson  <seth@winwood.sysdetect.com>
+
+	* lib/b_stdfun.c (bk_dmalloc_shutdown): Don't forget to condition
+	on dmalloc
+
+	* lib/b_thread.c: Start threading functions--first up thread safe
+	addition structures
+
+2002-11-05  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_general.c (bk_general_thread_init): Needs to work even
+	without initialization.
+
+2002-11-04  Seth Robertson  <seth@startide.sysdetect.com>
+	
+	* README.THREADS: Minor updates now that we are starting to do
+	this.  Keep list of functions converted so far, for quick
+	reference when trying to propagate thread safety.
+
+	* lib/b_string.c (bk_string_unique_string): The deleted code
+	before the while loop had no effect--hashed value was not actually
+	moved anywhere and there were essentially no sideeffects (other
+	than using a random number).  Also, delete hash stuff entirely--
+	the rand number is already whitened for your pleasure--no need to
+	go through *another* round.  Besides, there was MAJOR stack
+	overrun bug (either reading or writing, depending on the value)
+	since curlen was set to MAX instead of MIN.  Just say no to
+	overcomplicated functions, unless, of course, they are my
+	overcomplicated functions :-)
+
+	* lib/b_md5.c: lib/b_string.c: lib/b_memx.c: lib/b_debug.c:
+	lib/b_general.c: lib/b_fun.c: Documented and convert to pthreads
+
+	* lib/b_error.c (bk_error_iprint): return after node malloc
+	failure leaks memory.  Goto error instead.
+
+	* lib/b_general.c (bk_general_thread_init): Don't bother setting
+	function tracing flag--bk_general stuff is shared.  Probably would
+	core-dump anyway.
+
 2002-11-06  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_ioh.c (bk_ioh_stdwrfun): Add option to write all available

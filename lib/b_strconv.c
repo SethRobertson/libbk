@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.6 2002/10/21 06:28:54 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.7 2002/11/11 22:53:58 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -49,6 +49,8 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
 /**
  * Convert ascii string to unsigned int32
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA Thread/global state
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
@@ -85,6 +87,8 @@ int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags)
 
 /**
  * Convert ascii string to signed int32
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param string String to convert
@@ -128,6 +132,8 @@ int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags)
 /**
  * Convert ascii string to unsigned int64
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA Thread/global state
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
@@ -161,6 +167,8 @@ int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flag
 
 /**
  * Convert ascii string to signed int64
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param string String to convert
@@ -205,6 +213,8 @@ int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags)
  * Convert ascii string to unsigned int64 with sign extension.  Uses
  * the normal convention of leading "0x" to detect hexadecimal numbers
  * and "0" to detect octal numbers.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param string String to convert
@@ -333,6 +343,8 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
  * a tilde '~' will be used to indicate that hex encoding is authoritative, and
  * symbolic names are only comments.  Reverse of @a bk_string_atoflag().
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA Thread/global state
  *	@param src Source flags to convert
  *	@param dst Copy-out string
@@ -443,6 +455,8 @@ int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *n
  * "[flagbit1]~0x5".  In the first two cases, symbolic decoding will be used if
  * possible, in the second two cases, hex decoding will be used.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA Thread/global state
  *	@param src Source ascii string to convert
  *	@param dst Copy-out flags
@@ -529,6 +543,8 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
 /**
  * Compute the number of textual columns required to print an integer.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state
  *	@param num The integer to be printed
  *	@param base The numerical base for printing (2, 4, 8, 10, or 16)
@@ -576,6 +592,8 @@ bk_string_intcols(bk_s B, int64_t num, u_int base)
 
 /**
  * Convert a string to a double in the BAKA way (ie with copyout)
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param string The input string to convert.
@@ -677,6 +695,20 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
 }
 
 
+
+/**
+ * Convert a string to a floating point in the BAKA way
+ *
+ * THREADS: MT-SAFE
+ *
+ * @param B Baka thread/global state
+ * @param string The input string to conver
+ * @param value The converted value (copyout--only valid if return is 0)
+ * @param flags BK_STRING_ATOD_FLAG_ALLOW_INF to accept infinite values,
+ *	BK_STRING_ATOD_FLAG_ALLOW_NAN to accept not-a-number values.
+ * @return <i>-1</i> on failure.<br>
+ * @return <i>0</i> on success.
+ */
 int
 bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
 {

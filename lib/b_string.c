@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.67 2002/10/21 03:36:20 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.68 2002/11/11 22:53:58 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -55,6 +55,8 @@ static void bsre_destroy(bk_s B, struct bk_str_registry_element *bsre);
  * Not covered under the LGPL
  *
  * No 'B' passed in so that this can be used in CLC comparison functions.
+ *	
+ * THREADS: MT-SAFE
  *	
  *	@param k The string to be hashed
  *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function, BK_HASH_V2 for better, but slower mixing
@@ -196,6 +198,8 @@ bk_strhash(const char *k, bk_flags flags)
  *	
  * Equivalent to bk_oldstrhash() except that it works on bk_vptr buffers.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param b The buffer to be hashed
  *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function
  *	@return <i>hash</i> of number
@@ -224,12 +228,14 @@ bk_bufhash(const struct bk_vptr *b, bk_flags flags)
  * Print a binary buffer into human readable form.  Limit 65K bytes.
  * Allocates and returns a character buffer of sufficient size.
  * Caller is required to free this buffer.
- *
  * size = (n/16) * (prefix+61) + strlen(intro) + 10
  *
  * Example output line:
+ *
  * PREFIXAddress  Hex dump of data                     ASCII interpretation
  * PREFIXAddr 1234 5678 1234 5678 1234 5678 1234 5678  qwertu...&*ptueo
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param intro Description of buffer being printed
@@ -337,6 +343,8 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *
  * Yeah, this function uses gotos a bit more than I really like, but
  * avoiding the code duplication is pretty important too.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param src Source string to tokenize
@@ -739,6 +747,8 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 /**
  * Destroy the array of strings produced by bk_string_tokenize_split
  *
+ * THREADS: MT-SAFE (as long as tokenized is thread private)
+ *
  *	@param B BAKA Thread/global state
  *	@param tokenized The array of tokens produced by @a bk_string_tokenize_split
  *	@see bk_string_tokenize_split
@@ -766,6 +776,8 @@ void bk_string_tokenize_destroy(bk_s B, char **tokenized)
 /**
  * Rip a string -- terminate it at the first occurrence of the terminator characters.,
  * Typically used with vertical whitespace to nuke the \r\n stuff.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param string String to examine and change
@@ -799,6 +811,8 @@ char *bk_string_rip(bk_s B, char *string, const char *terminators, bk_flags flag
  *
  * split should get the following flags to decode
  * BK_STRING_TOKENIZE_DOUBLEQUOTE|BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT
+ *
+ * THREADS: MT-SAFE
  *
  * 	@param B BAKA Thread/global state
  *	@param src Source string to convert
@@ -887,6 +901,11 @@ char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags f
  * Bounded strlen. Return the length the of a string but go no further than
  * the bound. NB: This function returns a @a ssize_t not a @a size_t as per
  * @a strlen(3). This is so we can return <i>-1</i>.`
+ *
+ * <TODO>Should this be replaced with memmem?</TODO>
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA Thread/global state.
  *	@param s The string to check.
  *	@param max The maximum string size to check.
@@ -921,6 +940,8 @@ bk_strnlen(bk_s B, const char *s, size_t max)
 /**
  * @a strdup at <em>most</em> @a n bytes of data. Returns NULL terminated.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param s Source string.
  *	@param len maximum len;
@@ -940,6 +961,7 @@ bk_strndup(bk_s B, const char *s, size_t len)
     BK_RETURN(B, NULL);
   }
   
+  // <TODO>Should this check len against strlen(s)?  Size/space</TODO>
   if (!(BK_MALLOC_LEN(new, len+1)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not malloc: %s\n", strerror(errno));
@@ -960,6 +982,8 @@ bk_strndup(bk_s B, const char *s, size_t len)
  * max.  This is like @a strstr(3) but doesn't assume that the supplied
  * haystack is null terminated.  The needle is assumed to be null
  * terminated.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param haystack The buffer in which to search.
@@ -1022,6 +1046,8 @@ bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len)
  * @a strstr(3) but the needle is not assumed to be null terminated.  The
  * haystack is assumed to be null terminated.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param haystack The string in which to search.
  *	@param needle The buffer to search for. 
@@ -1082,6 +1108,8 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t nlen)
 /**
  * Search len bytes of buffer for the final occurrence of character.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param buffer The buffer in which to search.
  *	@param character The character to search for. 
@@ -1122,6 +1150,8 @@ bk_memrchr(bk_s B, const void *buffer, int character, size_t len)
  * strnspacecmp("a b", "a \t b", 3) would return non-zero even though the
  * strings are effectively identical.  (Alternately, it would allow reads past
  * the end of the strings).
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param s1 The first string
@@ -1169,6 +1199,8 @@ bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2)
  * waste some space. Worst case (size-1), expected case ((size-1)/2) (or
  * something like that. User must free space with free(3).
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param chunk Chunk size to use (0 means user the default)
  *	@param flags Flags.
@@ -1196,7 +1228,7 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
     size = chunk;
 
 
-  if (!(p = malloc (size)))
+  if (!(p = malloc(size)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not alloc string: %s\n", strerror(errno));
     goto error;
@@ -1206,7 +1238,7 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
   {
     /* Try to print in the allocated space. */
     va_start(ap, fmt);
-    n = vsnprintf (p, size, fmt, ap);
+    n = vsnprintf(p, size, fmt, ap);
     va_end(ap);
 
     /* If that worked, return the string. */
@@ -1241,10 +1273,10 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
 
   BK_RETURN(B,p);      
 
-
  error:
   if (p)
     free(p);
+
   BK_RETURN(B,NULL);  
 }
 
@@ -1255,6 +1287,8 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
  * end of dest, and then adds a terminating '\0' character.  The strings may not
  * overlap, and the dest vstr needn't have enough space for the result.  Extra 
  * space will be allocated according the the chunk argument.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param flags Flags.
@@ -1338,7 +1372,10 @@ bk_vstr_cat(bk_s B, bk_flags flags, bk_vstr *dest, const char *src_fmt, ...)
 
 
 /**
- * Generate a buffer which, as far as possible, is guaranteed to be unique. 
+ * Generate a buffer which, as far as possible, is guaranteed to be
+ * unique by the power of entropy.
+ *
+ * THREADS: EVIL (through possible contamination by bk_rand)
  *
  *	@param B BAKA thread/global state.
  *	@param buf The buffer to fill.
@@ -1351,19 +1388,9 @@ int
 bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char *hostname = NULL;
-  struct timeval tv;
-  bk_MD5_CTX ctx;
   struct bk_randinfo *ri = NULL;
-  char md5_str[32];
   char *p = buf;
-  union
-  {
-    // Sigh.. this shuts up bounds checking.
-    u_int32_t 	val;
-    char 	buf[sizeof(u_int32_t)];
-  } randnum;
-
+  u_int32_t val;
 
   if (!buf)
   {
@@ -1376,63 +1403,15 @@ bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Could not initialize random state\n");
     goto error;
   }
-  bk_MD5Init(B, &ctx);
-
-  // Start by collecting some host specific info.
-
-  // Get something unique to this host (<TODO> We could do a much better job here </TODO> )
-  if (!(hostname = bk_netutils_gethostname(B)))
-  {
-    bk_error_printf(B, BK_ERR_WARN, "Could not determine hostname (unique string may not be so unique)\n");
-    // Forge on.
-  }
-
-  bk_MD5Update(B, &ctx, hostname, strlen(hostname));
-  free(hostname);
-  hostname = NULL;
-
-  // Get something unique within this host (Let's ignore clock steps)
-  if (gettimeofday(&tv, NULL) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not determine the time of day (unique string may not be so unique)\n");
-    // Forge on.
-  }
-  bk_MD5Update(B, &ctx, (char *)&tv, sizeof(tv));
-
-  // Throw in a little more entropy just for kicks.
-  randnum.val = bk_rand_getword(B, ri, NULL, 0);
-  bk_MD5Update(B, &ctx, randnum.buf, sizeof(randnum.buf));
-
-  bk_MD5Final(B, &ctx);
-  
-  if (bk_MD5_extract_printable(B, md5_str, &ctx, 0) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not extract md5 information\n");
-    goto error;
-  }
 
   while(len)
   {
-    int curlen = MAX(len, 16);
+    int curlen = MIN(len, sizeof(val)*2);
     
-    bk_MD5Init(B, &ctx);
+    val = bk_rand_getword(B, ri, NULL, 0);
+
+    snprintf(p, curlen, "%08x", val);
     
-    // OK use previous output (so the "seed" stuff at the top carries forward)
-    bk_MD5Update(B, &ctx, md5_str, sizeof(md5_str)-1);
-
-    // And throw in some more entropy
-    randnum.val = bk_rand_getword(B, ri, NULL, 0);
-    bk_MD5Update(B, &ctx, randnum.buf, sizeof(randnum.buf));
-
-    bk_MD5Final(B, &ctx);
-
-    if (bk_MD5_extract_printable(B, md5_str, &ctx, 0) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not extract md5 information\n");
-      goto error;
-    }
-    
-    memcpy(p, md5_str, curlen);
     len -= curlen;
     p += curlen;
   }
@@ -1441,8 +1420,6 @@ bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
   BK_RETURN(B,0);  
   
  error:
-  if (hostname)
-    free(hostname);
   if (ri)
     bk_rand_destroy(B, ri, 0);
   BK_RETURN(B,-1);  
@@ -1452,6 +1429,8 @@ bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
 
 /**
  * Search a region of memory for any of a set of characters (naively)
+ *
+ * THREADS: MT-SAFE
  *
  * @param B Baka thread/global environment
  * @param s Memory range we are searching
@@ -1482,6 +1461,8 @@ void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset)
 
 /**
  * Initialize the string registry.
+ *
+ * THREADS: EVIL (from CLC--could be trivially via no-coalesce)
  *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
@@ -1518,6 +1499,8 @@ bk_string_registry_init(bk_s B)
 /**
  * Destroy a string registry
  *
+ * THREADS: EVIL (from CLC--could be trivially via no-coalesce)
+ *
  *	@param B BAKA thread/global state.
  *	@param bsr The registry to fully destroy.
  */
@@ -1552,6 +1535,8 @@ bk_string_registry_destroy(bk_s B, struct bk_str_registry *bsr)
 
 /**
  * Create a bsre
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@return <i>-1</i> on failure.<br>
@@ -1601,6 +1586,8 @@ bsre_create(bk_s B, const char *str, bk_flags flags)
 /**
  * Destroy a bsre
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param bsre The structure to destroy.
  */
@@ -1632,6 +1619,8 @@ bsre_destroy(bk_s B, struct bk_str_registry_element *bsre)
  * convience (and "balance" with @name bk_string_registy_delete) . See 
  * @a bk_string_registry_idbystr.
  *
+ * THREADS: EVIL (through CLC)
+ *
  *	@param B BAKA thread/global state.
  *	@param str The string to insert
  *	@param flag Flags.
@@ -1649,6 +1638,8 @@ bk_string_registry_insert(bk_s B, struct bk_str_registry *bsr, const char *str, 
 
 /**
  * Delete a string from the registry
+ *
+ * THREADS: EVIL (through CLC)
  *
  *	@param B BAKA thread/global state.
  *	@param str The string to delete.
@@ -1701,6 +1692,8 @@ bk_string_registry_delete(bk_s B, struct bk_str_registry *bsr, const char *str, 
 /**
  * Obtain the ID of a string which has been inserted into the
  * registry. This is *also* the insert routine.
+ *
+ * THREADS: EVIL (through CLC)
  *
  *	@param B BAKA thread/global state.
  *	@param str The string to search for.
@@ -1795,6 +1788,8 @@ bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str,
 
 /**
  * Obtain the string associated with a known string-ID in the str registry
+ *
+ * THREADS: EVIL (through CLC)
  *
  *	@param B BAKA thread/global state.
  *	@param id The ID to search for.

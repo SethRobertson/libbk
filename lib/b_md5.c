@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_md5.c,v 1.6 2002/10/18 18:50:15 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_md5.c,v 1.7 2002/11/11 22:53:58 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -134,12 +134,13 @@ static const unsigned char PADDING[64] = {
  * The routine MD5Init initializes the message-digest context
  * mdContext. All fields are set to zero.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state
  *	@param mdContext The MD5 state data
  */
 void bk_MD5Init (bk_s B, bk_MD5_CTX *mdContext)
 {
-
   if (!mdContext)
   {
     BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -164,6 +165,8 @@ void bk_MD5Init (bk_s B, bk_MD5_CTX *mdContext)
  * The routine MD5Update updates the message-digest context to
  * account for the presence of each of the characters inBuf[0..inLen-1]
  * in the message whose digest is being computed.
+ *
+ * THREADS: MT-SAFE (for thread-private mdContext)
  *
  *	@param B BAKA thread/global state
  *	@param mdContext The MD5 state data
@@ -220,6 +223,8 @@ void bk_MD5Update(bk_s B, bk_MD5_CTX *mdContext, unsigned char *inBuf, unsigned 
 /**
  * The routine MD5Final terminates the message-digest computation and
  * ends with the desired message digest in mdContext->digest[0...15].
+ *
+ * THREADS: MT-SAFE (for thread-private mdContext)
  *
  *	@param B BAKA thread/global state
  *	@param mdContext The MD5 state data
@@ -380,6 +385,8 @@ static void Transform(u_int32_t *buf, u_int32_t *in)
 
 /**
  * Extract an MD5 context into a printable string of binary digits.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param str The string

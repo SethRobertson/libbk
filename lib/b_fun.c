@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.17 2002/08/19 22:12:38 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.18 2002/11/11 22:53:58 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -58,18 +58,22 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * Initialize the function stack
  *
+ * THREADS: MT-SAFE
+ *
  *	@return <i>NULL</i> on allocation (or other CLC) failure
  *	@return <br><i>Function stack</i> on success
  */
 dict_h bk_fun_init(void)
 {
-  return(funstack_create(NULL, NULL, DICT_UNORDERED));
+  return(funstack_create(NULL, NULL, DICT_UNORDERED|DICT_THREAD_NOCOALESCE));
 }
 
 
 
 /**
  * Destroy the function stack
+ *
+ * THREADS: MT-SAFE
  *
  *	@param funstack The stack of functions currently called
  */
@@ -85,6 +89,8 @@ void bk_fun_destroy(dict_h funstack)
 
 /**
  * Entering a function--record infomation
+ *
+ * THREADS: MT-SAFE (assumes B is thread private)
  *
  *	@param B BAKA Thread/global state
  *	@param func The name of the function we are in
@@ -124,6 +130,8 @@ struct bk_funinfo *bk_fun_entry(bk_s B, const char *func, const char *package, c
 
 /**
  * The current function has gone away--clean it (and any stale children) up
+ *
+ * THREADS: MT-SAFE (assumes B is thread private)
  *
  *	@param B BAKA Thread/global state
  *	@param fh Encoded function information produced by a @a bk_fun_entry which has exited
@@ -172,6 +180,8 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
  * is initialized.  This is required since @a bk_fun_init() cannot be
  * called before @a bk_fun_entry is called.
  *
+ * THREADS: MT-SAFE (assumes B is thread private)
+ *
  *	@param B BAKA Thread/global state information
  *	@param fh Function trace produced by a previous @a bk_fun_entry
  */
@@ -195,6 +205,8 @@ void bk_fun_reentry_i(bk_s B, struct bk_funinfo *fh)
 
 /**
  * Dump the function stack, showing where we all are
+ *
+ * THREADS: THREAD-REENTRANT (assumes B is thread private)
  *
  *	@param B BAKA Thread/global state
  *	@param out File handle to output data on (NULL to disable)
@@ -222,6 +234,8 @@ void bk_fun_trace(bk_s B, FILE *out, int sysloglevel, bk_flags flags)
 /**
  * Turn function tracing off and back on
  *
+ * THREADS: THREAD-REENTRANT (assumes B is thread private)
+ *
  *	@param B BAKA Thread/global state
  *	@param state BK_FUN_ON to enable tracing, BK_FUN_OFF to disable
  *	@param flags Fun for the future
@@ -233,12 +247,22 @@ void bk_fun_set(bk_s B, int state, bk_flags flags)
     return;
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&BK_GENERAL_WRMUTEX(B)) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (state == BK_FUN_OFF)
     BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B),BK_BGFLAGS_FUNON);
   else if (state == BK_FUN_ON)
     BK_FLAG_SET(BK_GENERAL_FLAGS(B),BK_BGFLAGS_FUNON);
   else
     bk_error_printf(B, BK_ERR_ERR, "Invalid state argument: %d\n",state);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BK_GENERAL_WRMUTEX(B)) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 }
 
 
@@ -246,6 +270,8 @@ void bk_fun_set(bk_s B, int state, bk_flags flags)
 /**
  * Reset the debug levels on all currently entered functions
  * (Presumably debug levels have changed)
+ *
+ * THREADS: MT-SAFE (assumes B is thread private)
  *
  *	@param B BAKA Thread/global state
  *	@param flags Fun for the future
@@ -277,6 +303,8 @@ int bk_fun_reset_debug(bk_s B, bk_flags flags)
 
 /**
  * Discover the function name of my nth ancestor in the function stack
+ *
+ * THREADS: MT-SAFE (assuming B's function stack is thread-private to this thread)
  *
  *	@param B BAKA Thread/global state
  *	@param ancestordepth The degree of ancestry that you wish to know about

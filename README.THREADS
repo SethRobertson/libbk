@@ -1,6 +1,11 @@
 
 * Interaction of libbk and threads.
 
+libbk is starting the long trek towards thread safety.  Functions, as
+they are converted or verified, are marked using a special convention
+as seen below.  All functions not yet marked should be assumed to be
+EVIL (even through they are probably better), see below.
+
 libbk is reentrant in and of itself, but at the moment NOT
 thread-safe, thread-reentrant, MT-safe, or Cancel-safe.  Life sucks.
 
@@ -21,12 +26,30 @@ E.g.  The bk_run structure cannot be shared among multiple threads, nor
 (probably) can multiple instances share the same fd.
 
 The ultimate meaning is that libbk does not perform locking (fine
-grained or otherwise) and in some cases (notable bg_general_reinit())
-it is not clear how this could be done.
+grained or otherwise).
+
+
+* Documentation
+
+Please document using the termonology below.  The documentation style should,
+in the function opening comment, contain something of the form:
+
+ *
+ * THREADS: MT-SAFE
+ *
+
+Or whatever the appropriate thread keyword is.  Functions without this
+keyword are assumed to be thread-unsafe.
+
 
 * Terminology
 
-** Reentrant
+** EVIL
+
+Functions uses static data or is otherwise a poor choice for thread
+usage.
+
+** REENTRANT
 
 A reentrant function does not hold static data over successive calls,
 nor does it return a pointer to static data. All data is provided by
@@ -39,7 +62,7 @@ subroutine is not reentrant, because it holds the string to be broken
 into tokens. The ctime subroutine is also not reentrant; it returns a
 pointer to static data that is overwritten by each call.
 
-** Thread-Safe
+** THREAD-SAFE
 
 A thread-safe function protects shared resources from concurrent
 access by locks. Thread-safety concerns only the implementation of a
@@ -54,14 +77,20 @@ thread or encapsulated, so that its access can be serialized. A thread
 may read an error code corresponding to an error caused by another
 thread. In AIX, each thread has its own errno value.
 
-** Thread-Reentrant
+If there are restrictions on thread safety, you are strongly
+encourages to explictly state them.
+
+** THREAD-REENTRANT
 
 Thread-reentrant code is code that works properly while multiple
 threads execute it concurrently. Thread-reentrant code is thread-safe,
 but thread-safe code may not be thread-reentrant. Document your code
 as being thread-safe or thread-reentrant.
 
-** MT-safe
+If there are restrictions on thread safety, you are strongly
+encourages to explictly state them.
+
+** MT-SAFE
 
 If some piece of code is described as MT-safe, this indicates that it
 can be used safely within a multithreaded program, _and_ that it
@@ -69,7 +98,10 @@ supports a "reasonable" level of concurrency.  This means that the
 code must support multiple calls to itself with simultaneous operation
 (e.g. no general lock which only allows one person to go at a time).
 
-** Async-safe
+If there are restrictions on thread safety, you are strongly
+encourages to explictly state them.
+
+** ASYNC-SAFE
 
 Async-Signal-Safe refers to particular library routines that can be
 safely called from a signal handler. A thread that is executing
@@ -77,7 +109,7 @@ an Async-Signal-Safe routine will not deadlock with itself if
 interrupted by a signal. Signals are only a problem for MT-Safe
 routines that acquire locks.
 
-** Cancel-safe
+** CANCEL-SAFE
 
 If a multi-threaded application uses pthread_cancel(3T) to cancel
 (i.e., kill a thread), it is possible that the target thread is killed
@@ -115,3 +147,107 @@ worry about asynchronous cancel safety. Indeed, most applications and
 libraries are expected to always be Asynchronous-cancel-unsafe.  An
 application which is Asynchronous-cancel-safe is also, by definition,
 Deferred-cancel-safe.
+
+
+----------------------------------------------------------------------
+
+References:
+  http://www.opengroup.org/onlinepubs/007908799/xsh/pthread.h.html
+  http://www.math.arizona.edu/swig/pthreads/threads.html
+  http://www.serpentine.com/~bos/threads-faq/
+  http://users.actcom.co.il/~choo/lupg/tutorials/multi-thread/multi-thread.html
+
+----------------------------------------------------------------------
+
+Listing of functions converted--note documentation at code overrides
+this:
+
+bk_fun_init: MT-SAFE
+bk_fun_destroy: MT-SAFE
+bk_fun_entry: MT-SAFE (assumes B is thread private)
+bk_fun_exit: MT-SAFE (assumes B is thread private)
+bk_fun_reentry_i: MT-SAFE (assumes B is thread private)
+bk_fun_trace: THREAD-REENTRANT (assumes B is thread private)
+bk_fun_set: THREAD-REENTRANT (assumes B is thread private)
+bk_fun_reset_debug: MT-SAFE (assumes B is thread private)
+bk_fun_funname: MT-SAFE (assuming B is thread-private)
+
+bk_general_init: EVIL (config and funlist)
+bk_general_destroy: EVIL
+bk_general_reinit: EVIL (bk_funlist inheritance)
+bk_general_reinit_insert:  EVIL (bk_funlist inheritance)
+bk_general_reinit_delete: EVIL (bk_funlist inheritance)
+bk_general_destroy_insert: EVIL (bk_funlist inheritance)
+bk_general_destroy_delete: EVIL (bk_funlist inheritance)
+bk_general_thread_init: THREAD-REENTRANT
+bk_general_thread_destroy: MT-SAFE (assumes B is thread private)
+bk_general_syslog: THREAD-REENTRANT
+bk_general_vsyslog: THREAD-REENTRANT
+bk_general_errorstr: ASYNC-SAFE
+bk_general_debug_config: THREAD-REENTRANT
+bk_general_proctitle_init: MT-SAFE
+bk_general_proctitle_destroy: MT-SAFE
+
+bk_debug_init: MT-SAFE
+bk_debug_destroy: REENTRANT
+bk_debug_reinit: THREAD-REENTRANT
+bk_debug_query: MT-SAFE
+bk_debug_set: THREAD-REENTRANT
+bk_debug_setconfig: THREAD-REENTRANT
+bk_debug_setconfig_i: REENTRANT
+bk_debug_config: THREAD-RENTRANT
+bk_debug_iprint: THREAD-REENTRANT
+bk_debug_iprintf: THREAD-REENTRANT
+bk_debug_iprintbuf: THREAD-REENTRANT
+bk_debug_ivprintf: THREAD-REENTRANT
+
+bk_error_init: MT-SAFE
+bk_error_destroy: REENTRANT
+bk_error_config: THREAD_REENTRANT
+bk_error_irepeater_flush: THREAD-REENTRANT
+bk_error_iprint: THREAD-REENTRANT
+bk_error_iprintf: THREAD-REENTRANT
+bk_error_iprintbuf: THREAD-REENTRANT
+bk_error_ivprintf: THREAD-REENTRANT
+bk_error_iflush: THREAD-REENTRANT
+bk_error_imark: THREAD-REENTRANT
+bk_error_marksearch: REENTRANT
+bk_error_iclear: THREAD-REENTRANT
+bk_error_iclear_i: REENTRANT
+bk_error_idump: THREAD-REENTRANT
+bk_error_istrdump: THREAD-REENTRANT
+be_error_time: MT-SAFE
+be_error_output: THREAD-REENTRANT
+be_error_append: MT-SAFE
+
+bk_string_printbuf: MT-SAFE
+bk_strhash: MT-SAFE
+bk_bufhash: MT-SAFE
+bk_string_printbuf: MT-SAFE
+bk_string_tokenize_split: MT-SAFE
+bk_string_tokenize_destroy: MT-SAFE (as long as tokenized is thread private)
+bk_string_quote: MT-SAFE
+bk_strnlen: MT-SAFE
+bk_strndup: MT-SAFE
+bk_strnstr: MT-SAFE
+bk_strstrn: MT-SAFE
+bk_memrchr: MT-SAFE
+bk_strnspacecmp: MT-SAFE
+bk_string_alloc_sprintf: MT-SAFE
+bk_vstr_cat: MT-SAFE
+bk_string_unique_string: MT-SAFE
+bk_mempbrk: MT-SAFE
+bk_string_registry_init: EVIL (through CLC)
+bk_string_registry_destroy: EVIL (through CLC)
+bk_string_registry_insert: EVIL (through CLC)
+bk_string_registry_delete: EVIL (through CLC)
+bk_string_registry_idbystr: EVIL (through CLC)
+bk_string_registry_strbyid: EVIL (through CLC)
+
+bk_memx_create: MT-SAFE
+bk_memx_destroy: MT-SAFE (as long as bm is thread-private)
+bk_memx_get MT-SAFE (as long as bm is thread-private)
+bk_memx_trunc MT-SAFE (as long as bm is thread-private)
+bk_memx_lop MT-SAFE (as long as bm is thread-private)
+
+bk_md5*: MT-SAFE

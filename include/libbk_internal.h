@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.30 2002/09/10 21:53:25 jtt Exp $
+ * $Id: libbk_internal.h,v 1.31 2002/11/11 22:53:58 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -117,8 +117,6 @@ struct bk_polling_io
 
 /* FRIENDLY FUNCTIONS */
 
-extern bk_s bk_general_thread_init(bk_s B, char *name);
-extern void bk_general_thread_destroy(bk_s B);
 
 extern void bk_run_signal_ihandler(int signum);
 

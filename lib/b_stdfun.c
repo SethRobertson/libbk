@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.10 2002/07/19 18:50:11 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.11 2002/11/11 22:53:58 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -127,4 +127,20 @@ void bk_exit(bk_s B, u_char retcode)
   exit(retcode);
   /* NOTREACHED */
   BK_VRETURN(B);				/* Stupid insight */
+}
+
+
+
+/**
+ * Dmalloc shutdown the way that the destroy funlist likes
+ *
+ * @param B Baka thread/global environment
+ * @param opaque Opaque data
+ * @param other Other int argument
+ */
+void bk_dmalloc_shutdown(bk_s B, void *opaque, u_int other)
+{
+#ifdef USING_DMALLOC
+  dmalloc_shutdown();
+#endif /* USING_DMALLOC */
 }

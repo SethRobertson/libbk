@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.32 2002/11/06 00:07:47 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.33 2002/11/11 22:53:58 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001,2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -66,6 +66,9 @@ struct bk_error
   struct bk_error_node be_last;			///< Last error
   u_int32_t	be_repeat;			///< Number of times last error was repeated
   bk_flags	be_flags;			///< Flags
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_t be_wrlock;			///< Fun locking activity
+#endif /* BK_USING_PTHREADS */
 };
 
 
@@ -100,11 +103,15 @@ static struct bk_error_node *bk_error_marksearch(bk_s B, struct bk_error *beinfo
 static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_node *node, bk_flags flags);
 static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *node, bk_flags flags);
 static void bk_error_irepeater_flush(bk_s B, struct bk_error *beinfo, bk_flags flags);
+static void bk_error_iclear_i(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 
 
 
 /**
  * Initialize the error queue and structure.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state 
  *	@param queuelen The number of messages that will be kept in the each (high and low priority message) queue
  *	@param fh The stdio file handle to print error messages to when errors occur (typically for debugging)
@@ -138,8 +145,11 @@ struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogt
   beinfo->be_maxsize = queuelen;
   BK_ZERO(&(beinfo->be_last));
   beinfo->be_flags = flags;
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_init(&beinfo->be_wrlock, NULL);
+#endif /* BK_USING_PTHREADS */
 
-  if (!(beinfo->be_markqueue = errq_create(NULL, NULL, DICT_UNORDERED, NULL)))
+  if (!(beinfo->be_markqueue = errq_create(NULL, NULL, DICT_UNORDERED|DICT_THREAD_NOCOALESCE, NULL)))
   {
     if (fh)
       fprintf(fh, "%s: Could not create mark error queue: %s\n",
@@ -147,7 +157,7 @@ struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogt
     goto error;
   }
 
-  if (!(beinfo->be_hiqueue = errq_create(NULL, NULL, DICT_UNORDERED, NULL)))
+  if (!(beinfo->be_hiqueue = errq_create(NULL, NULL, DICT_UNORDERED|DICT_THREAD_NOCOALESCE, NULL)))
   {
     if (fh)
       fprintf(fh, "%s: Could not create hi error queue: %s\n",
@@ -155,7 +165,7 @@ struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogt
     goto error;
   }
 
-  if (!(beinfo->be_lowqueue = errq_create(NULL, NULL, DICT_UNORDERED, NULL)))
+  if (!(beinfo->be_lowqueue = errq_create(NULL, NULL, DICT_UNORDERED|DICT_THREAD_NOCOALESCE, NULL)))
   {
     if (fh)
       fprintf(fh, "%s: Could not create low error queue: %s\n",
@@ -174,6 +184,9 @@ struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogt
 
 /**
  * Get rid of the error queues and all other information.
+ *
+ * THREADS: REENTRANT
+ *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure.
  */
@@ -206,6 +219,9 @@ void bk_error_destroy(bk_s B, struct bk_error *beinfo)
 
 /**
  * Allow modification of configuration parameters.
+ *
+ * THREADS: THREAD_REENTRANT
+ *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
  *	@param queuelen The number of messages that will be kept in the each (high and low priority message) queue
@@ -228,6 +244,11 @@ void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *
     return;
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_FH))
     beinfo->be_fh = fh;
   if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_HILO_PIVOT))
@@ -239,12 +260,19 @@ void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *
   if (BK_FLAG_ISSET(flags, BK_ERROR_CONFIG_FLAGS))
     beinfo->be_flags = flags &
       (BK_ERROR_FLAG_SYSLOG_FULL|BK_ERROR_FLAG_BRIEF|BK_ERROR_FLAG_NO_FUN);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 }
 
 
 
 /**
  * Flush the "Last message repeated n times" message
+ *
+ * THREADS: REENTRANT
  *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
@@ -275,6 +303,8 @@ static void bk_error_irepeater_flush(bk_s B, struct bk_error *beinfo, bk_flags f
  * Add an error string to the error queue -- timestamp, buffer marked up with
  * function name and error level, and if necessary, output.
  *
+ * THREADS: THREAD-REENTRANT
+ *
  *	@param B BAKA thread/global state 
  *	@param sysloglevel The BK_ERR level of important of this message
  *	@param beinfo The error state structure. 
@@ -292,7 +322,12 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
   int len = -8;					// -(total %. chars in fmt)
   char *msg = NULL;
   int origoffset;
-  
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (!(funname = bk_fun_funname(B, 0, 0)))
   {
     /* <KLUDGE>Cannot determine function name</KLUDGE> */
@@ -320,7 +355,7 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
     if (!(node = malloc(sizeof(*node))))
     {
       /* <KLUDGE>cannot allocate storage for error node</KLUDGE> */
-      return;
+      goto error;
     }
     node->ben_time = curtime;
     node->ben_seq = beinfo->be_seqnum++;
@@ -375,9 +410,15 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
       be_error_output(B, beinfo->be_fh, beinfo->be_sysloglevel, node, beinfo->be_flags);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   return;
 
  error:
+
   if (msg)
   {
     free(msg);
@@ -389,6 +430,11 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
     free(node);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   return;
 }
 
@@ -396,6 +442,9 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
 
 /**
  * Add a varags printf style buffer to the error queue in the style of bk_error_iprint.
+ *
+ * THREADS: THREAD-REENTRANT
+ *
  *	@param B BAKA thread/global state 
  *	@param sysloglevel The BK_ERR level of important of this message
  *	@param beinfo The error state structure. 
@@ -426,6 +475,8 @@ void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, const ch
  * Convert a chunk of raw data into printable string form, and call it an error.  There may be more space-efficient
  * ways of doing this for pure-ascii data with a (potentially non-null termianted) length.
  *
+ * THREADS: THREAD-REENTRANT
+ *
  *	@param B BAKA thread/global state 
  *	@param sysloglevel The BK_ERR level of important of this message
  *	@param beinfo The error state structure. 
@@ -451,6 +502,9 @@ void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, const 
 
 /**
  * Add an error string, in printf style, to the error queue.
+ *
+ * THREADS: THREAD-REENTRANT
+ *
  *	@param B BAKA thread/global state 
  *	@param sysloglevel The BK_ERR level of important of this message
  *	@param beinfo The error state structure. 
@@ -476,6 +530,9 @@ void bk_error_ivprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, const c
 /**
  * Flush (empty) high and low error queues.  If a mark is supplied,
  * clear all entries made *after* the mark, including the mark.
+ *
+ * THREADS: THREAD-REENTRANT
+ *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
  *	@param mark The constant pointer/key which represents a location in the error queue: only newer messages will be flushed.
@@ -491,12 +548,17 @@ void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
   tode = NULL;
   mode = NULL;
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (mark)
   {
     if (!(tode = bk_error_marksearch(B, beinfo, mark, flags)))
     {
       // <KLUDGE>We cannot do anything, but cannot tell anyone about it</KLUDGE>
-      return;
+      goto done;
     }
   }
 
@@ -550,6 +612,12 @@ void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
       errq_iterate_done(*curq, iter);
     }
   }
+
+ done:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 }
 
 
@@ -565,6 +633,8 @@ void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
  * Note the mark is not bounded in size--you should clear.  This may have
  * to change in the threaded environment.
  *
+ * THREADS: THREAD-REENTRANT
+ *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
  *	@param mark The constant pointer which represents a location in the error queue.
@@ -574,12 +644,17 @@ void bk_error_imark(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags 
 {
   struct bk_error_node *node;
 
-  bk_error_iclear(B, beinfo, mark, flags);
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  bk_error_iclear_i(B, beinfo, mark, flags);
 
   if (!(node = malloc(sizeof(*node))))
   {
     // <KLUDGE>perror("malloc")</KLUDGE>
-    return;
+    goto done;
   }
   node->ben_time = time(NULL);
   node->ben_seq = beinfo->be_seqnum++;
@@ -590,14 +665,21 @@ void bk_error_imark(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags 
   {
     // <KLUDGE>perror("insert")</KLUDGE>
     free(node);
-    return;
+    goto done;
   }
+ done:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 }
 
 
 
 /**
  * Search for mark which has been placed in the mark queue.
+ *
+ * THREADS: REENTRANT
  *
  *	@param B BAKA Thread/global state
  *	@param beinfo Error handle
@@ -608,18 +690,18 @@ void bk_error_imark(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags 
  */
 static struct bk_error_node *bk_error_marksearch(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags)
 {
-  struct bk_error_node *node;
+  struct bk_error_node *node = NULL;
 
   // Search for the mark the hard way (using manual pointer comparison)
   for (node = errq_minimum(beinfo->be_markqueue);node;node = errq_successor(beinfo->be_markqueue, node))
     {
       if (node->ben_msg == mark)
       {
-	return(node);
+	break;
       }
     }
 
-  return(NULL);
+  return(node);
 }
 
 
@@ -627,12 +709,40 @@ static struct bk_error_node *bk_error_marksearch(bk_s B, struct bk_error *beinfo
 /**
  * Clear an existing mark in the error queues.
  *
+ * THREADS: THREAD-REENTRANT
+ *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
  *	@param mark The constant pointer/key which represents a location in the error queue.
  *	@param flags Future expansion
  */
 void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags)
+{
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  bk_error_iclear_i(B, beinfo, mark, flags);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+}
+
+
+/**
+ * Clear an existing mark in the error queues.
+ *
+ * THREADS: REENTRANT
+ *
+ *	@param B BAKA thread/global state 
+ *	@param beinfo The error state structure. 
+ *	@param mark The constant pointer/key which represents a location in the error queue.
+ *	@param flags Future expansion
+ */
+static void bk_error_iclear_i(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags)
 {
   struct bk_error_node *node;
 
@@ -649,6 +759,8 @@ void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
  * Dump (print) error queues to a file or syslog.  You may filter for
  * recent log message or log messages of a certain level of
  * importance.
+ *
+ * THREADS: THREAD-REENTRANT
  *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
@@ -671,12 +783,17 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, const char *mark,
 
   marknode = NULL;
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (mark)
   {
     if (!(marknode = bk_error_marksearch(B, beinfo, mark, flags)))
     {
       // <KLUDGE>We cannot do anything, but cannot tell anyone about it</KLUDGE>
-      return;
+      goto done;
     }
   }
 
@@ -717,6 +834,12 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, const char *mark,
 
     be_error_output(B, fh, sysloglevel, cur, flags);
   }
+
+ done:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 }
 
 
@@ -725,6 +848,8 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, const char *mark,
  * Dump (print) error queues to string.  You may filter for
  * recent log message or log messages of a certain level of
  * importance.  Caller must free returned string.
+ *
+ * THREADS: THREAD-REENTRANT
  *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
@@ -747,6 +872,11 @@ char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, const char *mark, int m
     goto error;
 
   marknode = NULL;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (mark)
   {
@@ -812,6 +942,11 @@ char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, const char *mark, int m
   free(str);
   str = NULL;
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   return out;
 
  error:
@@ -824,6 +959,10 @@ char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, const char *mark, int m
     free(str);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&beinfo->be_wrlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   return NULL;
 }
 
@@ -832,13 +971,15 @@ char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, const char *mark, int m
 /**
  * Translate error time into formatted string
  *
+ * THREAD: MT-SAFE
+ *
  *	@param node The error node
  *	@param timestr [out] char buffer
  *	@param size of time
  */
 static void be_error_time(struct bk_error_node *node, char *timestr, size_t max)
 {
-  struct tm *tm;
+  struct tm tm;
   const char *pat = "%y-%m-%d %H:%M:%S ";
   int tmp;
   int len;
@@ -847,7 +988,7 @@ static void be_error_time(struct bk_error_node *node, char *timestr, size_t max)
 
   if (node)
   {
-    tm = localtime(&node->ben_time);
+    localtime_r(&node->ben_time, &tm);
 
     switch (max)
     {
@@ -880,7 +1021,7 @@ static void be_error_time(struct bk_error_node *node, char *timestr, size_t max)
     else
       pat += 18 - len;				// truncate from left
 
-    if ((tmp = strftime(timestr, max, pat, tm)) != len)
+    if ((tmp = strftime(timestr, max, pat, &tm)) != len)
       timestr[0] = '\0';			// timestamp hosed; nuke it
   }
 }
@@ -889,6 +1030,8 @@ static void be_error_time(struct bk_error_node *node, char *timestr, size_t max)
 
 /**
  * Output a error node to file handle or syslog.
+ *
+ * THREADS: THREAD-REENTRANT
  *
  *	@param B BAKA Thread/global state
  *	@param fh The file handle to output the error node to (NULL to disable)
@@ -984,6 +1127,9 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
 
 /**
  * Append error to a bk_alloc_ptr
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA Thread/global state
  *	@param str extensible string to which to append
  *	@param node The error node--message, time, etc to log
@@ -1049,6 +1195,7 @@ static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *nod
     }
   }
 
+  // <TRICKY>Size of ptr is ensured to be large enough above</TRICKY>
   if (BK_FLAG_ISSET(flags, BK_ERROR_FLAG_BRIEF))
     sprintf((char*) str->ptr + str->cur - 1, "%s", msg);
   else

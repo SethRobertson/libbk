@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.31 2002/10/18 18:22:57 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.32 2002/11/11 22:53:58 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -65,6 +65,8 @@ unsigned bk_zerouint = 0;
 /**
  * Grand creation of libbk state structure.
  *
+ * THREADS: EVIL (config and funinit)
+ *
  *	@param argc Number of arguments to program's argv
  *	@param argv Pointer to @a argv from @a main() which will be modified/replicated
  *	@param envp Pointer to @a ergv from @a main() which will be modified/replicated
@@ -86,6 +88,10 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
 
   if (!BK_CALLOC(BK_BT_GENERAL(B)))
     goto error;
+
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_init(&BK_GENERAL_WRMUTEX(B), NULL);
+#endif /* BK_USING_PTHREADS */
 
   BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
 
@@ -129,6 +135,8 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
 /**
  * Destroy libbk state (generally not a good idea :-)
  *
+ * THREADS: EVIL
+ *
  *	@param B BAKA Thread/global state
  */
 void bk_general_destroy(bk_s B)
@@ -169,6 +177,8 @@ void bk_general_destroy(bk_s B)
 /**
  * Go through reinitialization of core BAKA routines and anyone else who has registered for reinit() services
  *
+ * THREADS: EVIL (bk_funlist inheritance: if functions modify bk_funlist as result, bad things may happen)
+ *
  *	@param B BAKA Thread/global information
  */
 void bk_general_reinit(bk_s B)
@@ -186,6 +196,8 @@ void bk_general_reinit(bk_s B)
 /**
  * Add to the reinitialization database
  *
+ * THREADS: EVIL (bk_funlist inheritance)
+ *
  *	@param B BAKA Thread/global information
  *	@param bf_fun Function to be called on reinit
  *	@param args Opaque argument to function
@@ -201,6 +213,8 @@ int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *
 
 /**
  * Remove from the reinitialization database
+ *
+ * THREADS: EVIL (bk_funlist inheritance)
  *
  *	@param B BAKA Thread/global information
  *	@param bf_fun Function to be deleted
@@ -218,6 +232,8 @@ int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *
 /**
  * Add to the destruction database
  *
+ * THREADS: EVIL (bk_funlist inheritance)
+ *
  *	@param B BAKA Thread/global information
  *	@param bf_fun Function to be called on reinit
  *	@param args Opaque argument to function
@@ -234,6 +250,8 @@ int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void 
 /**
  * Remove from the reinitialization database
  *
+ * THREADS: EVIL (bk_funlist inheritance)
+ *
  *	@param B BAKA Thread/global information
  *	@param bf_fun Function to be deleted
  *	@param args Argument to function to be deleted
@@ -249,6 +267,8 @@ int bk_general_destroy_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void 
 
 /**
  * Set up the per-thread information
+ *
+ * THREADS: THREAD-REENTRANT
  *
  *	@param B BAKA Thread/global information
  *	@param name Name of thread
@@ -277,9 +297,20 @@ bk_s bk_general_thread_init(bk_s B, char *name)
   if (!(BK_BT_FUNSTACK(B1) = bk_fun_init()))
     goto error;
 
-  /* Preserve function tracing flag or turn on by default */
-  if (B && BK_GENERAL_FLAG_ISFUNON(B))
-    BK_FLAG_SET(BK_GENERAL_FLAGS(B1), BK_BGFLAGS_FUNON);
+#ifdef BK_USING_PTHREADS
+  if (B && pthread_mutex_lock(&BK_GENERAL_WRMUTEX(B)) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  /* Calling this function with B set indicates threading */
+  if (B)
+    BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADON);
+
+#ifdef BK_USING_PTHREADS
+  if (B && pthread_mutex_unlock(&BK_GENERAL_WRMUTEX(B)) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
 
   if (!(BK_BT_THREADNAME(B1) = strdup(name)))
     goto error;
@@ -298,6 +329,8 @@ bk_s bk_general_thread_init(bk_s B, char *name)
 
 /**
  * Destroy per-thread information
+ *
+ * THREADS: REENTRANT
  *
  *	@param B BAKA Thread/global state
  */
@@ -321,6 +354,8 @@ void bk_general_thread_destroy(bk_s B)
 /**
  * Set the process title (if possible)
  *
+ * THREADS: THREAD-REENTRANT
+ *
  *	@param B BAKA Thread/global state
  *	@param title The process title we want
  */
@@ -335,11 +370,21 @@ void bk_general_proctitle_set(bk_s B, char *title)
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&BK_GENERAL_WRMUTEX(B)) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   len = MIN(strlen(title), BK_GENERAL_PROCTITLE(B)->bp_title.len-1);
   rest = BK_GENERAL_PROCTITLE(B)->bp_title.len - len;
 
   memcpy(BK_GENERAL_PROCTITLE(B)->bp_title.ptr, title, len);
   memset((char *)BK_GENERAL_PROCTITLE(B)->bp_title.ptr + len, 0, rest);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BK_GENERAL_WRMUTEX(B)) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_VRETURN(B);
 }
@@ -350,6 +395,8 @@ void bk_general_proctitle_set(bk_s B, char *title)
  * Syslog a message out to the system (if we were initialized)
  *
  * Note that %m (strerror(errno)) is NOT supported
+ *
+ * THREADS: THREAD-REENTRANT
  *
  *	@param B BAKA Thread/global state
  *	@param level The syslog level we wish to use
@@ -373,6 +420,8 @@ void bk_general_syslog(bk_s B, int level, bk_flags flags, const char *format, ..
  * Syslog a message out to the system (if we were initialized)
  *
  * Note that %m (strerror(errno)) is NOT supported
+ *
+ * THREADS: THREAD-REENTRANT
  *
  *	@param B BAKA Thread/global state
  *	@param level The syslog level we wish to use
@@ -416,6 +465,8 @@ void bk_general_vsyslog(bk_s B, int level, bk_flags flags, const char *format, v
  *
  * <TODO>i18n me</TODO>
  *
+ * THREADS: ASYNC-SAFE
+ *
  *	@param B BAKA Thread/state information
  *	@param level The baka log level to decode
  *	@return <i>Error level string</i> which was found ("Unknown" if not known)
@@ -444,6 +495,8 @@ const char *bk_general_errorstr(bk_s B, int level)
 /**
  * Configure debugging on or off, and specify debugging destination.
  *
+ * THREAD: THREAD-REENTRANT
+ *
  *	@param B BAKA Thread/global state
  *	@param fh File handle to send debugging info to (NULL to disable)
  *	@param sysloglevel The system log level to log debugging info at (BK_ERR_NONE to disable)
@@ -460,6 +513,11 @@ int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags)
 
   bk_debug_config(B, BK_GENERAL_DEBUG(B), fh, sysloglevel, flags);
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&BK_GENERAL_WRMUTEX(B)) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (!fh && sysloglevel == BK_ERR_NONE)
   {						/* Turning off debugging */
     BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON);
@@ -471,6 +529,11 @@ int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags)
     bk_fun_reset_debug(B, flags);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BK_GENERAL_WRMUTEX(B)) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B, 0);
 }
 
@@ -481,6 +544,8 @@ int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags)
  *
  * Argv/envp is copied and original argv/envp is reset to new copies so that original memory can be reused
  * for process title stuff.  Also sets the program name.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param argc The number of argument to the program
@@ -602,6 +667,8 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
  * around for long periods of time--after all main() is not going to exit.
  * However, once you destroy, the (changed after proctitle_init) argv pointers
  * will be invalid.  Sigh.  Same with environment.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param PT Process title handle

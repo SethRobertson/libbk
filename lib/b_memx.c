@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.10 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.11 2002/11/11 22:53:58 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -45,6 +45,8 @@ struct bk_memx
 
 /**
  * Create the extensible buffer management state along with an initial allocation
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param objsize Object size in bytes/octets
@@ -98,6 +100,8 @@ struct bk_memx *bk_memx_create(bk_s B, size_t unitsize, u_int start_hint, u_int 
 /**
  * Destroy buffer and management
  *
+ * THREADS: MT-SAFE (as long as bm is thread-private)
+ *
  *	@param B BAKA Thread/global state 
  *	@param bm Buffer management handle
  *	@param flags BK_MEMX_PRESERVE_ARRAY if the allocated memory
@@ -125,6 +129,8 @@ void bk_memx_destroy(bk_s B, struct bk_memx *bm, bk_flags flags)
 
 /**
  * Get an element (new or otherwise)
+ *
+ * THREADS: MT-SAFE (as long as bm is thread-private)
  *
  *	@param B BAKA Thread/global state
  *	@param bm Buffer management handle
@@ -186,6 +192,8 @@ void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused, bk_fl
 /**
  * Reset memory extender used count (truncate).
  *
+ * THREADS: MT-SAFE (as long as bm is thread-private)
+ *
  *	@param B BAKA Thread/global state
  *	@param bm Buffer management handle
  *	@param count The number of elements to virtually set as the length--truncation only
@@ -214,6 +222,8 @@ int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags)
 
 /**
  * Lop off the front of a memx and slide the contents down. This is expensive.
+ *
+ * THREADS: MT-SAFE (as long as bm is thread-private)
  *
  *	@param B BAKA thread/global state.
  *	@param bm Buffer management handle

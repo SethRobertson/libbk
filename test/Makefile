@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.20 2002/09/05 19:20:54 seth Exp $
+# $Id: Makefile,v 1.21 2002/11/11 22:53:59 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -18,6 +18,7 @@ BK_SUBDIR=entropy
 
 # <TRICKY>The funky path for test_fun is intentional; don't remove</TRICKY>
 BK_SIMPLE_INTERNALPROGS=		\
+		mutex			\
 		test_bio		\
 		test_config		\
 		test_errorstuff		\

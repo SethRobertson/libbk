@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.28 2002/10/18 20:03:30 jtt Exp $
+ * $Id: libbk_include.h,v 1.29 2002/11/11 22:53:58 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -15,6 +15,13 @@
 
 #ifndef _libbk_include_h_
 #define _libbk_include_h_
+
+
+// <TODO>This should probably be autoconf'd</TODO>
+#ifdef __linux__
+#define _XOPEN_SOURCE				// Autoconf - for linux only
+#endif
+#define _REENTRANT				// Probably autoconf this
 
 
 #define _GNU_SOURCE				// turn on all GNU extensions
@@ -158,6 +165,9 @@
 #endif /* !HAVE_SYS_IOCTL_H */
 
 #endif /* REALLY NEEDED */
+
+// <TODO>This should probably be autoconf'd</TODO>
+#include <pthread.h>
 
 #include "fsma.h"
 #include "dict.h"
