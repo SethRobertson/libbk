@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.29 2003/05/15 23:01:32 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.30 2003/05/16 20:13:14 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -917,7 +917,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
       {
 	bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
 	ret = -1;
-	goto unlockexit;
+	goto exit;
       }
 #ifdef BK_USING_PTHREADS
       if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
@@ -983,6 +983,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
     abort();
 #endif /* BK_USING_PTHREADS */
 
+ exit:
   BK_RETURN(B, ret);
 }
 
