@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.248 2003/06/24 21:33:00 jtt Exp $
+ * $Id: libbk.h,v 1.249 2003/07/01 03:46:53 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -38,6 +38,7 @@ struct bk_addrgroup;
 struct bk_server_info;
 struct bk_netinfo;
 struct bk_polling_io;
+struct bk_ring;
 struct bk_stat_list;
 struct bk_stat_node;
 struct bk_threadlist;
@@ -2021,6 +2022,16 @@ extern void bk_thread_kill_others(bk_s B, bk_flags flags);
 extern void *bk_monitor_memory_thread(bk_s B, void *opaque);
 extern void *bk_monitor_int_thread(bk_s B, void *opaque);
 #endif /* BK_USING_PTHREADS */
+
+
+/* b_ringbuf.c */
+extern struct bk_ring *bk_ring_create(bk_s B, u_int size, bk_flags flags);
+extern void bk_ring_destroy(bk_s B, struct bk_ring *ring, bk_flags flags);
+//#define BK_RING_WAIT			0x1000	///< Wait for ring to drain of data
+extern int bk_ring_write(bk_s B, struct bk_ring *ring, void *opaque, bk_flags flags);
+#define BK_RING_WAIT			0x1000	///< Wait for ring to have room to write
+extern void *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags);
+//#define BK_RING_WAIT			0x1000	///< Wait for ring to have room to read
 
 
 #endif /* _BK_h_ */

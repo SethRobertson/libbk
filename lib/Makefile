@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.45 2003/06/17 15:43:22 dupuy Exp $
+# $Id: Makefile,v 1.46 2003/07/01 03:46:53 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -43,6 +43,7 @@ BK_LARGE_LIBSRC=				\
 		b_protoinfo.c			\
 		b_rand.c			\
 		b_relay.c			\
+		b_ringbuf.c			\
 		b_run.c				\
 		b_servinfo.c			\
 		b_signal.c			\
