@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.285 2004/04/23 21:36:19 lindauer Exp $
+ * $Id: libbk.h,v 1.286 2004/04/27 18:43:58 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -363,6 +363,8 @@ do {										\
 #define CONVERT_SUBSECSTIMESPEC2NTP(subsecs)	((((((u_int64_t)(subsecs))*(1LL<<32))/500000000)+1)/2)
 // @}
 
+// <TODO> Potential porting issue here. We assume that time_t is 4 bytes </TODO>
+#define BK_MAX_TIME_T 	(UINT32_MAX)
 
 
 
@@ -527,8 +529,8 @@ struct bk_listnum_head
 };
 
 
-#define BK_LISTNUM_APPEND(head,node,nextname,prevname) do { (node)->nextname = (void *)(head); (node)->prevname = (head)->blh_last; (node)->prevname->nextname = (node); (head)->blh_last = (node); } while (0)
-#define BK_LISTNUM_DELETE(node,nextname,prevname) do { (node)->nextname->prevname = (node)->prevname; (node)->prevname->nextname = (node)->nextname; (node)->nextname = NULL; (node)->prevname = NULL; } while (0)
+#define BK_LISTNUM_APPEND(head,node,nextname,prevname) do { ((node)->nextname) = (void *)(head); ((node)->prevname) = (head)->blh_last; ((node)->prevname->nextname) = (node); (head)->blh_last = (node); } while (0)
+#define BK_LISTNUM_DELETE(node,nextname,prevname) do { ((node)->nextname->prevname) = ((node)->prevname); ((node)->prevname->nextname) = ((node)->nextname); ((node)->nextname) = NULL; ((node)->prevname) = NULL; } while (0)
 // @}
 
 
