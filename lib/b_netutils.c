@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.24 2003/10/07 17:49:31 brian Exp $";
+static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.25 2003/11/22 06:07:53 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -44,7 +44,7 @@ struct start_service_state
   struct bk_netinfo *		sss_rbni;	///< bk_netinfo.
   bk_bag_callback_f		sss_callback;	///< User callback.
   void *			sss_args;	///< User args.
-  char *			sss_securenets;	///< Securenets info.
+  const char *			sss_securenets;	///< Securenets info.
   int				sss_backlog;	///< Listen backlog.
   char *			sss_host;	///< Space to save a hostname.
   u_long			sss_timeout;	///< Timeout
@@ -153,10 +153,11 @@ bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa)
  *	appropriately set on success.
  */
 int
-bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char **servicestr,  char *defservicestr, char **protostr, char *defprotostr)
+bk_parse_endpt_spec(bk_s B, const char *urlstr, char **hoststr, const char *defhoststr, char **servicestr,  const char *defservicestr, char **protostr, const char *defprotostr)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char *host, *service, *proto;	/* Temporary versions */
+  const char *host, *service, *proto;	/* Temporary versions */
+  char *serv;
   char *protoend;
   char *url = NULL;
 
@@ -174,7 +175,7 @@ bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char
   /* Make modifiable copy */
   if (!(url = strdup(urlstr)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup urlstr: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not strdup urlstr\n");
     goto error;
   }
 
@@ -201,26 +202,26 @@ bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char
   /* Copyout proto */
   if (proto && !(*protostr = strdup(proto)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup protostr: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not strdup protostr\n");
     goto error;
   }
 
   /* Find service info */
-  if ((service = strstr(host, BK_ENDPT_SPEC_SERVICE_SEPARATOR)))
+  if ((serv = strstr(host, BK_ENDPT_SPEC_SERVICE_SEPARATOR)))
   {
-    *service++ = '\0';
+    *serv++ = '\0';
   }
 
   /* If not found, or empty use default */
-  if (!service || BK_STREQ(service,""))
-  {
+  if (!serv || BK_STREQ(serv,""))
     service = defservicestr;
-  }
+  else
+    service = serv;
 
   /* Copy service if available. */
   if (service && !(*servicestr = strdup(service)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup service: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not strdup service\n");
     goto error;
   }
 
@@ -235,7 +236,7 @@ bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char
   /* Copy host if available. */
   if (host && !(*hoststr = strdup(host)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup host: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not strdup host\n");
     goto error;
   }
 
@@ -270,7 +271,7 @@ bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char
  *	@return <i>0</i> on success.
  */
 int
-bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, char **servistr, char **protostr)
+bk_parse_endpt_no_defaults(bk_s B, const char *urlstr, char **hostname, char **servistr, char **protostr)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -298,7 +299,7 @@ bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, char **servist
  *	@param defhostsstr Host string to use if host part of url is not found. (may be NULL).
  *	@param defservstr Service string to use if service part of url is not found. (may be NULL).
  *	@param protostr Protocol string to use if protocol part of url is not found. (may be NULL).
- *	@param sercurenets Address based security specification.
+ *	@param securenets Address based security specification.
  *	@param callback Function to call when start is complete.
  *	@param args User args for @a callback.
  *	@param backlog Server @a listen(2) backlog
@@ -308,7 +309,7 @@ bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, char **servist
  *	@return <i>>1</i> if BK_NETUTILS_ANY_LOCAL set, and successfully created a socket
  */
 int
-bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
+bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *hoststr = NULL;
@@ -338,7 +339,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
 
   if (securenets)
   {
-    bk_error_printf(B, BK_ERR_WARN, "Securenets are not yet implemented, Caveat emptor.\n");
+    bk_error_printf(B, BK_ERR_WARN, "Securenets are not yet implemented.\n");
   }
 
   if (!hoststr || !servstr || !protostr)
@@ -447,7 +448,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
  *	@return <i>0</i> on success.
  */
 int
-bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defurl, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
+bk_netutils_start_service(bk_s B, struct bk_run *run, const char *url, const char *defurl, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *defhoststr = NULL;
@@ -563,7 +564,7 @@ sss_create(bk_s B)
 
   if (!(BK_CALLOC(sss)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate sss: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate sss\n");
     goto error;
   }
 
@@ -623,10 +624,7 @@ sss_destroy(bk_s B, struct start_service_state *sss)
  *	@return <i>0</i> on success.
  */
 int
-bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
-			      char *rurl, char *defrhost, char *defrserv,
-			      char *lurl, char *deflhost, char *deflserv,
-			      char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags )
+bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags )
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *rhoststr = NULL;
@@ -680,7 +678,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
   /* If the protocol is unset, use the remote protocol */
   if (!lprotostr && !(lprotostr = strdup(rprotostr)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup protocol from remote: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not strdup protocol from remote\n");
     goto error;
   }
 
@@ -694,14 +692,14 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
   /* Create remote netinfo */
   if (!(rbni = bk_netinfo_create(B)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create remote bni: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not create remote bni\n");
     goto error;
   }
 
   /* Create local netinfo */
   if (!(lbni = bk_netinfo_create(B)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create local bni: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not create local bni\n");
     goto error;
   }
 
@@ -728,7 +726,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
 
   if (!(sss = sss_create(B)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate sss: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate sss\n");
     goto error;
   }
 
@@ -808,7 +806,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
  *	@return <i>0</i> on success.
  */
 int
-bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *defurl, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags)
+bk_netutils_make_conn(bk_s B, struct bk_run *run, const char *url, const char *defurl, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *defhoststr = NULL;
@@ -981,13 +979,12 @@ sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent *h, str
 
 
 /**
- * Generate the hostname regardless of how long it is. User must free
- * returned value with free(3). According to SUSv2 gethostname() should
- * return as much of the hostname in the allocated space as possilbe (NULL
- * terminated or not), but some people just fail with
- * ENMAETOOLONG. Therefore we check both cases (ie where ENAMETOOLONG is
- * set and where the last char is *NOT* '\0'. When this occurs, we allocate
- * more memory and try again.
+ * Generate the hostname regardless of how long it is. User must free returned
+ * value with free(3). According to SUSv2 gethostname() should return as much
+ * of the hostname in the allocated space as possible (NULL terminated or not),
+ * but some people just fail with ENAMETOOLONG. Therefore we check both cases
+ * (i.e. where ENAMETOOLONG is set and where the last char is *NOT* '\0'. When
+ * this occurs, we allocate more memory and try again.
  *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
@@ -998,29 +995,28 @@ bk_netutils_gethostname(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *p = NULL;
-  int len = 2048;
+  int len = 64;
   int done = 0;
 
   while (!done)
   {
-    if (!(p = realloc(p, len)))
+    if (!(p = realloc(p, len)) || len > 256)	// max DNS length per RFC
     {
-      perror("realloc failed");
-      exit(1);
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate local hostname\n");
+      goto error;
     }
 
     /*
-     * <TRICKY>
-     * We set this NUL. If we're running on arch which truncates *
-     * gethostname() (the "correct" behavior evidently), then this char *
-     * will get overwritten. If the hostname is shorter or just the right *
-     * length this character will stay the same.
-     * </TRICKY>
+     * <TRICKY>We set this to NUL. If we're running on arch which truncates
+     * gethostname() (the "correct" behavior evidently), then this char will
+     * get overwritten. If the hostname is shorter or just the right length
+     * this character will stay the same.</TRICKY>
      */
     p[len-1] = '\0';
     if (gethostname(p, len) < 0 && errno != ENAMETOOLONG)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not obtain the hostname from the system: %s\n", strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not get local hostname: %s\n",
+		      strerror(errno));
       goto error;
     }
     else

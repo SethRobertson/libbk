@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_errorstuff.c,v 1.12 2003/06/17 06:07:19 seth Exp $";
+static const char libbk__rcsid[] = "$Id: test_errorstuff.c,v 1.13 2003/11/22 06:07:55 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -231,7 +231,12 @@ void progrun(bk_s B, struct program_config *pconfig)
     fprintf(stderr, "------------------------\n\n");
   }
 
-#if 0
+  for(cnt=0;cnt<ERRORQUEUE_DEPTH * 2;cnt++)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Error repeat test\n");
+  }
+  sleep(1);
+
   // test regular error output
   for(cnt=0;cnt<ERRORQUEUE_DEPTH/2;cnt++)
   {
@@ -265,7 +270,6 @@ void progrun(bk_s B, struct program_config *pconfig)
 
   bk_warn(B,stderr,"This is a warning\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   bk_die(B,254,stderr,"This is a fatal error\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-#endif
 
   BK_VRETURN(B);
 }

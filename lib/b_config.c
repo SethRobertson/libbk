@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_config.c,v 1.37 2003/10/29 00:16:44 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_config.c,v 1.38 2003/11/22 06:07:53 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -888,7 +888,8 @@ bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ov
 
   if (!(bck=config_kv_search(bc->bc_kv, (char *)key)))
   {
-    bk_error_printf(B, BK_ERR_WARN, "Could not locate key: %s\n", key);
+    // just too noisy and stupid for WARN level logging
+    bk_error_printf(B, BK_ERR_NOTICE, "Could not locate key: %s\n", key);
     goto done;
   }
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.27 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.28 2003/11/22 06:07:53 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -540,23 +540,12 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   fake_hostent.h_addr_list = (char **)buf;
   buf[0] = buf2;
 
-  /*
-   * First check if we are trything to deal with ANY address
-   */
+  // first check if we are trying to deal with ANY address
   if (BK_STREQ(name, BK_ADDR_ANY))
   {
+    // if family unspecified, assume AF_INET (not like we handle anything else)
     if (!family)
-    {
-      /*
-       * <WARNING>
-       * What do we do here/ Error or progress with a warning. Since
-       * it's overwhelmingly likely that the caller means AF_INET, we will
-       * issue a warning and carry on.
-       * </WARNING>
-       */
-      bk_error_printf(B, BK_ERR_WARN, "Address family for ANY address unset. Assuming AF_INET and forging on.\n");
       family = AF_INET;
-    }
 
     switch (family)
     {
@@ -718,23 +707,10 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   bgs->bgs_bni = bni;
   bgs->bgs_run = run;
 
-  if (atoi(BK_GWD(B,"gethostbyfoo_synch","0")))
+  if (bk_run_enqueue_delta(B, run, 0, gethostbyfoo_callback, bgs, &bgs->bgs_event, 0) < 0)
   {
-    gethostbyfoo_callback(B, run, bgs, NULL, 0);
-    /*
-     * <WARNING>
-     * You might need to null out some things here if you add code which
-     * will goto error.
-     * </WARNING>
-     */
-  }
-  else
-  {
-    if (bk_run_enqueue_delta(B, run, 0, gethostbyfoo_callback, bgs, &bgs->bgs_event, 0) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not enqueue gethostbyfoo callback\n");
-      goto error;
-    }
+    bk_error_printf(B, BK_ERR_ERR, "Could not enqueue gethostbyfoo callback\n");
+    goto error;
   }
 
   BK_RETURN(B,bgs);

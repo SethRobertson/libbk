@@ -1,5 +1,5 @@
 /*
- * $Id: libbkssl.h,v 1.5 2003/08/27 16:36:07 lindauer Exp $
+ * $Id: libbkssl.h,v 1.6 2003/11/22 06:07:51 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -37,9 +37,9 @@ struct bk_ssl_ctx *bk_ssl_create_context(bk_s B, const char *cert_path, const ch
 #define BK_SSL_REJECT_V2	0x01		///< Reject SSL v2 clients
 #define BK_SSL_NOCERT		0x02		///< Don't use a certificate
 extern void bk_ssl_destroy_context(bk_s B, struct bk_ssl_ctx *ssl_ctx);
-extern int bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags);
-extern int bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, char *rurl, char *defrhost, char *defrserv, char *lurl, char *deflhost, char *deflserv, char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags );
-extern int bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, int s, char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags);
+extern int bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags);
+extern int bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags );
+extern int bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, int s, const char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags);
 struct bk_ioh *bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
 extern void bk_ssl_destroy(bk_s B, struct bk_ssl *ssl, bk_flags flags);
 #define BK_SSL_DESTROY_DONTCLOSEFDS	0x1	///< Don't close underlying fds on destroy

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.8 2003/08/28 20:07:42 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.9 2003/11/22 06:07:54 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -440,7 +440,7 @@ bk_ssl_destroy(bk_s B, struct bk_ssl *ssl, bk_flags flags)
  *	@param defhostsstr Host string to use if host part of url is not found. (may be NULL).
  *	@param defservstr Service string to use if service part of url is not found. (may be NULL).
  *	@param protostr Protocol string to use if protocol part of url is not found. (may be NULL).
- *	@param sercurenets Address based security specification.
+ *	@param securenets Address based security specification.
  *	@param callback Function to call when start is complete.
  *	@param args User args for @a callback.
  *	@param backlog Server @a listen(2) backlog
@@ -449,7 +449,7 @@ bk_ssl_destroy(bk_s B, struct bk_ssl *ssl, bk_flags flags)
  *	@return <i>0</i> on success.
  */
 int
-bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
+bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
   struct start_service_args *ssa = NULL;
@@ -511,10 +511,7 @@ bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_
  *	@return <i>0</i> on success.
  */
 int
-bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx,
-			 char *rurl, char *defrhost, char *defrserv,
-			 char *lurl, char *deflhost, char *deflserv,
-			 char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags )
+bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags )
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
   struct start_service_args *ssa = NULL;
@@ -576,8 +573,7 @@ bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx,
  *	@return <br><i>ioh structure</i> if successful.
  */
 struct bk_ioh *
-bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f handler, void *opaque,
-		u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags)
+bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
   struct bk_ioh *ioh = NULL;
@@ -633,7 +629,7 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
  *	@param B BAKA thread/global state.
  *	@param run @a bk_run structure.
  *	@param s The socket to assume control over.
- *	@param sercurenets IP address filtering.
+ *	@param securenets IP address filtering.
  *	@param callback Function to call back when there's a connection
  *	@param args User arguments to supply to above.
  *	@param flags User flags.
@@ -641,8 +637,7 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
  *	@return <i>0</i> on success.
  */
 int
-bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, int s, char *securenets, 
-				   bk_bag_callback_f callback, void *args, bk_flags flags)
+bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, int s, const char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct start_service_args *ssa = NULL;
