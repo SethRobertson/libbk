@@ -1,3 +1,20 @@
+2001-11-15  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* libbk: Too many changes to document here. Basic support for
+	asynchronous connect (working).
+
+2001-11-13  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* include/libbk.h (struct bk_netinfo): Redo comments for doxygen.
+
+	* test_getbyfoo.c: test case for doing queries with NULL copyout
+	variables.
+
+	* b_netaddr.c: Properly updae a bk_netaddr on the basis of a net
+	address. 
+
+	* b_getbyfoo.c: Fixes for allowing copyout structure to be NULL.
+
 2001-11-15  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_ioh.c (CALLBACK) (bk_ioh_close): Don't close if we are in

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.54 2001/11/15 20:55:28 seth Exp $
+ * $Id: libbk.h,v 1.55 2001/11/15 22:19:47 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -28,6 +28,7 @@
 /* Forward references */
 struct bk_ioh;
 typedef u_int32_t bk_flags;			///< Normal bitfield type
+struct bk_addrgroup;
 
 
 
@@ -112,17 +113,17 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
  */
 struct bk_general
 {
-  struct bk_error	*bg_error;		/**< Error info */
-  struct bk_debug	*bg_debug;		/**< Debug info */
-  struct bk_funlist	*bg_reinit;		/**< Reinitialization list */
-  struct bk_funlist	*bg_destroy;		/**< Destruction list */
-  struct bk_proctitle	*bg_proctitle;		/**< Process title info */
-  struct bk_config	*bg_config;		/**< Configuration info */
-  char			*bg_program;		/**< Name of program */
-  bk_flags		bg_flags;		/**< Flags */
-#define BK_BGFLAGS_FUNON	1		///< Is function tracing on? */
-#define BK_BGFLAGS_DEBUGON	2		///< Is debugging on? */
-#define BK_BGFLAGS_SYSLOGON	4		///< Is syslog on? */
+  struct bk_error	*bg_error;		///< Error info
+  struct bk_debug	*bg_debug;		///< Debug info
+  struct bk_funlist	*bg_reinit;		///< Reinitialization list
+  struct bk_funlist	*bg_destroy;		///< Destruction list
+  struct bk_proctitle	*bg_proctitle;		///< Process title info
+  struct bk_config	*bg_config;		///< Configuration info
+  char			*bg_program;		///< Name of program
+  bk_flags		bg_flags;		///< Flags
+#define BK_BGFLAGS_FUNON	1		///< Is function tracing on?
+#define BK_BGFLAGS_DEBUGON	2		///< Is debugging on?
+#define BK_BGFLAGS_SYSLOGON	4		///< Is syslog on?
 };
 #define BK_GENERAL_ERROR(B)	((B)?(B)->bt_general->bg_error:(struct bk_error *)bk_nullptr) ///< Access the bk_general error queue
 #define BK_GENERAL_DEBUG(B)	((B)?(B)->bt_general->bg_debug:(struct bk_debug *)bk_nullptr) ///< Access the bk_general debug queue
@@ -149,11 +150,11 @@ struct bk_general
  */
 typedef struct __bk_thread
 {
-  dict_h		bt_funstack;		/**< Function stack */
-  struct bk_funinfo	*bt_curfun;		/**< Current function */
-  const char		*bt_threadname;		/**< Thread name */
-  struct bk_general	*bt_general;		/**< Common program state */
-  bk_flags		bt_flags;		/**< Flags for the future */
+  dict_h		bt_funstack;		///< Function stack
+  struct bk_funinfo	*bt_curfun;		///< Current function
+  const char		*bt_threadname;		///< Thread name
+  struct bk_general	*bt_general;		///< Common program state
+  bk_flags		bt_flags;		///< Flags for the future
 } *bk_s;
 #define BK_BT_FUNSTACK(B)	((B)->bt_funstack)   ///< Access the function stack
 #define BK_BT_CURFUN(B)		((B)->bt_curfun)     ///< Access the current function
@@ -162,8 +163,100 @@ typedef struct __bk_thread
 #define BK_BT_FLAGS(B)		((B)->bt_flags)      ///< Access thread-specific flags
 // @}
 
-#define BK_GETHOSTBYFOO_FLAG_FQDN	0x1	/* Get the FQDN */
 
+
+/**
+ * The possible "sides" of a socket
+ */
+typedef enum
+{
+  BK_SOCKET_SIDE_LOCAL=1,			///< The local side.
+  BK_SOCKET_SIDE_REMOTE,			///< The remote side.
+} bk_socket_side_t;
+
+
+
+/**
+ * Actions permitted in modifying fd flags
+ */
+typedef enum 
+{
+  BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_ADD=1,
+  BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_DELETE,
+} bk_fileutils_modify_fd_flags_action_t;
+
+
+
+/**
+ * Enum list of known network address types.
+ */
+typedef enum 
+{ 
+  BK_NETINFO_TYPE_UNKNOWN=0,			///< Special "unset" marker
+  BK_NETINFO_TYPE_INET,				///< IPv4 address
+  BK_NETINFO_TYPE_INET6,			///< IPv6 address
+  BK_NETINFO_TYPE_LOCAL,			///< AF_LOCAL/AF_UNIX address
+  BK_NETINFO_TYPE_ETHER,			///< Ethernet address
+} bk_netaddr_type_t;
+
+
+#define BK_NETINFO_TYPE_NONE BK_NETINFO_TYPE_UNKNOWN ///< Alias for BK_NETINFO_TYPE_UNKNOWN
+
+/**
+ * Results from an asynchronous connection (these are mostly geared towars
+ * the client side.
+ */
+typedef enum
+{
+  BK_ADDRGROUP_RESULT_FLAG_OK=0,		///< Connection OK
+  BK_ADDRGROUP_RESULT_FLAG_DESTROYED,		///< We're being nuked */
+  BK_ADDRGROUP_RESULT_FLAG_TIMEOUT,		///< Connection timedout */
+  BK_ADDRGROUP_RESULT_FLAG_IO_ERROR,		///< Connection timedout */
+} bk_addrgroup_result_t;
+
+
+
+/**
+ * File descriptor handler type.
+ */
+struct bk_run;
+typedef void (*bk_fd_handler_t)(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, struct timeval starttime);
+
+/**
+ * @name bk_netassoc structure.
+ */
+// @{
+/**
+ * Structure which describes a network "association". This name is slightly
+ * bogus owing to the fact that server listens (which aren't tehcnically
+ * associations) and unconnected udp use this structure too. 
+ */
+typedef void (*bk_bag_callback_t)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, bk_addrgroup_result_t result);
+
+struct bk_addrgroup
+{
+  bk_flags		bag_flags;		///< Everyone needs flags */
+  /* XXX timeout probably belongs in local address_state structure */
+  struct bk_netinfo *	bag_local;		///< Local side information */
+  struct bk_netinfo *	bag_remote;		///< Remote side information */
+  int			bag_proto;		///< Cached proto */
+  bk_netaddr_type_t	bag_type;		///< Cached address family */
+};
+
+
+
+#define BK_ADDRGROUP_FLAGS(bag) ((bag)->bag_flags)
+#define BK_ADDRGROUP_TIMEOUT(bag) ((bag)->bag_timeout)
+#define BK_ADDRGROUP_LOCAL_NETINFO(bag) ((bag)->bag_local)
+#define BK_ADDRGROUP_REMOTE_NETINFO(bag) ((bag)->bag_remote)
+#define BK_ADDRGROUP_CALLBACK(bag) ((bag)->bag_callback)
+#define BK_ADDRGROUP_ARGS(bag) ((bag)->bag_args)
+
+
+#define BK_ADDRGROUP_FLAG_DIVIDE_TIMEOUT	0x1 ///< Timeout should be divided among all addresses */
+
+
+// @}
 
 /**
  * @name Function tracing common interfacce
@@ -300,8 +393,8 @@ do {						\
  */
 typedef struct bk_vptr
 {
-  void *ptr;					/**< Data */
-  u_int32_t len;				/**< Length */
+  void *ptr;					///< Data
+  u_int32_t len;				///< Length
 } bk_vptr;
 
 
@@ -310,9 +403,9 @@ typedef struct bk_vptr
  */
 struct bk_alloc_ptr
 {
-  void *ptr;					/**< Data */
-  u_int32_t cur;				/**< Current length */
-  u_int32_t max;				/**< Maximum length */
+  void *ptr;					///< Data
+  u_int32_t cur;				///< Current length
+  u_int32_t max;				///< Maximum length
 };
 
 
@@ -323,9 +416,9 @@ struct bk_alloc_ptr
  */
 struct bk_config_user_pref
 {
-  char *	bcup_include_tag;		/**< Include file tag */
-  char *	bcup_separator;		 	/**< key/value sep. char */
-  bk_flags	bcup_flags;			/**< Everyone needs flags */
+  char *	bcup_include_tag;		///< Include file tag
+  char *	bcup_separator;		 	///< key/value sep. char
+  bk_flags	bcup_flags;			///< Everyone needs flags
 };
 
 
@@ -352,10 +445,10 @@ struct bk_funinfo
  */
 struct bk_servinfo
 {
-  bk_flags		bsi_flags;		/** Everyone needs flags */
-  u_int			bsi_port;		/** Port (network order) */
-  char *		bsi_servstr;		/** Service string  */
-  char *		bsi_protostr;		/** Proto str (NULL OK) */
+  bk_flags		bsi_flags;		///< Everyone needs flags
+  u_int			bsi_port;		///< Port (network order)
+  char *		bsi_servstr;		///< Service string
+  char *		bsi_protostr;		///< Proto str (NULL OK)
 };
 
 
@@ -368,23 +461,10 @@ struct bk_servinfo
  */
 struct bk_protoinfo
 {
-  bk_flags		bpi_flags;		/** Everyone needs flags */
-  int			bpi_proto;		/** Protocol number */
-  char *		bpi_protostr;		/** Protocol string  */
+  bk_flags		bpi_flags;		///< Everyone needs flags
+  int			bpi_proto;		///< Protocol number
+  char *		bpi_protostr;		///< Protocol string
 };
-
-
-
-/**
- * Enum list of known network address types.
- */
-typedef enum 
-{ 
-  BK_NETINFO_TYPE_INET,				/** IPv4 address */
-  BK_NETINFO_TYPE_INET6,				/** IPv6 address */
-  BK_NETINFO_TYPE_LOCAL,			/** AF_LOCAL/AF_UNIX address */
-  BK_NETINFO_TYPE_ETHER,			/** Ethernet address */
-} bk_netaddr_type_t;
 
 
 
@@ -393,17 +473,18 @@ typedef enum
  */
 struct bk_netaddr
 {
-  bk_flags		bna_flags;		/** Everyone needs flags */
-  bk_netaddr_type_t	bna_type;		/** Type of address */
-  u_int			bna_len;		/** Length of address */
+  bk_flags		bna_flags;		///< Everyone needs flags
+  bk_netaddr_type_t	bna_type;		///< Type of address
+  u_int			bna_len;		///< Length of address
   union
   {
-    struct in_addr	bnaa_inet;		/** IPv4 address */
-    struct in6_addr	bnaa_inet6;		/** IPv6 address */
-    char *		bnaa_path;		/** AF_LOCAL/AF_UNIX address */
-    struct ether_addr	bnaa_ether;		/** Ethernet address */
+    struct in_addr	bnaa_inet;		///< IPv4 address
+    struct in6_addr	bnaa_inet6;		///< IPv6 address
+    char *		bnaa_path;		///< AF_LOCAL/AF_UNIX address
+    struct ether_addr	bnaa_ether;		///< Ethernet address
   } bna_addr;
-  char *		bna_pretty;		/** Printable form of addr */
+  char *		bna_pretty;		///< Printable form of addr
+  dict_h		bna_netinfo_addrs;	///< Back pointer to prevent double free
 };
 
 
@@ -417,13 +498,13 @@ struct bk_netaddr
  */
 struct bk_netinfo
 {
-  bk_flags		bni_flags;		/** Everyone needs flags */
-  struct bk_netaddr *	bni_addr;		/** Primary address */
-  struct bk_netaddr *	bni_addr2;		/** Secondary address */
-  dict_h		bni_addrs;		/** dll of addrs */
-  struct bk_servinfo *	bni_bsi;		/** Service info */
-  struct bk_protoinfo *	bni_bpi;		/** Protocol info */
-  char *		bni_pretty;		/** Printable forms */
+  bk_flags		bni_flags;		///< Everyone needs flags
+  struct bk_netaddr *	bni_addr;		///< Primary address
+  struct bk_netaddr *	bni_addr2;		///< Secondary address
+  dict_h		bni_addrs;		///< dll of addrs
+  struct bk_servinfo *	bni_bsi;		///< Service info
+  struct bk_protoinfo *	bni_bpi;		///< Protocol info
+  char *		bni_pretty;		///< Printable forms
 };
 
 /**
@@ -582,7 +663,7 @@ extern int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags fla
 #define BK_RUN_DEQUEUE_CRON			0x02	///< Cron event to dequeue for @a bk_run_dequeue
 extern int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags);
 extern int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags);
-extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, void (*handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime), void *opaque, u_int wanttypes, bk_flags flags);
+extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, void *opaque, u_int wanttypes, bk_flags flags);
 #define BK_RUN_READREADY			0x01	///< user handler is notified by bk_run that data is ready for reading
 #define BK_RUN_WRITEREADY			0x02	///< user handler is notified by bk_run that data is ready for writing
 #define BK_RUN_XCPTREADY			0x04	///< user handler is notified by bk_run that exception data is ready
@@ -595,6 +676,7 @@ extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u
 #define BK_RUN_WANTREAD				0x01	///< Specify to bk_run_setpref that we want read notification for this fd
 #define BK_RUN_WANTWRITE			0x02	///< Specify to bk_run_setpref that we want write notification for this fd
 #define BK_RUN_WANTXCPT				0x04	///< Specify to bk_run_setpref that we want exceptional notification for this fd
+#define BK_RUN_WANTALL				(BK_RUN_WANTREAD|BK_RUN_WANTWRITE|BK_RUN_WANTXCPT|) ///< Specify to bk_run_setpref that we want *all* notifcations.
 extern int bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
 extern int bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
@@ -683,11 +765,14 @@ extern ssize_t bk_strnlen(bk_s B, char *s, ssize_t max);
 
 
 /* getbyfoo.c */
-extern int bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo *bni);
+extern int bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo *bni, bk_flags flags);
+#define BK_GETPROTOBYFOO_FORCE_LOOKUP	0x1	///< Do lookup even if argumnet suggests otherwise.
 extern void bk_protoent_destroy(bk_s B, struct protoent *p);
-extern int bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni);
+extern int bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni, bk_flags flags);
+#define BK_GETSERVBYFOO_FORCE_LOOKUP	0x1	///< Do lookup even if argumnet suggests otherwise.
 extern void bk_servent_destroy(bk_s B, struct servent *s);
 extern int bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args, bk_flags user_flags);
+#define BK_GETHOSTBYFOO_FLAG_FQDN	0x1	///< Get the FQDN
 extern void bk_destroy_hostent(bk_s B, struct hostent *h);
 
 
@@ -696,14 +781,22 @@ extern struct bk_netinfo *bk_netinfo_create(bk_s B);
 extern void bk_netinfo_destroy(bk_s B, struct bk_netinfo *bni);
 extern int bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct bk_netaddr **obna);
 extern int bk_netinfo_delete_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna);
-extern int bk_netinfo_set_primary_address(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna);
+extern int bk_netinfo_set_primary_address(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna);
+extern int bk_netinfo_reset_primary_address(bk_s B, struct bk_netinfo *bni);
 extern struct bk_netinfo *bk_netinfo_clone(bk_s B, struct bk_netinfo *obni);
 extern int bk_netinfo_update_servent(bk_s B, struct bk_netinfo *bni, struct servent *s);
 extern int bk_netinfo_update_protoent(bk_s B, struct bk_netinfo *bni, struct protoent *p);
 extern int bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h);
+extern struct bk_netaddr *bk_netinfo_get_addr(bk_s B, struct bk_netinfo *bni);
+extern int bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_t type, struct sockaddr *sa, bk_flags flags);
+#define BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY	0x1 ///< Allow bad address information to indicate ANY addresss.
+extern struct bk_netinfo *bk_netinfo_from_sockaddr(bk_s B, int s, int proto, bk_socket_side_t side);
+
+
 
 
 /* b_netaddr.c */
+extern struct bk_netaddr *bk_netaddr_create(bk_s B);
 extern void bk_netaddr_destroy(bk_s B, struct bk_netaddr *bna);
 extern struct bk_netaddr *bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags flags);
 extern struct bk_netaddr *bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags);
@@ -722,6 +815,9 @@ extern struct bk_protoinfo *bk_protoinfo_user(bk_s B, char *protoname, int proto
 extern void bk_protoinfo_destroy (bk_s B,struct bk_protoinfo *bsi);
 extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obsi);
 
+/* b_netutils.c */
+extern int bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa);
+
 
 /* b_signal.c */
 typedef void (*bk_sighandler)(int);
@@ -730,5 +826,11 @@ extern bk_sighandler bk_signal(bk_s B, int signo, bk_sighandler handler, bk_flag
 
 /* b_relay.c */
 int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb)(bk_s B, void *opaque, u_int state), void *opaque, bk_flags flags);
+
+/* b_fileutils.c */
+extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_t action);
+
+/* b_addrgroup.c */
+extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_t callback, void *args);
 
 #endif /* _BK_h_ */

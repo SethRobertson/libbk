@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.7 2001/11/15 19:52:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.8 2001/11/15 22:19:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -67,7 +67,7 @@ struct program_config
 int proginit(bk_s B, struct program_config *pconfig);
 static void nullhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in, u_int state_flags);
 static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int fd1out, int fd2in, int fd2out, bk_flags flags);
-static void rmt_acceptor(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime);
+static void rmt_acceptor(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, struct timeval starttime);
 static void address_resolved(bk_s B, struct program_config *pconfig, struct in_addr *himaddr);
 static void donecb(bk_s B, void *opaque, u_int state);
 
@@ -301,7 +301,7 @@ int proginit(bk_s B, struct program_config *pconfig)
  *	@param opaque Private data (really pconfig)
  *	@param starttime Time this event occured, sorta
  */
-void rmt_acceptor(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime)
+void rmt_acceptor(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, struct timeval starttime)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"IOHTEST");
   struct program_config *pconfig = opaque;

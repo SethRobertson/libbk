@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.2 2001/11/13 20:42:17 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.3 2001/11/15 22:19:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -61,6 +61,27 @@ bna_create(bk_s B)
 }
 
 
+/**
+ * Public interface to creating an empty @a bk_netaddr.
+ *	@param B BAKA thread/global state.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a new @a bk_netaddr on success.
+ */
+struct bk_netaddr *
+bk_netaddr_create(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_netaddr *bna;
+
+  if (!(bna=bna_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create bk_netaddr\n");
+  }
+
+  BK_RETURN(B,bna);
+}
+
+
 
 /**
  * Destroy a @a struct @a bk_netaddr
@@ -78,6 +99,7 @@ bna_destroy(bk_s B, struct bk_netaddr *bna)
     BK_VRETURN(B);
   }
 
+  if (bna->bna_netinfo_addrs) netinfo_addrs_delete(bna->bna_netinfo_addrs, bna);
   if (bna->bna_pretty) free (bna->bna_pretty);
   if (bna->bna_type == BK_NETINFO_TYPE_LOCAL && bna->bna_path) 
     free(bna->bna_path);

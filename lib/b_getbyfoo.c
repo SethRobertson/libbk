@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.9 2001/11/13 20:42:17 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.10 2001/11/15 22:19:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -68,7 +68,7 @@ static void gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct
  *	@return <br><i>proto_num</i> on success.
  */
 int
-bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo *bni)
+bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo *bni, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct protoent *p, *n=NULL;
@@ -77,6 +77,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo
   int ret;
   int num;
   int count;
+  struct protoent dummy;
   
   if (!protostr)
   {
@@ -99,11 +100,21 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo
   /* MUTEX_LOCK */
   if (bk_string_atoi(B,protostr,&num,0)==0)
   {
-    if (!(p=getprotobynumber(num)))
+    /* This is a number so only do search if forced */
+    if (BK_FLAG_ISSET(flags, BK_GETPROTOBYFOO_FORCE_LOOKUP))
     {
-      /* MUTEX_UNLOCK */
-      bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to protocol: %s\n", protostr, strerror(errno));
-      goto error;
+      if (!(p=getprotobynumber(num)))
+      {
+	/* MUTEX_UNLOCK */
+	bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to protocol: %s\n", protostr, strerror(errno));
+	goto error;
+      }
+    }
+    else
+    {
+      p=&dummy;
+      memset(p,0,sizeof(*p));
+      p->p_proto=num;
     }
   }
   else
@@ -203,7 +214,8 @@ bk_protoent_destroy(bk_s B, struct protoent *p)
 
 
 /** 
- * Get a service number no matter which type string you have. 
+ * Get a service number no matter which type string you have. This function
+ * is really blocking
  *
  *	@param B BAKA thread/global state.
  *	@param servstr The string containing the service name or number.
@@ -212,7 +224,7 @@ bk_protoent_destroy(bk_s B, struct protoent *p)
  *	@return <br><i>port_num</i> (in <em>host</em> order) on success.
  */
 int
-bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni)
+bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct servent *s, *n=NULL;
@@ -223,6 +235,8 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
   int count;
   char *proto;
   char *bni_proto=NULL;
+  struct servent dummy;
+  struct protoent *lproto;
   
   /* If it is possible to extract the protostr from the bni, do so and cache*/
   if (bni && bni->bni_bpi)
@@ -263,15 +277,37 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
     }
   }
 
+  /* 
+   * ARGGHH!! First you have to resolve the protobyfoo. Furthermore you
+   * have to go all the way as it were.
+   */
+  if (bk_getprotobyfoo(B, proto, &lproto,NULL,BK_GETPROTOBYFOO_FORCE_LOOKUP)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert proto string: %s\n", proto);
+    goto error;
+  }
+  proto=lproto->p_name;
+
   
   /* MUTEX_LOCK */
   if (bk_string_atoi(B,servstr,&num,0)==0)
   {
-    if (!(s=getservbyport(num, proto)))
+    /* This a a number so only do seach if forced */
+    if (BK_FLAG_ISSET(flags, BK_GETSERVBYFOO_FORCE_LOOKUP))
     {
-      /* MUTEX_UNLOCK */
-      bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to service: %s\n", servstr, strerror(errno));
-      goto error;
+      if (!(s=getservbyport(num, proto)))
+      {
+	/* MUTEX_UNLOCK */
+	bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to service: %s\n", servstr, strerror(errno));
+	goto error;
+      }
+    }
+    else
+    {
+      s=&dummy;
+      memset(s,0,sizeof(*s));
+      s->s_port=num;
+      s->s_proto=proto;
     }
   }
   else

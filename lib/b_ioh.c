@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.18 2001/11/15 20:55:28 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.19 2001/11/15 22:19:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -120,7 +120,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, u_int32_t cmds, bk_flags
 static void ioh_flush_queue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *queue, u_int32_t *cmd, bk_flags flags);
 #define IOH_FLUSH_DESTROY	1		///< Notify that queue is being destroyed
 static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t allocated, u_int32_t inuse, u_int32_t used, bk_vptr *vptr, bk_flags msgflags, bk_flags flags);
-static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime);
+static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, struct timeval starttime);
 static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags);
 #define IOH_FDCTL_SET		1		///< Set the fd set to the ioh normal version
 #define IOH_FDCTL_RESET		1		///< Set the fd set to the original defaults
@@ -939,7 +939,7 @@ int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *ou
  *		actual time.  Useful to save system calls when you don't care
  *		that much, or want to avoid starvation.
  */
-static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime)
+static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, struct timeval starttime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *ioh = opaque;

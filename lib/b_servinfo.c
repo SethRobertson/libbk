@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_servinfo.c,v 1.1 2001/11/12 19:15:45 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_servinfo.c,v 1.2 2001/11/15 22:19:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -117,14 +117,27 @@ bk_servinfo_serventdup (bk_s B, struct servent *s, struct bk_protoinfo *bpi)
     goto error;
   }
   
-  if (s->s_name && !(bsi->bsi_servstr=strdup(s->s_name)))
+  if (s->s_name)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup serv name: %s\n", strerror(errno));
-    goto error;
+    if (!(bsi->bsi_servstr=strdup(s->s_name)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup serv name: %s\n", strerror(errno));
+      goto error;
+    }
+  }
+  else
+  {
+    /* XXX use bk_intcols here */
+    if (!(BK_CALLOC_LEN(bsi->bsi_servstr,100)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate servstr: %s\n", strerror(errno));
+      goto error;
+    }
+    snprintf(bsi->bsi_servstr,100,"%d", s->s_port);
   }
 
   bsi->bsi_flags = 0;
-  bsi->bsi_port = s->s_port;			/* Network order */
+  bsi->bsi_port = htons(s->s_port);
 
   if (s->s_proto && !(bsi->bsi_protostr=strdup(s->s_proto)))
   {

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.10 2001/11/12 19:15:45 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.11 2001/11/15 22:19:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -70,7 +70,7 @@ struct br_sighandler
 struct bk_run_fdassoc
 {
   int			brf_fd;			///< Fd we are handling
-  void		      (*brf_handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottype, void *opaque, struct timeval starttime);		///< Function to handle
+  bk_fd_handler_t	brf_handler;		///< Function to handle
   void		       *brf_opaque;		///< Opaque information
 };
 
@@ -519,7 +519,7 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
  *	@param opaque The opaque data for the handler
  *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
  *	@param flags Flags for the Future.
- *	@return <i><0</i> on call failure, allocation failure, or other error.
+ *	@return <i>-1</i> on call failure, allocation failure, or other error.
  *	@return <br><i>0</i> on success.
  */
 int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
@@ -905,7 +905,8 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
  *	@return <i><0</i> on call failure, or other error.
  *	@return <br><i>0</i> on success.
  */
-int bk_run_handle(bk_s B, struct bk_run *run, int fd, void (*handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime), void *opaque, u_int wanttypes, bk_flags flags)
+struct bk_run;
+int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, void *opaque, u_int wanttypes, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_run_fdassoc *new = NULL;
@@ -1228,7 +1229,7 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval startti
       /* Use the actual time to next event to allow for more accurate events */
       gettimeofday(&curtime, NULL);
 
-      BK_TV_SUB(delta,&top->bre_when,&starttime);
+      BK_TV_SUB(delta,&top->bre_when,&curtime);
       if (delta->tv_sec < 0 || delta->tv_usec < 0)
 	{
 	  delta->tv_sec = 0;
@@ -1496,7 +1497,7 @@ bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_ru
   
   if (handle) *handle=NULL;
 
-  if (!brof_alloc(B))
+  if (!(brof=brof_alloc(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf: %s\n", strerror(errno));
     goto error;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.1 2001/11/12 19:15:45 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.2 2001/11/15 22:19:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -114,10 +114,23 @@ bk_protoinfo_protoentdup (bk_s B, struct protoent *p)
     goto error;
   }
   
-  if (p->p_name && !(bpi->bpi_protostr=strdup(p->p_name)))
+  if (p->p_name)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup proto name: %s\n", strerror(errno));
-    goto error;
+    if (!(bpi->bpi_protostr=strdup(p->p_name)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup proto name: %s\n", strerror(errno));
+      goto error;
+    }
+  }
+  else
+  {
+    /* XXX use bk_intcols here */
+    if (!(BK_CALLOC_LEN(bpi->bpi_protostr,100)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate prootstr: %s\n", strerror(errno));
+      goto error;
+    }
+    snprintf(bpi->bpi_protostr, 100, "%d", p->p_proto);
   }
 
   bpi->bpi_flags = 0;

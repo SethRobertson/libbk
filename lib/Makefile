@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.18 2001/11/14 01:10:18 seth Exp $
+# $Id: Makefile,v 1.19 2001/11/15 22:19:47 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -17,11 +17,13 @@
 BK_LARGE_LIB=libbk.a
 
 BK_LARGE_LIBSRC=		       		\
+		b_addrgroup.c			\
 		b_bits.c			\
 		b_cksum.c			\
 		b_config.c			\
 		b_debug.c			\
 		b_error.c			\
+		b_fileutils.c			\
 		b_fun.c 			\
 		b_funlist.c			\
 		b_general.c			\
@@ -30,6 +32,7 @@ BK_LARGE_LIBSRC=		       		\
 		b_memx.c			\
 		b_netaddr.c			\
 		b_netinfo.c			\
+		b_netutils.c			\
 		b_protoinfo.c			\
 		b_relay.c			\
 		b_run.c				\

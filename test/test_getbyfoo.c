@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.6 2001/11/13 20:44:15 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.7 2001/11/15 22:19:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -171,7 +171,7 @@ void progrun(bk_s B)
   {
     if (bk_getprotobyfoo(B, Global.gs_query, 
 			 BK_FLAG_ISCLEAR(Global.gs_flags, TESTGETBYFOO_FLAG_NO_COPYOUT)?&p:NULL, 
-			 bni)<0)
+			 bni,BK_GETPROTOBYFOO_FORCE_LOOKUP)<0)
     {
       fprintf(stderr, "Failed to query protocols\n");
       exit(1);
@@ -208,7 +208,7 @@ void progrun(bk_s B)
   {
     if (bk_getservbyfoo(B, Global.gs_query, "tcp", 
 			(BK_FLAG_ISCLEAR(Global.gs_flags, TESTGETBYFOO_FLAG_NO_COPYOUT)?&s:NULL),
-			bni)<0)
+			bni, BK_GETSERVBYFOO_FORCE_LOOKUP)<0)
     {
       fprintf(stderr, "Failed to query services\n");
       exit(1);
@@ -357,7 +357,7 @@ host_callback(bk_s B, struct bk_run *run, struct hostent **hp, struct bk_netinfo
       }
       else
       {
-	bk_netinfo_set_primary_address(B, bni, bna, NULL);
+	bk_netinfo_set_primary_address(B, bni, bna);
 	printf("Callback bni is: %s\n", bni->bni_pretty);
       }
       bk_destroy_hostent(B, h);
@@ -376,7 +376,7 @@ host_callback(bk_s B, struct bk_run *run, struct hostent **hp, struct bk_netinfo
 	printf("Addrtype: %d\n", bk_netaddr_nat2af(B, bna->bna_type));
 	printf("Length: %d\n", bna->bna_len);
 	printf("Address: ");
-	bk_netinfo_set_primary_address(B, bni, bna, NULL);
+	bk_netinfo_set_primary_address(B, bni, bna);
 	run_once++;
       }
       printf("%s ", bna->bna_pretty);

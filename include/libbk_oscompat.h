@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.6 2001/11/12 05:56:49 seth Exp $
+ * $Id: libbk_oscompat.h,v 1.7 2001/11/15 22:19:47 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -65,5 +65,13 @@ typedef char *caddr_t;
 #define __SIZE_TYPE__ size_t
 #endif /* __SIZE_TYPE__ */
 
+/* XXX AUTOCONF THIS!!!!!!! */
+#if defined(__linux__) || !defined(HAVE_SOCKADDR_LEN)
+#	define BK_SET_SOCKADDR_LEN(B,s,l) do{}while(0)
+#	define BK_GET_SOCKADDR_LEN(B,s,l) do { (l)=bk_netutils_get_sa_len((B),((struct sockaddr *)(s))); }while(0)
+#else
+#	define BK_SET_SOCKADDR_LEN(B,s,l) do { ((struct sockaddr *)(s))->sa_len=(l); }while(0)
+#	define BK_GET_SOCKADDR_LEN(B,s,l) do { (l)=((struct sockaddr *)(s))->sa_len; }while(0)
+#endif 
 
 #endif /* _libbk_oscompat_h_ */

@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.6 2001/08/27 03:10:24 seth Exp $
+# $Id: Makefile,v 1.7 2001/11/15 22:19:47 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -15,8 +15,10 @@
 # libbk Makefile
 #
 
-BK_SIMPLE_PROGS=proto
-
+BK_SIMPLE_PROGS=			\
+	proto				\
+	bttcp				\
+#line fodder eater. Do not remove.
 
 GROUPTOP=..
 GROUPSUBDIR=src

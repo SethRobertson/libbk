@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.3 2001/11/12 19:15:45 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.4 2001/11/15 22:19:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,7 +25,9 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  */
 
 static int update_bni_pretty(bk_s B, struct bk_netinfo *bni);
-
+static int bni2sin(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_in *sin4, bk_flags flags);
+static int bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_in6 *sin6, bk_flags flags);
+static int bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_un *sun, bk_flags flags);
 
 
 /**
@@ -126,6 +128,7 @@ bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, str
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_netaddr *bna;
+  int first_entry=0;
 
   if (!bni || !ibna)
   {
@@ -140,6 +143,11 @@ bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, str
   {
     bk_error_printf(B, BK_ERR_ERR, "Baka netinfo structures do not support heterogenious address types (%d != %d)\n", bna->bna_type, ibna->bna_type);
     BK_RETURN(B,1); /* XXX What type of error is this? */
+  }
+
+  if (!netinfo_addrs_minimum(bni->bni_addrs))
+  {
+    first_entry=0;
   }
 
   if (netinfo_addrs_insert_uniq(bni->bni_addrs, ibna, (dict_obj *)obna) != DICT_OK)
@@ -157,6 +165,19 @@ bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, str
     bk_error_printf(B, BK_ERR_ERR, "Could not insert address\n");
     goto error;
   }
+
+  ibna->bna_netinfo_addrs=bni->bni_addrs;
+
+  if (first_entry)
+  {
+    if (bk_netinfo_set_primary_address(B, bni, NULL))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set primary address\n");
+      goto error;
+    }
+  }
+  
+  update_bni_pretty(B, bni);
 
   BK_RETURN(B,0);
   
@@ -275,30 +296,29 @@ update_bni_pretty(bk_s B, struct bk_netinfo *bni)
  * the primary address must be set.
  */
 int
-bk_netinfo_set_primary_address(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna)
+bk_netinfo_set_primary_address(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_netaddr *bna=NULL;
 
-  if (!bni || !ibna)
+  if (!bni)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
   
-  if (obna) *obna=NULL;				/* Initialize copyout */
-
-  if (bk_netinfo_add_addr(B, bni, ibna, &bna)<0)
+  if (bna)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not pass netinfo address insertion\n");
-    goto error;
+    bna=netinfo_addrs_search(bni->bni_addrs, bna);
   }
-  
-
-  if (!bna)					
+  else
   {
-    /* We must have actually inserted ibna above */
-    bna=ibna;
+    bna=bk_netinfo_get_addr(B, bni);
+  }
+
+  if (!bna)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not determine bna to set as primary\n");
+    goto error;
   }
 
   bni->bni_addr=bna;
@@ -314,6 +334,31 @@ bk_netinfo_set_primary_address(bk_s B, struct bk_netinfo *bni, struct bk_netaddr
  error:
   BK_RETURN(B,-1);
   
+}
+
+
+
+/**
+ * Reset the primary address.
+ *	@param B BAKA thread/global state.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_netinfo_reset_primary_address(bk_s B, struct bk_netinfo *bni)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bni)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  bni->bni_addr=NULL;
+  update_bni_pretty(B, bni);
+
+  BK_RETURN(B,0);
 }
 
 
@@ -355,7 +400,7 @@ bk_netinfo_clone (bk_s B, struct bk_netinfo *obni)
       bk_error_printf(B, BK_ERR_ERR, "Could not clone netaddr\n");
       goto error;
     }
-    if (netinfo_addrs_insert_uniq(nbni->bni_addrs, nbna, NULL) != DICT_OK)
+    if (bk_netinfo_add_addr(B,nbni,nbna,NULL)<0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not insert netaddr into list\n");
       goto error;
@@ -520,7 +565,7 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
 	  bk_error_printf(B, BK_ERR_ERR, "Could not create bna from addr\n");
 	  goto error;
 	}
-	if (netinfo_addrs_insert_uniq(bni->bni_addrs, bna, NULL) != DICT_OK)
+	if (bk_netinfo_add_addr(B,bni->bni_addrs, bna, NULL)<0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not insert bna\n");
 	  bk_netaddr_destroy(B,bna);		/* Must clean up */
@@ -538,7 +583,7 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
 	  bk_error_printf(B, BK_ERR_ERR, "Could not create bna from addr\n");
 	  goto error;
 	}
-	if (netinfo_addrs_insert_uniq(bni->bni_addrs, bna, NULL) != DICT_OK)
+	if (bk_netinfo_add_addr(B,bni->bni_addrs, bna, NULL)<0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not insert bna\n");
 	  bk_netaddr_destroy(B,bna);		/* Must clean up */
@@ -567,6 +612,393 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
 }
 
 
+
+/**
+ * Retrieve the primary address
+ *	@param B BAKA thread/global state.
+ *	@param bni The netinfo from which to retrieve address.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return @a bk_netaddr pointer on success.
+ * 	@bug There is no way to tell the difference between an error and @a
+ * 	bk_netinfo with no addresses inserted.
+ */
+struct bk_netaddr *
+bk_netinfo_get_addr(bk_s B, struct bk_netinfo *bni)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_netaddr *bna=NULL;
+
+  if (!bni)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+  
+  if (bni->bni_addr)
+    bna=bni->bni_addr;
+  else
+    bna=netinfo_addrs_minimum(bni->bni_addrs);
+
+  BK_RETURN(B,bna);
+}
+
+
+
+/**
+ * Convert a netinfo to a sockaddr.
+ *	@param B BAKA thread/global state.
+ *	@param bni The @a bk_netinfo to use for the source.
+ *	@param bna The @a bk_netaddr to use for the source (may be null).
+ *	@param type Address type (may be BK_NETINFO_TYPE_UNKNOWN)
+ *	@param sa The sockaddr to copy into.
+ *	@param flags Random flags.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_t type, struct sockaddr *sa, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret;
+
+  if (!bni || !sa)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!bna && !(bna=bk_netinfo_get_addr(B, bni)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not determine bk_netaddr to use\n");
+  }
+  
+  /* If type is not specified pull it out of the bna */
+  if (type == BK_NETINFO_TYPE_UNKNOWN)
+  {
+    type=bna->bna_type;
+  }
+
+  switch (bk_netaddr_nat2af(B, type))
+  {
+  case AF_INET:
+    ret=bni2sin(B, bni, bna, (struct sockaddr_in *)sa, flags);
+    break;
+  case AF_INET6:
+    ret=bni2sin6(B, bni, bna, (struct sockaddr_in6 *)sa, flags);
+    break;
+  case AF_LOCAL:
+    ret=bni2un(B, bni, bna, (struct sockaddr_un *)sa, flags);
+    break;
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unsupported address family\n");
+    goto error;
+    break;
+  }
+  
+  if (ret == -1)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert netinfo to sockaddr\n");
+  }
+  
+  BK_RETURN(B,ret);
+
+ error:
+  BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Convert a @a bk_netinfo to a struct sockaddr_in
+ *	@param B BAKA thread/global state.
+ *	@param bni The @a bk_netinfo to use for the source.
+ *	@param bna The @a bk_netaddr to use for the source.
+ *	@param sin4 The INET sockaddr to copy into.
+ *	@param flags Random flags.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static int
+bni2sin(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_in *sin4, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bni || !sin4)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  sin4->sin_family=AF_INET;
+
+  BK_SET_SOCKADDR_LEN(B,sin4,bna->bna_len);
+  
+  if (!bna)
+  {
+    if (BK_FLAG_ISSET(flags, BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY))
+    {
+      sin4->sin_addr.s_addr=INADDR_ANY;
+    }
+    else
+    {
+      bk_error_printf(B, BK_ERR_ERR, "No address to use\n");
+      goto error;
+    }
+  }
+  else
+  {
+    /* 
+     * sigh.. use bna length instead of sin length 'cause bloody linux
+     * doesn't support sockaddr length. What modern OS doesn't do this??!!?
+     */
+    memmove(&(sin4->sin_addr),&(bna->bna_inet),bna->bna_len);
+  }
+
+  sin4->sin_port=bni->bni_bsi->bsi_port;
+
+  BK_RETURN(B,0);
+
+ error:
+  BK_RETURN(B,-1);
+
+}
+
+
+
+/**
+ * Convert a @a bk_netinfo to a struct sockaddr_in
+ *	@param B BAKA thread/global state.
+ *	@param bni The @a bk_netinfo to use for the source.
+ *	@param bna The @a bk_netaddr to use for the source.
+ *	@param sin6 The INET6 sockaddr to copy into.
+ *	@param flags Random flags.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static int
+bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_in6 *sin6, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct in6_addr in6any=IN6ADDR_ANY_INIT;
+
+  if (!bni || !sin6)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  sin6->sin6_family=AF_INET;
+
+  BK_SET_SOCKADDR_LEN(B,sin6,bna->bna_len);
+  
+  if (!bna)
+  {
+    if (BK_FLAG_ISSET(flags, BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY))
+    {
+      memmove(&sin6->sin6_addr, &in6any, sizeof(in6any));
+    }
+    else
+    {
+      bk_error_printf(B, BK_ERR_ERR, "No address to use\n");
+      goto error;
+    }
+  }
+  else
+  {
+    memmove(&(sin6->sin6_addr),&(bna->bna_inet),bna->bna_len);
+  }
+
+  sin6->sin6_port=bni->bni_bsi->bsi_port;
+
+  BK_RETURN(B,0);
+
+ error:
+  BK_RETURN(B,-1);
+
+}
+
+
+
+/**
+ * Convert a @a bk_netinfo to a struct sockaddr_un
+ *	@param B BAKA thread/global state.
+ *	@param bni The @a bk_netinfo to use for the source.
+ *	@param bna The @a bk_netaddr to use for the source.
+ *	@param sun The INET6 sockaddr to copy into.
+ *	@param flags Random flags.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static int
+bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_un *sun, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  /* Fuzzy ANY does not make sense in AF_LOCAL */
+  if (!bni || !bna || !sun)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  sun->sun_family=AF_LOCAL;
+  
+  BK_SET_SOCKADDR_LEN(B,sun,bna->bna_len);
+
+  snprintf(sun->sun_path,sizeof(sun->sun_path),"%s", bna->bna_path);
+
+  BK_RETURN(B,0);
+
+ error:
+  BK_RETURN(B,-1);
+
+}
+
+
+
+/**
+ * Create a @a bk_netinfo from a sockaddr.
+ *	@param B BAKA thread/global state.
+ *	@param sa The sockaddr from which to create the @a bk_netinfo
+ *	@param proto The protocol number.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return an allocated @a bk_netinfo.
+ */
+struct bk_netinfo *
+bk_netinfo_from_sockaddr(bk_s B, int s, int proto, bk_socket_side_t side)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret;
+  struct bk_netinfo *bni=NULL;
+  struct bk_netaddr *bna=NULL;
+  char scratch[100];
+  bk_netaddr_type_t netaddr_type;
+  struct sockaddr_in *sin4;
+  struct sockaddr_in6 *sin6;
+  struct sockaddr_un *sun;
+  int len;
+  struct sockaddr sa;
+
+  switch (side)
+  {
+  case BK_SOCKET_SIDE_LOCAL:
+    len=sizeof(sa);
+    if (getsockname(s, &sa, &len))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not get local sockname: %s\n", strerror(errno));
+      goto error;
+    }
+      
+    break;
+
+  case BK_SOCKET_SIDE_REMOTE:
+    if (getpeername(s, &sa, &len))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not get local sockname: %s\n", strerror(errno));
+      goto error;
+    }
+    break;
+
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown sock side specifier: %d\n", side);
+    goto error;
+  }
+
+  if (!(bni=bk_netinfo_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create bni\n");
+    goto error;
+  }
+
+  netaddr_type=bk_netaddr_af2nat(B, sa.sa_family);
+
+  switch (netaddr_type)
+  {
+  case BK_NETINFO_TYPE_INET:
+  case BK_NETINFO_TYPE_INET6:
+    if (!proto)
+    {
+      int type;
+
+      len=sizeof(type);
+      /* Guess the protocol */
+      if (getsockopt(s, SOL_SOCKET, SO_TYPE, &type, &len)<0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not get socket type: %s\n", strerror(errno));
+	goto error;
+      }
+      
+      switch (type)
+      {
+      case SOCK_STREAM:
+	proto=IPPROTO_TCP;
+	break;
+      case SOCK_DGRAM:
+	proto=IPPROTO_UDP;
+	break;
+      default:
+	bk_error_printf(B, BK_ERR_ERR, "Unknown or unsupported socket type: %d\n", type);
+	goto error;
+      }
+    }
+
+    snprintf(scratch,100, "%d", proto);
+    if (bk_getprotobyfoo(B, scratch, NULL, bni, 0)<0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set protoent\n");
+      goto error;
+    }
+
+    snprintf(scratch,100,"%d", ntohs(sin4->sin_port));
+    if (bk_getservbyfoo(B, scratch, bni->bni_bpi->bpi_protostr, NULL, bni, 0)<0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
+      goto error;
+    }
+
+    BK_GET_SOCKADDR_LEN(B,&sin4,len);
+    if (!(bna=bk_netaddr_user(B, netaddr_type, &sa, len, 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
+      goto error;
+    }
+  
+  case BK_NETINFO_TYPE_LOCAL:
+    /* XXXX Do this for local type */
+#if 0
+    if (un2bni(B, bni, bna, (struct sockaddr_un *)sa, flags)<0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not convert bni to sockaddr_un\n");
+      goto error;
+    }
+#endif
+    break;
+
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unsupported netaddr type: %d\n", netaddr_type);
+    goto error;
+    break;
+  }
+
+  if (bk_netinfo_add_addr(B, bni, bna, NULL)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert bna into bna\n");
+    goto error;
+  }
+
+  update_bni_pretty(B, bni);
+
+  BK_RETURN(B,bni);
+
+ error:
+  /* Despite appearences, this will *not* double free */
+  if (bna) bk_netaddr_destroy(B,bna);
+  if (bni) bk_netinfo_destroy(B,bni);
+  BK_RETURN(B,NULL);
+}
+
+
+
 /*
  * CLC netaddr comparison routines. NB these are ==/!= only. We don't care
  * about sorting (wouldn't make too much sense anyway)
@@ -575,9 +1007,9 @@ static int bna_oo_cmp(void *a, void *b)
 {
   struct bk_netaddr *bna1=a, *bna2=b;
   /* XXX Should we require that bna_flags be equal too? */
-  return (bna1->bna_type == bna1->bna_type && 
-	  bna1->bna_len == bna1->bna_len &&
-	  memcmp(&(bna1->bna_addr), &(bna2->bna_addr), bna1->bna_len)==0);
+  return (!(bna1->bna_type == bna2->bna_type && 
+	    bna1->bna_len == bna2->bna_len &&
+	    memcmp(&(bna1->bna_addr), &(bna2->bna_addr), bna1->bna_len)==0));
 } 
 static int bna_ko_cmp(void *a, void *b)
 {
