@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.19 2002/02/19 23:09:25 brian Exp $
+ * $Id: libbk_include.h,v 1.20 2002/03/09 21:40:45 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -15,6 +15,9 @@
 
 #ifndef _libbk_include_h_
 #define _libbk_include_h_
+
+#define _LARGEFILE_SOURCE
+#define _LARGEFILE64_SOURCE
 
 /*
  * The GNU C library <sys/types.h> uses some weird GNU extension for gcc > 2.7

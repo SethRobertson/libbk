@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.17 2002/03/08 11:34:44 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.18 2002/03/09 21:40:45 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -188,6 +188,16 @@ typedef char *caddr_t;
 
 #if !defined(AF_LOCAL) && defined(AF_UNIX)
 #define AF_LOCAL AF_UNIX
+#endif
+
+/* 
+ * This is a Linux thing which allows you to open large files on fs which
+ * might not otherwise support them. For OS's which do not support this
+ * natively, defining it to 0 makes it an "identity" flag (ie has no
+ * effect).
+ */
+#ifndef O_LARGEFILE
+#define O_LARGEFILE 0
 #endif
 
 /*
