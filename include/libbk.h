@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.105 2002/01/16 08:56:10 dupuy Exp $
+ * $Id: libbk.h,v 1.106 2002/01/16 15:55:59 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1176,14 +1176,14 @@ typedef void (*bk_sighandler_f)(int);
 extern int bk_signal(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags);
 #define BK_SIGNAL_FLAG_RESTART	0x1		///< Restart syscall on signal.
 extern int bk_signal_mgmt(bk_s B, int sig, bk_sighandler_f new, bk_sighandler_f *old, bk_flags flags);
-void *bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags);
+extern void *bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags);
 #define BK_SIGNAL_SET_SIGNAL_FLAG_FORCE		0x1 ///< Set this handler even if a non-default handler is in place.
-void *bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags);
-int bk_signal_reset(bk_s B, void *args, bk_flags flags);
-int bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags);
+extern void *bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags);
+extern int bk_signal_reset(bk_s B, void *args, bk_flags flags);
+extern int bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags);
 
 /* b_relay.c */
-int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb)(bk_s B, void *opaque, u_int state), void *opaque, bk_flags flags);
+extern int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb)(bk_s B, void *opaque, u_int state), void *opaque, bk_flags flags);
 
 /* b_fileutils.c */
 extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_e action);
@@ -1200,13 +1200,12 @@ extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
 extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
 
 /* b_url.c */
-struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_url_parse_mode_e mode, bk_flags flags);
+extern struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_url_parse_mode_e mode, bk_flags flags);
 #define BK_URL_FLAG_STRICT_PARSE	0x1	///< Don't do BAKA fuzzy logic.
-struct bk_url *bk_url_create(bk_s B);
-void bk_url_destroy(bk_s B, struct bk_url *bu);
-char *bk_url_unescape(bk_s B, const char *urlcomponent);
-int bk_url_getparam(bk_s B, char **pathp, char *const *tokens, char **valuep);
-
+extern struct bk_url *bk_url_create(bk_s B);
+extern void bk_url_destroy(bk_s B, struct bk_url *bu);
+extern char *bk_url_unescape(bk_s B, const char *urlcomponent);
+extern int bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
 
 /* b_nvmap.c */
 extern int64_t bk_nvmap_name2value(bk_s B,  struct bk_name_value_map nvmap[], const char *name);
