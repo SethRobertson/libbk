@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.117 2005/01/20 21:31:37 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.118 2005/02/16 20:09:17 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1681,12 +1681,13 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
  *	@return a malloc'ed <i>string</i> on success.
  */
 char *
-bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, va_list ap)
+bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, va_list xap)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int n, size = 2048;
   char *p = NULL;
   char *tmpp = NULL;
+  va_list ap;
 
   if (!fmt)
   {
@@ -1705,6 +1706,8 @@ bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, v
 
   while (1)
   {
+    memcpy(ap, xap, sizeof(va_list));
+
     /* Try to print in the allocated space. */
     n = vsnprintf(p, size, fmt, ap);
 
