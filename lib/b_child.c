@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_child.c,v 1.2 2002/09/29 16:35:38 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_child.c,v 1.3 2002/09/30 00:26:10 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -56,9 +56,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define childidlist_error_reason(h,i)	bst_error_reason(h,i)
 static int childidlist_oo_cmp(struct bk_child_comm *a, struct bk_child_comm *b);
 static int childidlist_ko_cmp(int *a, struct bk_child_comm *b);
+#if 0
 static unsigned int childidlist_obj_hash(struct bk_child_comm *b);
 static unsigned int childidlist_key_hash(int *a);
-#if 0
 static struct ht_args childidlist_args = { 127, 2, (ht_func)childidlist_obj_hash, (ht_func)childidlist_key_hash };
 #endif
 // @}
@@ -89,9 +89,9 @@ static struct ht_args childidlist_args = { 127, 2, (ht_func)childidlist_obj_hash
 #define childpidlist_error_reason(h,i)	bst_error_reason(h,i)
 static int childpidlist_oo_cmp(struct bk_child_comm *a, struct bk_child_comm *b);
 static int childpidlist_ko_cmp(int *a, struct bk_child_comm *b);
+#if 0
 static unsigned int childpidlist_obj_hash(struct bk_child_comm *b);
 static unsigned int childpidlist_key_hash(int *a);
-#if 0
 static struct ht_args childpidlist_args = { 127, 2, (ht_func)childpidlist_obj_hash, (ht_func)childpidlist_key_hash };
 #endif
 // @}
@@ -439,6 +439,7 @@ static int childidlist_ko_cmp(int *a, struct bk_child_comm *b)
 {
   return (*a - b->cc_id);
 }
+#if 0
 static unsigned int childidlist_obj_hash(struct bk_child_comm *b)
 {
   return (b->cc_id);
@@ -447,6 +448,7 @@ static unsigned int childidlist_key_hash(int *a)
 {
   return (*a);
 }
+#endif
 static int childpidlist_oo_cmp(struct bk_child_comm *a, struct bk_child_comm *b)
 {
   return (a->cc_childpid - b->cc_childpid);
@@ -455,6 +457,7 @@ static int childpidlist_ko_cmp(int *a, struct bk_child_comm *b)
 {
   return (*a - b->cc_childpid);
 }
+#if 0
 static unsigned int childpidlist_obj_hash(struct bk_child_comm *b)
 {
   return (b->cc_childpid);
@@ -463,3 +466,4 @@ static unsigned int childpidlist_key_hash(int *a)
 {
   return (*a);
 }
+#endif
