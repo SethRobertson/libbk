@@ -1,3 +1,7 @@
+2002-02-19  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_ioh.c (bk_ioh_fdctl): fcntl F_SETFL takes value, not pointer
+
 2002-02-18  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_relay.c (bk_relay_iohhandler): update to use new coalesce interface.

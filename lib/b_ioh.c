@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.39 2002/02/19 00:38:37 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.40 2002/02/20 00:11:16 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1247,8 +1247,7 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
   }
 
   // Examine file descriptor for proper file and socket options
-  if ((fdflags = fcntl(fd, F_GETFL, NULL)) < 0)
-    fdflags = -1;
+  fdflags = fcntl(fd, F_GETFL);
   size = sizeof(oobinline);
   if (getsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &oobinline, &size) < 0)
     oobinline = -1;
@@ -1298,8 +1297,8 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
     }
   }
 
-  // Examine file descriptor for proper file and socket options
-  if (fdflags >= 0 && fcntl(fd, F_SETFL, &fdflags) >= 0)
+  // set modified file and socket options where appropriate
+  if (fdflags >= 0 && fcntl(fd, F_SETFL, fdflags) >= 0)
     ret++;
   if (oobinline >= 0 && setsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &oobinline, sizeof(oobinline)) >= 0)
     ret++;
