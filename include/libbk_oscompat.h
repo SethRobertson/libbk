@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.36 2003/01/31 17:35:45 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.37 2003/01/31 19:46:39 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -50,7 +50,7 @@ typedef uint32_t in_addr_t;
 #endif /* __GNUC__ && !__INSURE__ */
 
 #ifndef BK_NO_USER_SHARED_LIBS
-#ifdef HAVE_CONSTRUCTOR_ATTRIBUTE) 
+#ifdef HAVE_CONSTRUCTOR_ATTRIBUTE
 /**
  * Define an initialization function.
  *
