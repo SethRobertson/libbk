@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.47 2003/12/01 23:57:29 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.48 2004/01/06 04:54:20 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -849,7 +849,10 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
 #endif /* BK_USING_PTHREADS */
 
       if (timeout > 0 && !bpi->bpi_rdtimeoutevent)
+      {
+	bk_debug_printf_and(B, 1, "Received timeout on bpi %p\n", bpi);
 	timedout++;
+      }
     }
   }
 
@@ -881,6 +884,7 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
   }
   else
   {
+    bk_debug_printf_and(B, 1, "Returning timeout on bpi %p\n", bpi);
     ret = 1;
   }
 
