@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.121 2005/03/17 06:20:04 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.122 2005/03/17 06:58:53 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -579,9 +579,6 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
     }
     *l = '\0';					// NUL terminate
     *r = '\0';					// NUL terminate
-    
-    fprintf(jtts, "left: %s\n", left_braces);
-    fprintf(jtts, "right: %s\n", right_braces);
   }
 
   if (BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_SKIPLEADING))
@@ -1071,7 +1068,6 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
       if (strchr(left_braces, *curloc))
       {
 	brace_cnt++;
-	fprintf(jtts, "Saw '%c': %u\n", *curloc, brace_cnt);
 	goto addnormal;
       }
       else if (strchr(right_braces, *curloc))
@@ -1079,7 +1075,6 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	if (!--brace_cnt)
 	{
 	  GOSTATE(S_BASE);
-	  fprintf(jtts, "Saw '%c': %u\n", *curloc, brace_cnt);
 	  if (BK_FLAG_ISCLEAR(flags, BK_STRING_TOKENIZE_KEEP_BRACES))
 	  {
 	    continue;	    
