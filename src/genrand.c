@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: genrand.c,v 1.2 2002/02/01 18:32:09 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: genrand.c,v 1.3 2002/03/26 23:34:50 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -214,9 +214,9 @@ static void runit(bk_s B, struct program_config *pconfig)
     if (BK_FLAG_ISSET(pconfig->pc_flags, PC_MULTI))
     {
       data[--used] &= 0x7f;
-      if (data[used] >= '0' && data[used] <= '9' ||
-	  data[used] >= 'A' && data[used] <= 'Z' ||
-	  data[used] >= 'a' && data[used] <= 'z')
+      if ((data[used] >= '0' && data[used] <= '9') ||
+	  (data[used] >= 'A' && data[used] <= 'Z') ||
+	  (data[used] >= 'a' && data[used] <= 'z'))
       {
 	printf("%c",data[used]);
 	cntr++;
