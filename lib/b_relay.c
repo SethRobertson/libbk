@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.22 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.23 2003/08/26 00:45:24 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -105,6 +105,8 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
     goto error;
   if (bk_ioh_update(B, ioh2, NULL, NULL, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
     goto error;
+
+  // ioh_update might have destroyed ioh's, but handler will have dealt with it
 
   BK_RETURN(B, 0);
 

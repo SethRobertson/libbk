@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.44 2003/07/25 20:16:05 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.45 2003/08/26 00:45:24 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -54,7 +54,7 @@ struct bk_polling_io
 #define BPI_FLAG_READ_DEAD		0x2	///< Read side is finished.
 #define BPI_FLAG_WRITE_DEAD		0x4	///< Write side is finished.
 #define BPI_FLAG_SAW_EOF		0x8	///< We have seen EOF.
-#define BPI_FLAG_DONT_DESTROY		0x10	///< Tell io hander not destroy bpi.
+#define BPI_FLAG_DONT_DESTROY		0x10	///< Tell io handler not to destroy bpi.
 #define BPI_FLAG_IOH_DEAD		0x20	///< Bpi not destroyed, ioh was
 #define BPI_FLAG_THREADED		0x40	///< Don't worry about recursively calling bk_run
 #define BPI_FLAG_SYNC			0x80	///< Synchronous write
@@ -138,6 +138,7 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_polling_io *bpi = NULL;
   int pidflags = 0;
+  int ret;
 
   if (!ioh)
   {
@@ -183,20 +184,28 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
   BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
 
-  // We are tentatively saying that we *alwasy* want threaded operation (if actually enabled)
+  // We always want threaded operation (if actually enabled)
   // if (BK_FLAG_ISSET(flags, BK_POLLING_THREADED))
   BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_THREADED);
 
-  if (bk_ioh_update(B, ioh, NULL, NULL, NULL, NULL, polling_io_ioh_handler, bpi, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER | BK_IOH_UPDATE_OPAQUE) < 0)
+  ret =
+    bk_ioh_update(B, ioh, NULL, NULL, NULL, NULL, polling_io_ioh_handler, bpi,
+		  0, 0, 0, 0, BK_IOH_UPDATE_HANDLER | BK_IOH_UPDATE_OPAQUE);
+  if (ret < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not update ioh with blocking handler.\n");
     goto error;
   }
+  else if (ret == 2)				// ioh destroyed (by reset?)
+  {
+    bpi = NULL;					// handler already nuked it
+  }
 
-  BK_RETURN(B,bpi);
+  BK_RETURN(B, bpi);
+
  error:
   if (bpi) bk_polling_io_destroy(B, bpi);
-  BK_RETURN(B,NULL);
+  BK_RETURN(B, NULL);
 }
 
 
@@ -238,7 +247,6 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 #endif /* BK_USING_PTHREADS */
 
   BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_CLOSING);
-  BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
 
   if (BK_FLAG_ISSET(flags, BK_POLLING_LINGER))
   {
@@ -264,14 +272,17 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     abort();
 #endif /* BK_USING_PTHREADS */
 
+  if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD))
+    bk_ioh_shutdown(B, bpi->bpi_ioh, SHUT_RD, 0);
+
+  // bpi_ioh may have been nuked after read shutdown
+
   if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_IOH_DEAD))
   {
     bk_polling_io_destroy(B, bpi);
   }
   else
   {
-    bk_ioh_shutdown(B, bpi->bpi_ioh, SHUT_RD, 0);
-
     if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_LINGER))
     {
       while (bpi->bpi_wroutstanding)
@@ -283,6 +294,8 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 	}
       }
     }
+
+    BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
 
     bk_ioh_close(B, bpi->bpi_ioh, (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_DONT_LINGER)?BK_IOH_ABORT:0));
   }

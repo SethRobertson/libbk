@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.5 2003/06/17 06:07:18 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.6 2003/08/26 00:45:25 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -581,6 +581,7 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
   struct bk_ioh *ioh = NULL;
+  int ret;
 
   if (!run || !ssl)
   {
@@ -596,12 +597,17 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
   }
 
   // Set read & write functions and activate
-  if (bk_ioh_update(B, ioh, ssl_readfun, ssl_writefun, ssl_closefun, ssl, 0, 0, 0, 0, 0, flags,
-		    BK_IOH_UPDATE_READFUN | BK_IOH_UPDATE_WRITEFUN | BK_IOH_UPDATE_CLOSEFUN | BK_IOH_UPDATE_IOFUNOPAQUE | BK_IOH_UPDATE_FLAGS) < 0)
+  ret = bk_ioh_update(B, ioh, ssl_readfun, ssl_writefun, ssl_closefun, ssl, 0,
+		      0, 0, 0, 0, flags, BK_IOH_UPDATE_READFUN
+		      | BK_IOH_UPDATE_WRITEFUN | BK_IOH_UPDATE_CLOSEFUN
+		      | BK_IOH_UPDATE_IOFUNOPAQUE | BK_IOH_UPDATE_FLAGS);
+  if (ret < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "IOH update failed.\n");
     goto error;
   }
+  else if (ret == 2)				// ioh has been nuked
+    ioh = NULL;
 
   BK_RETURN(B, ioh);
 

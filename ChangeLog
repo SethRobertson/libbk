@@ -1,3 +1,17 @@
+2003-08-25  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_ioh.c: fix for #2036: segfault after connection reset by peer
+	(ioh_close): provide indication of ioh validity on return
+	(bk_ioh_update): return 2 if ioh destroyed by close
+	(bk_ioh_shutdown, ioh_runhandler): deal with ioh destroyed by close
+
+	* lib/b_pollio.c (bk_polling_io_create): deal with ioh destruction
+	(bk_polling_io_close): deal with ioh destruction after shutdown
+
+	* lib/b_skid.c (bk_skid_authenticate): deal with ioh destruction
+
+	* ssl/b_ssl.c (bk_ssl_ioh_init): deal with ioh destruction
+
 2003-08-25  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_ioh.c (ioh_internal_read): Move ioh_errno setting BEFORE

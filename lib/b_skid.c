@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_skid.c,v 1.5 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_skid.c,v 1.6 2003/08/26 00:45:25 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -237,6 +237,7 @@ int bk_skid_authenticate(bk_s B, struct bk_ioh *ioh, bk_vptr *myname, bk_vptr *h
   char *encode1 = NULL;
   char *encode2 = NULL;
   bk_flags newflags = 0;
+  int ret;
 
   if (!ioh || !myname || !done)
   {
@@ -325,10 +326,17 @@ int bk_skid_authenticate(bk_s B, struct bk_ioh *ioh, bk_vptr *myname, bk_vptr *h
     BK_FLAG_SET(newflags, BK_IOH_LINE);
   }
 
-  if (bk_ioh_update(B, ioh, NULL, NULL, NULL, skid_iohhandler, bs, 0, 0, 0, newflags, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE|BK_IOH_UPDATE_FLAGS) < 0)
+  ret = bk_ioh_update(B, ioh, NULL, NULL, NULL, skid_iohhandler, bs, 0, 0, 0,
+		      newflags, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE|BK_IOH_UPDATE_FLAGS);
+  if (ret < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not update ioh with new data\n");
     goto error;
+  }
+  else if (ret == 2)				// ioh destroyed (by reset?)
+  {
+    bs->bs_ioh = NULL;
+    goto error;					// handler doesn't nuke bs
   }
 
   if (bk_ioh_write(B, ioh, vbuf, BK_IOH_BYPASSQUEUEFULL) < 0)

@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.99 2003/08/25 20:46:27 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.100 2003/08/26 00:45:24 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -180,6 +180,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
 static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags);
 #define IOH_FDCTL_SET		1		///< Set the fd set to the ioh normal version
 #define IOH_FDCTL_RESET		1		///< Set the fd set to the original defaults
+static int ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
 static struct ioh_data_cmd *idc_create(bk_s B);
 static void idc_destroy(bk_s B, struct ioh_data_cmd *idc);
@@ -500,12 +501,14 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
  *	@param flags The type of data on the file descriptors.
  *	       -- not all (any?) flags changes will take affect or will have a positive effect--handle with care
  *	@return <i>-1<i> on call failure.
+ *	@return <i>2<i> on success, but ioh destroyed (probably peer reset).
  *	@return <br><i>0</i> on success.
  */
 int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f writefun, bk_iocfunc_f closefun, void *iofunopaque, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags, bk_flags updateflags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_flags old_extflags = 0;
+  int ret = 0;
 
   if (!ioh)
   {
@@ -602,10 +605,11 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
   {
     BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
-    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg);
+    if (ioh_close(B, ioh, ioh->ioh_deferredclosearg))
+      ret = 2;					// ioh is history
   }
 
-  BK_RETURN(B, 0);
+  BK_RETURN(B, ret);
 
  error:
   BK_RETURN(B, -1);
@@ -776,6 +780,9 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
  * If data is currently queued for output, this data will be drained before the shutdown takes effect.
  * See @a bk_ioh_flush for a way to avoid this.
  *
+ * Note: ioh *may* be destroyed after this call, due to connection reset or
+ * pending close.
+ *
  * THREADS: MT-SAFE (assuming different ioh)
  * THREADS: THREAD-REENTRANT (otherwise)
  *
@@ -784,8 +791,6 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
  *	@param how -- SHUT_RD to shut down reads, SHUT_WR to shut down writes, SHUT_RDWR for both.
  *	@param flags Future expansion
  *	@see bk_ioh_flush
- *	@return <i>-1</i> on call failure or subsystem refusal
- *	@return <br><i>0</i> on success
  */
 void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 {
@@ -899,7 +904,8 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
   {
     BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
-    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg|IOH_FLAG_ALREADYLOCKED);
+    if (ioh_close(B, ioh, ioh->ioh_deferredclosearg|IOH_FLAG_ALREADYLOCKED))
+      BK_VRETURN(B);				// nothing left to unlock
     goto unlockexit;
   }
 
@@ -1111,14 +1117,39 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
  */
 void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 {
+  ioh_close(B, ioh, flags);
+}
+
+
+
+/**
+ * Internal close, with status return.
+ *
+ * This provides the functionality of bk_ioh_close, as above, but has a
+ * non-void return so that other ioh routines won't try to use an ioh
+ * that has been destroyed.
+ *
+ * THREADS: MT-SAFE (assuming different ioh)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
+ *	@param ioh The IOH environment to update
+ *	@param flags BK_IOH_DONTCLOSEFDS to prevent close() from being
+ *	executed on the fds, BK_IOH_ABORT to cause automatic flush of input
+ *	and output queues (to prevent indefinite wait for output to drain),
+ *	BK_IOH_NOTIFYANYWAY to cause user to be notified of this close()).
+ *	@return non-zero if ioh does not (no longer) exists, 0 otherwise.
+ */
+static int ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
+{
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int ret = -1;
+  int ret = 0;					// until ioh destroyed
   dict_h cmds = NULL;
 
   if (!ioh)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_VRETURN(B);
+    BK_RETURN(B, -1);				// ioh already nuked, eh?
   }
 
   bk_debug_printf_and(B, 1, "Closing with flags %x ioh IOH %p/%x\n", flags, ioh, ioh->ioh_intflags);
@@ -1171,7 +1202,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   {
     ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
 
-    // sigh.. Sometimes using a clc makes things easier sometimes it *really* doesn't...
+    // Sometimes a clc makes things easier, sometimes it *really* doesn't...
     if ((cmds = cmd_list_create(NULL, NULL, DICT_UNORDERED)))
     {
       struct ioh_data_cmd *idc;
@@ -1201,7 +1232,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   if (ret == 2)
   {
     // IOH has been destroyed
-    BK_VRETURN(B);
+    BK_RETURN(B, ret);
   }
 
   // Propagate close to RUN level
@@ -1212,7 +1243,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
      * effect if SHUTDOWN_INPUT or ERROR_INPUT are set.  figure out what, if
      * anything, should be done here</TODO>
      */
-    // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read
+    // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0);
     bk_ioh_readallowed(B, ioh, 0, IOH_FLAG_ALREADYLOCKED);
   }
   if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
@@ -1221,15 +1252,17 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   if (BK_FLAG_ISSET(flags, BK_IOH_ABORT) || ret < 1)
   {
     bk_ioh_destroy(B, ioh);
-    BK_VRETURN(B);				// Already unlocked (well, destroyed even)
+    BK_RETURN(B, 2);				// Already unlocked (well, destroyed even)
   }
+  else if (ret == 1)				// IOH still exists
+    ret = 0;					// keep it simple for caller
 
  unlockexit:
 #ifdef BK_USING_PTHREADS
   if (BK_FLAG_ISCLEAR(flags, IOH_FLAG_ALREADYLOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
-  BK_VRETURN(B);
+  BK_RETURN(B, ret);
 }
 
 
@@ -1596,7 +1629,8 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
   {
     BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
-    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg|IOH_FLAG_ALREADYLOCKED);
+    if (ioh_close(B, ioh, ioh->ioh_deferredclosearg|IOH_FLAG_ALREADYLOCKED))
+      BK_VRETURN(B);				// nothing left to unlock
     goto unlockexit;
   }
 
@@ -1607,7 +1641,8 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
   if (ret < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Message type handler failed severely\n");
-    bk_ioh_close(B, ioh, BK_IOH_ABORT|IOH_FLAG_ALREADYLOCKED);
+    if (ioh_close(B, ioh, BK_IOH_ABORT|IOH_FLAG_ALREADYLOCKED))
+      BK_VRETURN(B);				// nothing left to unlock
     goto unlockexit;
   }
 
