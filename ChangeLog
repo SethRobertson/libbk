@@ -1,3 +1,9 @@
+2003-02-22  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_error.c (bk_error_iprintbuf): Don't go through
+	error_printf for two reasons: eliminate memory size constraint,
+	eliminate possibility for printf char interpolation.
+
 2003-02-13  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* include/libbk.h: Added BK_MIN and MK_MAX.
