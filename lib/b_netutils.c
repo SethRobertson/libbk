@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.9 2001/12/05 00:29:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.10 2001/12/05 03:21:43 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -351,16 +351,19 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
 
   sss->sss_flags = flags;
   sss->sss_lbni = bni;
+  bni = NULL;
   sss->sss_callback = callback;
+  callback = NULL;
   sss->sss_args = args;
   sss->sss_securenets = securenets;
+  securenets = NULL;
   sss->sss_backlog = backlog;
 
   if (!(ghbf_info = bk_gethostbyfoo(B, hoststr, 0, bni, run, sss_serv_gethost_complete, sss, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not begin the hostname lookup process\n");
-    /* All callbacks have occured */
-    sss->sss_callback=NULL;
+    /* sss is destroyed */
+    sss = NULL;
     goto error;
   }
 
@@ -683,15 +686,15 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
    */
   sss->sss_flags = flags;
   sss->sss_rbni = rbni;				/* Pass off rbni */
-  rbni=NULL;
+  rbni = NULL;
   sss->sss_lbni = lbni;				/* Pass off lbni */
-  lbni=NULL;
+  lbni = NULL;
   sss->sss_callback = callback;			/* Pass off callback */
   /* 
    * From here on we do *not* want to manually call callback on error since
    * it will have already been called.
    */
-  callback=NULL;
+  callback = NULL;
   sss->sss_args = args;
   sss->sss_host = lhoststr;			/* Pass off lhoststr */
   lhoststr=NULL;
@@ -700,8 +703,8 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
   if (!(ghbf_info = bk_gethostbyfoo(B, rhoststr, 0, sss->sss_rbni, run, sss_connect_rgethost_complete, sss, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not start search for remote hostname\n");
-    /* All callbacks have occured */
-    sss=NULL;
+    /* sss is destroyed */
+    sss = NULL;
     goto error;
   }
 
