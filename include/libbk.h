@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.89 2001/12/20 00:34:24 jtt Exp $
+ * $Id: libbk.h,v 1.90 2001/12/20 21:03:13 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -212,6 +212,18 @@ struct bk_general
 #define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON) ///< Is debugging on?
 #define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON) ///< Is system logging on?
 // @}
+
+
+/**
+ * @name File locking manifest constants of interest
+ */
+// @{
+#define BK_FILE_LOCK_ADMIN_EXTENSION 	"adm"
+#define BK_FILE_LOCK_EXTENSION 		"lck"
+#define BK_FILE_LOCK_MODE_EXCLUSIVE 	"EXCLUSIVE"
+#define BK_FILE_LOCK_MODE_SHARED 	"SHARED"
+// @}
+
 
 
 
@@ -1081,7 +1093,7 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
 
 /* b_fileutils.c */
 extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_e action);
-extern void *bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char *admin_ext, const char *lock_ext, bk_flags flgas);
+extern void *bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char *admin_ext, const char *lock_ext, int *held, bk_flags flags);
 int bk_file_unlock(bk_s B, void *opaque, bk_flags flags);
 
 

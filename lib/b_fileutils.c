@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.5 2001/12/20 00:34:24 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.6 2001/12/20 21:03:13 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,11 +26,6 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 #define MAXLINE 	1024
 
-#define BK_FILE_LOCK_ADMIN_EXTENSION 	"adm"
-#define BK_FILE_LOCK_EXTENSION 		"lck"
-#define BK_FILE_LOCK_MODE_EXCLUSIVE 	"EXCLUSIVE"
-#define BK_FILE_LOCK_MODE_SHARED 	"SHARED"
-
 /**
  * Information on locked file to permit you unlock it.
  */
@@ -52,7 +47,7 @@ struct file_lock_admin
 };
 
 
-static struct file_lock_admin *lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *ilock_ext, char **tempname);
+static struct file_lock_admin *lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *ilock_ext);
 static void unlock_admin_file(bk_s B, struct file_lock_admin *fla);
 static struct file_lock *fl_create(bk_s B);
 static void fl_destroy(bk_s B, struct file_lock *fl);
@@ -136,14 +131,13 @@ bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_
  *	@return <i>0</i> on success.
  */
 void *
-bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char *admin_ext, const char *lock_ext, bk_flags flags)
+bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char *admin_ext, const char *lock_ext, int *held, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   FILE *fp = NULL;
   char line[MAXLINE];
   struct file_lock *fl = NULL;
   struct file_lock_admin *fla = NULL;
-  char tmpname[MAXNAMLEN];
 
   if (!resource)
   {
@@ -151,7 +145,15 @@ bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char 
     BK_RETURN(B, NULL);
   }
   
-  if (!(fla = lock_admin_file(B, resource, admin_ext, lock_ext, (char **)&tmpname)))
+  if (held) *held = 0;
+
+  if (!(fl = fl_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create fl: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (!(fla = lock_admin_file(B, resource, admin_ext, lock_ext)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not lock admin file\n");
     goto error;
@@ -181,7 +183,7 @@ bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char 
       break;
       // No default so gcc can catch errors better.
     }
-    fprintf(fp,"%s\n", tmpname);
+    fprintf(fp,"%s\n", fla->fla_tmpname);
   }
   else
   {
@@ -189,7 +191,7 @@ bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char 
     if (BK_STREQ(line, BK_FILE_LOCK_MODE_EXCLUSIVE))
     {
       // We are never compatiple with an exclusive lock.
-      goto error;
+      goto lock_held;
     }
 
     // At this point we are comparing what we want with SHARED (in file).
@@ -202,12 +204,12 @@ bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char 
 	bk_error_printf(B, BK_ERR_ERR, "Could not seek to end admin file\n");
 	goto error;
       }
-      fprintf(fp,"%s\n", tmpname);
+      fprintf(fp,"%s\n", fla->fla_tmpname);
       break;
 
     case BkFileLockTypeExclusive:
       // Exclusive is not compatiple with shared.
-      goto error;
+      goto lock_held;
       break;
       // No default so gcc can catch errors better.
     }
@@ -219,23 +221,40 @@ bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char 
     goto error;
   }
   
-  if (!(fl->fl_admin_ext = strdup(admin_ext)))
+  if (!(fl->fl_lock_id = strdup(fla->fla_tmpname)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup admin extension name: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not strdup tmpname name: %s\n", strerror(errno));
     goto error;
   }
   
-  if (!(fl->fl_lock_ext = strdup(lock_ext)))
+  if (admin_ext)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup lock extension name: %s\n", strerror(errno));
-    goto error;
+    if (!(fl->fl_admin_ext = strdup(admin_ext)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup admin extension name: %s\n", strerror(errno));
+      goto error;
+    }
   }
   
+  if (lock_ext)
+  {
+    if (!(fl->fl_lock_ext = strdup(lock_ext)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup lock extension name: %s\n", strerror(errno));
+      goto error;
+    }
+  }
+
+
+  fl->fl_flags = flags;
 
   // Clean up
   fclose(fp);
   unlock_admin_file(B, fla);
   BK_RETURN(B,fl);  
+
+ lock_held:
+  if (held) *held = 1;
 
  error:
   if (fp) fclose(fp);
@@ -268,6 +287,7 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
   int line_cnt = 0;
   char line[MAXLINE];
   int found_lock = 0;
+  int do_unlink = 0;
   
 
   if (!fl)
@@ -282,7 +302,7 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
     goto error;
   }
 
-  if (!(fla = lock_admin_file(B, fl->fl_path, fl->fl_admin_ext, fl->fl_lock_ext, NULL)))
+  if (!(fla = lock_admin_file(B, fl->fl_path, fl->fl_admin_ext, fl->fl_lock_ext)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not lock admin file\n");
     goto error;
@@ -341,6 +361,10 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
   {
     fwrite(tmpbuf, 1, strlen(tmpbuf), fp);
   }
+  else
+  {
+    do_unlink = 1;
+  }
 
   if (ferror(fp))
   {
@@ -350,6 +374,11 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
 
   fclose(fp);
   free(tmpbuf);
+  if (do_unlink && (unlink(fla->fla_admin) < 0)) 
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not unlink: %s: %s\n", fla->fla_admin, strerror(errno));
+    // Oh well forge on.
+  }
   unlock_admin_file(B, fla);
   fl_destroy(B, fl);
   BK_RETURN(B,0);
@@ -357,6 +386,10 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
  error:
   if (tmpbuf) free(tmpbuf);
   if (fp) fclose(fp);
+  /*
+   * NB: unlock_admin_file() does not actually reference the admin file, so
+   * calling this after the admin file might be unlinked is just fine
+   */
   if (fla) unlock_admin_file(B, fla);
   if (fl) fl_destroy(B, fl);
   BK_RETURN(B,-1);
@@ -373,7 +406,7 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
  *	@return <i>0</i> on success.
  */
 static struct file_lock_admin *
-lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *ilock_ext, char **tmpnamep)
+lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *ilock_ext)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "file-plugin");
   char admin[MAXNAMLEN];
@@ -422,26 +455,25 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
    * want. Otherwise you might be trashing something (like, for instance,
    * the file you are trying to lock!)
    */
-  if (strlen(admin) != len + strlen(admin_ext))
+  if (strlen(admin) != len + strlen(admin_ext) + 1)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create lock admin file name correctly\n");
     goto error;
   }
 
-  if (creat(admin, 0600) < 0)
+  if ((fd = open(admin, O_CREAT, 0600)) < 0)
   {
-    if (errno != EEXIST)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "could not create the lock admin file: %s\n", strerror(errno));
-      goto error;
-    }
+    bk_error_printf(B, BK_ERR_ERR, "could not create the lock admin file: %s\n", strerror(errno));
+    goto error;
   }
+  close(fd);
+  fd = -1;
   
   // Generate admin file lock file name.
   snprintf(lock, sizeof(lock), "%s.%s", path, lock_ext);
 
   // Again check that we have the name that we want
-  if (strlen(lock) != len + strlen(lock_ext))
+  if (strlen(lock) != len + strlen(lock_ext) + 1)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create lock file name correctly\n");
     goto error;
@@ -501,8 +533,6 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
     goto error;
   }
   
-  if (tmpnamep)
-    snprintf(*tmpnamep,sizeof(*tmpnamep), "%s", tmpname);
   BK_RETURN(B,fla);
 
  error:
@@ -600,6 +630,9 @@ fl_destroy(bk_s B, struct file_lock *fl)
   if (fl->fl_lock_ext)
     free(fl->fl_lock_ext);
 
+  if (fl->fl_lock_id)
+    free(fl->fl_lock_id);
+
   free(fl);
   BK_VRETURN(B);
 }
@@ -654,6 +687,9 @@ fla_destroy(bk_s B, struct file_lock_admin *fla)
   
   if (fla->fla_lock)
     free(fla->fla_lock);
+
+  if (fla->fla_tmpname)
+    free(fla->fla_tmpname);
 
   free(fla);
   BK_VRETURN(B);

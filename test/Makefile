@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.12 2001/12/19 01:12:14 jtt Exp $
+# $Id: Makefile,v 1.13 2001/12/20 20:59:34 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -20,6 +20,7 @@ BK_SIMPLE_PROGS=			\
 		test_errorstuff		\
 		test_getbyfoo		\
 		test_ioh		\
+		test_locks 		\
 		test_printbuf 		\
 		test_stringconv 	\
 		test_url	 	\

@@ -1,3 +1,9 @@
+2001-12-20  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_fileutils.c: Many many lock related changes. Locks now
+	working. Interface change to allow the discriminatin between "lock
+	held" failure and general failure. Admin file removed when empty.
+
 2001-12-19  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_run.c (bk_run_on_demand_add): Set brof key (DOH!)
