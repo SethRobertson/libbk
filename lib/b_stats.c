@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.4 2003/04/16 23:39:54 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.5 2003/05/07 22:33:08 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -32,11 +32,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 // @{
 #undef BK_ENTRY
 #undef BK_RETURN
-#undef BK_ORETURN
 #undef BK_VRETURN
 #define BK_ENTRY(B, fun, pkg, grp) struct bk_funinfo *__bk_funinfo = NULL
 #define BK_RETURN(B, ret) do { return(ret); } while (__bk_funinfo)
-#define BK_ORETURN(B, ret) do { return(ret); } while (__bk_funinfo)
 #define BK_VRETURN(B) do { return; } while (__bk_funinfo)
 // @}
 
