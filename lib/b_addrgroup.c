@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.24 2002/06/14 05:10:21 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.25 2002/06/22 22:36:42 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -881,10 +881,17 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
     goto error;
   }
 
-  if (bk_run_enqueue_delta(B, as->as_run, as->as_timeout, tcp_connect_timeout, as, &as->as_eventh, 0) < 0)
+  if (as->as_timeout)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not enqueue timeout event\n");
-    goto error;
+    if (bk_run_enqueue_delta(B, as->as_run, as->as_timeout, tcp_connect_timeout, as, &as->as_eventh, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not enqueue timeout event\n");
+      goto error;
+    }
+  }
+  else
+  {
+    as->as_eventh = NULL;
   }
 
   /* Put the socket in the select loop waiting for *write* to come ready */
