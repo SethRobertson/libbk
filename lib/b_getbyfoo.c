@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.24 2003/05/02 03:29:58 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.25 2003/06/02 16:38:23 brian Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -235,7 +235,7 @@ bk_protoent_destroy(bk_s B, struct protoent *p)
 
 /** 
  * Get a service number no matter which type string you have. This function
- * is really blocking (in the presense of NIS)
+ * is really blocking (in the presence of NIS)
  *
  *	@param B BAKA thread/global state.
  *	@param servstr The string containing the service name or number.
