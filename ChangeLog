@@ -1,3 +1,7 @@
+2001-10-11  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_bits.c (bk_bits_create): allocate a byte for zero bits
+
 2001-10-10  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_bits.c (bk_bits_save): save 0 bits as "0" [distinct from "00"]

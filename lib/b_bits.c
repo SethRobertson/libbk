@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bits.c,v 1.3 2001/10/11 01:05:33 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_bits.c,v 1.4 2001/10/11 23:47:16 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -31,7 +31,8 @@ char *bk_bits_create(bk_s B, size_t size, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libphadm");
   char *ret;
 
-  if (!(ret = malloc(BK_BITS_SIZE(size))))
+  /* always allocate something */
+  if (!(ret = malloc(BK_BITS_SIZE(size ? size : 1))))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bit storage: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
