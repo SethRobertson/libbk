@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.98 2003/07/25 20:16:04 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.99 2003/08/25 20:46:27 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1772,7 +1772,7 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh_data *bid, *next_bid;
   int origbytes = bytes;
-  
+
 
   if (!iohq)
   {
@@ -1781,8 +1781,8 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
   }
 
   // Figure out what buffers have been fully written
-  
-  
+
+
   for (bid = biq_minimum(iohq->biq_queue);
        bid && (bytes > 0);
        bid = next_bid)
@@ -2208,7 +2208,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	for (vectors_in_use = 0, bid = biq_minimum(ioh->ioh_writeq.biq_queue);
 	     vectors_in_use < cnt && bid && bid->bid_data;
 	     bid = biq_successor(ioh->ioh_writeq.biq_queue, bid))
-	{	
+	{
 	  iov[vectors_in_use].iov_base = bid->bid_data + bid->bid_used;
 	  iov[vectors_in_use].iov_len = bid->bid_inuse;
 	  if (bk_debug_and(B, 0x20))
@@ -2223,7 +2223,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	bk_debug_printf_and(B, 64, "Stopped enqueueing data, vectors %d, bid %p, bid->data %p, bid->flags %x, bid->idc_type %d\n", vectors_in_use, bid, bid?bid->bid_data:NULL, bid?bid->bid_flags:0, bid?bid->bid_idc.idc_type:0);
 
 #ifdef BK_USING_PTHREADS
- 	if (BK_GENERAL_FLAG_ISTHREADON(B))
+	if (BK_GENERAL_FLAG_ISTHREADON(B))
 	{
 	  ioh->ioh_userid = pthread_self();
 	  if (pthread_mutex_unlock(&ioh->ioh_lock) != 0)
@@ -2232,6 +2232,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 #endif /* BK_USING_PTHREADS */
 
 	cnt = compress_write(B, ioh, ioh->ioh_writefun, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, vectors_in_use, 0);
+	ioh->ioh_errno = errno;
 
 #ifdef BK_USING_PTHREADS
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -2243,7 +2244,6 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	}
 #endif /* BK_USING_PTHREADS */
 
-	ioh->ioh_errno = errno;
 	free(iov);
 
 	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
@@ -2359,7 +2359,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
       // Check if the user seized the data (ie we don't have to free it)
       if (cnt == 1)
       {
-	/*  
+	/*
 	 * This is the common case where we've sent up exactly one
 	 * buffer. We have optimized this case by caching the bid so that
 	 * we can NULL it immediatly if we need to.
@@ -2379,7 +2379,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	    bid->bid_data=NULL;
 	}
       }
-       
+
       // Nuke vector list
       free(sendup);
 
@@ -2503,27 +2503,27 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
       }
 
 #ifdef BK_USING_PTHREADS
-	if (BK_GENERAL_FLAG_ISTHREADON(B))
-	{
-	  ioh->ioh_userid = pthread_self();
-	  if (pthread_mutex_unlock(&ioh->ioh_lock) != 0)
-	    abort();
-	}
+      if (BK_GENERAL_FLAG_ISTHREADON(B))
+      {
+	ioh->ioh_userid = pthread_self();
+	if (pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+	  abort();
+      }
 #endif /* BK_USING_PTHREADS */
 
-	cnt = compress_write(B, ioh, ioh->ioh_writefun, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
+      cnt = compress_write(B, ioh, ioh->ioh_writefun, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
+      ioh->ioh_errno = errno;
 
 #ifdef BK_USING_PTHREADS
-	if (BK_GENERAL_FLAG_ISTHREADON(B))
-	{
-	  BK_ZERO(&ioh->ioh_userid);
-	  if (pthread_mutex_lock(&ioh->ioh_lock) != 0)
-	    abort();
-	  pthread_cond_broadcast(&ioh->ioh_cond);
-	}
+      if (BK_GENERAL_FLAG_ISTHREADON(B))
+      {
+	BK_ZERO(&ioh->ioh_userid);
+	if (pthread_mutex_lock(&ioh->ioh_lock) != 0)
+	  abort();
+	pthread_cond_broadcast(&ioh->ioh_cond);
+      }
 #endif /* BK_USING_PTHREADS */
 
-      ioh->ioh_errno = errno;
       free(iov);
 
       bk_debug_printf_and(B, 2, "Post-write, cnt %d, size %d\n", cnt, size);
@@ -2632,7 +2632,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	  size = cnt = 0;
 	  for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
 	       bid && (size < ioh->ioh_inbuf_hint);
-	       bid = biq_successor(ioh->ioh_readq.biq_queue, bid))		 
+	       bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
 	  {
 	    if (bid->bid_data && bid->bid_inuse > 0)
 	    {
@@ -2649,7 +2649,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	// Check if the user seized the data (ie we don't have to free it)
 	if (cnt == 1)
 	{
-	  /*  
+	  /*
 	   * This is the common case where we've sent up exactly one
 	   * buffer. We have optimized this case by caching the bid so that
 	   * we can NULL it immediatly if we need to.
@@ -2798,6 +2798,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 #endif /* BK_USING_PTHREADS */
 
 	cnt = compress_write(B, ioh, ioh->ioh_writefun, ioh->ioh_iofunopaque, ioh->ioh_fdout, iov, cnt, 0);
+	ioh->ioh_errno = errno;
 
 #ifdef BK_USING_PTHREADS
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -2808,8 +2809,6 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	  pthread_cond_broadcast(&ioh->ioh_cond);
 	}
 #endif /* BK_USING_PTHREADS */
-
-	ioh->ioh_errno = errno;
 
 	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
 	{
@@ -3001,7 +3000,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
       // Check if the user seized the data (ie we don't have to free it)
       if (cnt == 1)
       {
-	/*  
+	/*
 	 * This is the common case where we've sent up exactly one
 	 * buffer. We have optimized this case by caching the bid so that
 	 * we can NULL it immediatly if we need to.
@@ -3016,7 +3015,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
 	     bid;
 	     bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
-	{  
+	{
 	  if (bid->bid_data && !sendup[cnt++].ptr)
 	    bid->bid_data=NULL;
 	}
@@ -3401,6 +3400,7 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
 #endif /* BK_USING_PTHREADS */
 
   ret = (*ioh->ioh_readfun)(B, ioh, ioh->ioh_iofunopaque, fd, data, len, flags);
+  ioh->ioh_errno = errno;
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -3411,8 +3411,6 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
     pthread_cond_broadcast(&ioh->ioh_cond);
   }
 #endif /* BK_USING_PTHREADS */
-
-  ioh->ioh_errno = errno;
 
   if (ret > 0)
     ioh->ioh_tell += ret;
@@ -3710,7 +3708,7 @@ int bk_ioh_stdrdfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t bu
   errno = 0;
   if ((ret = read(fd, buf, size)) < 0)
     bk_error_printf(B, BK_ERR_ERR, "read syscall failed on fd %d of size %u: %s\n", fd, size, strerror(errno));
-    
+
   erno = errno;
 
   bk_debug_printf_and(B, 1, "System read returns %d with errno %d\n", ret, errno);
@@ -3753,7 +3751,7 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
   errno = 0;
   if ((ret = writev(fd, buf, size)) < 0)
     bk_error_printf(B, BK_ERR_ERR, "write syscall failed on fd %d of size %u: %s\n", fd, size, strerror(errno));
-    
+
   erno = errno;
 
   bk_debug_printf_and(B, 1, "System writev returns %d with errno %d\n",ret,errno);
@@ -4120,7 +4118,7 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
  * IOH coalescing routine for external users who need unified buffers
  * w/optimizations for simple cases. NB @a data is <em>not</em> freed. This
  * routine is written to the ioh read API and according to that API the ioh
- * system frees the data it has read. 
+ * system frees the data it has read.
  *
  * Update: this routine now supports the flag
  * BK_IOH_COALESCE_FLAG_SEIZE_DATA (which is mutually exclussive of
@@ -4182,7 +4180,7 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
     bk_error_printf(B, BK_ERR_ERR, "Overflow condition!  More than 2^31 bytes in queue...\n");
     goto error;
   }
- 
+
   if (cbuf > 1 || (curvptr && curvptr->ptr && curvptr->len > 0) ||
       BK_FLAG_ISSET(in_flags, BK_IOH_COALESCE_FLAG_MUST_COPY))
   {
@@ -4519,7 +4517,7 @@ bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_al
 #else
     bk_error_printf(B, BK_ERR_ERR, "Compression is not enabled - recompile\n");
     goto error;
-#endif    
+#endif
   }
   else if (ioh->ioh_compress_level)
   {
@@ -4825,5 +4823,5 @@ bk_ioh_data_seize_permitted(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW | BK_IOH_VECTORED | BK_IOH_BLOCKED));  
+  BK_RETURN(B,BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW | BK_IOH_VECTORED | BK_IOH_BLOCKED));
 }
