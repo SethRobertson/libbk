@@ -1,3 +1,8 @@
+2001-11-26  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_fileutils.c (bk_fileutils_modify_fd_flags): Added SET
+	option as per Seth's suggestion.
+
 2001-11-21  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_addrgroup.c (bk_addrgroup_get_server_socket): Get the

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.1 2001/11/15 22:19:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.2 2001/11/26 23:08:24 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -37,7 +37,8 @@ bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   long oflags;
 
-  if ((oflags=fcntl(fd, F_GETFL))<0)
+  if (action != BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_SET &&
+      (oflags=fcntl(fd, F_GETFL))<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not recover current flags: %s\n", strerror(errno));
     goto error;
@@ -50,6 +51,13 @@ bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_
       break;
     case BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_DELETE:
       BK_FLAG_CLEAR(oflags,flags);
+      break;
+    case BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_SET:
+      oflags=flags;
+      break;
+    default:
+      bk_error_printf(B, BK_ERR_ERR, "Unknown fd flag action: %d\n", action);
+      goto error;
       break;
     }
 

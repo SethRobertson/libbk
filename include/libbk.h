@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.68 2001/11/26 18:12:27 jtt Exp $
+ * $Id: libbk.h,v 1.69 2001/11/26 23:08:24 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -188,6 +188,7 @@ typedef enum
 {
   BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_ADD=1,
   BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_DELETE,
+  BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_SET,
 } bk_fileutils_modify_fd_flags_action_t;
 
 
