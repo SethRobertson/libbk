@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.25 2002/05/01 20:32:31 seth Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.26 2002/05/02 00:34:18 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -338,7 +338,13 @@ proginit(bk_s B, struct program_config *pc)
  * What to do when connection completes.
  *
  *	@param B BAKA thread/global state.
- *	XXX DOCUMENT ME
+ *	@param args Opaque arguments for me
+ *	@param sock New socket which we are talking about
+ *	@param bag libbk connection state information
+ *	@param server_handle For server sockets, handle to server for potential future descriptiuon
+ *	@param state Why this function is being called
+ *	@param <i>0</i> for normal conditions
+ *	@param <br><i>-1</i> for terminal errors--note handler will be called again for shutdown/error notifications
  */
 static int 
 connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state)
@@ -456,8 +462,10 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 
 /**
  * Things to do when the relay is over.
+ *
  *	@param B BAKA thread/global state.
- *	XXX - Document Me
+ *	@param args opaque program configuration
+ *	@param state Why we are here
  */
 static void
 relay_finish(bk_s B, void *args, u_int state)
