@@ -1,3 +1,8 @@
+2002-03-05  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_addrgroup.c (do_net_init_af_inet_tcp_listen): Add
+	SO_REUSEADDR to listening socket.
+
 2002-03-04  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_string.c (bk_decode_base64): Don't demand that base64 encoded

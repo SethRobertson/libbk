@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.19 2002/02/22 07:09:38 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.20 2002/03/05 22:00:59 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1088,6 +1088,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
   int af;
   int s = -1;
   struct bk_addrgroup *bag = NULL;
+  int one = 1;
 
   if (!as)
   {
@@ -1119,6 +1120,12 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
      * </WARNING>
      */
     goto error;
+  }
+
+  if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Could not set reuseaddr on socket\n");
+    // Fatal? Nah...
   }
 
   // Bind to local address
