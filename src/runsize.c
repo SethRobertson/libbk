@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: runsize.c,v 1.1 2004/06/03 21:30:56 seth Exp $";
+static const char libbk__rcsid[] = "$Id: runsize.c,v 1.2 2004/06/04 02:50:11 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -262,7 +262,7 @@ main(int argc, char **argv, char **envp)
 
     if (retcode == 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Got EOF\n");
+      bk_error_printf(B, BK_ERR_NOTICE, "Got EOF\n");
       break;
     }
 
