@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.40 2003/06/18 21:08:51 brian Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.41 2003/08/25 17:40:24 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -282,7 +282,7 @@ void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *
 void bk_error_irepeater_flush(bk_s B, struct bk_error *beinfo, bk_flags flags)
 {
   struct bk_error_node *node = NULL;
-  const char *repeated_fmt = "Last message repeated %ld times\n";
+  static const char repeated_fmt[] = "Last message repeated %ld times\n";
   int sysloglevel;
 
   if (!beinfo)
@@ -314,13 +314,12 @@ void bk_error_irepeater_flush(bk_s B, struct bk_error *beinfo, bk_flags flags)
     }
     else
     {
-      // Print "repeated" message
-      if (!(node->ben_msg = bk_string_alloc_sprintf(B, 0, 0, repeated_fmt, beinfo->be_last.ben_repeat)))
-      {
+      static const int MSGSIZE = sizeof(repeated_fmt + 20);
+      char *repeat_err = malloc(MSGSIZE);
+      if (!repeat_err)
 	goto error;
-      }
-
-      node->ben_origmsg = node->ben_msg;
+      snprintf(repeat_err, MSGSIZE, repeated_fmt, beinfo->be_last.ben_repeat);
+      node->ben_origmsg = node->ben_msg = repeat_err;
     }
 
     // <TRICKY>Presumes smaller syslog levels are higher priority</TRICKY>
