@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.280 2004/04/07 19:07:17 jtt Exp $
+ * $Id: libbk.h,v 1.281 2004/04/07 21:26:26 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2269,6 +2269,8 @@ struct bk_ringdir_callbacks
 #define BK_RINGDIR_FLAG_FORCE_ROTATE		0x20 ///< Rotate regardless of "size"
 #define BK_RINGDIR_FLAG_OPEN_APPEND		0x20 ///< Rotate regardless of "size"
 #define BK_RINGDIR_FLAG_CANT_APPEND		0x40 ///< The "file" type does not support appending
+#define BK_RINGDIR_FLAG_ROTATION_OCCURED	0x80 ///< A "file" rotation occured on the last call to rotate().
+
 #define BK_RINGDIR_GET_SIZE_ERROR	UINT32_MAX
 #define BK_RINGDIR_GET_SIZE_MAX		(BK_RINGDIR_GET_SIZE_ERROR - 1)
 
@@ -2276,6 +2278,11 @@ extern bk_ringdir_t bk_ringdir_init(bk_s B, const char *directory, off_t rotate_
 extern void bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern int bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern void *bk_ringdir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags);
+extern int bk_ringdir_did_rotate_occur(bk_s B, bk_ringdir_t brdh, bk_flags flags);
+extern char *bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, bk_flags flags);
+extern char *bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, bk_flags flags);
+extern char *bk_ringdir_filename_current(bk_s B, bk_ringdir_t brdh, bk_flags flags);
+extern char *bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename, bk_flags flags);
 
 extern void *bk_ringdir_standard_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, bk_flags flags);
 extern void bk_ringdir_standard_destroy(bk_s B, void *opaque, const char *directory, bk_flags flags);
@@ -2288,5 +2295,7 @@ extern int bk_ringdir_standard_update_private_data(bk_s B, bk_ringdir_t brdh, vo
 extern void *bk_ringdir_standard_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern int bk_ringdir_standard_update_private_data_by_standard(bk_s B, void *brsh, void *opaque, bk_flags flags);
 extern void *bk_ringdir_standard_get_private_data_by_standard(bk_s B, void *brsh, bk_flags flags);
+
+
 
 #endif /* _BK_h_ */

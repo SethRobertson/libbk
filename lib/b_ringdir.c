@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.3 2004/04/07 19:07:18 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.4 2004/04/07 21:26:27 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -30,8 +30,10 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
+#define NEXT_FILE_NUM(brd,num)		(((num)+1)%(brd)->brd_max_num_files)
+#define PREVIOUS_FILE_NUM(brd,num)	(((num)==0)?((brd)->brd_max_num_files-1):((num)-1))
 
-#define INCREMENT_FILE_NUM(brd)	 do { (brd)->brd_cur_file_num = ((brd)->brd_cur_file_num + 1) % (brd)->brd_max_num_files; } while(0)
+#define INCREMENT_FILE_NUM(brd)	 do { (brd)->brd_cur_file_num = NEXT_FILE_NUM(brd, (brd)->brd_cur_file_num); } while(0)
 
 
 /**
@@ -69,7 +71,7 @@ struct bk_ringdir_standard
 
 static struct bk_ring_directory *brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *pattern, struct bk_ringdir_callbacks *callbacks, bk_flags flags);
 static void brd_destroy(bk_s B, struct bk_ring_directory *brd);
-static const char *create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags);
+static char *create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags);
 
 
 
@@ -135,7 +137,7 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
   }
 
   if (!pattern)
-    pattern = "%d";
+    pattern = "%u";
 
   if (!(brd->brd_pattern = strdup(pattern)))
   {
@@ -222,7 +224,7 @@ brd_destroy(bk_s B, struct bk_ring_directory *brd)
  *	@param directory The name of the ring "directory"
  *	@param rotate_size The size threshold which triggers a rotation on the next check.
  *	@param max_num_files How many "files" to create in the "directory" before reuse kicks in.
- *	@param file_name_pattern sprintf(3) pattern (must contain %d) from which the "directory" "file" names will be generated. May be NULL.
+ *	@param file_name_pattern sprintf(3) pattern (must contain %u) from which the "directory" "file" names will be generated. May be NULL.
  *	@param callbacks Ponter to the structure summarizing the underlying implementation callbacks.
  *	@param flags Flags for future use.
  *	@return <i>NULL</i> on failure.<br>
@@ -413,6 +415,8 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
+
+  BK_FLAG_CLEAR(brd->brd_flags, BK_RINGDIR_FLAG_ROTATION_OCCURED);
   
   if (BK_FLAG_ISSET(flags, BK_RINGDIR_FLAG_FORCE_ROTATE))
   {
@@ -470,6 +474,7 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
       goto error;
     }
 
+    BK_FLAG_SET(flags, BK_RINGDIR_FLAG_ROTATION_OCCURED);
   }
   
   BK_RETURN(B,0);  
@@ -514,7 +519,7 @@ bk_ringdir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags)
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>filename</i> on success.
  */
-static const char *
+static char *
 create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -1106,4 +1111,202 @@ bk_ringdir_standard_get_private_data_by_standard(bk_s B, void *brsh, bk_flags fl
   
   BK_RETURN(B,brs->brs_opaque);  
   
+}
+
+
+
+/**
+ * Check if a "file" rotation occured on last call to bk_ringdir_rotate().
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ringdir_did_rotate_occur(bk_s B, bk_ringdir_t brdh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
+
+  if (!brd)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  BK_RETURN(B, BK_FLAG_ISSET(brd->brd_flags, BK_RINGDIR_FLAG_ROTATION_OCCURED));  
+}
+
+
+
+
+/**
+ * Get the filename of the oldest file. This function allocates memory for
+ * the string which must be destroyed with free(3).
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@param flags Flags for future use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return allocated <i>filename</i> on success.
+ */
+char *
+bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
+  u_int32_t oldest_num;
+  char *filename = NULL;
+
+  if (!brd)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+  
+  oldest_num = NEXT_FILE_NUM(brd, brd->brd_cur_file_num);
+  
+  if (!(filename = create_file_name(B, brd->brd_pattern, oldest_num, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
+    goto error;
+  }
+
+  BK_RETURN(B, filename);  
+
+ error:
+  if (filename)
+    free(filename);
+
+  BK_RETURN(B,NULL);  
+}
+
+
+
+/**
+ * Get the next file name in the rotation series. This function allocates
+ * memory which must be destroyed with free(3).
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@param filename The filename for which you want the successor
+ *	@param flags Flags for future use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return allocated <i>filename</i> on success.
+ */
+char *
+bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
+  char *next_filename = NULL;
+  u_int32_t file_num, next_num;
+
+  if (!brd)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+  
+  if (!sscanf(filename, brd->brd_pattern, &file_num))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not extract file number from %s\n", filename);
+    goto error;
+  }
+
+  next_num = NEXT_FILE_NUM(brd, file_num);
+
+  if (!(next_filename = create_file_name(B, brd->brd_pattern, next_num, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
+    goto error;
+  }
+  
+  BK_RETURN(B, next_filename);  
+
+ error:
+  if (next_filename)
+    free(next_filename);
+
+  BK_RETURN(B,NULL);  
+}
+
+
+
+
+/**
+ * Obtain the current file name (most recent). This function allocates
+ * memory which must be freed with free(3).
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+char *
+bk_ringdir_filename_current(bk_s B, bk_ringdir_t brdh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
+
+  if (!brd)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  BK_RETURN(B,strdup(brd->brd_cur_filename));  
+}
+
+
+
+/**
+ * Get the previous file name in the rotation series. This function allocates
+ * memory which must be destroyed with free(3).
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@param filename The filename for which you want the successor
+ *	@param flags Flags for future use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return allocated <i>filename</i> on success.
+ */
+char *
+bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
+  char *previous_filename = NULL;
+  u_int32_t file_num, previous_num;
+
+  if (!brd)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+  
+  if (!sscanf(filename, brd->brd_pattern, &file_num))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not extract file number from %s\n", filename);
+    goto error;
+  }
+
+  previous_num = PREVIOUS_FILE_NUM(brd, file_num);
+
+  if (!(previous_filename = create_file_name(B, brd->brd_pattern, previous_num, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
+    goto error;
+  }
+  
+  BK_RETURN(B, previous_filename);  
+
+ error:
+  if (previous_filename)
+    free(previous_filename);
+
+  BK_RETURN(B,NULL);  
 }

@@ -1,3 +1,10 @@
+2004-04-07  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_ringdir.c: Iteration functions.
+	(bk_ringdir_did_rotate_occur): Function to test if rotation
+	occured on the last call to bk_ringdir_rotate().
+	(bk_ringdir_rotate): Set flag is rotation occrs.
+
 2004-03-26  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h: bk_struct_registry_t as opaque struct, not void *
