@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.78 2001/12/06 16:53:23 jtt Exp $
+ * $Id: libbk.h,v 1.79 2001/12/10 21:52:11 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -70,6 +70,64 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_BITS_VALUE(B,b)	(((B)[BK_BITS_BYTENUM(b)] & (1 << BK_BITS_BITNUM(b))) >> BK_BITS_BITNUM(b)) ///< Discover truth (0 or 1) value of a particular bit in a complex bitmap
 #define BK_BITS_SET(B,b,v)	(B)[BK_BITS_BYTENUM(b)] = (((B)[BK_BITS_BYTENUM(b)] & ~(1 << BK_BITS_BITNUM(b))) | ((v) & 1) << BK_BITS_BITNUM(b)); ///< Set a particular bit in a complex bitmap
 
+
+
+/**
+ * @name BAKA Version and support routines.
+ */
+// @{
+/** 
+ * @name bk_version
+ *
+ * A simple structure to encode versioning numbers. Mostly exists for the
+ * macros associated with it.
+ */
+struct bk_version
+{
+  bk_flags		bv_flags;		///< Everyone needs flags
+  u_int			bv_vers_major;		///< Major version number
+  u_int			bv_vers_minor;		///< Minor version number
+};
+
+
+
+#define BK_VERSION_MAJOR(v) ((v)->bv_vers_major)
+#define BK_VERSION_MINOR(v) ((v)->bv_vers_minor)
+
+/**
+ * Compare two version strucures (pointers).
+ * 	@param a First version structure
+ * 	@param b Second version structure
+ *	@return <i>>0<i> if @a is greater than @b <br>
+ *	@return <i>0<i> if @a is equal to @b <br>
+ *	@return <i><0<i> if @a is less than @b
+ */
+#define BK_VERSION_CMP(a,b) (((a)->bv_vers_major-(b)->bv_vers_major)?((a)->bv_vers_major-(b)->bv_vers_major):((a)->bv_vers_minor-(b)->bv_vers_minor))
+
+
+
+/**
+ * Compare a version structure with a major number.
+ * 	@param v The version structure
+ * 	@param m The major number
+ *	@return <i>>0<i> if @v is greater than @m <br>
+ *	@return <i>0<i> if @v is equal to @m <br>
+ *	@return <i><0<i> if @v is less than @m
+ */
+#define BK_VERSION_CMP_MAJOR(v,m) ((a)->bv_vers_major-(m))
+
+
+
+/**
+ * Check of a version structure is compatible with a major number
+ * <em>NB</em> This macro assums that all major numbers are > 1. 
+ * 	@param v The version structure
+ * 	@param m The major number
+ *	@return <i>1<i> if @v is compatible with @m <br>
+ *	@return <i>0<i> if @v is not compatible with @m
+ */
+#define BK_VERSION_COMPAT_MAJOR(v,m) ((v)->bv_vers_major >= 1 && BK_VERSION_CMP_MAJOR((v),(m)) <= 0)
+// @}
 
 
 /**
