@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.46 2001/11/12 05:56:49 seth Exp $
+ * $Id: libbk.h,v 1.47 2001/11/12 06:53:16 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -495,7 +495,7 @@ extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
 
 /* b_ioh.c */
 typedef int (*bk_iorfunc)(int, caddr_t, __SIZE_TYPE__, bk_flags); ///< read style I/O function for bk_ioh (flags for specialized datagram handling, like peek)
-typedef int (*bk_iowfunc)(int, struct iovec *, __SIZE_TYPE__); ///< writev style I/O function for bk_ioh
+typedef int (*bk_iowfunc)(int, struct iovec *, __SIZE_TYPE__, bk_flags); ///< writev style I/O function for bk_ioh
 typedef int (*bk_iohhandler)(bk_vptr data[], void *opaque, struct bk_ioh *ioh, u_int state_flags);  ///< User callback for bk_ioh w/zero terminated array of data ptrs free'd after handler returns
 extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iorfunc readfun, bk_iowfunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
 #define BK_IOH_STREAM		0x01		///< Stream (instead of datagram) oriented protocol, for bk_ioh
