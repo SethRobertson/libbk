@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.6 2001/09/11 03:25:03 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.7 2001/09/11 13:47:54 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -53,7 +53,7 @@ struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogt
   if (!(beinfo = malloc(sizeof(*beinfo))))
   {
     if (fh)
-      fprintf(fh, __FUNCTION__/**/": Could not allocate storage for error queue structure: %s\n",strerror(errno));
+      fprintf(fh, __FUNCTION__ ": Could not allocate storage for error queue structure: %s\n",strerror(errno));
     return(NULL);
   }
 
@@ -67,14 +67,14 @@ struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogt
   if (!(beinfo->be_hiqueue = errq_create(NULL, NULL, DICT_UNORDERED, NULL)))
   {
     if (fh)
-      fprintf(fh, __FUNCTION__/**/": Could not create hi error queue: %s\n",errq_error_reason(NULL, NULL));
+      fprintf(fh, __FUNCTION__ ": Could not create hi error queue: %s\n",errq_error_reason(NULL, NULL));
     goto error;
   }
 
   if (!(beinfo->be_lowqueue = errq_create(NULL, NULL, DICT_UNORDERED, NULL)))
   {
     if (fh)
-      fprintf(fh, __FUNCTION__/**/": Could not create low error queue: %s\n",errq_error_reason(NULL, NULL));
+      fprintf(fh, __FUNCTION__ ": Could not create low error queue: %s\n",errq_error_reason(NULL, NULL));
     goto error;
   }
 
@@ -352,10 +352,10 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
   {
 #if 0
     /*
-     * this way lies madness (and infinite recursion).  A better
+     * XXX - this way lies madness (and infinite recursion).  A better
      * solution is to use assert.
      */
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__/**/": Somehow strftime produced %d bytes instead of the expected\n",tmp);
+    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Somehow strftime produced %d bytes instead of the expected 14\n",tmp);
 #endif
     return;
   }
