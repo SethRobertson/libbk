@@ -1,5 +1,16 @@
 #!/usr/bin/perl
+# $Id: test_ioh.sh,v 1.3 2003/09/05 18:41:46 seth Exp $
 #
+# ++Copyright LIBBK++
+#
+# Copyright (c) 2003 The Authors. All rights reserved.
+#
+# This source code is licensed to you under the terms of the file
+# LICENSE.TXT in this release for further details.
+#
+# Mail <projectbaka@baka.org> for further information
+#
+# --Copyright LIBBK--
 #
 #
 
