@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.4 2001/11/20 20:07:14 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.5 2001/11/21 00:01:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -33,19 +33,23 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 struct start_service_state
 {
   bk_flags			sss_flags;	///< Everyone needs flags.
-  struct bk_run *		sss_run;	///< Baka run structure.
-  struct bk_netinfo *  		sss_bni;	///< bk_netinfo.
+  struct bk_netinfo *  		sss_lbni;	///< bk_netinfo.
+  struct bk_netinfo *  		sss_rbni;	///< bk_netinfo.
   bk_bag_callback_t		sss_callback;	///< User callback.
   void *			sss_args;	///< User args.
   char *			sss_securenets;	///< Securenets info.
   int				sss_backlog;	///< Listen backlog.
+  char *			sss_host;	///< Space to save a hostname.
+  u_long			sss_timeout;	///< Timeout
 };
 
 
 
 static struct start_service_state *sss_create(bk_s B);
 static void sss_destroy(bk_s B, struct start_service_state *sss);
-static void sss_gethost_complete(bk_s B, struct bk_run *run , struct hostent **h, struct bk_netinfo *bni, void *args);
+static void sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent **h, struct bk_netinfo *bni, void *args);
+static void sss_connect_rgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args);
+static void sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args);
 
 
 
@@ -290,14 +294,13 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhostst
   }
 
   sss->sss_flags=flags;
-  sss->sss_run=run;
-  sss->sss_bni=bni;
+  sss->sss_lbni=bni;
   sss->sss_callback=callback;
   sss->sss_args=args;
   sss->sss_securenets=securenets;
   sss->sss_backlog=backlog;
 
-  if (bk_gethostbyfoo(B, hoststr, 0, NULL, bni, run, sss_gethost_complete, sss, 0)<0)
+  if (bk_gethostbyfoo(B, hoststr, 0, NULL, bni, run, sss_serv_gethost_complete, sss, 0)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not begin the hostname lookup process\n");
     goto error;
@@ -322,7 +325,7 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhostst
  *	@param B BAKA thread/global state.
  */
 static void
-sss_gethost_complete(bk_s B, struct bk_run *run , struct hostent **h, struct bk_netinfo *bni, void *args)
+sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent **h, struct bk_netinfo *bni, void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct start_service_state *sss;
@@ -334,7 +337,7 @@ sss_gethost_complete(bk_s B, struct bk_run *run , struct hostent **h, struct bk_
     BK_VRETURN(B);
   }
 
-  if (bk_net_init(B, run, sss->sss_bni, NULL, 0, sss->sss_flags, sss->sss_callback, sss->sss_args, sss->sss_backlog)<0)
+  if (bk_net_init(B, run, sss->sss_lbni, NULL, 0, sss->sss_flags, sss->sss_callback, sss->sss_args, sss->sss_backlog)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not open service\n");
     goto error;
@@ -394,5 +397,243 @@ sss_destroy(bk_s B, struct start_service_state *sss)
   }
   
   free(sss);
+  BK_VRETURN(B);
+}
+
+
+
+
+/**
+ * Start up a connectino with a user friendly interface.
+ *	@param B BAKA thread/global state.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_netutils_make_conn(bk_s B, struct bk_run *run, char *rurl, char *defrhost, char *defrserv, char *lurl, char *deflhost, char *deflserv, char *defproto, char *sercurenets, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags )
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *rhoststr=NULL;
+  char *rservstr=NULL;
+  char *rprotostr=NULL;
+  char *lhoststr=NULL;
+  char *lservstr=NULL;
+  char *lprotostr=NULL;
+  struct bk_netinfo *rbni=NULL;
+  struct bk_netinfo *lbni=NULL;
+  struct start_service_state *sss=NULL;
+
+
+  if (!run || !rurl || !callback)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  /* Parse out the remote "URL" */
+  if (bk_parse_endpt_spec(B,rurl, &rhoststr, defrhost, &rservstr, defrserv, &rprotostr, defproto?defproto:"tcp")<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert remote endpoint specify\n");
+    goto error;
+  }
+
+  /* If anything is unset, die */
+  if (!rhoststr || !rservstr || !rprotostr)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Must specify all three of remote host/service/protocol\n");
+    goto error;
+  }
+  
+  if (!deflhost) deflhost=BK_ADDR_ANY;
+  if (!deflserv) deflserv="0";
+  if (!defproto) defproto="tcp";
+
+  if (lurl)
+  {
+    /* Parse out the local side "URL" */
+    if (bk_parse_endpt_spec(B,lurl, &lhoststr, deflhost?deflhost:BK_ADDR_ANY, &lservstr, deflserv, &lprotostr, defproto)<0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not convert remote endpoint specify\n");
+      goto error;
+    }
+  }
+  else
+  {
+    if (!(lhoststr=strdup(deflhost)) || !(lservstr=strdup(deflserv)) || !(lprotostr=strdup(defproto)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup default information (locl): %s\n", strerror(errno));
+      goto error;
+    }
+  }
+
+
+  /* If the protocol is unset, use the remote protocol */
+  if (!lprotostr && !(lprotostr=strdup(rprotostr)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not strdup protocol from remote: %s\n", strerror(errno));
+    goto error;
+  }
+
+  /* Die on unset things */
+  if (!lhoststr || !lservstr || !lprotostr)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Must specify all three of remote host/service/protocol\n");
+    goto error;
+  }
+
+  /* Create remote netinfo */
+  if (!(rbni=bk_netinfo_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create remote bni: %s\n", strerror(errno));
+    goto error;
+  }
+
+  /* Create local netinfo */
+  if (!(lbni=bk_netinfo_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create local bni: %s\n", strerror(errno));
+    goto error;
+  }
+
+  /* Set remote protocol info */
+  if (bk_getprotobyfoo(B, rprotostr, NULL, rbni, 0)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not set the remote protocol information\n");
+    goto error;
+  }
+
+  /* Set local protocol info */
+  if (bk_getprotobyfoo(B, lprotostr, NULL, lbni, 0)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not set the local protocol information\n");
+    goto error;
+  }
+
+  /* If remote and local protocol info aren't the same, die */
+  if (rbni->bni_bpi->bpi_proto != lbni->bni_bpi->bpi_proto)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Local and remote protocol specifications must match ([local proto num]%d != [remote proto num]%d\n", rbni->bni_bpi->bpi_proto, lbni->bni_bpi->bpi_proto);
+    goto error;
+  }
+
+  /* Set remote service information */
+  if (bk_getservbyfoo(B, rservstr, rbni->bni_bpi->bpi_protostr, NULL, rbni, 0)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not set the remote service information\n");
+    goto error;
+  }
+
+  /* Set local service information */
+  if (lservstr && bk_getservbyfoo(B, lservstr, lbni->bni_bpi->bpi_protostr, NULL, lbni, 0)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not set the local service information\n");
+    goto error;
+  }
+
+  if (!(sss=sss_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate sss: %s\n", strerror(errno));
+    goto error;
+  }
+
+  sss->sss_flags=flags;
+  sss->sss_rbni=rbni;
+  sss->sss_lbni=lbni;
+  sss->sss_callback=callback;
+  sss->sss_args=args;
+  sss->sss_host=lhoststr;
+  sss->sss_timeout=timeout;
+
+  if (bk_gethostbyfoo(B, rhoststr, 0, NULL, rbni, run, sss_connect_rgethost_complete, sss, 0)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not start search for remote hostname\n");
+    goto error;
+  }
+    
+  BK_RETURN(B,0);
+  
+ error:
+  if (rhoststr) free(rhoststr);
+  if (rservstr) free(rservstr);
+  if (rprotostr) free(rprotostr);
+  if (lhoststr) free(lhoststr);
+  if (lservstr) free(lservstr);
+  if (lprotostr) free(lprotostr);
+  if (lbni) bk_netinfo_destroy(B, lbni);
+  if (rbni) bk_netinfo_destroy(B, rbni);
+  if (sss) sss_destroy(B,sss);
+  BK_RETURN(B,-1);
+  
+}
+
+
+
+/**
+ * Finish up the first the hostname search
+ *	@param B BAKA thread/global state.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static void
+sss_connect_rgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct start_service_state *sss;
+
+  /* h is supposed to be NULL */
+  if (!run || h || !bni || !(sss=args))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  if (bk_gethostbyfoo(B, sss->sss_host, 0, NULL, sss->sss_lbni, run, sss_connect_lgethost_complete, sss, 0)<0)
+  {
+    goto error;
+  }
+
+  BK_VRETURN(B);
+  
+ error:
+  /* This *really* sucks, we have to call back the user */
+  if (sss->sss_callback)
+  {
+    (*(sss->sss_callback))(B, sss->sss_args, -1, NULL, NULL, BK_ADDRGROUP_STATE_WIRE_ERROR);
+  }
+
+  BK_VRETURN(B);
+}
+
+
+
+
+/**
+ * Finish up the second the hostname search
+ *	@param B BAKA thread/global state.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static void
+sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct start_service_state *sss;
+
+  /* h is supposed to be NULL */
+  if (!run || h || !bni || !(sss=args))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  if (bk_net_init(B, run, sss->sss_lbni, sss->sss_rbni, sss->sss_timeout, sss->sss_flags, sss->sss_callback, sss->sss_args, 0)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not start connection\n");
+    goto error;
+  }
+
+  BK_VRETURN(B);
+
+ error:  
   BK_VRETURN(B);
 }

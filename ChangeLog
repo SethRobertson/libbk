@@ -1,5 +1,15 @@
 2001-11-20  James Tanis  <jtt@winwood.sysdetect.com>
 
+	* src/bttcp.c: Converted to use new convenient interface. State
+	code removed.
+
+	* lib/b_netutils.c (bk_netutils_make_conn): Make a connection with
+	a convenient interface.
+	(sss_connect_rgethost_complete): Call back when we've completed
+	looking up the remote host.
+	(sss_connect_lgethost_complete): Callback when we've completed
+	looking up the local host.
+
 	* lib/b_addrgroup.c (do_net_init_af_inet_tcp_listen): Call back on
 	server ready.
 	Convert everybody to use state.
