@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_debug.c,v 1.2 2001/08/16 21:10:48 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_debug.c,v 1.3 2001/08/17 01:29:25 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -41,6 +41,23 @@ static unsigned int debug_o_hash(struct bk_debugnode *b);
 static unsigned int debug_k_hash(char *a);
 static struct ht_args debug_args = { 127, 2, (ht_func)debug_o_hash, (ht_func)debug_k_hash };
 
+#define DEBUG_NUKEALL(bd)						\
+{									\
+  struct bk_debugnode *cur;						\
+  while (cur = (struct bk_debugnode *)debug_minimum(bd->bd_leveldb))	\
+  {									\
+    if (debug_delete(bd->bd_leveldb, cur) != DICT_OK)			\
+    {									\
+      bk_error_printf(B, BK_ERR_ERR, 					\
+		      "Could not delete item from front of CLC: %s\n",	\
+		      debug_error_reason(bd->bd_leveldb,NULL));		\
+    }									\
+    free(cur->bd_name);							\
+    free(cur);								\
+  }									\
+}
+
+
 
 /*
  * Initialize the debugging structures (don't actually attempt to start debugging)
@@ -77,19 +94,6 @@ void bk_debug_destroy(bk_s B, struct bk_debug *bd)
 
   if (bd->bd_leveldb)
   {
-#define DEBUG_NUKEALL(bd) \
-    { \
-      struct bk_debugnode *cur; \
-      while (cur = (struct bk_debugnode *)debug_minimum(bd->bd_leveldb)) \
-      { \
-	if (debug_delete(bd->bd_leveldb, cur) != DICT_OK) \
-	{ \
-	  bk_error_printf(B, BK_ERR_ERR, "Could not delete item from front of CLC: %s\n",debug_error_reason(bd->bd_leveldb,NULL)); \
-	} \
-	free(cur->bd_name); \
-	free(cur); \
-      } \
-    }
     DEBUG_NUKEALL(bd);
     debug_destroy(bd->bd_leveldb);
   }
