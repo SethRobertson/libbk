@@ -1,3 +1,14 @@
+2001-12-27  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/Makefile ($(GROUPTOP)/include/libbk_autoconf.h): create link
+	to bkmk-generated file
+
+	* include/libbk_include.h: use BK_MINGW, autoconf HAVE_ defines
+
+	* include/libbk.h: include libbk_autoconf.h
+
+	* include/Makefile (BK_PUBLIC_INC): install libbk_autoconf.h
+
 2001-12-21  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_string.c: constifying

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.92 2001/12/21 22:12:31 seth Exp $
+ * $Id: libbk.h,v 1.93 2001/12/27 17:51:41 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -20,6 +20,7 @@
 
 #ifndef _LIBBK_h_
 #define _LIBBK_h_
+#include "libbk_autoconf.h"
 #include "libbk_include.h"
 #include "libbk_oscompat.h"
 

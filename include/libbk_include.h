@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.11 2001/12/14 20:03:00 jtt Exp $
+ * $Id: libbk_include.h,v 1.12 2001/12/27 17:51:41 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -34,10 +34,10 @@
 #include <popt.h>
 #include <assert.h>
 #include <dirent.h>
-#if defined(_WIN32) && !defined(__CYGWIN32__)
+#ifdef BK_MINGW
 #include <winsock.h>		/* for fd_set, etc. */
 #include <process.h>		/* for getpid, etc. */
-#else  /* !_WIN32 || __CYGWIN32__ */
+#else  /* !BK_MINGW */
 #include <syslog.h>
 #include <termios.h>
 #include <pwd.h>
@@ -57,22 +57,31 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>
-#endif /* !_WIN32 || __CYGWIN32__ */
+#endif /* HAVE_NET_ETHERNET_H */
+#endif /* !BK_MINGW */
 
 #if defined(USING_DMALLOC)
 #include <dmalloc.h>
 #endif /* USING_DMALLOC */
 
 #ifdef REALLY_NEEDED
+/*
+ * all of this isn't being used (yet) and it is unclear if it will ever be
+ */
+
 #include <arpa/nameser.h>
 #include <resolv.h>
 
-#if defined(__linux__) || defined(__hpux__) || defined(__osf__) || defined(_AIX)
+/* add autoconf entries for these headers if they are really needed */
+#ifdef HAVE_SYS_IOCTL_H
 # include <sys/ioctl.h>
-#else /* filio.h instead of ioctl.h */
-# include <sys/filio.h>
-#endif /* filio.h instead of ioctl.h */
+#else  /* !HAVE_SYS_IOCTL_H */
+# ifdef HAVE_SYS_FILIO_H
+#  include <sys/filio.h>
+# endif/* !HAVE_SYS_FILIO_H */
+#endif /* !HAVE_SYS_IOCTL_H */
 
 #endif /* REALLY NEEDED */
 

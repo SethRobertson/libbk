@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.21 2001/12/19 01:12:13 jtt Exp $
+# $Id: Makefile,v 1.22 2001/12/27 17:51:41 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -58,3 +58,8 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 -include ./Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
+
+$(BK_LARGE_LIBSRC): $(GROUPTOP)/include/libbk_autoconf.h
+
+$(GROUPTOP)/include/libbk_autoconf.h: $(GROUPTOP)/$(PKGTOP)/bkmk/libbk_autoconf.h
+	cd $(@D) && $(LN_S) $< $(@F)
