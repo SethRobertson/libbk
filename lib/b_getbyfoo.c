@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.25 2003/06/02 16:38:23 brian Exp $";
+static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.26 2003/06/11 00:14:55 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -17,7 +17,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 
 /**
- * @file 
+ * @file
  * This file contains all the getbyFOO functions. These functions provide
  * the caller with a "convenient" interface to the standard @a netdb.h
  * functions (Windows people don't have @a netdb.h but you get the
@@ -42,7 +42,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 struct bk_gethostbyfoo_state
 {
   struct bk_run *		bgs_run;	///< Run struct
-  struct bk_netaddr 		bgs_bna;	///< Space for an addr
+  struct bk_netaddr		bgs_bna;	///< Space for an addr
   struct bk_netinfo *		bgs_bni;	///< bk_netinfo from caller
   struct hostent *		bgs_hostent;	///< Actual hostent info
   bk_gethostbyfoo_callback_f	bgs_callback;	///< Caller's callback
@@ -61,8 +61,8 @@ static void bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs);
 
 
 
-/** 
- * Get a protocol number no matter which type string you have. 
+/**
+ * Get a protocol number no matter which type string you have.
  *
  *	@param B BAKA thread/global state.
  *	@param protostr The string containing the protocol name or number.
@@ -83,16 +83,16 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
   int num;
   int count;
   struct protoent dummy;
-  
+
   if (!protostr)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   /*
    * NB: if iproto is set then *iproto get initialized to *something*
-   * immediately 
+   * immediately
    */
   if (iproto)
   {
@@ -106,7 +106,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
     }
   }
 
-  
+
   /* MUTEX_LOCK */
   if (BK_STRING_ATOI(B,protostr,&num,0) == 0)
   {
@@ -132,7 +132,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
     if (!(p = getprotobyname(protostr)))
     {
       /* MUTEX_UNLOCK */
-      bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to protocol: %s\n", protostr, strerror(errno));    
+      bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to protocol: %s\n", protostr, strerror(errno));
       goto error;
     }
   }
@@ -150,7 +150,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
     {
       for(s = p->p_aliases; *s; s++)
 	alias_count++;
-    
+
       if (!(n->p_aliases = calloc((alias_count+1),sizeof(*(n->p_aliases)))))
       {
 	/* MUTEX_UNLOCK */
@@ -170,7 +170,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
     }
     n->p_proto = p->p_proto;
   }
-  
+
   /* Sigh have to save this to automatic so we can unlock before return */
   ret = p->p_proto;
 
@@ -178,8 +178,8 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
     bk_netinfo_update_protoent(B,bni,p);
 
   /* MUTEX_UNLOCK */
-  
-  if (iproto) 
+
+  if (iproto)
   {
     *iproto = n;
   }
@@ -191,10 +191,10 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
 
   BK_RETURN(B,ret);
 
- error: 
+ error:
   if (n) bk_protoent_destroy(B,n);
   if (iproto) *iproto = NULL;
-  
+
   BK_RETURN(B,-1);
 }
 
@@ -233,7 +233,7 @@ bk_protoent_destroy(bk_s B, struct protoent *p)
 
 
 
-/** 
+/**
  * Get a service number no matter which type string you have. This function
  * is really blocking (in the presence of NIS)
  *
@@ -262,7 +262,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
   struct servent dummy;
   struct protoent *lproto = NULL;
   char defproto[10];
-  
+
   /* If it is possible to extract the protostr from the bni, do so and cache*/
   if (bni && bni->bni_bpi)
     bni_proto = bni->bni_bpi->bpi_protostr;
@@ -281,7 +281,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
     goto error;
   }
 
-  /* 
+  /*
    * At this point either both are the same or exactly one is set, so the
    * the following correctly determines the protostr.
    */
@@ -309,7 +309,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
     }
   }
 
-  /* 
+  /*
    * ARGGHH!! First you have to resolve the protobyfoo. Furthermore you
    * have to go all the way as it were.
    */
@@ -319,7 +319,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
     goto error;
   }
 
-  /* 
+  /*
    * If we found the protocol use it's official name. If not just stick
    * with whatever we have
    */
@@ -327,8 +327,8 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
   {
     proto = lproto->p_name;
   }
-  
-  
+
+
   /* MUTEX_LOCK */
   if (BK_STRING_ATOI(B, servstr, &num, 0) == 0)
   {
@@ -355,7 +355,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
     if (!(s = getservbyname(servstr, proto)))
     {
       /* MUTEX_UNLOCK */
-      bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to service: %s\n", servstr, strerror(errno));    
+      bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to service: %s\n", servstr, strerror(errno));
       goto error;
     }
   }
@@ -373,7 +373,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
     {
       for(s1 = s->s_aliases; *s1; s1++)
 	alias_count++;
-    
+
       if (!(n->s_aliases = calloc((alias_count+1),sizeof(*n->s_aliases))))
       {
 	/* MUTEX_UNLOCK */
@@ -400,14 +400,14 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
     }
     n->s_port = s->s_port;
   }
-  
+
   if (bni) bk_netinfo_update_servent(B, bni, s);
 
   /* Sigh have to save this to automatic so we can unlock before return */
   ret = s->s_port;
 
   /* MUTEX_UNLOCK */
-  
+
   if (is)
   {
     *is = n;
@@ -422,11 +422,11 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
 
   BK_RETURN(B,ret);
 
- error: 
+ error:
   if (lproto) bk_protoent_destroy(B,lproto);
   if (n) bk_servent_destroy(B,n);
   if (is) *is = NULL;
-  
+
   BK_RETURN(B,-1);
 }
 
@@ -489,7 +489,7 @@ bk_servent_destroy(bk_s B, struct servent *s)
  * BK_GETHOSTBYFOO_FLAG_FQDN flags is set, then the fully qualified
  * name is return. This of course really only makes sens on an addr
  * ==> name lookup.
- * 
+ *
  * On success the caller gets back an opaque handle which is useful
  * <em>only</em> as an argument to @a
  * bk_gethostbyfoo_abort(). This function should be called iff
@@ -524,10 +524,10 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   void *addr = NULL;				/* Temp addr buf for "fake" hostname creation */
   struct hostent *tmp_h = NULL;			/* Temporary version. */
   struct in_addr inaddr_any;			/* Pretty self explanatory */
-  
+
   inaddr_any.s_addr = INADDR_ANY;
 
-  if (!name || !callback) 
+  if (!name || !callback)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     goto error;
@@ -547,7 +547,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   {
     if (!family)
     {
-      /* 
+      /*
        * <WARNING>
        * What do we do here/ Error or progress with a warning. Since
        * it's overwhelmingly likely that the caller means AF_INET, we will
@@ -557,7 +557,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
       bk_error_printf(B, BK_ERR_WARN, "Address family for ANY address unset. Assuming AF_INET and forging on.\n");
       family = AF_INET;
     }
-      
+
     switch (family)
     {
     case AF_INET:
@@ -566,7 +566,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
       addr = &inaddr_any;
       break;
     case AF_INET6:
-      /* 
+      /*
        * <WARNING>
        * This is *bogus* AF_INET6 doesn't define an "any address"
        * only an "any sockaddr" which is not what we want. Well we should
@@ -577,13 +577,13 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
       /* Intentional fallthrough */
     default:
       bk_error_printf(B, BK_ERR_ERR, "ANY address is not (yet?) supported in address family %d\n", family);
-      goto error;	
+      goto error;
       break;
     }
   }
   else if (inet_aton(name, &in_addr))
   {
-    if (family) 
+    if (family)
     {
       if (family != AF_INET)
       {
@@ -599,7 +599,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
 #ifdef HAVE_INET6
   else if (inet_pton(AF_INET6, name, &in6_addr) > 0)
   {
-    if (family) 
+    if (family)
     {
       if (family != AF_INET6)
       {
@@ -642,7 +642,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   }
   else
   {
-    if (family) 
+    if (family)
     {
 #ifdef HAVE_INET6
       // <BUG ID="881">Switch to RFC 2553 API functions like getaddrinfo and getnameinfo here and everywhere</BUG>
@@ -721,11 +721,11 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   if (atoi(BK_GWD(B,"gethostbyfoo_synch","0")))
   {
     gethostbyfoo_callback(B, run, bgs, NULL, 0);
-    /* 
-     * <WARNING> 
+    /*
+     * <WARNING>
      * You might need to null out some things here if you add code which
      * will goto error.
-     * </WARNING> 
+     * </WARNING>
      */
   }
   else
@@ -788,13 +788,13 @@ static void
 bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  
+
   if (!bgs)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   if (bgs->bgs_hostent)
     bk_destroy_hostent(B, bgs->bgs_hostent);
 
@@ -814,7 +814,7 @@ bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs)
  *	@param B BAKA thread/global state.
  *	@param bgs @a bk_gethostbyfoo_state to destroy
  */
-void 
+void
 bk_gethostbyfoo_abort(bk_s B, void *opaque)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -850,7 +850,7 @@ bk_destroy_hostent(bk_s B, struct hostent *h)
   }
 
   if (h->h_name) free((char *)h->h_name);
-  
+
   if (h->h_aliases)
   {
     for(s = h->h_aliases; *s; s++)
@@ -921,7 +921,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
       bk_error_printf(B, BK_ERR_ERR, "Could not calloc aliases: %s\n", strerror(errno));
       goto error;
     }
-  
+
     for(c = 0; c<count;c++)
     {
       if (!(n->h_aliases[c] = strdup(h->h_aliases[c])))
@@ -931,7 +931,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
       }
     }
   }
-  
+
   n->h_addrtype = h->h_addrtype;
   n->h_length = h->h_length;
 
@@ -940,7 +940,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
     if (h->h_addrtype == AF_INET)
     {
       struct in_addr **ia;
-      for (count = 0,ia = (struct in_addr **)(h->h_addr_list); *ia; ia++)
+      for (count = 1,ia = (struct in_addr **)(h->h_addr_list); *ia; ia++)
 	count++;
     }
 #ifdef HAVE_INET6
@@ -966,12 +966,17 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
     /* We *should* be able to do this one memmove, but this is safer. */
     for(c = 0; c<count; c++)
     {
-      if (!(n->h_addr_list[c] = malloc(h->h_length)))
+      if (h->h_addr_list[c])
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for addr: %s\n", strerror(errno));
-	goto error;
+	if (!(n->h_addr_list[c] = malloc(h->h_length)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for addr: %s\n", strerror(errno));
+	  goto error;
+	}
+	memmove(n->h_addr_list[c], h->h_addr_list[c], h->h_length);
       }
-      memmove(n->h_addr_list[c], h->h_addr_list[c], h->h_length);
+      else
+	n->h_addr_list[c] = NULL;
     }
   }
 
@@ -982,7 +987,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
  error:
   if (n) bk_destroy_hostent(B, n);
   BK_RETURN(B,-1);
-  
+
 }
 
 
@@ -1005,14 +1010,14 @@ gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, const struct timev
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_gethostbyfoo_state *bgs = args;
-  bk_gethostbyfoo_state_e state = BkGetHostByFooStateOk; 
+  bk_gethostbyfoo_state_e state = BkGetHostByFooStateOk;
 
   if (!run || !bgs)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   /* First null out event so we don't try to dequeue it later */
   bgs->bgs_event = NULL;
 
