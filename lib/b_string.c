@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.30 2002/03/08 11:34:44 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.31 2002/03/12 00:18:16 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -188,7 +188,7 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
     strcpy(cur,"\n"); curlen -= strlen(cur); cur += strlen(cur);
   }
   *cur = 0;
-  ret[len] = 0;
+  ret[len-1] = 0;
 
   BK_RETURN(B, ret);
 }

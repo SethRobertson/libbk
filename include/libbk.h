@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.120 2002/03/08 11:34:44 dupuy Exp $
+ * $Id: libbk.h,v 1.121 2002/03/12 00:18:16 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -20,6 +20,10 @@
 
 #ifndef _LIBBK_h_
 #define _LIBBK_h_
+
+// Good to have this before inclusions.
+#define LARGEFILE_SOURCE
+
 #include "libbk_autoconf.h"
 #include "libbk_include.h"
 #include "libbk_oscompat.h"
