@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.10 2003/05/16 05:11:25 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.11 2003/05/16 17:20:29 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -509,7 +509,7 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
     goto error;
   }
 
-  if (pthread_create(&tnode->btn_thid, NULL, bk_thread_continue, tcomm) != 0)
+  if (pthread_create(&tnode->btn_thid, &attr, bk_thread_continue, tcomm) != 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create thread: %s\n", strerror(errno));
     goto error;
