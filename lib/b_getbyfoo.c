@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.7 2001/11/12 19:15:45 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.8 2001/11/12 20:54:43 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -42,6 +42,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 struct bk_gethostbyfoo_state
 {
   struct hostent **	bgs_user_copyout;	/** Caller's pointer  */
+  struct bk_netaddr 	bgs_bna;		/** Space for an addr */
   struct bk_netinfo *	bgs_bni;		/** bk_netinfo from caller */
   struct hostent *	bgs_hostent;		/** Actual hostent info */
   void 			(*bgs_callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni , void *args); /** Caller's callback */
@@ -397,7 +398,9 @@ bk_servent_destroy(bk_s B, struct servent *s)
  * callers do not abuse this function while it still uses blocking queries,
  * @a *ih is <em>guarenteed</em> to be NULL on the return from @a
  * bk_gethostbyfoo. @a callback will be invoked (and @a *ih set) on the
- * <em>subsequent</em> @a bk_run_once pass.
+ * <em>subsequent</em> @a bk_run_once pass. If BK_GETHOSTBYFOO_FLAG_FQDN
+ * flags is set, then the fully qualified name is return. This of course
+ * really only makes sens on an addr ==> name lookup.
  *
  *	@param B BAKA thread/global state.
  *	@param name String to lookup.
@@ -406,19 +409,24 @@ bk_servent_destroy(bk_s B, struct servent *s)
  *	@param run @a bk_run structure.
  *	@param callback Function to invoke when answer is arrives.
  *	@param args User args to return to @a callback when invoked.
+ *	@param lflags. See code for description of flags.
  *	@returns <i>-1</i> on failure.
  *	@returns <i>0</i> on success.
  */
 int
-bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args)
+bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args, bk_flags user_flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int flags=0; /* 1 == Is an address */
-  int len=0; /* Length of address by family */
-  struct in_addr in_addr;
-  struct in6_addr in6_addr;
-  struct hostent *h;
-  struct bk_gethostbyfoo_state *bgs=NULL;
+  int flags=0;					/* 1 == Is an address */
+  int len=0;					/* Len. of address by family */
+  struct in_addr in_addr;			/* Temp in_addr */
+  struct in6_addr in6_addr;			/* Temp in6_addr */
+  struct hostent *h=NULL;			/* Result of getbyfoo(3) */
+  struct bk_gethostbyfoo_state *bgs=NULL;	/* Saved state for callback */
+  struct hostent fake_hostent;			/* Fake hostent */
+  char **buf[2];				/* Buf. for addrs of fake */
+  char *buf2[400];				/* Buf. for addrs of fake */
+  void *addr=NULL;				/*  */
 
   /* No point to using *this* func. without copyout, so we check ih */
   if (!name || !ih || !callback) 
@@ -429,6 +437,13 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
 
   /* Make sure this is initialized right away (see error section) */
   *ih=NULL; 
+
+  /* Clear these too. */
+  memset(buf,0,sizeof(buf));
+  memset(buf2,0,sizeof(buf2));
+  memset(&fake_hostent,0,sizeof(fake_hostent));
+  fake_hostent.h_addr_list=(char **)buf;
+  buf[0]=buf2;
 
   if (inet_pton(AF_INET, name, &in_addr))
   {
@@ -442,8 +457,9 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
     }
 
     family=AF_INET; /* Yes this might be redundant. Leave me alone */
-    BK_FLAG_SET(flags, 0x1);
     len=sizeof(struct in_addr);
+    BK_FLAG_SET(flags, 0x1);
+    addr=&in_addr;
   }
   else if (inet_pton(AF_INET6, name, &in6_addr))
   {
@@ -459,11 +475,26 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_n
     BK_FLAG_SET(flags, 0x1);
     family=AF_INET6;
     len=sizeof(struct in6_addr);
-
+    addr=&in6_addr;
   }
 
   /* MUTEX_LOCK */
-  if (BK_FLAG_ISSET(flags, 0x1))
+  if (BK_FLAG_ISCLEAR(user_flags, BK_GETHOSTBYFOO_FLAG_FQDN) && BK_FLAG_ISSET(flags, 0x1))
+  {
+    if (addr)
+    {
+      h=&fake_hostent;
+      h->h_addrtype=family;
+      h->h_length=len;
+      memmove(h->h_addr_list[0], addr, len);
+    }
+    else
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Converted an address, but addr was NULL. How can this happen?\n");
+      goto error;
+    }
+  }
+  else if (BK_FLAG_ISSET(flags, 0x1))
   {
     if (!(h=gethostbyaddr(((family==AF_INET)?(char *)&in_addr:(char *)&in6_addr), len, family)))
     {
@@ -577,7 +608,14 @@ bk_destroy_hostent(bk_s B, struct hostent *h)
     free(h->h_aliases);
   }
 
-  if (h->h_addr_list) free(h->h_addr_list);
+  if (h->h_addr_list)
+  {
+    for (s=h->h_addr_list; *s; s++)
+    {
+      free(*s);
+    }
+    free(h->h_addr_list);
+  }
   free(h);
   BK_VRETURN(B);
 }
@@ -601,7 +639,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
   struct hostent *n=NULL;
   int count,c;
   char **s;
-  
+
   if (!ih || !h)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
@@ -616,7 +654,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
 
   *ih=NULL;
 
-  if (!(n->h_name=strdup(h->h_name)))
+  if (h->h_name && !(n->h_name=strdup(h->h_name)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not strdup h_name: %s\n", strerror(errno));
     goto error;
@@ -665,7 +703,8 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
       goto error;
     }
 
-    if (!(n->h_addr_list=calloc(count+1,h->h_length)))
+    /*if (!(n->h_addr_list=calloc(count+1,h->h_length)))*/
+    if (!(n->h_addr_list=calloc(count+1,sizeof(*n->h_addr_list))))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate addr_list: %s\n", strerror(errno));
       goto error;
@@ -673,7 +712,12 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
     /* We *should* be able to do this one memmove, but this is safer. */
     for(c=0; c<count; c++)
     {
-      memmove(&(n->h_addr_list[c]),&(h->h_addr_list[c]), h->h_length);
+      if (!(n->h_addr_list[c]=malloc(h->h_length)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for addr: %s\n", strerror(errno));
+	goto error;
+      }
+      memmove(n->h_addr_list[c],h->h_addr_list[c], h->h_length);
     }
   }
 

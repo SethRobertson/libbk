@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.48 2001/11/12 19:15:45 jtt Exp $
+ * $Id: libbk.h,v 1.49 2001/11/12 20:54:42 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -162,6 +162,7 @@ typedef struct __bk_thread
 #define BK_BT_FLAGS(B)		((B)->bt_flags)      ///< Access thread-specific flags
 // @}
 
+#define BK_GETHOSTBYFOO_FLAG_FQDN	0x1	/* Get the FQDN */
 
 
 /**
@@ -687,7 +688,7 @@ extern int bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct
 extern void bk_protoent_destroy(bk_s B, struct protoent *p);
 extern int bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni);
 extern void bk_servent_destroy(bk_s B, struct servent *s);
-extern int bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args);
+extern int bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args, bk_flags user_flags);
 extern void bk_destroy_hostent(bk_s B, struct hostent *h);
 
 /* b_netinfo.c */

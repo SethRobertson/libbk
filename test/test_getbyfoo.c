@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.4 2001/11/12 19:15:45 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.5 2001/11/12 20:54:43 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -36,6 +36,7 @@ struct global_structure
 #define TESTGETBYFOO_FLAG_QUERY_HOST		0x1
 #define TESTGETBYFOO_FLAG_QUERY_SERV		0x2
 #define TESTGETBYFOO_FLAG_QUERY_PROTO		0x4
+#define TESTGETBYFOO_FLAG_QUERY_FQDN		0x8
 
 int proginit(bk_s B);
 void progrun(bk_s B);
@@ -59,7 +60,8 @@ main(int argc, char **argv, char **envp)
     {"proto", 'p', POPT_ARG_STRING, &Global.gs_query, 'p', "Query protocols", NULL },
     {"hosts", 'h', POPT_ARG_STRING, &Global.gs_query, 'h', "Query hosts", NULL },
     {"serv", 's', POPT_ARG_STRING, &Global.gs_query, 's', "Query services", NULL },
-    {"seatbelts", 'S', POPT_ARG_NONE, NULL, 'S', "Query services", NULL },
+    {"fdqn", 'f', POPT_ARG_NONE, NULL, 'f', "Get FDQN", NULL },
+    {"seatbelts", 'S', POPT_ARG_NONE, NULL, 'S', "Seatbelts off", NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -93,6 +95,9 @@ main(int argc, char **argv, char **envp)
       break;
     case 's':
       BK_FLAG_SET(Global.gs_flags, TESTGETBYFOO_FLAG_QUERY_SERV);
+      break;
+    case 'f':
+      BK_FLAG_SET(Global.gs_flags, TESTGETBYFOO_FLAG_QUERY_FQDN);
       break;
     case 'S':
       BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
@@ -231,9 +236,9 @@ void progrun(bk_s B)
       printf("h is now %p\n", h);
     }
 
-    if (bk_gethostbyfoo(B, Global.gs_query, 0, h, bni, run, host_callback, NULL)< 0)
+    if (bk_gethostbyfoo(B, Global.gs_query, 0, h, bni, run, host_callback, NULL,((BK_FLAG_ISSET(Global.gs_flags,TESTGETBYFOO_FLAG_QUERY_FQDN))?BK_GETHOSTBYFOO_FLAG_FQDN:0))<0)
     {
-      fprintf(stderr,"Could not \"initiate\" gethostbyfoo call");
+      fprintf(stderr,"Could not \"initiate\" gethostbyfoo call\n");
       exit(1);
     }
     if (!*h)

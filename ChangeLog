@@ -2,6 +2,9 @@
 
 	* lib/b_getbyfoo.c (copy_hostent): Fencepost error in copying host
 	address list.
+	(bk_gethostbyfoo): Do not do FQDN searches be default. Allow them
+	based on flag.
+	(bk_gethostbyfoo): Save addresses in the correct way.
 
 2001-11-08  James Tanis  <jtt@winwood.sysdetect.com>
 
