@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.204 2003/02/01 04:23:10 seth Exp $
+ * $Id: libbk.h,v 1.205 2003/02/03 23:53:06 seth Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1250,8 +1250,8 @@ struct bk_str_id
  */
 struct bk_vault_node
 {
-  const char    * const key;			///< Key index of data (const pointer to const data)
-  void          * const value;			///< Value of data being stored (const pointer to variable data)
+  char    	*key;				///< Key index of data
+  void          *value;				///< Value of data being stored
 };
 
 
