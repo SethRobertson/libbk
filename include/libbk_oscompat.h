@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.9 2002/01/19 12:42:34 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.10 2002/01/20 04:12:02 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -77,5 +77,11 @@ typedef char *caddr_t;
 #if defined(AF_INET6) && defined(HAVE_INET_PTON)
 #define HAVE_INET6
 #endif
+
+/*
+ * While this makes us compat. w/ some really broken realloc()'s, this is
+ * really more for keeping Insight happy.
+ */
+#define realloc(ptr,len)	((!(ptr))?malloc(len):realloc((ptr),(len)))
 
 #endif /* _libbk_oscompat_h_ */

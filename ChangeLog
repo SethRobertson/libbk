@@ -1,3 +1,9 @@
+2002-01-19  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* include/libbk_oscompat.h (realloc): Redefine realloc to
+	specifically use malloc when ptr is NULL (mostly for Insight,
+	though protects against *really* broken malloc libs).
+
 2002-01-19  Seth Robertson  <seth@yeah.baka.org>
 
 	* src/genrand.c: Random number production program.  Suitable for
