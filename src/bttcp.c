@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.35 2003/06/17 06:07:18 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.36 2003/10/16 23:11:31 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -99,7 +99,7 @@ struct program_config
 
 static int proginit(bk_s B, struct program_config *pconfig);
 static int connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state);
-static void relay_finish(bk_s B, void *args, u_int state);
+static void relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags);
 static void cleanup(bk_s B, struct program_config *pc);
 
 
@@ -554,17 +554,29 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 
 
 /**
- * Things to do when the relay is over.
+ * Callback prototype for ioh relay. This is called once per read and once
+ * one everything is shutdown. While the relay is active, the callback is
+ * called when the data has been read but before it has been
+ * written. During shutdown, indicated by a NULL data argument, the
+ * read_ioh and write_ioh no longer have these meanings, but are supplied
+ * for convenience.
  *
  *	@param B BAKA thread/global state.
- *	@param args opaque program configuration
- *	@param state Why we are here
+ *	@param opaque Data supplied by the relay initiator (optional of course).
+ *	@param read_ioh Where the data came from.
+ *	@param flags Where the data is going.
+ *	@param data The data to be relayed.
+ *	@param flags Flags for future use.
  */
 static void
-relay_finish(bk_s B, void *args, u_int state)
+relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
   struct program_config *pc;
+
+  // We only care about shutdown
+  if (!data)
+    BK_VRETURN(B);    
 
   if (!(pc = args))
   {

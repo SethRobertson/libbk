@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.21 2003/10/08 04:26:19 dupuy Exp $
+# $Id: Makefile,v 1.22 2003/10/16 23:11:31 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -26,6 +26,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 # for a set of libbk features should be committed to ../test.
 BK_SIMPLE_PROGS=			\
 	b_chill				\
+	bdtee				\
 	bk_daemon			\
 	bttcp				\
 	genrand				\

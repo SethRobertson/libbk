@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_ioh.c,v 1.20 2003/06/17 06:07:19 seth Exp $";
+static const char libbk__rcsid[] = "$Id: test_ioh.c,v 1.21 2003/10/16 23:11:30 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -68,7 +68,7 @@ int proginit(bk_s B, struct program_config *pconfig);
 static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int fd1out, int fd2in, int fd2out, bk_flags flags);
 static void rmt_acceptor(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, const struct timeval *starttime);
 static void address_resolved(bk_s B, struct program_config *pconfig, struct in_addr *himaddr);
-static void donecb(bk_s B, void *opaque, u_int state);
+static void donecb(bk_s B, void *opaque, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags);
 
 
 
@@ -422,9 +422,11 @@ static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int f
 }
 
 
-static void donecb(bk_s B, void *opaque, u_int state)
+static void donecb(bk_s B, void *opaque, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags)
 {
-  bk_exit(B,0);
+  // We only want to do this on shutdown.
+  if (!data)
+    bk_exit(B,0);
 }
 
 

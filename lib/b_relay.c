@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.23 2003/08/26 00:45:24 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.24 2003/10/16 23:11:32 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -31,14 +31,14 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 struct bk_relay
 {
-  struct bk_ioh        *br_ioh1;		///< One of the IOHs
+  struct bk_ioh*	br_ioh1;		///< One of the IOHs
   bk_flags		br_ioh1_state;		///< State of one IOH
 #define BR_IOH_READCLOSE	0x1		///< Read side is no longer available
 #define BR_IOH_CLOSED		0x2		///< Entire IOH is no longer available
 #define BR_IOH_THROTTLED	0x4		///< Read is throttled because of output queue size
-  struct bk_ioh        *br_ioh2;		///< Another of the IOHs
+  struct bk_ioh *	br_ioh2;		///< Another of the IOHs
   bk_flags		br_ioh2_state;		///< State of one IOH
-  void		      (*br_donecb)(bk_s, void *, u_int); ///< Completion callback
+  bk_relay_cb_f		br_callback;		///< Callback on reads and shutdown
   void		       *br_opaque;		///< Opaque data for callback
   bk_flags		br_flags;		///< State
 };
@@ -63,14 +63,14 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
  *	@param B BAKA Thread/global state
  *	@param ioh1 One side of the IOH relay
  *	@param ioh2 Other side of the IOH relay
- *	@param donecb Function to call when relay has termianted
+ *	@param callback Function to call on reads and shutdown
  *	@param opaque Data for function
  *	@param flags BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE BK_RELAY_IOH_DONTCLOSEFDS
  *
  *	@return <i>-1</i> Call failure, allocation failure, other failure
  *	@return <br><i>0</i> on success
  */
-int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb)(bk_s B, void *opaque, u_int state), void *opaque, bk_flags flags)
+int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f callback, void *opaque, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
   struct bk_relay *relay;
@@ -90,7 +90,7 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
   // Configure the IOHs
   relay->br_ioh1 = ioh1;
   relay->br_ioh2 = ioh2;
-  relay->br_donecb = donecb;
+  relay->br_callback = callback;
   relay->br_opaque = opaque;
   relay->br_flags = flags;
 
@@ -167,6 +167,9 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
       bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
       goto error;
     }
+
+    if (relay->br_callback)
+      (*relay->br_callback)(B, relay->br_opaque, ioh, ioh_other, data, 0);
 
     if ((ret = bk_ioh_write(B, ioh_other, newcopy, 0)) != 0)
     {
@@ -260,7 +263,8 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   {
     // Both sides closed, dry up and go away
     bk_debug_printf_and(B, 1, "Both sides seem to have closed--drying up\n");
-    (*relay->br_donecb)(B, relay->br_opaque, 0);
+    if (relay->br_callback)
+      (*relay->br_callback)(B, relay->br_opaque, ioh, ioh_other, NULL, 0);
     free(relay);
     BK_VRETURN(B);
   }

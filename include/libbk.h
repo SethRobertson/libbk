@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.261 2003/10/07 17:49:30 brian Exp $
+ * $Id: libbk.h,v 1.262 2003/10/16 23:11:33 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1827,8 +1827,25 @@ extern int bk_signal_reset(bk_s B, void *args, bk_flags flags);
 extern int bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags);
 
 
+/**
+ * Callback prototype for ioh relay. This is called once per read and once
+ * one everything is shutdown. While the relay is active, the callback is
+ * called when the data has been read but before it has been
+ * written. During shutdown, indicated by a NULL data argument, the
+ * read_ioh and write_ioh no longer have these meanings, but are supplied
+ * for convenience.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param opaque Data supplied by the relay initiator (optional of course).
+ *	@param read_ioh Where the data came from.
+ *	@param flags Where the data is going.
+ *	@param data The data to be relayed.
+ *	@param flags Flags for future use.
+ */
+typedef void (*bk_relay_cb_f)(bk_s B, void *opaque, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags);
+
 /* b_relay.c */
-extern int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb)(bk_s B, void *opaque, u_int state), void *opaque, bk_flags flags);
+extern int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f callback, void *opaque, bk_flags flags);
 #define BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE	0x1 ///< Shut down relay after only one side has closed
 #define BK_RELAY_IOH_DONTCLOSEFDS		0x2 ///< Don't actually close fds
 #define BK_RELAY_IOH_NOSHUTDOWN			0x4 ///< Don't actually shutdown fds
