@@ -1,3 +1,11 @@
+2003-12-04  Zhi-Da Zhong  <zz@sysdetect.com>
+
+	* lib/b_vptr.c: vptr utilities -- just vptr_*trimleft() right now
+
+	* lib/Makefile: added b_vptr.c
+
+	* include/libbk.h: added vptr_*trimleft()
+
 2003-12-02  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_strconv.c (bk_string_atoflag): parse flags without [] for
