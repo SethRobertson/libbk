@@ -1,3 +1,11 @@
+2002-10-21  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk_net.h (struct baka_udphdr): get the baka order right!
+
+	* lib/b_strconv.c (bk_string_atoull_int): avoid signed char index bug
+
+	* lib/b_strcode.c (bk_decode_base64): avoid signed char index bug
+
 2002-10-18  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h: __INSURE__, not insight...

@@ -1,18 +1,18 @@
-#if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.5 2002/10/21 03:36:20 jtt Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2001";
+#if !defined(lint)
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.6 2002/10/21 06:28:54 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
- *
- * Copyright (c) 2001 The Authors.  All rights reserved.
- *
+ * 
+ * Copyright (c) 2002 The Authors. All rights reserved.
+ * 
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- *
+ * 
  * Mail <projectbaka@baka.org> for further information
- *
+ * 
  * --Copyright LIBBK--
  */
 
@@ -293,7 +293,7 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
   while (*string)
   {
     u_int64_t oldval = val;
-    int x = decode[*string++];
+    int x = decode[*(unsigned char *)string++];
 
     /* Is this the end of the number? */
     if (x < 0 || x >= base)

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.4 2002/10/20 05:17:53 jtt Exp $
+ * $Id: libbk_net.h,v 1.5 2002/10/21 06:28:53 dupuy Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -115,8 +115,8 @@ struct baka_udphdr
 {
   u_int16_t pkt_udp_srcport;                    ///< Source port
   u_int16_t pkt_udp_dstport;                    ///< Destination port
-  u_int16_t pkt_udp_checksum;                   ///< Header+payload checksum
   u_int16_t pkt_udp_length;                     ///< Length of payload
+  u_int16_t pkt_udp_checksum;                   ///< Header+payload checksum
 };
 
 
