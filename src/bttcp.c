@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.7 2001/11/18 20:24:07 seth Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.8 2001/11/20 19:34:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -74,17 +74,14 @@ struct program_config
 {
   bttcp_role_t		pc_role;		///< What role do I play?
   bk_flags		pc_flags;		///< Everyone needs flags.
-  const char *		pc_remname;		///< Remote "url".
-  const char *		pc_remport;		///< Remote "url".
-  const char *		pc_remproto;		///< Remote "url".
-  const char *		pc_locname;		///< Local "url".
-  const char *		pc_locport;		///< Local "url".
-  const char *		pc_locproto;		///< Local "url".
+  char *		pc_remname;		///< Remote "url".
+  char *		pc_remport;		///< Remote "url".
+  char *		pc_remproto;		///< Remote "url".
+  char *		pc_localurl;		///< Local "url".
   bttcp_init_state_t	pc_init_cur_state;	///< Initialization state.
   bttcp_init_state_t	pc_init_next_state;	///< Initialization state.
   struct bk_netinfo *	pc_local;		///< Local side info.
   struct bk_netinfo *	pc_remote;		///< Remote side info.
-  struct bk_addrgroup *	pc_as;			///< Address group.
   struct bk_run	*	pc_run;			///< Run structure.
   int			pc_af;			///< Address family.
   long			pc_timeout;		///< Connection timeout
@@ -100,6 +97,7 @@ static void remote_name(bk_s B, struct bk_run *run, struct hostent **h, struct b
 static void local_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args);
 static void connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, bk_flags flags);
 static void relay_finish(bk_s B, void *args, u_int state);
+static void cleanup(bk_s B, struct program_config *pc);
 
 
 
@@ -169,9 +167,9 @@ main(int argc, char **argv, char **envp)
 	exit(1);
       }
       pc->pc_role=BTTCP_ROLE_RECEIVE;
-      if (!pc->pc_remname)
+      if (!pc->pc_localurl)
       {
-	parse_host_specifier(B, BK_ADDR_ANY, (char **)&pc->pc_locname, (char **)&pc->pc_locport, (char **)&pc->pc_locproto);
+	pc->pc_localurl=BK_ADDR_ANY;
       }
       break;
     case 't':
@@ -184,7 +182,7 @@ main(int argc, char **argv, char **envp)
       pc->pc_role=BTTCP_ROLE_TRANSMIT;
       break;
     case 'l':
-      parse_host_specifier(B, poptGetOptArg(optCon), (char **)&pc->pc_locname, (char **)&pc->pc_locport, (char **)&pc->pc_locproto);
+      pc->pc_localurl=(char *)poptGetOptArg(optCon);
       break;
     case 'f':
       pc->pc_af=atoi(poptGetOptArg(optCon));
@@ -214,9 +212,11 @@ main(int argc, char **argv, char **envp)
   }
 
   progrun(B, pc);
+  cleanup(B,pc);
   bk_exit(B,0);
   abort();
   return(255);
+  return (0);
 }
 
 
@@ -262,24 +262,14 @@ proginit(bk_s B, struct program_config *pc)
     fprintf(stderr,"Could not create remote bk_netaddr structure\n");
     goto error;
   }
+
   /* Set protocol before starting */
-  if (!pc->pc_remproto)
+  if (!pc->pc_remproto && !(pc->pc_remproto=strdup(DEFAULT_PROTO_STR)))
   {
-    if (pc->pc_locproto)
-      pc->pc_remproto=pc->pc_locproto;
-    else
-      pc->pc_remproto=DEFAULT_PROTO_STR;
+    bk_error_printf(B, BK_ERR_ERR, "Could not strdup default proto str: %s\n", strerror(errno));
+    goto error;
   }
 
-  if (!pc->pc_locport)
-  {
-    pc->pc_locport=ANY_PORT;
-  }
-
-  /* At this point pc->pc_remproto is guarenteed to be set so... */
-  if (!pc->pc_locproto)
-    pc->pc_locproto=pc->pc_remproto;
-    
   if (pc->pc_remport &&bk_getservbyfoo(B, (char *)pc->pc_remport, (char *)pc->pc_remproto, NULL , pc->pc_remote,0)<0)
   {
     fprintf(stderr,"Could not set remote port\n");
@@ -292,20 +282,7 @@ proginit(bk_s B, struct program_config *pc)
     goto error;
   }
 
- if (bk_getservbyfoo(B, (char *)pc->pc_locport, (char *)pc->pc_locproto, NULL , pc->pc_local,0)<0)
- {
-   fprintf(stderr,"Could not set local port\n");
-   goto error;
- }
-
- if (bk_getprotobyfoo(B, (char *)pc->pc_locproto, NULL , pc->pc_local,0)<0)
-  {
-    fprintf(stderr,"Could not set local proto\n");
-    goto error;
-  }
-
   init_state(B, pc);
-
   
   BK_RETURN(B, 0);
 
@@ -475,24 +452,20 @@ init_state(bk_s B, struct program_config *pc)
     }
     break;
   case BDTTCP_INIT_STATE_RESOLVE_LOCAL:
-    pc->pc_init_cur_state=BDTTCP_INIT_STATE_RESOLVE_LOCAL;
-    if (pc->pc_locname)
-    {
-      if (bk_gethostbyfoo(B, (char *)pc->pc_locname, pc->pc_af, NULL, pc->pc_local, pc->pc_run, local_name, pc, 0)<0)
-      {
-	fprintf(stderr,"Could not resolv local hostname\n");
-	goto error;
-      }
-    }
-    else
-    {
-      pc->pc_init_next_state=BDTTCP_INIT_STATE_CONNECT;
-      init_state(B,pc);
-    }
+    pc->pc_init_next_state=BDTTCP_INIT_STATE_CONNECT;
+    init_state(B,pc);
     break;
   case BDTTCP_INIT_STATE_CONNECT:
     pc->pc_init_cur_state=BDTTCP_INIT_STATE_CONNECT;
-    if (bk_net_init(B, pc->pc_run, pc->pc_local, pc->pc_remote, pc->pc_timeout, 0, connect_complete, pc, 0)<0)
+    if (pc->pc_role==BTTCP_ROLE_RECEIVE)
+    {
+      if (bk_netutils_start_service(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, "5001", "tcp", NULL, connect_complete, pc, 0, 0))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not start service\n");
+	goto error;
+      }
+    }
+    else if (bk_net_init(B, pc->pc_run, pc->pc_local, pc->pc_remote, pc->pc_timeout, 0, connect_complete, pc, 0)<0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not begin connect\n");
       goto error;
@@ -510,6 +483,7 @@ init_state(bk_s B, struct program_config *pc)
   BK_RETURN(B,0);
 
  error:
+  bk_run_set_run_over(B, pc->pc_run);
   BK_RETURN(B,-1);
 }
 
@@ -538,6 +512,7 @@ remote_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *b
   }
 
   bk_netinfo_set_primary_address(B, bni, NULL);
+  pc->pc_remote=bni;
   pc->pc_init_next_state=BDTTCP_INIT_STATE_RESOLVE_LOCAL;
   init_state(B, pc);
   BK_VRETURN(B);
@@ -567,6 +542,7 @@ local_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bn
   }
 
   bk_netinfo_set_primary_address(B, bni, NULL);
+  pc->pc_local=bni;
   pc->pc_init_next_state=BDTTCP_INIT_STATE_CONNECT;
   init_state(B, pc);
   BK_VRETURN(B);
@@ -621,6 +597,10 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, bk_addr
 
   fprintf(stderr, "%s ==> %s\n", bk_netinfo_info(B,bag->bag_local), bk_netinfo_info(B,bag->bag_remote));
 
+  /* XXX If we need to hold on to bag save it here but for now */
+  bk_addrgroup_destroy(B,bag);
+  bag=NULL;
+
   fflush(stdin);
   fflush(stdout);
   if (!(std_ioh=bk_ioh_init(B, fileno(stdin), fileno(stdout), bk_ioh_stdrdfun, bk_ioh_stdwrfun, NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
@@ -669,7 +649,37 @@ relay_finish(bk_s B, void *args, u_int state)
     BK_VRETURN(B);
   }
   
+  
   /* XXX Report statistics here */
   bk_run_set_run_over(B,pc->pc_run);
   BK_VRETURN(B);
+}
+
+
+
+/**
+ * Cleanup bttcp. Actually this function does nothing but delay exiting and
+ * so should probably only compile when INSURE is on (so that we clean up
+ * memory we know about), however for the moment we just waste time
+ *	@param B BAKA thread/global state.
+ *	@param pc program configuraion.
+ */
+static void
+cleanup(bk_s B, struct program_config *pc)
+{
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+
+  if (!pc)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  if (pc->pc_remname) free(pc->pc_remname);
+  if (pc->pc_remport) free(pc->pc_remport);
+  if (pc->pc_remproto) free(pc->pc_remproto);
+  if (pc->pc_local) bk_netinfo_destroy(B,pc->pc_local);
+  if (pc->pc_remote) bk_netinfo_destroy(B,pc->pc_remote);
+  if (pc->pc_run) bk_run_destroy(B, pc->pc_run);
+  return;
 }

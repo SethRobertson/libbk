@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.17 2001/11/07 21:40:50 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.18 2001/11/20 19:34:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -190,12 +190,12 @@ bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, b
     BK_RETURN(B, NULL);
   }
   
-  if (!BK_MALLOC(bc))
+  if (!BK_CALLOC(bc))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bc: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
   }
-  BK_ZERO(bc);
+  bk_debug_printf_and(B,128,"bc allocate: %p\n", bc);
 
   /* Create kv clc */
   if (!(bc->bc_kv=config_kv_create(kv_oo_cmp, kv_ko_cmp, DICT_UNORDERED, &kv_args)))
@@ -203,6 +203,8 @@ bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, b
     bk_error_printf(B, BK_ERR_ERR, "Could not create config values clc\n");
     goto error;
   }
+  bk_debug_printf_and(B,128,"KV allocate: %p\n", bc->bc_kv);
+
 
   if (!(bcf=bcf_create(B, filename, NULL)))
   {
@@ -282,11 +284,14 @@ bk_config_destroy(bk_s B, struct bk_config *obc)
       config_kv_delete(bc->bc_kv,bck);
       bck_destroy(B,bck);
     }
+    bk_debug_printf_and(B,128,"KV free: %p\n", bc->bc_kv);
     config_kv_destroy(bc->bc_kv);
   }
 
   if (bc->bc_bcup.bcup_separator) free (bc->bc_bcup.bcup_separator);
   if (bc->bc_bcup.bcup_include_tag) free (bc->bc_bcup.bcup_include_tag);
+
+  if (bc->bc_bcf) bcf_destroy(B, bc->bc_bcf);
 
   /* 
    * Do this before free(3) so that Insight (et al) will not complain about
@@ -297,6 +302,7 @@ bk_config_destroy(bk_s B, struct bk_config *obc)
     BK_GENERAL_CONFIG(B)=NULL;
   }
 
+  bk_debug_printf_and(B,128,"bc free: %p\n", bc);
   free(bc);
 
   BK_VRETURN(B);
@@ -696,12 +702,11 @@ bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf)
     BK_RETURN(B, NULL);
   }
 
-  if (!BK_MALLOC(bcf))
+  if (!BK_CALLOC(bcf))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bcf: %s\n", strerror(errno));
     goto error;
   }
-  BK_ZERO(bcf);
   
   if (!(bcf->bcf_filename=strdup(filename)))
   {
@@ -742,13 +747,19 @@ static void
 bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  
+  struct bk_config_fileinfo *ibcf;
+
   if (!bcf)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
 
+  while(ibcf=dll_minimum(bcf->bcf_includes))
+  {
+    bcf_destroy(B,ibcf);
+  }
+  dll_destroy(bcf->bcf_includes);
   if (bcf->bcf_insideof) dll_delete(bcf->bcf_insideof->bcf_includes,bcf);
   if (bcf->bcf_filename) free(bcf->bcf_filename);
   free(bcf);
@@ -777,12 +788,11 @@ bck_create(bk_s B, const char *key, bk_flags flags)
     BK_RETURN(B, NULL);
   }
   
-  if (!BK_MALLOC(bck))
+  if (!BK_CALLOC(bck))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bck: %s\n", strerror(errno));
     goto error;
   }
-  BK_ZERO(bck);
 
   if (!(bck->bck_key=strdup(key)))
   {
@@ -866,12 +876,11 @@ bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags)
     BK_RETURN(B,NULL);
   }
 
-  if (!BK_MALLOC(bcv))
+  if (!BK_CALLOC(bcv))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bcv: %s\n", strerror(errno));
     goto error;
   }
-  BK_ZERO(bcv);
 
   if (!(bcv->bcv_value=strdup(value)))
   {

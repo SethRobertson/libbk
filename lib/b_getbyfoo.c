@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.11 2001/11/16 23:42:42 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.12 2001/11/20 19:34:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -167,7 +167,14 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo
 
   /* MUTEX_UNLOCK */
   
-  if (ip) *ip=n;
+  if (ip) 
+  {
+    *ip=n;
+  }
+  else
+  {
+    if (n) bk_protoent_destroy(B,n);
+  }
 
   BK_RETURN(B,ret);
 
@@ -236,7 +243,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
   char *proto;
   char *bni_proto=NULL;
   struct servent dummy;
-  struct protoent *lproto;
+  struct protoent *lproto=NULL;
   
   /* If it is possible to extract the protostr from the bni, do so and cache*/
   if (bni && bni->bni_bpi)
@@ -286,8 +293,16 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
     bk_error_printf(B, BK_ERR_ERR, "Could not convert proto string: %s\n", proto);
     goto error;
   }
-  proto=lproto->p_name;
 
+  /* 
+   * If we found the protocol use it's official name. If not just stick
+   * with whatever we have
+   */
+  if (lproto)
+  {
+    proto=lproto->p_name;
+  }
+  
   
   /* MUTEX_LOCK */
   if (bk_string_atoi(B,servstr,&num,0)==0)
@@ -368,12 +383,21 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
 
   /* MUTEX_UNLOCK */
   
-  if (is) *is=n;
+  if (is)
+  {
+    *is=n;
+  }
+  else
+  {
+    if (n) bk_servent_destroy(B,n);
+  }
+  if (lproto) bk_protoent_destroy(B,lproto);
 
   /* Return the port (in host order) since this is what folks want */
   BK_RETURN(B,ntohs(ret));
 
  error: 
+  if (lproto) bk_protoent_destroy(B,lproto);
   if (n) bk_servent_destroy(B,n);
   if (is) *is=NULL;
   

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.7 2001/11/18 20:00:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.8 2001/11/20 19:34:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -670,13 +670,21 @@ bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, b
 
   if (!bna && !(bna=bk_netinfo_get_addr(B, bni)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not determine bk_netaddr to use\n");
+    bk_error_printf(B, BK_ERR_WARN, "Could not determine bk_netaddr to use\n");
   }
   
   /* If type is not specified pull it out of the bna */
   if (type == BK_NETINFO_TYPE_UNKNOWN)
   {
-    type=bna->bna_type;
+    if (bna)
+    {
+      type=bna->bna_type;
+    }
+    else
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Cannot determine address type\n");
+      goto error;
+    }
   }
 
   switch (bk_netaddr_nat2af(B, type))
@@ -954,8 +962,8 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side)
       goto error;
     }
 
-    BK_GET_SOCKADDR_LEN(B,sin4,len);
-    if (!(bna=bk_netaddr_user(B, netaddr_type, &(sin4->sin_addr), len, 0)))
+    /*BK_GET_SOCKADDR_LEN(B,sin4,len);*/
+    if (!(bna=bk_netaddr_user(B, netaddr_type, &(sin4->sin_addr), sizeof(sin4->sin_addr), 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
       goto error;
@@ -1004,9 +1012,9 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side)
       bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
       goto error;
     }
-
-    BK_GET_SOCKADDR_LEN(B,sin6,len);
-    if (!(bna=bk_netaddr_user(B, netaddr_type,&(sin6->sin6_addr), len, 0)))
+    
+    /*BK_GET_SOCKADDR_LEN(B,sin6,len);*/
+    if (!(bna=bk_netaddr_user(B, netaddr_type,&(sin6->sin6_addr), sizeof(sin6->sin6_addr), 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
       goto error;

@@ -1,3 +1,24 @@
+2001-11-20  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* src/bttcp.c: Convert to use new service start interface.
+
+	* lib/b_netutils.c (bk_parse_endpt_spec): Parses BK "URL".
+	(bk_netutils_start_service): Start up a service with very user
+	friendly arguments.
+	(sss_gethost_complete): Where to go when hostname search complets
+	in above function.
+
+2001-11-19  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_run.c (bk_run_destroy): remember to destroy event queue.
+
+	* lib/b_addrgroup.c (bag_destroy): Remeber to destroy bni's
+	internal to bag.
+
+	* lib/b_getbyfoo.c (bk_getprotobyfoo): Clean up allocated protoent
+	if not saved.
+	(bk_getservbyfoo): Clean up allocated servent if not saved.
+
 2001-11-18  Seth Robertson  <seth@yeah.baka.org>
 
 	* lib/b_string.c (bk_encode_base64): Correct pointer bugaboo.

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.59 2001/11/20 02:10:53 seth Exp $
+ * $Id: libbk.h,v 1.60 2001/11/20 19:34:56 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -843,6 +843,8 @@ extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obs
 
 /* b_netutils.c */
 extern int bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa);
+extern int bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char **servicestr,  char *defservicestr, char **protostr, char *defprotostr);
+extern int bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags);
 
 
 /* b_signal.c */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.6 2001/11/18 20:00:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.7 2001/11/20 19:34:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -118,7 +118,7 @@ bag_create(bk_s B)
 
   if (!BK_CALLOC(bag))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocat bag: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate bag: %s\n", strerror(errno));
     goto error;
   }
   
@@ -147,6 +147,9 @@ bag_destroy(bk_s B,struct bk_addrgroup *bag)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
+
+  if (bag->bag_local) bk_netinfo_destroy(B, bag->bag_local);
+  if (bag->bag_remote) bk_netinfo_destroy(B, bag->bag_remote);
 
   free(bag);
   BK_VRETURN(B);
@@ -543,13 +546,19 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as, bk_addrgroup_result_t resu
     {
       tcp_end(B,as, result);
       /* 
-       *  This is almost assuredly ignored -- indeed what could someone
-       *  *possibly* do with this (someone other than the connect_start
-       *  routine that is -- and connect-start *cannot* reach *this*
-       *  section of code). Nevertheless this function is supposed to
-       *  return a socket (for connect_start) so that's what we do here.
+       * You might be tempted to return as->as_sock here since this
+       * function may return or be called from thins which may return
+       * socket names. Do *not* be deceived! At this point in the code
+       * (where we are looking for successor and therefore have already
+       * made at least *one* attempt to connect) we are running "off the
+       * select loop" as it were and return values are pretty meaningless
+       * (certainly returning the socket number is meaningless). But much
+       * more imporant than this is is the fact we *know* we're on the
+       * connecting side of a tcp association here and thus when tcp_end()
+       * returns as HAS BEEN DESTROYED. Now you *could* save as->as_sock
+       * before calling tcp_end(), but why bother?
        */
-      BK_RETURN(B,as->as_sock); 
+      BK_RETURN(B,0);
     }
   }
 

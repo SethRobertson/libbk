@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.11 2001/11/15 22:19:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.12 2001/11/20 19:34:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -355,10 +355,11 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
       (*cur->bre_event)(B, run, cur->bre_opaque, curtime, BK_RUN_DESTROY);
       free(cur);
     }
+    pq_destroy(run->br_equeue);
   }
 
   // Reset signal handlers to their default actions
-  for(signum = 0;signum < NSIG;signum++)
+  for(signum = 1;signum < NSIG;signum++)
   {
     bk_run_signal(B, run, signum, NULL, NULL, 0);
   }

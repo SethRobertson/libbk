@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.3 2001/11/15 22:19:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.4 2001/11/20 19:34:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -53,6 +53,7 @@ bna_create(bk_s B)
     goto error;
   }
 
+  bk_debug_printf_and(B,128,"bna allocate: %p\n", bna);
   BK_RETURN(B,bna);
 
  error: 
@@ -93,7 +94,7 @@ bna_destroy(bk_s B, struct bk_netaddr *bna)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
-  if (bna)
+  if (!bna)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
@@ -103,6 +104,9 @@ bna_destroy(bk_s B, struct bk_netaddr *bna)
   if (bna->bna_pretty) free (bna->bna_pretty);
   if (bna->bna_type == BK_NETINFO_TYPE_LOCAL && bna->bna_path) 
     free(bna->bna_path);
+
+  bk_debug_printf_and(B,128,"bna free: %p\n", bna);
+
   free(bna);
   BK_VRETURN(B);
 }
@@ -264,17 +268,17 @@ bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags)
   switch (type)
   {
   case BK_NETINFO_TYPE_INET:
-    bk_debug_printf_and(B,1,"Copying INET");
+    bk_debug_printf_and(B,1,"Copying INET\n");
     memmove(&bna->bna_inet, addr, sizeof(struct in_addr));
     bna->bna_len=sizeof(struct in_addr);
     break;
   case BK_NETINFO_TYPE_INET6:
-    bk_debug_printf_and(B,1,"Copying INET6");
+    bk_debug_printf_and(B,1,"Copying INET6\n");
     memmove(&bna->bna_inet6, addr, sizeof(struct in6_addr));
     bna->bna_len=sizeof(struct in6_addr);
     break;
   case BK_NETINFO_TYPE_LOCAL:
-    bk_debug_printf_and(B,1,"Copying LOCAL");
+    bk_debug_printf_and(B,1,"Copying LOCAL\n");
     if (!(bna->bna_path=strdup((char *)addr)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not strdup addr path: %s\n", strerror(errno));
@@ -283,7 +287,7 @@ bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags)
     bna->bna_len=strlen((char *)addr);		/* XXX Should this be +1? */
     break;
   case BK_NETINFO_TYPE_ETHER:
-    bk_debug_printf_and(B,1,"Copying ETHER");
+    bk_debug_printf_and(B,1,"Copying ETHER\n");
     memmove(&bna->bna_ether, addr, sizeof(struct ether_addr));
     bna->bna_len=sizeof(struct ether_addr);
     break;
