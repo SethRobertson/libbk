@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.2 2001/11/15 22:52:06 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.3 2001/11/15 23:02:35 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -51,6 +51,12 @@ static void net_init_finish(bk_s B, struct bk_run *run, int fd, u_int gottype, v
 static int addrgroup_apply(bk_s B, struct addrgroup_state *as, bk_addrgroup_result_t result);
 static void connect_timeout(bk_s B, struct bk_run *run, void *args, struct timeval starttime, bk_flags flags);
 static int do_net_init_af_inet(bk_s B, struct addrgroup_state *as);
+static int do_net_init_af_local(bk_s B, struct addrgroup_state *as);
+static int do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as);
+static int do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as);
+static int do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as);
+static int do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as);
+
 
 
 
@@ -292,8 +298,11 @@ do_net_init_af_inet(bk_s B, struct addrgroup_state *as)
     ret=do_net_init_af_inet_tcp(B, as);
     break;
   case IPPROTO_UDP:
-    /*ret=do_net_init_af_inet_udp(B, as);*/
+    ret=do_net_init_af_inet_udp(B, as);
     break;
+  default: 
+    bk_error_printf(B, BK_ERR_ERR, "Unknown INET protocol: %d\n", bag->bag_proto);
+    goto error;
   }
 
   BK_RETURN(B,ret);
@@ -317,6 +326,7 @@ do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_addrgroup *bag;
+  int ret;
   
   if (!as)
   {
@@ -324,7 +334,7 @@ do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as)
     BK_RETURN(B, -1);
   }
   
-  bag=as->as_bag;
+  bag=&as->as_bag;
 
   if (bag->bag_remote)
   {
@@ -336,6 +346,107 @@ do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as)
   }
 
   BK_RETURN(B,ret);
+}
+
+
+
+/**
+ * Open an AF_LOCAL connection
+ *	@param B BAKA thread/global state.
+ *	@param as @a addrgroup_state info.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return a new socket on success.
+ */
+static int
+do_net_init_af_local(bk_s B, struct addrgroup_state *as)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret=0;
+
+  if (!as)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  BK_RETURN(B,ret);
+  
+}
+
+
+
+
+/**
+ * Open a udp network.
+ *	@param B BAKA thread/global state.
+ *	@param as @a addrgroup_state info.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return a new socket on success.
+ */
+static int
+do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret=0;
+
+  if (!as)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  BK_RETURN(B,ret);
+  
+}
+
+
+
+/**
+ * Start a tcp connection
+ *	@param B BAKA thread/global state.
+ *	@param as @a addrgroup_state info.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return a new socket on success.
+ */
+static int
+do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret=0;
+
+  if (!as)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  BK_RETURN(B,ret);
+  
+}
+
+
+
+/**
+ * Open a tcp listener
+ *	@param B BAKA thread/global state.
+ *	@param as @a addrgroup_state info.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return a new socket on success.
+ */
+static int
+do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret=0;
+
+  if (!as)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  BK_RETURN(B,ret);
+  
 }
 
 
