@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_listnum.c,v 1.3 2002/03/26 23:23:23 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_listnum.c,v 1.4 2002/05/06 17:41:54 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -108,9 +108,9 @@ struct bk_listnum_main *bk_listnum_create(bk_s B, bk_flags flags)
  error:
   if (mainl)
   {
-    free(mainl);
     if (mainl->blm_list)
       listnum_destroy(mainl->blm_list);
+    free(mainl);
   }
   BK_RETURN(B, NULL);
 }
@@ -155,17 +155,15 @@ struct bk_listnum_head *bk_listnum_get(bk_s B, struct bk_listnum_main *mainl, u_
   if (listnum_insert(mainl->blm_list, head) != DICT_OK)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not insert new item: %s\n", listnum_error_reason(mainl->blm_list, NULL));
-    BK_RETURN(B, NULL);
+    goto error;
   }
 
   BK_RETURN(B, head);
 
-#if 0						// when goto error; used
  error:
   if (head)
     free(head);
   BK_RETURN(B, NULL);
-#endif
 }
 
 
@@ -189,6 +187,9 @@ void bk_listnum_destroy(bk_s B, struct bk_listnum_main *mainl)
   }
 
   DICT_NUKE(mainl->blm_list, listnum, head, bk_error_printf(B, BK_ERR_ERR, "Could not delete minimum: %s\n", listnum_error_reason(mainl->blm_list, NULL)); break, free(head));
+
+  free(mainl);
+
   BK_VRETURN(B);
 }
 

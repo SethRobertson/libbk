@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.26 2002/01/09 06:26:38 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.27 2002/05/06 17:41:54 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -650,4 +650,20 @@ static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *PT, bk_fla
   free(PT);
 
   BK_VRETURN(B);
+}
+
+
+
+
+/**
+ * sigh.. A function to do nothing but satisfy gcc's hard nosed syntax checker.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param p The pointer which is <em>not</em> to be freed (ie was allocated with alloca(e))
+ */
+void
+bk_no_free(void *p)
+{
+  // Purposefully no BK_ENTRY.
+  return;
 }

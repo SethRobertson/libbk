@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.141 2002/05/01 23:46:28 dupuy Exp $
+ * $Id: libbk.h,v 1.142 2002/05/06 17:41:54 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -101,6 +101,17 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_BITS_BITNUM(b)	((b)%8)		///< Which bit in a byte has a particular bit
 #define BK_BITS_VALUE(B,b)	(((B)[BK_BITS_BYTENUM(b)] & (1 << BK_BITS_BITNUM(b))) >> BK_BITS_BITNUM(b)) ///< Discover truth (0 or 1) value of a particular bit in a complex bitmap
 #define BK_BITS_SET(B,b,v)	(B)[BK_BITS_BYTENUM(b)] = (((B)[BK_BITS_BYTENUM(b)] & ~(1 << BK_BITS_BITNUM(b))) | ((v) & 1) << BK_BITS_BITNUM(b)); ///< Set a particular bit in a complex bitmap
+
+#ifdef __INSIGHT__
+#define bk_alloca(l)		malloc(l)
+#define bk_alloca_free(p)	free(p)
+#else
+#define bk_alloca(l)		alloca(l)
+#define bk_alloca_free(p)	bk_no_free(p);
+#endif
+
+#define BK_ALLOCA(p) BK_ALLOCA_LEN(p,sizeof(*(p))) ///< Structure allocation calloc with assignment and type cast
+#define BK_ALLOCA_LEN(p,l) ((p) = (typeof(p))bk_alloca(l))	///< Malloc with assignment and type cast
 
 
 
@@ -1033,6 +1044,7 @@ extern void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, 
 #define BK_SYSLOG_FLAG_NOLEVEL 2		///< Don't want error level included during bk_general_*syslog
 extern const char *bk_general_errorstr(bk_s B, int level);
 extern int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags);
+extern void bk_no_free(void *p);
 extern void *bk_nullptr;			/* NULL pointer junk */
 extern int bk_zeroint;				/* Zero integer junk */
 extern unsigned bk_zerouint;			/* Zero unsigned junk */

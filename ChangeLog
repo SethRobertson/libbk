@@ -1,3 +1,11 @@
+2002-05-06  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_general.c (bk_no_free): Function to do nothing but satisfy
+	the compiler. Used for "freeing" that which was allocated with alloca(3).
+
+	* lib/b_listnum.c (bk_listnum_get): Free head if error.
+	(bk_listnum_destroy): Free mainl.
+
 2002-05-03  Seth Robertson  <seth@yeah.baka.org>
 
 	* src/bttcp.c (main): Don't fall through multicast looping to ttl.
