@@ -1,3 +1,11 @@
+2004-08-04  Seth Robertson  <seth@cheviot.sysdetect.com>
+
+	* lib/b_ioh.c (bk_ioh_is_canceled): It is not fully clear whether
+	bk_ioh_is_canceled should return only is_canceled or both
+	is_canceled and is_closed.  There is no corresponding
+	ioh_is_closed function.  The only use of it to date suggests that
+	both is good.
+
 2004-07-14  Seth Robertson  <seth@cheviot.sysdetect.com>
 
 	* lib/b_ioh.c (check_follow): Don't follow if we are canceled.

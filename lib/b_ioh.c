@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.108 2004/07/15 03:06:36 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.109 2004/08/05 03:58:59 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -4696,9 +4696,8 @@ bk_ioh_is_canceled(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  BK_RETURN(B,bk_run_fd_is_canceled(B, ioh->ioh_run, ioh->ioh_fdin));
+  BK_RETURN(B,bk_run_fd_is_canceled(B, ioh->ioh_run, ioh->ioh_fdin) || bk_run_fd_is_closed(B, ioh->ioh_run, ioh->ioh_fdin));
 }
-
 
 
 
