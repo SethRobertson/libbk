@@ -1,3 +1,8 @@
+2003-03-24  Seth Robertson  <seth@hawking.sysdetect.com>
+
+	* lib/b_stats.c: New support routines to track timing of whatever
+	you like
+
 2003-03-21  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_url.c (bk_url_reconstruct): James' idea of a "valid" URL 

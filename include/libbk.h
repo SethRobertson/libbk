@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.219 2003/03/21 21:33:14 dupuy Exp $
+ * $Id: libbk.h,v 1.220 2003/03/25 04:56:23 seth Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1920,6 +1920,24 @@ extern bk_vault_t bk_vault_create(bk_s B, int table_entries, int bucket_entries,
 #define bk_vault_nextobj(h,i)		ht_nextobj((h),(i))
 #define bk_vault_iterate_done(h,i)	ht_iterate_done((h),(i))
 #define bk_vault_error_reason(h,i)	ht_error_reason((h),(i))
+
+
+/* b_stats.c */
+struct bk_stat_list;				// Forward reference
+struct bk_stat_node;				// Forward reference
+extern struct bk_stat_list *bk_stat_create(bk_s B, bk_flags flags);
+extern void bk_stat_destroy(bk_s B, struct bk_stat_list *blist);
+extern struct bk_stat_node *bk_stat_nodelist_create(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, bk_flags flags);
+extern struct bk_stat_node *bk_stat_node_create(bk_s B, const char *name1, const char *name2, bk_flags flags);
+extern void bk_stat_node_destroy(bk_s B, struct bk_stat_node *bnode);
+extern void bk_stat_start(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, bk_flags flags);
+extern void bk_stat_end(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, bk_flags flags);
+extern void bk_stat_node_start(bk_s B, struct bk_stat_node *bnode, bk_flags flags);
+extern void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags);
+extern char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags);
+#define BK_STAT_DUMP_HTML	0x1	///< Request HTML string instead of CSV
+extern void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, u_int *minusec, u_int *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags);
+extern void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_int *minusec, u_int *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags);
 
 
 
