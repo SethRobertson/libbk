@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.106 2004/04/27 20:05:24 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.107 2004/05/28 12:09:32 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2365,4 +2365,94 @@ char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **
     free(ret);
 
   BK_RETURN(B, NULL);
+}
+
+
+
+/**
+ * Quote a string for use in CSV (comma separated value) mode. The @a
+ * quote_str contains the list of characters which require quoting. To date
+ * only double quote ("), single quote ('), and newline (\n) are
+ * valid. Quotes are "quoted" by doubling them; newline is quoted by
+ * replacing it with the strin \n. If the @a quote_str == NULL then the
+ * default bahavior of quoting only double quotes is assumed. To quote *no
+ * charater* pass in an empty @a quote_str. If the output is truncated, no
+ * attempt is made to determine how much space will be needed. The caller
+ * simply has to retry with increasingly higher values untl the function
+ * succeeds.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param in_str The input string to quote.
+ *	@param in_len The length of the input
+ *	@param out_str The output (ie quoted) string.
+ *	@param out_len The length of the output string.
+ *	@param quote_str The string of characters to quote.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i> >0 </i> the number of bytes used output.
+ */
+int
+bk_string_csv_quote(bk_s B, const char *in_str, int in_len, char *out_str, int out_len, const char *quote_str, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int in_index = 0;
+  int out_index = 0;
+
+  if (!in_str || !out_str)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    goto error;
+  }
+
+  if (!quote_str)
+    quote_str = "\"";
+
+  for (in_index = 0; in_index < in_len && out_index < out_len; in_index++)
+  {
+    char c = in_str[in_index];
+    if (strchr(quote_str, c))
+    {
+      switch(c)
+      {
+      case '\n':
+	out_str[out_index++] = '\\';
+	if (out_index == out_len)
+	  goto done;
+	out_str[out_index++] = '\\';
+	break;
+	
+      case '"':
+	out_str[out_index++] = '"';
+	if (out_index == out_len)
+	  goto done;
+	out_str[out_index++] = '"';
+	break;
+
+      case '\'':
+	out_str[out_index++] = '\'';
+	if (out_index == out_len)
+	  goto done;
+	out_str[out_index++] = '\'';
+	break;
+
+      default:
+	out_str[out_index++] = c;
+	break;
+      }
+    }
+    else
+    {
+      out_str[out_index++] = c;
+    }
+  }
+
+  // Insert NUL if space allows, but do *NOT* increment out_index (we don't want to count NUL)
+  if (out_index < out_len)
+    out_str[out_index-1] = '\0';
+
+ done:
+  BK_RETURN(B, out_index);  
+
+ error:
+  BK_RETURN(B, -1);  
 }

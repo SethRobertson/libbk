@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.289 2004/05/22 00:11:37 jtt Exp $
+ * $Id: libbk.h,v 1.290 2004/05/28 12:09:31 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1780,8 +1780,7 @@ extern void *bk_memrchr(bk_s B, const void *buffer, int character, size_t len);
 extern int bk_memdiff(bk_s B, const void *b1, const void *b2, u_int len1, u_int len2);
 extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #define BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY	0x1 ///< Take more time to return use as little memory as possible.
-char *
-bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, va_list ap) __attribute__ ((format (printf, 4, 0)));
+extern char *bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, va_list ap) __attribute__ ((format (printf, 4, 0)));
 extern int bk_vstr_cat(bk_s B,  bk_flags flags, bk_vstr *dest, const char *src_fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #define BK_VSTR_CAT_FLAG_STINGY_MEMORY		0x1 ///< Take more time; use less memory
 extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags);
@@ -1797,6 +1796,7 @@ extern int bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str
 extern bk_str_id_t bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags);
 extern char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **envdb, bk_flags flags);
 #define BK_STRING_EXPAND_FREE 1
+extern int bk_string_csv_quote(bk_s B, const char *in_str, int in_len, char *out_str, int out_len, const char *quote_str, bk_flags flags);
 
 
 /* getbyfoo.c */
