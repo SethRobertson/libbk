@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.15 2003/10/20 22:56:12 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.16 2003/12/29 15:54:30 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -110,11 +110,11 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
     {
       int cnt;
       bk_debug_printf_and(B,2,"Closing fd's\n");
-      
+
       for (cnt=0; cnt < getdtablesize(); cnt++)
       {
-	if (cnt != fdin && cnt != fdout && cnt != fderr && 
-	    cnt != c2p[0] && cnt != c2p[1] && 
+	if (cnt != fdin && cnt != fdout && cnt != fderr &&
+	    cnt != c2p[0] && cnt != c2p[1] &&
 	    cnt != p2c[0] && cnt != p2c[1])
 	  if (close(cnt) == 0)
 	  {
