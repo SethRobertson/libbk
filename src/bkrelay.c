@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.1 2004/06/08 17:00:19 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.2 2004/06/09 02:01:48 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -80,6 +80,7 @@ struct program_config
 #define PC_NODELAY			0x00008	///< Set nodelay socket buffer option
 #define PC_KEEPALIVE			0x00010	///< Set keepalive preference
 #define PC_SERVER			0x00020	///< Server mode
+#define PC_ACTIVEACTIVE			0x00040	///< Active connections started
   char *		pc_proto_a;		///< What protocol to use
   char *		pc_proto_b;		///< What protocol to use
   char *		pc_remoteurl_a;		///< Remote "url".
@@ -91,6 +92,8 @@ struct program_config
   struct bk_netinfo *	pc_remote_a;		///< Remote side info.
   struct bk_netinfo *	pc_remote_b;		///< Remote side info.
   struct bk_run	*	pc_run;			///< Run structure.
+  int			pc_fd_a;		///< FD of side A
+  int			pc_fd_b;		///< FD of side B
   int			pc_af_a;		///< Address family.
   int			pc_af_b;		///< Address family.
   long			pc_timeout;		///< Connection timeout
@@ -102,6 +105,9 @@ struct program_config
   struct bk_relay_ioh_stats	pc_stats;	///< Statistics about relay
   struct timeval	pc_start;		///< Starting time
   int			pc_desiredpassive;	///< Number of passive connections
+  int			pc_desiredactive;	///< Number of passive connections
+  int			pc_actualpassive;	///< Number of passive connections so far
+  int			pc_actualactive;	///< Number of active connections so far
 };
 
 
@@ -178,8 +184,11 @@ main(int argc, char **argv, char **envp)
   pc = &Pconfig;
   memset(pc,0,sizeof(*pc));
   pc->pc_timeout=BK_SECS_TO_EVENT(30);
-  pc->pc_proto=DEFAULT_PROTO_STR;
+  pc->pc_proto_a=DEFAULT_PROTO_STR;
+  pc->pc_proto_b=DEFAULT_PROTO_STR;
   pc->pc_len=DEFAULT_BLOCK_SIZE;
+  pc->pc_fd_a = -1;
+  pc->pc_fd_b = -1;
 
   if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0)))
   {
@@ -254,8 +263,12 @@ main(int argc, char **argv, char **envp)
       pc->pc_remoteurl_b=(char *)poptGetOptArg(optCon);
       break;
 
-    case 'l':					// local-name
-      pc->pc_localurl=(char *)poptGetOptArg(optCon);
+    case 0x104:					// Local url
+      pc->pc_localurl_a=(char *)poptGetOptArg(optCon);
+      break;
+
+    case 0x105:					// Local url
+      pc->pc_localurl_b=(char *)poptGetOptArg(optCon);
       break;
 
     case 'T':					// Timeout
@@ -312,10 +325,10 @@ main(int argc, char **argv, char **envp)
    * line arguments (note argv[0] is an argument, not the program
    * name).  argc remains the number of elements in the argv array.
    */
-  pc->pc_args = (char **)poptGetArgs(optCon);
+  argv = (char **)poptGetArgs(optCon);
   argc = 0;
-  if (pc->pc_args)
-    for (; pc->pc_args[argc]; argc++)
+  if (argv)
+    for (; argv[argc]; argc++)
       ; // Void
 
   if (c < -1 || getopterr || !pc->pc_role_a || !pc->pc_role_b || argc > 0)
@@ -331,6 +344,35 @@ main(int argc, char **argv, char **envp)
   if (proginit(B, pc) < 0)
   {
     bk_die(B, 254, stderr, "Could not perform program initialization\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+  }
+
+  if (pc->pc_desiredactive == 2)
+  {
+    do
+    {
+      int retcode = 0;
+
+      if (BK_FLAG_ISSET(pc->pc_flags, PC_SERVER))
+      {
+	switch (retcode = fork())
+	{
+	case -1:
+	  bk_error_printf(B, BK_ERR_ERR, "Could not create child process to handle accepted fd: %s\n", strerror(errno));
+	  bk_die(B, 1, stderr, "Fork failure--assuming worst case and going away\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+          break;
+	default:					// Parent
+	  waitpid(retcode, &retcode, 0);
+	case 0:					// Child
+	  break;				// Continue processing
+	}
+      }
+      if (pc->pc_remoteurl_a && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_a, NULL, DEFAULT_PORT_STR, pc->pc_localurl_a, NULL, NULL, pc->pc_proto_a, pc->pc_timeout, connect_complete, &sidea, 0) < 0)
+	bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+
+      if (pc->pc_remoteurl_b && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_b, NULL, DEFAULT_PORT_STR, pc->pc_localurl_b, NULL, NULL, pc->pc_proto_b, pc->pc_timeout, connect_complete, &sideb, 0) < 0)
+	bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+      break;
+    } while (BK_FLAG_ISSET(pc->pc_flags, PC_SERVER));
   }
 
   if (bk_run_run(B,pc->pc_run, 0)<0)
@@ -388,13 +430,17 @@ proginit(bk_s B, struct program_config *pc)
       bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     pc->pc_desiredpassive++;
   }
+  else
+    pc->pc_desiredactive++;
 
   if (pc->pc_role_b == BttcpRoleReceive)
   {
-    if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto, NULL, connect_complete, &sideb, 0, 0))
+    if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl_b, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto_b, NULL, connect_complete, &sideb, 0, 0))
       bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     pc->pc_desiredpassive++;
   }
+  else
+    pc->pc_desiredactive++;
 
   BK_RETURN(B, 0);
 
@@ -421,15 +467,23 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
   struct sideidentify *si = args;
-  struct program_config *pc = si->si_pc;
-  struct bk_ioh *std_ioh = NULL, *net_ioh = NULL;
+  struct program_config *pc;
   int one = 1;
-  int infd = fileno(stdin);
-  int outfd = fileno(stdout);
+  int side_a = -1;
 
-  if (!pc)
+  if (!si || !(pc = si->si_pc))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (si == &sidea)
+    side_a = 1;
+  else if (si == &sideb)
+    side_a = 0;
+  else
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Supplied args %p is neither A nor B\n", si);
     BK_RETURN(B, -1);
   }
 
@@ -452,72 +506,64 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     goto error;
     break;
   case BkAddrGroupStateReady:
-    pc->pc_server = server_handle;
+    if (side_a)
+      pc->pc_server_a = server_handle;
+    else
+      pc->pc_server_b = server_handle;
     if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-      fprintf(stderr,"%s%s: Ready and listening\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
+      fprintf(stderr,"%s%s: Ready and listening\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
     goto done;
     break;
   case BkAddrGroupStateConnected:
-    if (BK_FLAG_ISSET(pc->pc_flags, PC_SERVER))
+    if (side_a && pc->pc_server_a)
+      pc->pc_actualpassive++;
+    if (side_a && !pc->pc_server_a)
+      pc->pc_actualactive++;
+    if (!side_a && pc->pc_server_b)
+      pc->pc_actualpassive++;
+    if (!side_a && !pc->pc_server_b)
+      pc->pc_actualactive++;
+    if (side_a)
     {
-      switch (fork())
+      pc->pc_fd_a = sock;
+      if (pc->pc_server_a)
       {
-      case -1:
-	bk_error_printf(B, BK_ERR_ERR, "Could not create child process to handle accepted fd: %s\n", strerror(errno));
-	bk_die(B, 1, stderr, "Fork failure--assuming worst case and going away\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-	break;
-      case 0:					// Child
-	break;					// Continue on with normal path
-      default:					// Parent
-	close(sock);
-	goto done;
+	if (bk_addressgroup_suspend(B, pc->pc_run, pc->pc_server_a, 0) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Failed to suspend server socket\n");
+	  goto error;
+	}
       }
     }
-    if (pc->pc_server /* && ! serving_conintuously */)
+    else
     {
-      BK_FLAG_SET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
-      bk_addrgroup_server_close(B, server_handle);
+      pc->pc_fd_b = sock;
+      if (pc->pc_server_b)
+      {
+	if (bk_addressgroup_suspend(B, pc->pc_run, pc->pc_server_b, 0) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Failed to suspend server socket\n");
+	  goto error;
+	}
+      }
     }
     break;
   case BkAddrGroupStateClosing:
-    if (BK_FLAG_ISSET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER) &&
-	pc->pc_server == server_handle)
+    if (BK_FLAG_ISSET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER))
     {
-      pc->pc_server = NULL;			/* Very important */
-      BK_FLAG_CLEAR(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
+      if (pc->pc_server_a == server_handle)
+	pc->pc_server_a = NULL;			/* Very important */
+      if (pc->pc_server_b == server_handle)
+	pc->pc_server_b = NULL;			/* Very important */
+      if (!pc->pc_server_a && !pc->pc_server_b)
+	BK_FLAG_CLEAR(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
       goto done;
     }
+
     fprintf(stderr,"Software shutdown during connection setup\n");
     goto error;
     break;
   case BkAddrGroupStateSocket:
-    if (BK_FLAG_ISSET(pc->pc_flags, PC_MULTICAST))
-    {
-      if (bk_stdsock_multicast(B, sock, pc->pc_multicast_ttl, bag->bag_remote->bni_addr,
-		       BK_FLAG_ISSET(pc->pc_flags, PC_MULTICAST_LOOP)?BK_MULTICAST_WANTLOOP:0 |
-		       BK_FLAG_ISSET(pc->pc_flags, PC_MULTICAST_NOMEMBERSHIP)?BK_MULTICAST_NOJOIN:0) < 0)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not turn on multicast options after socket creation\n");
-	BK_RETURN(B, -1);
-      }
-    }
-    else if (pc->pc_multicast_ttl > 1)
-    {
-      // OK this is a stupid overloading hack, but I don't think it is a generally useful option
-      if (setsockopt(sock, IPPROTO_IP, IP_TTL, &pc->pc_multicast_ttl, sizeof(pc->pc_multicast_ttl)) < 0)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not set IP ttl preference to %d: %s\n", pc->pc_multicast_ttl, strerror(errno));
-	BK_RETURN(B, -1);
-      }
-    }
-    if (BK_FLAG_ISSET(pc->pc_flags, PC_BROADCAST))
-    {
-      if (bk_stdsock_broadcast(B, sock, 0) < 0)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not turn on broadcast options after socket creation\n");
-	BK_RETURN(B, -1);
-      }
-    }
     if (pc->pc_sockbuf)
     {
       if (setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *)&pc->pc_sockbuf, sizeof pc->pc_sockbuf) < 0)
@@ -563,121 +609,78 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     break;
   }
 
-  if (bag && bk_debug_and(B, 1))
+  if (pc->pc_actualpassive >= pc->pc_desiredpassive && BK_FLAG_ISSET(pc->pc_flags, PC_SERVER))
   {
-    bk_debug_printf(B, "%s ==> %s\n", bk_netinfo_info(B,bag->bag_local), bk_netinfo_info(B,bag->bag_remote));
+    switch (fork())
+    {
+    case -1:
+      bk_error_printf(B, BK_ERR_ERR, "Could not create child process to handle accepted fd: %s\n", strerror(errno));
+      bk_die(B, 1, stderr, "Fork failure--assuming worst case and going away\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+      break;
+    default:					// Parent
+      if (pc->pc_fd_a >= 0)
+	close(pc->pc_fd_a);
+      if (pc->pc_fd_b >= 0)
+	close(pc->pc_fd_b);
+      pc->pc_actualactive = 0;
+      pc->pc_actualpassive = 0;
+      goto done;
+
+    case 0:					// Child
+      break;					// Continue on with normal path
+    }
+    // Child
+    BK_FLAG_CLEAR(pc->pc_flags, PC_SERVER);	// To prevent this from happening again
+    if (pc->pc_server_a)
+      bk_addrgroup_server_close(B, pc->pc_server_a);
+    if (pc->pc_server_b)
+      bk_addrgroup_server_close(B, pc->pc_server_b);
   }
 
-  /* If we need to hold on to bag save it here */
-
-  if (pc->pc_filein)
+  if (pc->pc_actualpassive >= pc->pc_desiredpassive &&
+      pc->pc_actualactive >= pc->pc_desiredactive)
   {
-    if ((infd = open(pc->pc_filein,O_RDONLY,0666)) < 0)
+    struct bk_ioh *ioha, *iohb;
+
+    if (!(ioha = bk_ioh_init(B, pc->pc_fd_a, pc->pc_fd_a, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not open input file %s: %s\n", pc->pc_filein, strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on side a\n");
+      goto error;
+    }
+
+    if (!(iohb = bk_ioh_init(B, pc->pc_fd_b, pc->pc_fd_b, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on side b\n");
+      bk_ioh_close(B, ioha, 0);
+      goto error;
+    }
+
+    pc->pc_fd_a = -1;
+    pc->pc_fd_b = -1;
+
+    if (bk_relay_ioh(B, ioha, iohb, relay_finish, pc, &pc->pc_stats, BK_FLAG_ISSET(pc->pc_flags,PC_CLOSE_AFTER_ONE)?BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE:0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not relay my iohs\n");
+      bk_ioh_close(B, iohb, 0);
+      bk_ioh_close(B, ioha, 0);
       goto error;
     }
   }
-
-  if (pc->pc_fileout)
+  else if (pc->pc_actualpassive >= pc->pc_desiredpassive && BK_FLAG_ISCLEAR(pc->pc_flags, PC_ACTIVEACTIVE))
   {
-    if ((outfd = open(pc->pc_fileout,O_WRONLY|O_CREAT|O_TRUNC,0666)) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not open output file %s: %s\n", pc->pc_fileout, strerror(errno));
-      goto error;
-    }
-  }
+    BK_FLAG_SET(pc->pc_flags, PC_ACTIVEACTIVE);
 
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE))
-  {
-    if ((pc->pc_childid = bk_pipe_to_exec(B, &infd, &outfd, *pc->pc_args, pc->pc_args, NULL, (BK_EXEC_FLAG_CLOSE_CHILD_DESC|BK_EXEC_FLAG_SEARCH_PATH|
-											      (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE_STDERR)?BK_EXEC_FLAG_STDERR_ON_STDOUT:0)|
-											      (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE_PTY)?BK_EXEC_FLAG_USE_PTY:0)))) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not execute/pipe\n");
-      goto error;
-    }
-  }
+    if (pc->pc_remoteurl_a && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_a, NULL, DEFAULT_PORT_STR, pc->pc_localurl_a, NULL, NULL, pc->pc_proto_a, pc->pc_timeout, connect_complete, &sidea, 0) < 0)
+      bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_RAW))
-  {
-    if (isatty(infd))
-    {
-      struct termios curios;
-      tcgetattr(infd, &curios);
-      memcpy(&pc->pc_termioin, &curios, sizeof(curios));
-      cfmakeraw(&curios);
-      tcsetattr(infd, TCSANOW, &curios);
-      tcsetattr(infd, TCSANOW, &curios);
-      if (infd == fileno(stdin))
-      {
-	BK_FLAG_SET(pc->pc_flags, PC_RESTORE_TERMIN);
-	pc->pc_dupstdin = dup(infd);
-      }
-    }
-    if (isatty(outfd))
-    {
-      struct termios curios;
-      tcgetattr(outfd, &curios);
-      memcpy(&pc->pc_termioout, &curios, sizeof(curios));
-      cfmakeraw(&curios);
-      tcsetattr(outfd, TCSANOW, &curios);
-      tcsetattr(outfd, TCSANOW, &curios);
-      if (outfd == fileno(stdout))
-      {
-	BK_FLAG_SET(pc->pc_flags, PC_RESTORE_TERMOUT);
-	pc->pc_dupstdout = dup(outfd);
-      }
-    }
-  }
-
-
-  pc->pc_fdin = infd;
-  if (!(std_ioh = bk_ioh_init(B, infd, outfd, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on stdin/stdout\n");
-    goto error;
-  }
-
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
-  {
-#ifndef NO_SSL
-    if (!(net_ioh = bk_ssl_ioh_init(B, bag->bag_ssl, sock, sock, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not create ioh network\n");
-      if (bag->bag_ssl)
-      {
-	bk_ssl_destroy(B, bag->bag_ssl, 0);
-	bag->bag_ssl = NULL;
-      }
-      goto error;
-    }
-    bag->bag_ssl = NULL;
-#endif // NO_SSL
-  }
-  else
-  {
-    if (!(net_ioh = bk_ioh_init(B, sock, sock, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not create ioh network\n");
-      goto error;
-    }
-  }
-
-  gettimeofday(&pc->pc_start, NULL);
-
-  if (bk_relay_ioh(B, std_ioh, net_ioh, relay_finish, pc, &pc->pc_stats, BK_FLAG_ISSET(pc->pc_flags,PC_CLOSE_AFTER_ONE)?BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE:0) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not relay my iohs\n");
-    goto error;
+    if (pc->pc_remoteurl_b && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_b, NULL, DEFAULT_PORT_STR, pc->pc_localurl_b, NULL, NULL, pc->pc_proto_b, pc->pc_timeout, connect_complete, &sideb, 0) < 0)
+      bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 
  done:
   BK_RETURN(B, 0);
 
  error:
-  if (std_ioh) bk_ioh_close(B, std_ioh, 0);
-  if (net_ioh) bk_ioh_close(B, net_ioh, 0);
   bk_run_set_run_over(B,pc->pc_run);
   BK_RETURN(B, -1);
 }
@@ -714,36 +717,9 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
     BK_VRETURN(B);
   }
 
-  // We only care about shutdown
-  if (data && !pc->pc_translimit)
-    BK_VRETURN(B);
-
+  // We only care about shutdown (well, we might want to log in the future)
   if (data)
-  {
-    // <TRICKY>Assumption about data read and callback order</TRICKY>
-    if (pc->pc_stats.side[0].birs_readbytes >= pc->pc_translimit)
-    {						// Implement artificial EOF
-      int newfd;
-      // stupid hack to get an EOF...switch the FD from underneath the IOH
-      close(pc->pc_fdin);
-      newfd = open(_PATH_DEVNULL, O_RDONLY, 0666);
-      if (newfd < 0)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Good grief! Cannot open %s: %s\n",
-			_PATH_DEVNULL, strerror(errno));
-	BK_VRETURN(B);
-      }
-      if (newfd != pc->pc_fdin)
-      {
-	dup2(newfd, pc->pc_fdin);
-	close(newfd);
-      }
-
-      // Pretend we read exactly the right amount
-      data->len -= pc->pc_stats.side[0].birs_readbytes - pc->pc_translimit;
-    }
     BK_VRETURN(B);
-  }
 
   if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
   {
@@ -753,25 +729,8 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
     bk_string_magnitude(B, (double)pc->pc_stats.side[0].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedin, sizeof(speedin), 0);
     bk_string_magnitude(B, (double)pc->pc_stats.side[1].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedout, sizeof(speedout), 0);
 
-    fprintf(stderr, "%s%s: %llu bytes received in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[0].birs_writebytes, delta.tv_sec, delta.tv_usec, speedin);
-    fprintf(stderr, "%s%s: %llu bytes transmitted in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[1].birs_writebytes, delta.tv_sec, delta.tv_usec, speedout);
-  }
-
-  if (pc->pc_childid > 0)
-    kill(-pc->pc_childid, SIGTERM);
-
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_RESTORE_TERMOUT))
-  {
-    tcsetattr(pc->pc_dupstdout, TCSANOW, &pc->pc_termioout);
-    tcsetattr(pc->pc_dupstdout, TCSANOW, &pc->pc_termioout);
-    tcsetattr(pc->pc_dupstdout, TCSANOW, &pc->pc_termioout);
-  }
-
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_RESTORE_TERMIN))
-  {
-    tcsetattr(pc->pc_dupstdin, TCSANOW, &pc->pc_termioin);
-    tcsetattr(pc->pc_dupstdin, TCSANOW, &pc->pc_termioin);
-    tcsetattr(pc->pc_dupstdin, TCSANOW, &pc->pc_termioin);
+    fprintf(stderr, "%s: %llu bytes received in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_stats.side[0].birs_writebytes, delta.tv_sec, delta.tv_usec, speedin);
+    fprintf(stderr, "%s: %llu bytes transmitted in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_stats.side[1].birs_writebytes, delta.tv_sec, delta.tv_usec, speedout);
   }
 
   bk_run_set_run_over(B,pc->pc_run);
@@ -798,19 +757,14 @@ cleanup(bk_s B, struct program_config *pc)
     BK_VRETURN(B);
   }
 
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
-  {
-#ifndef NO_SSL
-    if (pc->pc_ssl_ctx)
-    {
-      bk_ssl_destroy_context(B, pc->pc_ssl_ctx);
-    }
-    bk_ssl_env_destroy(B);
-#endif // NO_SSL
-  }
-
-  if (pc->pc_local) bk_netinfo_destroy(B,pc->pc_local);
-  if (pc->pc_remote) bk_netinfo_destroy(B,pc->pc_remote);
+  if (pc->pc_local_a) bk_netinfo_destroy(B,pc->pc_local_a);
+  if (pc->pc_remote_a) bk_netinfo_destroy(B,pc->pc_remote_a);
+  if (pc->pc_server_a) bk_addrgroup_server_close(B, pc->pc_server_a);
+  if (pc->pc_local_b) bk_netinfo_destroy(B,pc->pc_local_b);
+  if (pc->pc_remote_b) bk_netinfo_destroy(B,pc->pc_remote_b);
+  if (pc->pc_server_b) bk_addrgroup_server_close(B, pc->pc_server_b);
   if (pc->pc_run) bk_run_destroy(B, pc->pc_run);
+  if (pc->pc_fd_a >= 0) close(pc->pc_fd_a);
+  if (pc->pc_fd_b >= 0) close(pc->pc_fd_b);
   return;
 }
