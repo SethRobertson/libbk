@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.10 2002/03/28 23:04:54 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.11 2002/04/26 19:24:27 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -296,11 +296,10 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
 
   case BkIohStatusWriteComplete:
   case BkIohStatusWriteAborted:
-    free(data[0].ptr);
+    free(data->ptr);
     free(data);
     data = NULL;
     break;
-
 
   case BkIohStatusIohSeekSuccess:
     polling_io_flush(B, bpi, 0);
@@ -429,6 +428,7 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct polling_io_data *pid;
   bk_flags bk_run_once_flags;
+
   
   if (!bpi || !status)
   {
@@ -585,7 +585,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, bk_flags f
   }
   else
   {
-    // Allow your now success write a change to go out.
+    // Allow our now successfull write a change to go out.
     if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
 	bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
     {

@@ -1,3 +1,12 @@
+2002-04-26  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_pollio.c (polling_io_ioh_handler): Using [0] to reference
+	a pointer which is not in an array is legal but ugly.
+
+	* lib/b_bnbio.c (bk_iohh_bnbio_write): Do at least one poll on
+	each write to clean up the state created by the write (under
+	normal conditions).
+
 2002-04-26    <seth@luggage>
 
 	* src/bttcp.c (main): Add UDP option, add -c close-after-one

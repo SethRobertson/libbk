@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.7 2002/03/06 22:51:46 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.8 2002/04/26 19:24:27 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -215,7 +215,8 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_ioh_status_e status;
-  bk_vptr *ddata;
+  bk_vptr *ddata = NULL;
+  int linger = 0;
 
   if (!bib || !data)
   {
@@ -229,19 +230,23 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
     BK_RETURN(B,-1);
   }
 
+
   // Wait for the buffer to return.
   if ((BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_SYNC) && 
        BK_FLAG_ISCLEAR(flags, BK_IOHH_BNBIO_FLAG_NO_LINGER)) || 
       (BK_FLAG_ISSET(flags, BK_IOHH_BNBIO_FLAG_SYNC)))
   {
-    // <WARNING> HIDEOUS LAYER VIOLATION </WARNING>
-    while (bib->bib_bpi->bpi_ioh->ioh_writeq.biq_queuelen > 0)
+    linger = 1;
+  }
+
+  // Do at least one poll to clean up the state from this write under normal conditions.
+  do
+  {
+    if (bk_polling_io_do_poll(B, bib->bib_bpi, &ddata, &status, 0) < 0)
     {
-      if (bk_polling_io_do_poll(B, bib->bib_bpi, &ddata, &status, 0) < 0)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "polling run failed seveerly\n");
-	BK_RETURN(B,-1);      
-      }
+      bk_error_printf(B, BK_ERR_ERR, "polling run failed seveerly\n");
+      BK_RETURN(B,-1);      
+    }
 
     /*
      * Continue checking the queue even if ret == 1 (which generally means
@@ -250,9 +255,9 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
      * quite possible for us to make forward progress in terms of *writing*
      * out data without the poll subsystem really knowing it.
      */
-    }
+  } while (linger && (bib->bib_bpi->bpi_ioh->ioh_writeq.biq_queuelen > 0));
 
-  }
+
   BK_RETURN(B,0);  
 }
 
