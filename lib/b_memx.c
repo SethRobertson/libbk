@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_memx.c,v 1.8 2002/05/28 22:22:53 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_memx.c,v 1.9 2002/06/28 07:10:06 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -233,7 +233,8 @@ bk_memx_lop(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  memcpy(bm->bm_array, (char *)bm->bm_array + count * bm->bm_unitsize, (bm->bm_curused - count) * bm->bm_unitsize);
+  // if lopping off less than half the current used bytes, overlap will occur
+  memmove(bm->bm_array, (char *)bm->bm_array + count * bm->bm_unitsize, (bm->bm_curused - count) * bm->bm_unitsize);
   bm->bm_curused -= count;
 
   BK_RETURN(B,0);    

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.8 2002/05/28 22:22:53 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.9 2002/06/28 07:10:06 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -703,11 +703,10 @@ fla_destroy(bk_s B, struct file_lock_admin *fla)
  *
  *	@param B BAKA thread/global state.
  *	@param filename The filename to use.
- *	@param ext_list The list of extensions.
- *	@param flags Flags for the future.
+ *	@param ext_list The array of extensions.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success but no match.
- *	@return <i>1</i> on success but with match.
+ *	@return <i>1</i> on success with match.
  */
 int
 bk_fileutils_match_extension(bk_s B, const char *path, const char * const *exts)
