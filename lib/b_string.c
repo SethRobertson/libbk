@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.84 2003/04/17 20:36:25 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.85 2003/04/17 23:59:53 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2045,14 +2045,14 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
     abort();
 #endif /* BK_USING_PTHREADS */
 
-  tmp = ++bsre->bsre_ref;
+  bsre->bsre_ref++;
 
 #ifdef BK_USING_PTHREADS
   if (pthread_mutex_unlock(&bsre->bsre_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
-  BK_RETURN(B, tmp);  
+  BK_RETURN(B,bsre->bsre_id);
 
  error:
   if (bsre)

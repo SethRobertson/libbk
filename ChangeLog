@@ -1,3 +1,8 @@
+2003-04-17  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_string.c (bk_string_registry_insert): Return the *correct*
+	value from registry insert.
+
 2003-04-14  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_rand.c: Make usable (WRT generating _true_ random numbers
