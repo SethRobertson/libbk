@@ -1,3 +1,8 @@
+2002-10-02  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_addrgroup.c (do_net_init_af_inet_udp_listen): Always set
+	SO_REUSEADDR when setting to listen on udp.
+
 2002-09-27  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (BK_MAX_SHORT): useless, use USHRT_MAX et al.
