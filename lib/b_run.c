@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.41 2003/05/08 01:08:43 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.42 2003/05/08 04:14:58 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -69,7 +69,7 @@ struct br_equeuecron
 
 
 /**
- * Function to be called syncronously out of bk_run after an async
+ * Function to be called synchronously out of bk_run after an async
  * signal was received--implements safe ways of performing complex
  * functionality when signals are received.
  */
@@ -82,7 +82,7 @@ struct br_sighandler
 
 /**
  * Association between a file descriptor (or handle) and a callback
- * provide the service. Note that when windows compatability is
+ * provide the service. Note that when windows compatibility is
  * required, the fd must be replaced by a struct bk_iodescriptor
  */
 struct bk_run_fdassoc
@@ -100,9 +100,9 @@ struct bk_run_fdassoc
 
 /**
  * All information known about events on the system.  Note that when
- * windows compatability is required, the fd_sets must be supplimented
+ * windows compatibility is required, the fd_sets must be supplemented
  * by a list of bk_iodescriptors obtaining the various read/write/xcpt
- * requirements since these may not be expressable in an fdset.
+ * requirements since these may not be expressible in an fdset.
  */
 struct bk_run
 {
@@ -213,7 +213,7 @@ static struct ht_args fa_args = { 128, 1, (ht_func)fa_obj_hash, (ht_func)fa_key_
 
 
 /**
- * @name Defines: List of canceled desciprtors This data structure allows
+ * @name Defines: List of canceled descriptors This data structure allows
  * administrative shutdown of a descriptor. It's up to interested parties
  * to check if their descriptor is on the list.
  */
@@ -328,7 +328,7 @@ static int bnbiol_ko_cmp(void *a, struct bk_iohh_bnbio *b);
  * @name Signal static variables
  *
  * Data which signal handlers running on the signal stack can modify.
- * This is used for syncronous signal handling (the signal handler simply
+ * This is used for synchronous signal handling (the signal handler simply
  * sets the beensignaled variable and the increments number of signals received
  * for this signal, and the baka run environment will call a handler
  * running in the normal context/stack as part of the baka run loop.
@@ -949,17 +949,17 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     goto beensignaled;						\
 
   /*
-   * The purpose of the flag should be explained. libbaka supports the idea
+   * The purpose of the flag should be explained. libbk supports the idea
    * of "blocking" reads in an otherwise asynchronous environment. The
    * details of this are explained elsewhere (presumably b_ioh.c), but it
    * suffices here to point out (or remind) the reader that this fact means
-   * that at any given momment we might have *two* bk_run_once()'s calls
+   * that at any given moment we might have *two* bk_run_once()'s calls
    * active. One, more or less at the base of the stack, which is the
    * bk_run_once() loop that you expect to exist. The other occurs when
    * someone has invoked one of these "blocking" things. In general these
    * two invocations coexist without too much fuss, but there is one detail
-   * for which we must account. Suppose by way of exaple that the "base"
-   * (or expected) bk_run_once() has returned from select(2) with 3 fd's
+   * for which we must account. Suppose by way of example that the "base"
+   * (or expected) bk_run_once() has returned from select(2) with 3 fds
    * ready for operation. Let's call them 4, 5, and 6. While processing
    * descriptor 4 (the first in the list), the program invokes a "blocking"
    * read. bk_run_once() gets called again (remember the "base" version is
@@ -971,8 +971,8 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
    * way back to the "base" bk_run_once() which now *continues*. Because
    * nothing has reset the fd sets which select(2) returned all that time
    * ago, it will go on to process descriptors 5 and 6. At *best* this is a
-   * waste of time; and at worst this could cause really bizzare problems
-   * (like double frees or somesuch). Thus we need to configue a way that
+   * waste of time; and at worst this could cause really bizarre problems
+   * (like double frees or some such). Thus we need to configure a way that
    * the blocking bk_run_once() can "communicate" back to the base
    * bk_run_once() that it (the blocking versions) has run and that any
    * state in the base version may be invalid. The base version's response
@@ -981,7 +981,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
    * (though in this case, obviously, it doesn't waste time; it prevents
    * core dumps). The strategy we employ is childishly simple. Set a run
    * structure flag as you *leave* bk_run_once() which is reset immediately
-   * upon entry. 99.999....9% of the time this is just one two-stage noop,
+   * upon entry. 99.999....9% of the time this is just one two-stage no-op,
    * but in the case of the blocking bk_run_once() this actually has some
    * effect. The flag is set by when the blocking version exits. So when
    * control is returned to the base version (in medias res) this flag is
@@ -1053,7 +1053,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	}
 
 #ifdef BK_USING_PTHREADS
-	// Look again, we may have been deleted in the iterm
+	// Look again, we may have been deleted in the interim
 	if (brof = brfl_search(run->br_ondemand_funcs, brof))
 	{
 	  BK_ZERO(&brof->brof_userid);		// Here's hoping zero is reserved
@@ -1129,7 +1129,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
       }
 
 #ifdef BK_USING_PTHREADS
-      // Look again, we may have been deleted in the iterm
+      // Look again, we may have been deleted in the interim
       if (brfn = brfl_search(run->br_ondemand_funcs, brfn))
       {
 	BK_ZERO(&brfn->brfn_userid);  // Here's hoping zero is reserved
@@ -1314,7 +1314,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
      * Note even if we stored away the thread_id and asked other
      * people modifying the foosets to signal this thread, there is
      * still a race condition between the time we release the lock and
-     * the time we sufficently enter select for a signal to interrupt
+     * the time we sufficiently enter select for a signal to interrupt
      * the system call--this all assumes of course that pthread
      * signals behave the same as normal system signals.
      */
@@ -1344,7 +1344,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
      */
     if (curtime && selectarg && BK_TV_CMP(selectarg, &timeout))
     {
-      // Linux occasionally rounds the timeleft upwards; treat as zero elapsed
+      // Linux occasionally rounds the timeleft upward; treat as zero elapsed
       if (BK_TV_CMP(&timeout, selectarg) < 0)
       {
 	BK_TV_ADD(curtime, curtime, selectarg);
@@ -1423,7 +1423,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	(*curfd->brf_handler)(B, run, x, type, curfd->brf_opaque, curtime);
 
 #ifdef BK_USING_PTHREADS
-	// Look again, we may have been deleted in the iterm
+	// Look again, we may have been deleted in the interim
 	if (curfd = fdassoc_search(run->br_fdassoc, &x))
 	{
 	  BK_ZERO(&curfd->brf_userid); // Here's hoping zero is reserved
@@ -1489,7 +1489,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	}
 
 #ifdef BK_USING_PTHREADS
-	// Look again, we may have been deleted in the iterm
+	// Look again, we may have been deleted in the interim
 	if (brfn = brfl_search(run->br_ondemand_funcs, brfn))
 	{
 	  BK_ZERO(&brfn->brfn_userid); // Here's hoping zero is reserved
@@ -1709,7 +1709,7 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   }
 
 #ifdef BK_USING_PTHREADS
-  // See if someone (other than myself) is currentl using this function
+  // See if someone (other than myself) is currently using this function
   if (curfda->brf_userid && !pthread_equal(curfda->brf_userid, pthread_self()))
   {
     // Wait for the current user to finish
@@ -1893,12 +1893,12 @@ static int bk_run_event_comparator(struct br_equeue *a, struct br_equeue *b)
 
 
 /**
- * Signal handler for synchronous signal--glue beween OS and libbk
+ * Signal handler for synchronous signal--glue between OS and libbk
  *
  * <TODO>Worry about locking!</TODO>
  * <TODO>Autoconf for multiple signal prototypes</TODO>
  *
- *	@param signnum signal number that was received
+ *	@param signum signal number that was received
  */
 void bk_run_signal_ihandler(int signum)
 {
@@ -1992,7 +1992,7 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
  *	@param B BAKA Thread/global state
  *	@param run Run environment handle
  *	@param starttime The time when this global-event queue run was started
- *	(may be epoch, in which case this will call getttimeofday if needed)
+ *	(may be epoch, in which case this will call gettimeofday if needed)
  *	@param delta The time to the next event
  *	@return <i>-1</i> on call failure
  *	@return <br><i>0</i> if there is no next event
@@ -2186,7 +2186,7 @@ bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle)
   }
 
 #ifdef BK_USING_PTHREADS
-  // See if someone (other than myself) is currentl using this function
+  // See if someone (other than myself) is currently using this function
   if (brf->brfn_userid && !pthread_equal(brf->brfn_userid, pthread_self()))
   {
     // Wait for the current user to finish
@@ -2528,7 +2528,7 @@ bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle)
   }
 
 #ifdef BK_USING_PTHREADS
-  // See if someone (other than myself) is currentl using this function
+  // See if someone (other than myself) is currently using this function
   if (brof->brof_userid && !pthread_equal(brof->brof_userid, pthread_self()))
   {
     // Wait for the current user to finish
@@ -2621,7 +2621,7 @@ brof_destroy(bk_s B, struct bk_run_ondemand_func *brof)
 
 
 /**
- * Turn of the run enviornment
+ * Turn of the run environment
  *
  * @param B Baka thread/global environment
  * @param run Run Environment
@@ -2661,7 +2661,7 @@ bk_run_set_run_over(bk_s B, struct bk_run *run)
  * flag behaves <b>exactly</b> like the @a bk_run_once() flag
  * BK_RUN_ONCE_FLAG_DONT_BLOCK. The only difference is that, owing to the
  * fact that it is set in the run structure and not an argument flag, it is
- * available to asychronous events. It is cleared (only) by @a
+ * available to asynchronous events. It is cleared (only) by @a
  * bk_run_once(), so the only public interface is the one to set it (since
  * there's no reference count, you may not clear
  * BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE if you decide that you set in in error
@@ -2859,7 +2859,7 @@ bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd, bk_flags flags)
  *
  *	@param B BAKA thread/global state.
  *	@param run The run structure to use.
- *	@param fd The file desc. to cancel.
+ *	@param fd The file descriptor to cancel.
  *	@param flags MUST BE either BK_FD_ADMIN_FLAG_CANCEL or _CLOSE
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
@@ -2894,7 +2894,7 @@ bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 
   if (BK_FLAG_ISCLEAR(bfc->bfc_flags, flags))
   {
-    // <TODO> What's the best behavior here? jtt thinks warn and ignore </TOOO>
+    // <TODO> What's the best behavior here? jtt thinks warn and ignore </TODO>
     bk_error_printf(B, BK_ERR_ERR, "Ignoring cancel request for unregistered fd %d\n", fd);
     BK_RETURN(B,0);
   }
@@ -2927,7 +2927,7 @@ bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 
 
 /**
- * Check if the given desciptor has been canceled.
+ * Check if the given descriptor has been canceled.
  *
  * THREADS: THREAD-REENTRANT
  *
@@ -2979,7 +2979,7 @@ bk_run_fd_is_canceled(bk_s B, struct bk_run *run, int fd)
 
 
 /**
- * Check if the given desciptor has been adminstratively closed
+ * Check if the given descriptor has been administratively closed
  *
  *	@param B BAKA thread/global state.
  *	@param run The @a bk_run structure to use.
@@ -3023,7 +3023,7 @@ bk_run_fd_is_closed(bk_s B, struct bk_run *run, int fd)
     abort();
 #endif /* BK_USING_PTHREADS */
 
-  BK_RETURN(B,1);
+  BK_RETURN(B, ret);
 }
 
 
