@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.28 2002/06/19 21:39:23 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.29 2002/06/19 23:30:43 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -226,7 +226,7 @@ int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *
 int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, bk_funlist_insert(B, BK_GENERAL_REINIT(B), bf_fun, args, 0));
+  BK_RETURN(B, bk_funlist_insert(B, BK_GENERAL_DESTROY(B), bf_fun, args, 0));
 }
 
 
@@ -242,7 +242,7 @@ int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void 
 int bk_general_destroy_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, bk_funlist_delete(B, BK_GENERAL_REINIT(B), bf_fun, args, 0));
+  BK_RETURN(B, bk_funlist_delete(B, BK_GENERAL_DESTROY(B), bf_fun, args, 0));
 }
 
 
