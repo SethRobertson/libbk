@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.3 2004/06/09 04:06:52 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.4 2004/06/23 21:30:01 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -104,6 +104,8 @@ struct program_config
   int			pc_sockbuf;		///< Socket buffer size
   struct bk_relay_ioh_stats	pc_stats;	///< Statistics about relay
   struct timeval	pc_start;		///< Starting time
+  const char	       *pc_logfilename;		///< Protocol log file
+  FILE		       *pc_logfile;		///< Output handle
   int			pc_desiredpassive;	///< Number of passive connections
   int			pc_desiredactive;	///< Number of passive connections
   int			pc_actualpassive;	///< Number of passive connections so far
@@ -169,6 +171,9 @@ main(int argc, char **argv, char **envp)
     {"sockbuf", 'B', POPT_ARG_STRING, NULL, 15, "Socket snd/rcv buffer size", "length in bytes" },
     {"nodelay", 0, POPT_ARG_NONE, NULL, 16, "Set TCP NODELAY", NULL },
     {"keepalive", 0, POPT_ARG_NONE, NULL, 17, "Set TCP KEEPALIVE", NULL },
+#ifdef NOTYET
+    {"logfile", 0, POPT_ARG_STRING, NULL, 18, "Log file", "filename" },
+#endif /* NOTYET */
     {"server", 0, POPT_ARG_NONE, NULL, 21, "Set server (multiple connection) mode", NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
