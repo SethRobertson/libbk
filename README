@@ -5,5 +5,11 @@ include/
 	- Files of common interest to many source files
 lib/
 	- Main core of the system
+man/
+	- Library documentation.  Mostly not used.  See `make doxygen` and .install/doc
+src/
+	- Useful and example programs using this library.
+test/
+	- Less useful, non-exemplar, programs to test various functionality of the library.
 Makefile
 	- Control of how to compile and build the system.
