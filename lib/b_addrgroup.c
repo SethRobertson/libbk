@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.39 2004/06/09 02:02:28 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.40 2004/06/09 04:06:50 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1847,7 +1847,7 @@ bk_addressgroup_suspend(bk_s B, struct bk_run *run, void *server_handle, bk_flag
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct addrgroup_state *as = server_handle;
 
-  if (bk_run_setpref(B, run, as->as_sock, BK_FLAG_ISSET(flags, BK_ADDRESSGROUP_RESUME)?0:BK_RUN_WANTREAD, BK_RUN_WANTREAD, 0) < 0)
+  if (bk_run_setpref(B, run, as->as_sock, BK_FLAG_ISSET(flags, BK_ADDRESSGROUP_RESUME)?BK_RUN_WANTREAD:0, BK_RUN_WANTREAD, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not set file descriptor preference\n");
     BK_RETURN(B, -1);

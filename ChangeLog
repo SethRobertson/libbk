@@ -1,3 +1,10 @@
+2004-06-09  Seth Robertson  <seth@pearl.sysdetect.com>
+
+	* src/bttcp.c (connect_complete): Now with added verbosity about
+	connections accepted and completed.
+
+	* src/bkrelay.c: Now relaying!
+
 2004-06-08  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_addrgroup.c (bk_addressgroup_suspend): Allow server

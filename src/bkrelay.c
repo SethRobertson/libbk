@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.2 2004/06/09 02:01:48 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.3 2004/06/09 04:06:52 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -156,10 +156,10 @@ main(int argc, char **argv, char **envp)
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
     {"no-seatbelts", 0, POPT_ARG_NONE, NULL, 0x1000, "Sealtbelts off & speed up", NULL },
-    {"transmit_a", 0, POPT_ARG_STRING, NULL, 0x100, "Transmit to host on side A", "proto://ip:port" },
-    {"transmit_b", 0, POPT_ARG_STRING, NULL, 0x101, "Transmit to host on side B", "proto://ip:port" },
-    {"receive_a", 0, POPT_ARG_NONE, NULL, 0x102, "Receive on side A", NULL },
-    {"receive_b", 0, POPT_ARG_NONE, NULL, 0x103, "Receive on side B", NULL },
+    {"receive_a", 0, POPT_ARG_NONE, NULL, 0x100, "Receive on side A", NULL },
+    {"receive_b", 0, POPT_ARG_NONE, NULL, 0x101, "Receive on side B", NULL },
+    {"transmit_a", 0, POPT_ARG_STRING, NULL, 0x102, "Transmit to host on side A", "proto://ip:port" },
+    {"transmit_b", 0, POPT_ARG_STRING, NULL, 0x103, "Transmit to host on side B", "proto://ip:port" },
     {"local-name_a", 0, POPT_ARG_STRING, NULL, 0x104, "Local address to bind on side A", "proto://ip:port" },
     {"local-name_b", 0, POPT_ARG_STRING, NULL, 0x105, "Local address to bind on side B", "proto://ip:port" },
     {"buffersize", 0, POPT_ARG_STRING, NULL, 8, "Size of I/O queues", "buffer size" },
@@ -202,7 +202,7 @@ main(int argc, char **argv, char **envp)
     switch (c)
     {
     case 'd':					// debug
-      bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, 0, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
+      bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, BK_ERR_NONE, BK_ERR_DEBUG, BK_ERROR_CONFIG_FH | BK_ERROR_CONFIG_HILO_PIVOT | BK_ERROR_CONFIG_SYSLOGTHRESHOLD);
       bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);				// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       break;
@@ -362,10 +362,14 @@ main(int argc, char **argv, char **envp)
           break;
 	default:					// Parent
 	  waitpid(retcode, &retcode, 0);
+	  // <TODO>Sleep or something to prevent spinning</TODO>
+	  continue;
 	case 0:					// Child
 	  break;				// Continue processing
 	}
       }
+      BK_FLAG_SET(pc->pc_flags, PC_ACTIVEACTIVE);
+
       if (pc->pc_remoteurl_a && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_a, NULL, DEFAULT_PORT_STR, pc->pc_localurl_a, NULL, NULL, pc->pc_proto_a, pc->pc_timeout, connect_complete, &sidea, 0) < 0)
 	bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 
@@ -516,13 +520,29 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     break;
   case BkAddrGroupStateConnected:
     if (side_a && pc->pc_server_a)
+    {
+      if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+	fprintf(stderr,"%s%s: Accepted connection\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
       pc->pc_actualpassive++;
+    }
     if (side_a && !pc->pc_server_a)
+    {
+      if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+	fprintf(stderr,"%s%s: Connection complete\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
       pc->pc_actualactive++;
+    }
     if (!side_a && pc->pc_server_b)
+    {
+      if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+	fprintf(stderr,"%s%s: Accepted connection\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
       pc->pc_actualpassive++;
+    }
     if (!side_a && !pc->pc_server_b)
+    {
+      if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+	fprintf(stderr,"%s%s: Connection complete\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
       pc->pc_actualactive++;
+    }
     if (side_a)
     {
       pc->pc_fd_a = sock;
@@ -555,8 +575,6 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 	pc->pc_server_a = NULL;			/* Very important */
       if (pc->pc_server_b == server_handle)
 	pc->pc_server_b = NULL;			/* Very important */
-      if (!pc->pc_server_a && !pc->pc_server_b)
-	BK_FLAG_CLEAR(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
       goto done;
     }
 
@@ -624,17 +642,35 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 	close(pc->pc_fd_b);
       pc->pc_actualactive = 0;
       pc->pc_actualpassive = 0;
+      if (pc->pc_server_a && bk_addressgroup_suspend(B, pc->pc_run, pc->pc_server_a, BK_ADDRESSGROUP_RESUME) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Failed to resume server socket a\n");
+	goto error;
+      }
+      if (pc->pc_server_b && bk_addressgroup_suspend(B, pc->pc_run, pc->pc_server_b, BK_ADDRESSGROUP_RESUME) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Failed to resume server socket b\n");
+	goto error;
+      }
+
       goto done;
 
     case 0:					// Child
-      break;					// Continue on with normal path
+      break;					// Continue on with normal path (next if)
     }
-    // Child
+  }
+
+  if (pc->pc_actualpassive >= pc->pc_desiredpassive && BK_FLAG_ISCLEAR(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER))
+  {
+    // Child (or only process--non-server)
+    BK_FLAG_SET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
     BK_FLAG_CLEAR(pc->pc_flags, PC_SERVER);	// To prevent this from happening again
     if (pc->pc_server_a)
       bk_addrgroup_server_close(B, pc->pc_server_a);
+    pc->pc_server_a = NULL;
     if (pc->pc_server_b)
       bk_addrgroup_server_close(B, pc->pc_server_b);
+    pc->pc_server_b = NULL;
   }
 
   if (pc->pc_actualpassive >= pc->pc_desiredpassive &&
@@ -658,6 +694,8 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     pc->pc_fd_a = -1;
     pc->pc_fd_b = -1;
 
+    gettimeofday(&pc->pc_start, NULL);
+
     if (bk_relay_ioh(B, ioha, iohb, relay_finish, pc, &pc->pc_stats, BK_FLAG_ISSET(pc->pc_flags,PC_CLOSE_AFTER_ONE)?BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE:0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not relay my iohs\n");
@@ -669,6 +707,9 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   else if (pc->pc_actualpassive >= pc->pc_desiredpassive && BK_FLAG_ISCLEAR(pc->pc_flags, PC_ACTIVEACTIVE))
   {
     BK_FLAG_SET(pc->pc_flags, PC_ACTIVEACTIVE);
+
+    if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+      fprintf(stderr,"%s: Connecting...\n", BK_GENERAL_PROGRAM(B));
 
     if (pc->pc_remoteurl_a && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_a, NULL, DEFAULT_PORT_STR, pc->pc_localurl_a, NULL, NULL, pc->pc_proto_a, pc->pc_timeout, connect_complete, &sidea, 0) < 0)
       bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
@@ -729,8 +770,8 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
     bk_string_magnitude(B, (double)pc->pc_stats.side[0].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedin, sizeof(speedin), 0);
     bk_string_magnitude(B, (double)pc->pc_stats.side[1].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedout, sizeof(speedout), 0);
 
-    fprintf(stderr, "%s: %llu bytes received in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_stats.side[0].birs_writebytes, delta.tv_sec, delta.tv_usec, speedin);
-    fprintf(stderr, "%s: %llu bytes transmitted in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_stats.side[1].birs_writebytes, delta.tv_sec, delta.tv_usec, speedout);
+    fprintf(stderr, "%s: %llu bytes from side a in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_stats.side[1].birs_writebytes, delta.tv_sec, delta.tv_usec, speedout);
+    fprintf(stderr, "%s: %llu bytes from side b in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_stats.side[0].birs_writebytes, delta.tv_sec, delta.tv_usec, speedin);
   }
 
   bk_run_set_run_over(B,pc->pc_run);
