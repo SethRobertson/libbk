@@ -1,2 +1,3 @@
 .depend
 test_printbuf
+test_stringconv

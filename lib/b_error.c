@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.2 2001/08/27 03:10:23 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.3 2001/08/30 19:57:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -187,12 +187,13 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf
    * Nuke stuff off the end until we have one free slot
    * (normally only one, unless maxsize has changed)
    */
-  while ((*be_cursize)-- > beinfo->be_maxsize)
+  while (*be_cursize > beinfo->be_maxsize)
   {
     struct bk_error_node *last = errq_maximum(be_queue);
     errq_delete(be_queue, last);
     if (last->ben_msg) free(last->ben_msg);
     free(last);
+    (*be_cursize)--;
   }
 
   if (errq_insert(be_queue, node) != DICT_OK)

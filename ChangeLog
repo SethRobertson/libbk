@@ -1,4 +1,32 @@
+2001-08-30  Seth Robertson  <seth@yeah.baka.org>
+
+	* test/test_stringconv.c: Test program now operational.  atoish
+	functions tested.  Hash function tested.  String tokenization
+	tested.  Debugging tested.  Config tested.
+
+	* lib/b_config.c (config_manage): Make work
+	(load_config_from_file): Fgets is the correct function...
+	(bck_create): DLL must be unordered if no cmp funs
+
+	* lib/b_stdfun.c: Create standard helper functions
+
+	* include/libbk.h (BK_ENV_GWD): Fix definition
+
+	* lib/b_general.c (bk_general_debug_config): Single function to
+	configure debugging.
+
+	* lib/b_fun.c (bk_fun_reset_debug): New function to reset debug
+	levels of all entered functions.
+
+2001-08-29  Seth Robertson  <seth@yeah.baka.org>
+
+	* test/test_stringconv.c: Fill out string test program.
+
+	* lib/b_string.c (bk_string_rip): Add rip to terminate strings on bad chars
+
 2001-08-26  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_string.c (bk_string_printbuf): Fix binary output function.
 
 	* include/libbk.h: BK_GENERAL_* macros to check for B allocation
 	before dereference.

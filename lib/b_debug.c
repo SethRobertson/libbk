@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_debug.c,v 1.6 2001/08/27 03:10:23 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_debug.c,v 1.7 2001/08/30 19:57:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,6 +25,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define debug_destroy(h)		ht_destroy(h)
 #define debug_insert(h,o)		ht_insert(h,o)
 #define debug_insert_uniq(h,n,o)	ht_insert_uniq(h,n,o)
+#define debug_append(h,o)		ht_append(h,o)
+#define debug_append_uniq(h,n,o)	ht_append_uniq(h,n,o)
 #define debug_search(h,k)		ht_search(h,k)
 #define debug_delete(h,o)		ht_delete(h,o)
 #define debug_minimum(h)		ht_minimum(h)
@@ -59,6 +61,7 @@ struct bk_debug *bk_debug_init(bk_s B, bk_flags flags)
 
   ret->bd_leveldb = NULL;
   ret->bd_fh = NULL;
+  ret->bd_sysloglevel = BK_ERR_NONE;
 
   return(ret);
 }
@@ -225,7 +228,7 @@ int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config
   {
     u_int32_t level;
 
-    if (!(tokenized = bk_string_tokenize_split(B, value, 0, BK_STRING_TOKENIZE_WHITESPACE, NULL, BK_STRING_TOKENIZE_SIMPLE)))
+    if (!(tokenized = bk_string_tokenize_split(B, value, 0, BK_WHITESPACE, NULL, BK_STRING_TOKENIZE_SIMPLE)))
     {
       bk_error_printf(B, BK_ERR_WARN, __FUNCTION__/**/": Could not tokenize value %s\n",value);
       ret++;
@@ -237,8 +240,8 @@ int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config
       ret++;
       goto next;
     }
-    if(!strcmp(tokenized[0], program))
-      goto next;
+    if(strcmp(tokenized[0], program))
+      goto next;				/* Incorrect program name */
 
     if (bk_string_atou(B, tokenized[2], &level, 0) < 0)
     {
@@ -315,18 +318,21 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf)
 
   if (bdinfo->bd_fh)
   {
+    char timeprefix[40];
     char fullprefix[40];
     time_t curtime = time(NULL);
     struct tm *tm = localtime(&curtime);
 
-    if ((tmp = strftime(fullprefix, sizeof(fullprefix), "%m/%d %T", tm)) != 14)
+    if ((tmp = strftime(timeprefix, sizeof(timeprefix), "%m/%d %T", tm)) != 14)
     {
       bk_error_printf(B, BK_ERR_ERR, __FUNCTION__/**/": Somehow strftime produced %d bytes instead of the expected\n",tmp);
       return;
     }
 
     if (BK_GENERAL_PROGRAM(B))
-      snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", fullprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
+      snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
+    else
+      strncpy(fullprefix,timeprefix,sizeof(fullprefix));
     fullprefix[sizeof(fullprefix)-1] = 0;		/* Ensure terminating NULL */
 
 

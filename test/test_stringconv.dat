@@ -1,0 +1,77 @@
+0
+1
+2
+7
+07
+0x7
+8
+0x8
+010
+10
+012
+0xa
+0xf
+15
+-5
+Hello
+58foo
+0x58foo
+058foo
+4294967295
+0xffffffff
+037777777777
+4294967296
+ 50 
+END
+0xf
+15
+-5
+4294967295
+-010
+-0x10
+-10
+-Hello
+0x7fffffff
+2147483647
+017777777777
+-2147483647
+-0x7fffffff
+-017777777777
+END
+a
+b
+c
+Hello Sailor
+Hello World
+Hello 1 2 3 4
+Hello 1 2 3 5
+Hello 1 2 4 5
+END
+0# #1#'One two' "three  four!"
+0# #2#'One two' "three  four!"
+0# #4#'One two' "three  four!"
+0# #6#'One two' "three  four!"
+0# #0#'One two' "three  four!"
+1# #0#'One two' "three  four!"
+2# #0#'One two' "three  four!"
+3# #0#'One two' "three  four!"
+4# #0#'One two' "three  four!"
+5# #0#'One two' "three  four!"
+5# #1#'One two' "three  four!"
+6# #0#'One two' "three  four!"
+0# #0#\n \t \0106 "Hello \" World" 'Hello \' World\'
+0# #0x10#\n \t \0106 "Hello \" World" 'Hello \' World\'
+0# #0x20#\n \t \0106 "Hello \" World" 'Hello \' World\'
+0# #0x40#\n \t \0106 "Hello \" World" 'Hello \' World\'
+0# #0x30#\n \t \0106 "Hello \" World" 'Hello \' World\'
+0# #0x50#\n \t \0106 "Hello \" World" 'Hello \' World\'
+0# #0x60#\n \t \0106 "Hello \" World" 'Hello \' World\'
+0# #0x70#\n \t \0106 "Hello \" World" 'Hello \' World\'
+0# #0x0#"Hello\t\055\" World" 'Hello\t\055 World\'
+0# #0x70#"Hello\t\055\" World" 'Hello\t\055 World\'
+0# #0x72#"Hello\t\055\" World" 'Hello\t\055 World\'
+0# #0x74#"Hello\t\055\" World" 'Hello\t\055 World\'
+0# #0x76#"Hello\t\055\" World" 'Hello\t\055 World\'
+0# #0x6#"Hello\t\055\" World" 'Hello\t\055 World\'
+0# #0x40#\07 \007 \0007 \070 \0070 \00070 \0700 \07a bell-bell-bell-8-8-bell0-80-bella
+END

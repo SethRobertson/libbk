@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.3 2001/08/27 03:10:23 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.4 2001/08/30 19:57:33 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,7 +25,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define TOKENIZE_STR_FIRST	16		/* How many we will start with */
 #define TOKENIZE_STR_INCR	16		/* How many we will expand */
 
-#define S_BASE			0x0		/* Base state */
+#define S_BASE			0x40		/* Base state */
 #define S_SQUOTE		0x1		/* In single quote */
 #define S_DQUOTE		0x2		/* In double quote */
 #define S_VARIABLE		0x4		/* In variable */
@@ -37,6 +37,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define ADDSTATE(x)		state |= x	/* Superstate (typically variable in dquote) */
 #define SUBSTATE(x)		state &= ~(x)	/* Get rid of superstate */
 
+#define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	/* yes, limit>1 and limit-- will always have the same truth value */
 
 
 static int bk_string_atou_int(bk_s B, char *string, u_int32_t *value, int *sign, bk_flags flags);
@@ -88,7 +89,7 @@ char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_fla
   const u_int addressbitspercol = 16;
   const u_int bytespergroup = 2;
   const u_int colsperbyte = 2;
-  const u_int colsperline = hexaddresscols + 1 + (bytesperline / bytespergroup) * (colsperbyte + 1) + 1 + bytesperline + 1;
+  const u_int colsperline = hexaddresscols + 1 + (bytesperline / bytespergroup) * (colsperbyte + 1 + 1 + bytesperline + 1);
   u_int64_t maxaddress;
   u_int32_t nextaddr, addr, addrgrp, nextgrp, addrbyte, len, curlen;
   char *ret;
@@ -110,7 +111,7 @@ char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_fla
   if (!intro) intro="";
   if (!prefix) prefix="";
 
-  curlen = len = (buf->len / bytesperline) * (strlen(prefix)+colsperline) + strlen(intro) + 2;
+  curlen = len = ((buf->len+bytesperline-1) / bytesperline) * (strlen(prefix)+colsperline) + strlen(intro) + 2;
   if (!(ret = malloc(len)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate buffer string of size %d: %s\n",len,strerror(errno));
@@ -149,7 +150,7 @@ char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_fla
     strcpy(cur," "); curlen -= strlen(cur); cur += strlen(cur);
 
     /* For each byte in line */
-    for(addrbyte = addrgrp; addrbyte < nextaddr; addrbyte++)
+    for(addrbyte = addr; addrbyte < nextaddr; addrbyte++)
     {
       char c;
 
@@ -176,7 +177,7 @@ char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_fla
  *
  * Returns -1 on error
  * Returns 0 on success
- * Returns pos on invalid string (as much as we have decoded is returned)
+ * Returns pos on non-null terminated number (number is still returned)
  */
 int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags)
 {
@@ -184,6 +185,7 @@ int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags)
   int sign = 0;
   int ret = bk_string_atou_int(B, string, value, &sign, flags);
 
+  /* We are pretending number terminated at the minus sign */
   if (sign < 0)
     *value = 0;
 
@@ -197,7 +199,7 @@ int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags)
  *
  * Returns -1 on error
  * Returns 0 on success
- * Returns pos on invalid string (as much as we have decoded is returned)
+ * Returns pos on non-null terminated number (number is still returned)
  */
 static int bk_string_atou_int(bk_s B, char *string, u_int32_t *value, int *sign, bk_flags flags)
 {
@@ -243,6 +245,7 @@ static int bk_string_atou_int(bk_s B, char *string, u_int32_t *value, int *sign,
       base = 16; string += 2; break;
     case 'X':
       base = 16; string += 2; break;
+    case '0':
     case '1':
     case '2':
     case '3':
@@ -261,7 +264,7 @@ static int bk_string_atou_int(bk_s B, char *string, u_int32_t *value, int *sign,
   *value = 0;
   while (*string)
   {
-    int x = decode[(int)*string];
+    int x = decode[(int)*string++];
 
     /* Is this the end of the number? */
     if (x < 0 || x >= base)
@@ -278,6 +281,8 @@ static int bk_string_atou_int(bk_s B, char *string, u_int32_t *value, int *sign,
 
 /*
  * Convert ascii string to unsigned int
+ *
+ * Returns pos on non-null terminated number (number is still returned)
  */
 int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags)
 {
@@ -322,6 +327,8 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
     BK_RETURN(B, NULL);
   }
 
+  bk_debug_printf_and(B, 1, "Tokenizing ``%s'' with limit %d and flags %x\n",src,limit,flags);
+
   if (!(tokenx = bk_memx_create(B, sizeof(char), TOKENIZE_STR_FIRST, TOKENIZE_STR_INCR, 0)) ||
       !(splitx = bk_memx_create(B, sizeof(char *), TOKENIZE_FIRST, TOKENIZE_INCR, 0)))
   {
@@ -329,7 +336,7 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
     goto error;
   }
 
-  if (spliton) spliton = BK_STRING_TOKENIZE_WHITESPACE;
+  if (spliton) spliton = BK_WHITESPACE;
 
   if (BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_SKIPLEADING))
   {
@@ -343,7 +350,7 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
     if (INSTATE(S_SPLIT))
     {
       /* Are we still looking at a seperator? */
-      if (strchr(spliton, *curloc))
+      if (strchr(spliton, *curloc) && LIMITNOTREACHED)
       {
 	/* Are multiple seperators the same? */
 	if (BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_MULTISPLIT))
@@ -368,14 +375,14 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
 	    (*(startseq+1) == '3')) ?
 	   (curloc - startseq > 3) :
 	   (curloc - startseq > 2)) ||
-	  (!(*curloc != '0') &&
-	   !(*curloc != '1') &&
-	   !(*curloc != '2') &&
-	   !(*curloc != '3') &&
-	   !(*curloc != '4') &&
-	   !(*curloc != '5') &&
-	   !(*curloc != '6') &&
-	   !(*curloc != '7')))
+	  ((*curloc != '0') &&
+	   (*curloc != '1') &&
+	   (*curloc != '2') &&
+	   (*curloc != '3') &&
+	   (*curloc != '4') &&
+	   (*curloc != '5') &&
+	   (*curloc != '6') &&
+	   (*curloc != '7')))
       {
 	/*
 	 * We have found the end-of-octal escape sequence.
@@ -389,12 +396,20 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
 	  newchar += *startseq - '0';
 	}
 
-	SUBSTATE(S_BSLASH);			/* Revert to previous state */
-	goto addnewchar;			/* Actually add the character */
+	SUBSTATE(S_BSLASH_OCT);			/* Revert to previous state */
+	if (!(token = bk_memx_get(B, tokenx, 1, NULL, BK_MEMX_GETNEW)))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not extend array for additional character\n");
+	  goto error;
+	}
+	*token = newchar;
+	/* Fall through for subsequent processing of *curloc */
       }
-
-      /* This is an octal character and we have not yet reached the limit */
-      continue;
+      else
+      {
+	/* This is an octal character and we have not yet reached the limit */
+	continue;
+      }
     }
 
     /* We have seen a backslash */
@@ -422,7 +437,6 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
 	{					/* Found a ANSI-C backslash sequence */
 	  SUBSTATE(S_BSLASH);			/* Revert to previous state */
 
-	addnewchar:
 	  if (!(token = bk_memx_get(B, tokenx, 1, NULL, BK_MEMX_GETNEW)))
 	  {
 	    bk_error_printf(B, BK_ERR_ERR, "Could not extend array for additional character\n");
@@ -482,7 +496,7 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
     if (INSTATE(S_BASE))
     {
       /* Look for token ending characters */
-      if (!*curloc || strchr(spliton, *curloc))
+      if (!*curloc || (strchr(spliton, *curloc) && LIMITNOTREACHED))
       {
       tokenizeme:
 	/* Null terminate the new, complete, token */
@@ -548,7 +562,7 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
 			      BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR) ||
 			      BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT)))
       {
-	GOSTATE(S_BSLASH);
+	ADDSTATE(S_BSLASH);
 	continue;
       }
 
@@ -646,6 +660,7 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
 void bk_string_tokenize_destroy(bk_s B, char **tokenized)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  char **cur;
 
   if (!tokenized)
   {
@@ -653,9 +668,32 @@ void bk_string_tokenize_destroy(bk_s B, char **tokenized)
     BK_VRETURN(B);
   }
 
-  for(; *tokenized; tokenized++)
-    free(*tokenized);
+  for(cur=tokenized; *cur; cur++)
+    free(*cur);
   free(tokenized);
 
   BK_VRETURN(B);
+}
+
+
+
+/*
+ * Rip a string -- terminate it at the first occurance of the terminator characters.,
+ * Typipcally used with vertical whitespace to nuke the \r\n stuff.
+ */
+extern char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+
+  if (!string)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  if (!terminators) terminators = BK_VWHITESPACE;
+
+  /* Write zero at either first terminator character, or at the trailing \0 */
+  *(string + strcspn(string,terminators)) = 0;
+  BK_RETURN(B, string);
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.9 2001/08/27 03:10:22 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.10 2001/08/30 19:57:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -104,6 +104,8 @@ static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
 #define config_values_nextobj(h)		dll_nextobj(h)
 #define config_values_error_reason(h,i)		dll_error_reason((h),(i))
 
+static int bcv_oo_cmp(void *bck1, void *bck2);
+static int bcv_ko_cmp(void *a, void *bck2);
 
 
 static struct bk_config_fileinfo *bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf);
@@ -150,7 +152,7 @@ bk_config_init(bk_s B, const char *filename, bk_flags flags)
     goto done;
   }
 
-  if (!(bc->bc_bcf=bcf_create(B, filename, NULL)))
+  if (!(bcf=bcf_create(B, filename, NULL)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create fileinfo entry for %s\n", filename);
     ret=-1;
@@ -248,13 +250,16 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
     goto done;
   }
 
-  while(fread(line, LINELEN, 1, fp))
+  while(fgets(line, LINELEN, fp))
   {
     char *key=line, *value;
     struct bk_config_key *bck=NULL;
     struct bk_config_value *bcv=NULL;
 
     lineno++;
+
+    bk_string_rip(B, line, NULL, 0);		/* Nuke trailing CRLF */
+
     if (BK_STREQ(line,""))
     {
       /* 
@@ -335,7 +340,7 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
     }
   }
 
-  if (ovalue)
+  if (!ovalue)
   {
     /* Add a new value to key */
     if (!(bcv=bcv_create(B, value, lineno, 0)))
@@ -412,6 +417,7 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
   }
   BK_RETURN(B, -1);
 }
+
 
 
 /*
@@ -615,7 +621,7 @@ bck_create(bk_s B, const char *key, bk_flags flags)
 
   bck->bck_flags=flags;
   
-  if (!(bck->bck_values=config_values_create(NULL,NULL,0)))
+  if (!(bck->bck_values=config_values_create(bcv_oo_cmp,bcv_ko_cmp,DICT_UNORDERED)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create values clc\n");
     goto error;
@@ -695,6 +701,8 @@ bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags)
 
   bcv->bcv_lineno=lineno;
   bcv->bcv_flags=flags;
+
+  BK_RETURN(B, bcv);
   
  error:
   if (bcv) bcv_destroy(B, bcv);
@@ -726,7 +734,7 @@ bcv_destroy(bk_s B, struct bk_config_value *bcv)
 
 
 /*
- * CLC comparison routines
+ * CLC key-side comparison routines
  */
 static int kv_oo_cmp(void *bck1, void *bck2)
 {
@@ -744,3 +752,17 @@ static ht_val kv_key_hash(void *a)
 {
   return(bk_strhash((char *)a, BK_STRHASH_NOMODULUS));
 }
+
+
+
+/*
+ * CLC value-side comparison routines
+ */
+static int bcv_oo_cmp(void *bcv1, void *bcv2)
+{
+  return(((struct bk_config_value *)bcv1)->bcv_value - ((struct bk_config_value *)bcv2)->bcv_value);
+} 
+static int bcv_ko_cmp(void *a, void *bcv)
+{
+  return((char *)a - ((struct bk_config_value *)bcv)->bcv_value);
+} 

@@ -18,8 +18,12 @@ int main(int argc, char **argv, char **envp)
   {
     char *ret;
 
+    buf.len = x;
     snprintf(intro,sizeof(intro),"Testing buffer w/size %d",x);
     ret = bk_string_printbuf(NULL, intro, prefix, &buf, 0);
+    fputs(ret, stdout);
+    free(ret);
+    printf("\n");
   }
   exit(0);
 }

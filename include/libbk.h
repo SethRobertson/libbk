@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.22 2001/08/27 03:10:22 seth Exp $
+ * $Id: libbk.h,v 1.23 2001/08/30 19:57:31 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -39,7 +39,7 @@
 /* Very generic (should not be used) application configuration file */
 #define BK_APP_CONF	"/etc/bk.conf"
 
-#define BK_ENV_GWD(e,d)		((char *)(getenv(e) || d))
+#define BK_ENV_GWD(e,d)		((char *)(getenv(e)?getenv(e):(d)))
 
 /* General constants */
 #define BK_SYSLOG_MAXLEN 256			/* Length of maximum user message we will syslog */
@@ -91,14 +91,14 @@ struct bk_general
 #define BK_BGFLAGS_DEBUGON	2		/* Is debugging on? */
 #define BK_BGFLAGS_SYSLOGON	4		/* Is syslog on? */
 };
-#define BK_GENERAL_ERROR(B)	(B?(B)->bt_general->bg_error:(struct bk_error *)bk_nullptr)
-#define BK_GENERAL_DEBUG(B)	(B?(B)->bt_general->bg_debug:(struct bk_debug *)bk_nullptr)
-#define BK_GENERAL_REINIT(B)	(B?(B)->bt_general->bg_reinit:(struct bk_funlist *)bk_nullptr)
-#define BK_GENERAL_DESTROY(B)	(B?(B)->bt_general->bg_destroy:(struct bk_funlist *)bk_nullptr)
-#define BK_GENERAL_PROCTITLE(B) (B?(B)->bt_general->bg_proctitle:(struct bk_proctitle *)bk_nullptr)
-#define BK_GENERAL_CONFIG(B)	(B?(B)->bt_general->bg_config:(struct bk_config *)bk_nullptr)
-#define BK_GENERAL_PROGRAM(B)	(B?(B)->bt_general->bg_program:(char *)bk_nullptr)
-#define BK_GENERAL_FLAGS(B)	(B?(B)->bt_general->bg_flags:bk_zeroint)
+#define BK_GENERAL_ERROR(B)	((B)?(B)->bt_general->bg_error:(struct bk_error *)bk_nullptr)
+#define BK_GENERAL_DEBUG(B)	((B)?(B)->bt_general->bg_debug:(struct bk_debug *)bk_nullptr)
+#define BK_GENERAL_REINIT(B)	((B)?(B)->bt_general->bg_reinit:(struct bk_funlist *)bk_nullptr)
+#define BK_GENERAL_DESTROY(B)	((B)?(B)->bt_general->bg_destroy:(struct bk_funlist *)bk_nullptr)
+#define BK_GENERAL_PROCTITLE(B) ((B)?(B)->bt_general->bg_proctitle:(struct bk_proctitle *)bk_nullptr)
+#define BK_GENERAL_CONFIG(B)	((B)?(B)->bt_general->bg_config:(struct bk_config *)bk_nullptr)
+#define BK_GENERAL_PROGRAM(B)	((B)?(B)->bt_general->bg_program:(char *)bk_nullptr)
+#define BK_GENERAL_FLAGS(B)	((B)?(B)->bt_general->bg_flags:bk_zeroint)
 #define BK_GENERAL_FLAG_ISFUNON(B)   BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON)
 #define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON)
 #define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON)
@@ -124,13 +124,13 @@ typedef struct __bk_thread
 #define BK_DEBUG_KEY "debug"
 #define BK_DEBUG_DEFAULTLEVEL "*DEFAULT*"
 #define bk_debug_and(B,l) (BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B) && (BK_BT_CURFUN(B)->bf_debuglevel & (l)))
-#define bk_debug_vprintf_and(B,l,f,ap) (bk_debug_and(B,l) && bk_debug_vprintf(B,f,ap))
-#define bk_debug_printf_and(B,l,f,args...) (bk_debug_and(B,l) && bk_debug_printf(B,f,##args))
-#define bk_debug_printbuf_and(B,l,i,p,v) (bk_debug_and(B,l) && bk_debug_printbuf(B,i,p,v))
-#define bk_debug_print(B,s) bk_debug_iprint(B,BK_GENERAL_DEBUG(B),s)
-#define bk_debug_printf(B,f,args...) bk_debug_iprintf(B,BK_GENERAL_DEBUG(B),f,##args)
-#define bk_debug_vprintf(B,f,ap) bk_debug_ivprintf(B,BK_GENERAL_DEBUG(B),f,ap)
-#define bk_debug_printbuf(B,i,p,v) bk_debug_iprintbuf(B,BK_GENERAL_DEBUG(B),i,pv)
+#define bk_debug_vprintf_and(B,l,f,ap) (bk_debug_and(B,l)?bk_debug_vprintf(B,f,ap):1)
+#define bk_debug_printf_and(B,l,f,args...) (bk_debug_and(B,l)?bk_debug_printf(B,f,##args):1)
+#define bk_debug_printbuf_and(B,l,i,p,v) (bk_debug_and(B,l)?bk_debug_printbuf(B,i,p,v):1)
+#define bk_debug_print(B,s) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprint(B,BK_GENERAL_DEBUG(B),s):1)
+#define bk_debug_printf(B,f,args...) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprintf(B,BK_GENERAL_DEBUG(B),f,##args):1)
+#define bk_debug_vprintf(B,f,ap) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_ivprintf(B,BK_GENERAL_DEBUG(B),f,ap):1)
+#define bk_debug_printbuf(B,i,p,v) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprintbuf(B,BK_GENERAL_DEBUG(B),i,pv):1)
 
 
 
@@ -150,7 +150,7 @@ typedef struct __bk_thread
 #define BK_RETURN(B, retval)			\
 do {						\
   int save_errno = errno;			\
-  if ((B) && !BK_GENERAL_FLAG_ISFUNON(B))	\
+  if (!(B) || BK_GENERAL_FLAG_ISFUNON(B))	\
     bk_fun_exit((B), __bk_funinfo);		\
   errno = save_errno;				\
   return retval;				\
@@ -162,7 +162,7 @@ do {						\
 do {						\
   typeof(retval) myretval = (retval);		\
   int save_errno = errno;			\
-  if ((B) && !BK_GENERAL_FLAG_ISFUNON(B))	\
+  if (!(B) || BK_GENERAL_FLAG_ISFUNON(B))	\
     bk_fun_exit((B), __bk_funinfo);		\
   errno = save_errno;				\
   return myretval;				\
@@ -173,7 +173,7 @@ do {						\
 #define BK_VRETURN(B)				\
 do {						\
   int save_errno = errno;			\
-  if (!BK_GENERAL_FLAG_ISFUNON(B))		\
+  if (!(B) || BK_GENERAL_FLAG_ISFUNON(B))		\
     bk_fun_exit((B), __bk_funinfo);		\
   errno = save_errno;				\
   return;					\
@@ -210,6 +210,7 @@ extern void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, 
 #define BK_SYSLOG_FLAG_NOFUN 1			/* Don't want function name included */
 #define BK_SYSLOG_FLAG_NOLEVEL 2		/* Don't want error level included */
 extern const char *bk_general_errorstr(bk_s B, int level);
+extern int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags);
 extern void *bk_nullptr;			/* NULL pointer junk */
 extern int bk_zeroint;				/* Zero integer junk */
 
@@ -272,6 +273,7 @@ extern void bk_fun_set(bk_s B, int state, bk_flags flags);
 #define BK_FUN_OFF	0			/* Turn off function tracing */
 #define BK_FUN_ON	1			/* Turn on function tracing */
 extern const char *bk_fun_funname(bk_s B, int ancestordepth, bk_flags flags);
+extern int bk_fun_reset_debug(bk_s B, bk_flags flags);
 
 
 /* b_funlist.c */
@@ -316,15 +318,27 @@ extern void bk_run_close(bk_s B, struct bk_run *run, bk_flags flags);
 extern void bk_run_destroy(bk_s B, struct bk_run *run);
 
 
+/* b_stdfun.c */
+extern void bk_die(bk_s B, u_char retcode, FILE *output, char *reason, bk_flags flags);
+extern void bk_warn(bk_s B, FILE *output, char *reason, bk_flags flags);
+#define BK_WARNDIE_WANTDETAILS		1	/* Verbose output of error logs */
+extern void bk_exit(bk_s B, u_char retcode);
+
+
+
 /* b_string.c */
 extern u_int bk_strhash(char *a, bk_flags flags);
 #define BK_STRHASH_NOMODULUS	0x01
 extern char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, void *variabledb, bk_flags flags);
-#define BK_STRING_TOKENIZE_WHITESPACE			" \t\r\n"
+#define BK_WHITESPACE					" \t\r\n"
+#define BK_VWHITESPACE					"\r\n"
+#define BK_HWHITESPACE					" \t"
 #define BK_STRING_TOKENIZE_MULTISPLIT			0x001	/* Allow multiple split characters to seperate items (foo::bar are two tokens, not three)  */
 #define BK_STRING_TOKENIZE_SINGLEQUOTE			0x002	/* Handle single quotes */
 #define BK_STRING_TOKENIZE_DOUBLEQUOTE			0x004	/* Handle double quotes */
+#ifdef NOTYET
 #define BK_STRING_TOKENIZE_SIMPLEVARIABLE		0x008	/* Convert $VAR */
+#endif /* NOTYET */
 #define BK_STRING_TOKENIZE_BACKSLASH			0x010	/* Backslash quote next char */
 #define BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR	0x020	/* Convert \n et al */
 #define BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT	0x040	/* Convert \010 et al */
@@ -336,5 +350,6 @@ extern void bk_string_tokenize_destroy(bk_s B, char **tokenized);
 extern char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_flags flags);
 extern int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags);
 extern int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags);
+extern char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags);
 
 #endif /* _BK_h_ */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fun.c,v 1.7 2001/08/27 03:10:23 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.8 2001/08/30 19:57:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -107,6 +107,7 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
     {
       if (fh = (struct bk_funinfo *)funstack_predecessor(BK_BT_FUNSTACK(B), cur))
 	bk_error_printf(B, BK_ERR_NOTICE,"Implicit exit of %s\n",fh->bf_funname);
+      funstack_delete(BK_BT_FUNSTACK(B), cur);
       free(cur);
     }
     BK_BT_CURFUN(B) = (struct bk_funinfo *)funstack_minimum(BK_BT_FUNSTACK(B));
@@ -127,7 +128,10 @@ void bk_fun_reentry_i(bk_s B, struct bk_funinfo *fh)
 {
   if (B && fh)
   {
-    fh->bf_debuglevel = bk_debug_query(B, BK_GENERAL_DEBUG(B), fh->bf_funname, fh->bf_pkgname, fh->bf_grpname, 0);
+    if (BK_GENERAL_FLAG_ISDEBUGON(B))
+      fh->bf_debuglevel = bk_debug_query(B, BK_GENERAL_DEBUG(B), fh->bf_funname, fh->bf_pkgname, fh->bf_grpname, 0);
+    else
+      fh->bf_debuglevel = 0;
 
     funstack_insert(BK_BT_FUNSTACK(B), fh);
     BK_BT_CURFUN(B) = fh;
@@ -171,6 +175,33 @@ void bk_fun_set(bk_s B, int state, bk_flags flags)
     BK_FLAG_SET(BK_GENERAL_FLAGS(B),BK_BGFLAGS_FUNON);
   else
     bk_error_printf(B, BK_ERR_ERR, "Invalid state argument: %d\n",state);
+}
+
+
+
+/*
+ * Reset the debug levels on all currently entered functions
+ * (Presumably debug levels have changed)
+ */
+int bk_fun_reset_debug(bk_s B, bk_flags flags)
+{
+  struct bk_funinfo *cur = NULL;
+
+  if (!B)
+    return(-1);
+
+  if (!BK_GENERAL_FLAG_ISFUNON(B))
+    return(0);					/* No function tracing */
+
+  for(cur = (struct bk_funinfo *)funstack_minimum(BK_BT_FUNSTACK(B)); cur; cur = (struct bk_funinfo *)funstack_successor(BK_BT_FUNSTACK(B), cur))
+  {
+    if (BK_GENERAL_FLAG_ISDEBUGON(B))
+      cur->bf_debuglevel = bk_debug_query(B, BK_GENERAL_DEBUG(B), cur->bf_funname, cur->bf_pkgname, cur->bf_grpname, 0);
+    else
+      cur->bf_debuglevel = 0;
+  }
+
+  return(0);
 }
 
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.12 2001/08/27 03:10:23 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.13 2001/08/30 19:57:32 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -46,9 +46,9 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
   BK_MALLOC(BK_BT_GENERAL(B));
 
   if (!BK_BT_GENERAL(B))
-  {
     goto error;
-  }
+
+  BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
 
   if (!(BK_GENERAL_DEBUG(B) = bk_debug_init(B, 0)))
     goto error;
@@ -210,7 +210,7 @@ bk_s bk_general_thread_init(bk_s B, char *name)
     goto error;
 
   /* Preserve function tracing flag or turn on by default */
-  if (!B || (B && BK_GENERAL_FLAG_ISFUNON(B)))
+  if (B && BK_GENERAL_FLAG_ISFUNON(B))
     BK_FLAG_SET(BK_GENERAL_FLAGS(B1), BK_BGFLAGS_FUNON);
 
   if (!(BK_BT_THREADNAME(B1) = strdup(name)))
@@ -360,6 +360,34 @@ const char *bk_general_errorstr(bk_s B, int level)
 
 
 /*
+ * Configure debugging
+ */
+int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!B)
+    BK_RETURN(B, -1);
+
+  bk_debug_config(B, BK_GENERAL_DEBUG(B), fh, sysloglevel, flags);
+
+  if (!fh && sysloglevel == BK_ERR_NONE)
+  {						/* Turning off debugging */
+    BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON);
+  }
+  else
+  {						/* Turning debugging on */
+    BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON);
+    bk_debug_setconfig(B, BK_GENERAL_DEBUG(B), BK_GENERAL_CONFIG(B), BK_GENERAL_PROGRAM(B));
+    bk_fun_reset_debug(B, flags);
+  }
+
+  BK_RETURN(B,0);
+}
+
+
+
+/*
  * Initialize process title information & process name
  */
 static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***argv, char ***envp, char **program, bk_flags flags)
@@ -404,7 +432,7 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
       \
       for(tmp=0;tmp<size;tmp++) \
       { \
-	if (!((new)[tmp] = (char *)malloc(strlen((orig)[tmp])+1))) \
+	if (!((new)[tmp] = strdup((orig)[tmp]))) \
 	{ \
 	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate duplicate array entry %d: %s\n",tmp,strerror(errno)); \
 	  goto error; \
