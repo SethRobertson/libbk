@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.29 2004/12/22 22:46:39 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.30 2004/12/23 23:59:33 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -569,7 +569,7 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, const char *buf)
     }
 
     // If this function has debugging turned on, move to subsecond timestamps
-    if (node = debug_search(bdinfo->bd_leveldb, (char *)__FUNCTION__))
+    if (bdinfo && bdinfo->bd_leveldb && (node = debug_search(bdinfo->bd_leveldb, (char *)__FUNCTION__)))
       snprintf(timeprefix+strlen(timeprefix), sizeof(timeprefix)-strlen(timeprefix), ".%06ld", tv.tv_usec);
 
     if (BK_GENERAL_PROGRAM(B))
