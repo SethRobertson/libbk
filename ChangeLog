@@ -1,3 +1,9 @@
+2002-08-14  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_listnum.c (bk_listnum_next): New flag parameter:
+	BK_LISTNUM_PRUNE_EMPTY to prune lists with no elements in them.
+	Significant time savings for scan detection.
+
 2002-08-14  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_string.c (FLAG_BEGIN, FLAG_END): use [], not <>, for XML compat

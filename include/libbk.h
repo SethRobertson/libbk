@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.160 2002/08/12 15:04:45 jtt Exp $
+ * $Id: libbk.h,v 1.161 2002/08/15 01:16:14 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1541,7 +1541,8 @@ extern void bk_skid_destroy(bk_s B, struct bk_skid *bs, bk_flags flags);
 extern struct bk_listnum_main *bk_listnum_create(bk_s B, bk_flags flags);
 extern struct bk_listnum_head *bk_listnum_get(bk_s B, struct bk_listnum_main *main, u_int number, bk_flags flags);
 extern void bk_listnum_destroy(bk_s B, struct bk_listnum_main *main);
-extern struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *main, struct bk_listnum_head *prev);
+extern struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *main, struct bk_listnum_head *prev, bk_flags flags);
+#define BK_LISTNUM_PRUNE_EMPTY 	0x01		///< Prune empty list nodes and search again instead of returning
 
 
 /* b_md5.h */

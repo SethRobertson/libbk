@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_listnum.c,v 1.5 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_listnum.c,v 1.6 2002/08/15 01:16:14 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -201,12 +201,14 @@ void bk_listnum_destroy(bk_s B, struct bk_listnum_main *mainl)
  *	@param B BAKA Thread/global environment
  *	@param mainl The list management list
  *	@param prev The last list returned by this function (NULL to start from the beginning)
+ *	@param flags BK_LISTNUM_PRUNE_EMPTY if should prune empty list nodes
  *	@return <i>NULL</i> on call failure, end-of-lists
  *	@return <br><i>next list</i> on success
  */
-struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *mainl, struct bk_listnum_head *prev)
+struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *mainl, struct bk_listnum_head *prev, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_listnum_head *next = NULL;
 
   if (!mainl)
   {
@@ -214,12 +216,25 @@ struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *mainl, s
     BK_RETURN(B, NULL);
   }
 
-  if (prev)
+  while (!next)
   {
-    BK_RETURN(B, listnum_successor(mainl->blm_list, prev));
-  }
+    if (prev)
+      next = listnum_successor(mainl->blm_list, prev);
+    else
+      next = listnum_minimum(mainl->blm_list);
 
-  BK_RETURN(B, listnum_minimum(mainl->blm_list));
+    if (!next)
+      break;
+
+    // Delete empty lists
+    if (BK_FLAG_ISSET(flags, BK_LISTNUM_PRUNE_EMPTY) && next->blh_first == next)
+    {
+      free(next);
+      listnum_delete(mainl->blm_list, next);
+      next = NULL;
+    }
+  }
+  BK_RETURN(B, next);
 }
 
 
