@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.22 2002/05/01 01:53:28 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.23 2002/05/17 01:06:05 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -95,6 +95,7 @@ static int do_net_init_af_local(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as);
+static int do_net_init_af_inet_udp_listen(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as);
 static int tcp_connect_start(bk_s B, struct addrgroup_state *as);
@@ -553,9 +554,12 @@ do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
      * handler is passed the pseudo IOH as if everything normal was happening.
      * Of course, we have this new list we must support, and there must be some
      * kind of type or union in the ioh structure now.  Sigh.</TODO>
+     *
+     * On the other hand, we *can* get the socket working without this garbage, so
+     * lets just do it.
      */
-    bk_error_printf(B, BK_ERR_ERR, "Do not support UDP listening mode yet--it is HARD!\n");
-    ret = -1;
+    bk_error_printf(B, BK_ERR_WARN, "UDP listening support is not quite ready for prime time, at least as far as IOHs are concerned\n");
+    ret = do_net_init_af_inet_udp_listen(B,as);
   }
 
   BK_RETURN(B, ret);
@@ -663,6 +667,73 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
   }
 
   as->as_state = BkAddrGroupStateConnected;
+  tcp_end(B, as);
+
+  BK_RETURN(B, s);
+  
+ error:
+  net_close(B, as);
+  BK_RETURN(B, -1);
+}
+
+
+
+/**
+ * Start a udp server socket (not really listen, but is parallel with TCP)
+ *
+ *	@param B BAKA thread/global state.
+ *	@param as @a addrgroup_state info.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return a new socket on success.
+ */
+static int
+do_net_init_af_inet_udp_listen(bk_s B, struct addrgroup_state *as)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int s = -1;
+  struct bk_addrgroup *bag;
+  struct bk_netinfo *local, slocal;
+  struct bk_netaddr bna;
+  struct sockaddr sa;
+  int af;
+
+  if (!as)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  bag = as->as_bag;
+
+  /* af can be either AF_INET of AF_INET6 */
+  af = bk_netaddr_nat2af(B,bag->bag_type); 
+
+  /* We *know* this is udp so we can assume SOCK_DGRAM */
+  if ((s = socket(af, SOCK_DGRAM, bag->bag_proto)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
+    goto error;
+  }
+
+  as->as_sock = s;
+
+  if (as->as_callback)
+  {
+    if ((*(as->as_callback))(B, as->as_args, as->as_sock, bag, as->as_server, BkAddrGroupStateSocket) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "User complained about newly created socket\n");
+      goto error;
+    }
+  }
+
+  // Bind to local address
+  if (open_inet_local(B, as) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not open the local side of the connection\n");
+    goto error;
+  }
+
+  as->as_state = BkAddrGroupStateReady;
   tcp_end(B, as);
 
   BK_RETURN(B, s);

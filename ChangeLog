@@ -1,5 +1,9 @@
 2002-05-16  Seth Robertson  <seth@startide.sysdetect.com>
 
+	* lib/b_addrgroup.c (do_net_init_af_inet_udp_listen): Enable
+	creation of UDP server sockets, even if the IOH part doesn't work
+	yet.
+
 	* lib/b_getbyfoo.c (bk_gethostbyfoo): Correct comments and illegal
 	arguments code for non-existance of ``*ih''
 

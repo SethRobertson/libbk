@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.12 2002/01/11 10:06:05 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.13 2002/05/17 01:06:05 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -944,7 +944,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
     len = sizeof(sa);
     if (getpeername(s, &sa, &len) < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not get local sockname: %s\n", strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not get peer sockname: %s\n", strerror(errno));
       goto error;
     }
     break;
