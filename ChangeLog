@@ -1,3 +1,8 @@
+2001-12-27  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_url.c (bk_url_parse): missed a few critical search
+	stopping characters in the fuzzy logic code. 
+
 2001-12-27  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/Makefile ($(GROUPTOP)/include/libbk_autoconf.h): create link

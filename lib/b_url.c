@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.11 2001/12/21 22:42:41 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.12 2001/12/27 18:25:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -315,7 +315,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
       {
 	// Relative path.
 	authority = path;
-	authority_end = strchr(authority,'/');
+	authority_end = strpbrk(authority,"/?#");
 	if (!authority_end)
 	  authority_end = path_end;
 
@@ -341,7 +341,6 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 	  FREE_URL_ELEMENT(bu, bu->bu_path);
 	}
       }
-
     }
 
     // Build host/serv sections 
@@ -355,8 +354,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
       {
 	host++;
 	// ipv6 address (we're mandating square brackets around ipv6's).
-	// XXX - strnchr or strpbrk or something like that
-	if (!(host_end = strchr(host, ']')))
+	if (!(host_end = strpbrk(host, "]/?#")) || *host_end != ']')
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Malformed ipv6 address\n");
 	  goto error;
@@ -367,18 +365,24 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 	host_end = host;
       }
 
-      //foo/bar:baz
-
-      // XXX - strnchr or something like that
       if ((serv = strpbrk(host_end, ":/?#")))
       {
-	if (host_end == host)
+	if (*serv == ':')
 	{
-	  host_end = serv;
+	  if (host_end == host)
+	  {
+	    host_end = serv;
+	  }
+	  serv++;
+	  BK_FLAG_SET(bu->bu_flags, BK_URL_FLAG_SERV);
+	  serv_end = (BK_URL_AUTHORITY_DATA(bu) + BK_URL_AUTHORITY_LEN(bu));
 	}
-	serv++;
-	BK_FLAG_SET(bu->bu_flags, BK_URL_FLAG_SERV);
-	serv_end = (BK_URL_AUTHORITY_DATA(bu) + BK_URL_AUTHORITY_LEN(bu));
+	else
+	{
+	  if (host_end == host)
+	    host_end = serv;
+	  serv = NULL;
+	}
       }
       else
       {

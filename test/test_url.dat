@@ -12,8 +12,16 @@ proto:////foo.bar.baz:80/path
 proto:/http://foo.bar.baz:80/path
 /http://foo.bar.baz:80/path
 foo.bar.gaz
+//foo/bar:baz
+//foo/bar?baz
+//foo?bar:baz
+//foo:bar?baz
+foo/bar:baz
+foo/bar?baz
+foo?bar:baz
 
 [1:2:3:4:5:6:7:8]/foobar
+[1:2:3:4:5:6:7:8/foobar]
 [1:2:3:4:5:6:7:8]:23/foobar
 tcp://[1:2:3:4:5:6:7:8]/foobar
 tcp://[1:2:3:4:5:6:7:8]:23/foobar
