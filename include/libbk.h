@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.119 2002/03/06 22:51:46 dupuy Exp $
+ * $Id: libbk.h,v 1.120 2002/03/08 11:34:44 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1145,13 +1145,14 @@ extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
 /* b_ioh.c */
 typedef int (*bk_iorfunc)(bk_s B, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags); ///< read style I/O function for bk_ioh (flags for specialized datagram handling, like peek)
 typedef int (*bk_iowfunc)(bk_s B, void *opaque, int fd, struct iovec *iov, __SIZE_TYPE__ size, bk_flags flags); ///< writev style I/O function for bk_ioh
-typedef void (*bk_iohhandler_f)(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh, bk_ioh_status_e state_flags);  ///< User callback for bk_ioh w/zero terminated array of data ptrs free'd after handler returns
+typedef void (*bk_iohhandler_f)(bk_s B, bk_vptr *data, void *opaque, struct bk_ioh *ioh, bk_ioh_status_e state_flags);  ///< User callback for bk_ioh w/zero terminated array of data ptrs free'd after handler returns
 extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
 #define BK_IOH_STREAM		0x01		///< Stream (instead of datagram) oriented protocol, for bk_ioh
 #define BK_IOH_RAW		0x02		///< Any data is suitable, no special message blocking, for bk_ioh
 #define BK_IOH_BLOCKED		0x04		///< Must I/O in hint blocks: block size is required, for bk_ioh
 #define BK_IOH_VECTORED		0x08		///< Size of data sent before data: datagramish semantics, for bk_ioh
 #define BK_IOH_LINE		0x10		///< Line oriented reads, for bk_ioh
+#define BK_IOH_NO_HANDLER	0x8000		///< Suppress stupid warning
 
 #if 0
 #define BK_IOH_STATUS_INCOMPLETEREAD	1	///< bk_ioh notifying user handler of incomplete read, data provided
@@ -1390,21 +1391,21 @@ extern char *bk_url_unescape(bk_s B, const char *urlcomponent);
 extern int bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep);
 
 /* b_nvmap.c */
-extern int64_t bk_nvmap_name2value(bk_s B,  struct bk_name_value_map nvmap[], const char *name);
-extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map nvmap[], int64_t val);
+extern int bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name);
+extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, int val);
 
 
 /* b_exec.c */
 extern int bk_pipe_to_process(bk_s B, int *fdinp, int*fdoutp, bk_flags flags);
-extern int bk_exec(bk_s B, const char *proc, char *const args[], char *const env[], bk_flags flags);
+extern int bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags flags);
 #define BK_EXEC_FLAG_SEARCH_PATH	0x1	///< Search PATH for the process
 extern char *bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags flags);
-extern int bk_exec_cmd(bk_s B, const char *cmd, char *const env[], bk_flags flags);
-extern int bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const env[], u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
-extern pid_t bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const args[], char *const env[], bk_flags flags);
+extern int bk_exec_cmd(bk_s B, const char *cmd, char *const *env, bk_flags flags);
+extern int bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
+extern pid_t bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *args, char *const *env, bk_flags flags);
 #define BK_EXEC_FLAG_USE_SUPPLIED_FDS		0x1 ///< Use the fd's supplied as copyu in args
-extern pid_t bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const env[], u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
-extern pid_t bk_pipe_to_cmd(bk_s B, int *fdin,int *fdout, const char *cmd, char *const env[], bk_flags flags);
+extern pid_t bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const *env, u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
+extern pid_t bk_pipe_to_cmd(bk_s B, int *fdin,int *fdout, const char *cmd, char *const *env, bk_flags flags);
 
 
 /* b_rand.c */

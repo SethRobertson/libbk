@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_exec.c,v 1.2 2002/02/08 01:05:37 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_exec.c,v 1.3 2002/03/08 11:34:44 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -183,7 +183,7 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
  *	@return <i>does not return</i> of child on success.
  */
 int
-bk_exec(bk_s B, const char *proc, char *const args[], char *const env[], bk_flags flags)
+bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *exec = NULL;
@@ -247,7 +247,7 @@ bk_exec(bk_s B, const char *proc, char *const args[], char *const env[], bk_flag
  *	@return <i>does not return</i> of child on success.
  */
 int
-bk_exec_cmd(bk_s B, const char *cmd, char *const env[], bk_flags flags)
+bk_exec_cmd(bk_s B, const char *cmd, char *const *env, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -279,7 +279,7 @@ bk_exec_cmd(bk_s B, const char *cmd, char *const env[], bk_flags flags)
  *	@return <i>does not return</i> of child on success.
  */
 int
-bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const env[], u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags)
+bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char **args = NULL;
@@ -332,7 +332,7 @@ bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const env[], u_int limit, co
  *	anything down the pipe.
  */
 pid_t
-bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const args[], char *const env[], bk_flags flags)
+bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *args, char *const *env, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   pid_t pid;
@@ -416,7 +416,7 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const a
  *	@return <i>pid</i> on success.
  */
 pid_t
-bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const env[], u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags)
+bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const *env, u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   pid_t pid;
@@ -496,7 +496,7 @@ bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *
  *	@return <i>pid</i> of child on success.
  */
 pid_t
-bk_pipe_to_cmd(bk_s B, int *fdinp,int *fdoutp, const char *cmd, char *const env[], bk_flags flags)
+bk_pipe_to_cmd(bk_s B, int *fdinp,int *fdoutp, const char *cmd, char *const *env, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   

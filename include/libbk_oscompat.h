@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.16 2002/03/01 06:23:50 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.17 2002/03/08 11:34:44 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -194,6 +194,6 @@ typedef char *caddr_t;
  * While this makes us compat. w/ some really broken realloc()'s, this is
  * really more for keeping Insight happy.
  */
-#define realloc(ptr,len)	((!(ptr))?malloc(len):realloc((ptr),(len)))
+// #define realloc(ptr,len)	((!(ptr))?malloc(len):realloc((ptr),(len)))
 
 #endif /* _libbk_oscompat_h_ */

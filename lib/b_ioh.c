@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.44 2002/03/07 20:13:03 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.45 2002/03/08 11:34:44 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -252,7 +252,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
     BK_RETURN(B, NULL);
   }
 
-  if (!handler)
+  if (!handler && BK_FLAG_ISCLEAR(flags, BK_IOH_NO_HANDLER))
   {
     bk_error_printf(B, BK_ERR_WARN, "No handler specified. I hope you know what you are doing (like entering a relay)\n");
   }

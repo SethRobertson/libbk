@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.29 2002/03/05 22:24:09 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.30 2002/03/08 11:34:44 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -371,8 +371,8 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
     decode[tmp] = tmp - 'a' + 10;
 
   /* Skip over leading space */
-  for(;*string && isspace(*string);string++)
-    ; // Void
+  while (isspace(*string))
+    string++;
 
   if (!*string)
   {
@@ -1408,6 +1408,7 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, u_int len)
   const char *p;
   const char *q;
   const char *upper_bound;
+  size_t nlen;
 
   if (!haystack || !needle)
   {
@@ -1417,17 +1418,21 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, u_int len)
 
   p = haystack;
 
-  upper_bound = haystack + len - strlen(needle);
-  
-  while(p < upper_bound)
+  nlen = strlen(needle);
+  if (len >= nlen)
   {
-    if (!(q = memchr(p, *needle, upper_bound - p)))
-      break;					// Not found
+    upper_bound = haystack + len - nlen;
+  
+    while(p < upper_bound)
+    {
+      if (!(q = memchr(p, *needle, upper_bound - p)))
+	break;					// Not found
 
-    if (BK_STREQN(q, needle, strlen(needle)))
-      BK_RETURN(B,q);      
-
-    p = q+1;
+      if (BK_STREQN(q, needle, nlen))
+	BK_RETURN(B,q);      
+      
+      p = q + 1;
+    }
   }
 
   BK_RETURN(B,NULL);  
