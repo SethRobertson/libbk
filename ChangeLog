@@ -1,3 +1,12 @@
+2004-08-10  James Tanis  <jtt@outpost.tanis.org>
+
+	* lib/b_netinfo.c (bk_netinfo_from_socket): Once again, do *not*
+	use a struct sockaddr casted to struct sockaddr_FOO. It has only
+	14 bytes of sa_data, and sockaddr_FOO may have much more.
+
+	* lib/b_addrgroup.c (as_destroy): Null out bag after destruction
+	to prevent double free.
+
 2004-08-09  James Tanis  <jtt@outpost.tanis.org>
 
 	* lib/b_addrgroup.c (listen_activity): Get DGRAM server handling

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.22 2004/08/07 04:43:21 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.23 2004/08/10 15:38:56 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -980,21 +980,18 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
   struct bk_netaddr *bna = NULL;
   char scratch[100];
   bk_netaddr_type_e netaddr_type;
-  struct sockaddr_in *sin4 = NULL;
-  struct sockaddr_in6 *sin6 = NULL;
   socklen_t len;
-  struct sockaddr sa;
+  bk_sockaddr_t bs;
   int socket_type, socket_type_len;
-  struct sockaddr_un *sun;
   const char *proto_str = NULL;
 
-  memset(&sa, 0,sizeof(sa));
+  memset(&bs, 0,sizeof(bs));
 
   switch (side)
   {
   case BkSocketSideLocal:
-    len = sizeof(sa);
-    if (getsockname(s, &sa, &len) < 0)
+    len = sizeof(bs);
+    if (getsockname(s, &(bs.bs_sa), &len) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not get local sockname: %s\n", strerror(errno));
       goto error;
@@ -1002,8 +999,8 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
     break;
 
   case BkSocketSideRemote:
-    len = sizeof(sa);
-    if (getpeername(s, &sa, &len) < 0)
+    len = sizeof(bs);
+    if (getpeername(s, &(bs.bs_sa), &len) < 0)
     {
       // This is quite common in server case, so a WARN not an ERR
       bk_error_printf(B, BK_ERR_WARN, "Could not get peer sockname: %s\n", strerror(errno));
@@ -1023,7 +1020,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
     goto error;
   }
 
-  netaddr_type = bk_netaddr_af2nat(B, sa.sa_family);
+  netaddr_type = bk_netaddr_af2nat(B, bs.bs_sa.sa_family);
 
   socket_type_len = sizeof(socket_type);
 
@@ -1061,16 +1058,15 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
       goto error;
     }
 
-    sin4 = (struct sockaddr_in *)(&sa);
-    snprintf(scratch, 100, "%d", ntohs(sin4->sin_port));
+        snprintf(scratch, 100, "%d", ntohs(bs.bs_sin.sin_port));
     if (bk_getservbyfoo(B, scratch, bni->bni_bpi->bpi_protostr, NULL, bni, 0)<0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
       goto error;
     }
 
-    /*BK_GET_SOCKADDR_LEN(B, sin4, len);*/
-    if (!(bna = bk_netaddr_user(B, netaddr_type, &(sin4->sin_addr), sizeof(sin4->sin_addr), 0)))
+    /*BK_GET_SOCKADDR_LEN(B, bs.bs_sin, len);*/
+    if (!(bna = bk_netaddr_user(B, netaddr_type, &(bs.bs_sin.sin_addr), sizeof(bs.bs_sin.sin_addr), 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
       goto error;
@@ -1102,16 +1098,15 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
       goto error;
     }
 
-    sin6 = (struct sockaddr_in6 *)(&sa);
-    snprintf(scratch, 100, "%d", ntohs(sin6->sin6_port));
+    snprintf(scratch, 100, "%d", ntohs(bs.bs_sin6.sin6_port));
     if (bk_getservbyfoo(B, scratch, bni->bni_bpi->bpi_protostr, NULL, bni, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
       goto error;
     }
 
-    /*BK_GET_SOCKADDR_LEN(B, sin6, len);*/
-    if (!(bna = bk_netaddr_user(B, netaddr_type, &(sin6->sin6_addr), sizeof(sin6->sin6_addr), 0)))
+    /*BK_GET_SOCKADDR_LEN(B, bs.bs_sin6, len);*/
+    if (!(bna = bk_netaddr_user(B, netaddr_type, &(bs.bs_sin6.sin6_addr), sizeof(bs.bs_sin6.sin6_addr), 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
       goto error;
@@ -1159,9 +1154,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
       goto error;
     }
 
-    sun = (struct sockaddr_un *)(&sa);
-
-    if (!(bna = bk_netaddr_user(B, BkNetinfoTypeLocal, sun->sun_path, 0, 0)))
+    if (!(bna = bk_netaddr_user(B, BkNetinfoTypeLocal, bs.bs_sun.sun_path, 0, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
       goto error;

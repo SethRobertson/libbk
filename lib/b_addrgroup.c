@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.45 2004/08/09 07:13:01 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.46 2004/08/10 15:38:56 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -339,6 +339,7 @@ as_destroy(bk_s B, struct addrgroup_state *as)
  if (as->as_bag)
   {
     bag_destroy(B, as->as_bag);
+    as->as_bag = NULL;
   }
 
   /* If the callback has not been called already, do so with flag */
