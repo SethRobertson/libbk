@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_ringdir.c,v 1.1 2004/04/06 23:32:25 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_ringdir.c,v 1.3 2004/04/08 21:03:47 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -284,22 +284,17 @@ static void progrun(bk_s B, struct program_config *pc)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   bk_ringdir_t brdh;
-  struct bk_ringdir_standard *brs;
   FILE *fp;
   char buf[2048];
+  char *filename;
+  int cnt;
 
-  if (!(brdh = bk_ringdir_init(B, "/tmp/jtt-ringdir/", 1024, 100, "%02djtt", &jtt_ringdir_callbacks, 0)))
+  if (!(brdh = bk_ringdir_init(B, "/tmp/jtt-ringdir/", 1024, 100, "%02ujtt", &jtt_ringdir_callbacks, 0)))
   {
     fprintf(stderr, "Could not initialize ring dir\n");    
     goto error;
   }
 
-  if (!(brs = bk_ringdir_get_private_data(B, brdh, 0)))
-  {
-    fprintf(stderr, "Could not extract brs from handle\n");
-    goto error;
-  }
-  
   if (!(fp = fopen("/usr/share/dict/linux.words", "r")))
   {
     fprintf(stderr, "Could not open workds file: %s\n", strerror(errno));
@@ -313,7 +308,8 @@ static void progrun(bk_s B, struct program_config *pc)
     char *start = buf;
     do
     {
-      if ((nbytes = write(brs->brs_fd, start, len)) < 0)
+      int fd = bk_ringdir_standard_get_fd(B, brdh, 0);
+      if ((nbytes = write(fd, start, len)) < 0)
       {
 	fprintf(stderr,"write failed: %s\n", strerror(errno));
 	goto error;
@@ -328,6 +324,17 @@ static void progrun(bk_s B, struct program_config *pc)
       goto error;
     }
   }
+  fclose(fp);
+
+  for(cnt = 0, filename = bk_ringdir_filename_oldest(B, brdh, 0);
+      cnt < 100;
+      cnt++, filename = bk_ringdir_filename_successor(B, brdh, filename, BK_RINGDIR_FILENAME_ITERATE_FLAG_FREE))
+  {
+    printf("%s\n", filename);
+  }
+  free(filename);
+	
+  bk_ringdir_destroy(B, brdh, 0);
   
  error:
   BK_VRETURN(B);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.4 2004/04/07 21:26:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.5 2004/04/07 22:38:07 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -73,7 +73,7 @@ static struct bk_ring_directory *brd_create(bk_s B, const char *directory, off_t
 static void brd_destroy(bk_s B, struct bk_ring_directory *brd);
 static char *create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags);
 
-
+#define TEST_FILE_NUM 1
 
 /**
  * Create a @a bk_ring_directory
@@ -88,6 +88,8 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ring_directory *brd = NULL;
+  char *tmp_filename = NULL;
+  u_int32_t tmp_num;
 
   if (!directory || !rotate_size || !max_num_files || !callbacks)
   {
@@ -151,11 +153,32 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
     goto error;
   }
 
+  //Test pattern by attempting to create filename with TEST_FILE_NUM.
+  if (!(tmp_filename = create_file_name(B, brd->brd_path, TEST_FILE_NUM, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create valid filename. Is the pattern OK: %s\n", brd->brd_pattern);
+    goto error;
+  }
+  
+  // Now convert *back* and make sure we still have TEST_FILE_NUM. 
+  if (!sscanf(tmp_filename, brd->brd_path, &tmp_num) || (tmp_num != TEST_FILE_NUM))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Failed to properly create valid filanem. Is the pattern OK: %s\n", brd->brd_pattern);
+    goto error;
+  }
+
+  free(tmp_filename);
+  tmp_filename = NULL;
+
+
   BK_RETURN(B,brd);  
 
  error:
   if (brd)
     brd_destroy(B, brd);
+  
+  if (tmp_filename)
+    free(tmp_filename);
 
   BK_RETURN(B,NULL);  
 }
@@ -1063,6 +1086,33 @@ bk_ringdir_standard_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags)
 
 
 /**
+ * Retrieve the fd of the standard sttruct
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@param flags Flags for future use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>private data</i> on success.
+ */
+int
+bk_ringdir_standard_get_fd(bk_s B, bk_ringdir_t brdh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ringdir_standard *brs;
+
+  if (!brdh || !(brs = bk_ringdir_get_private_data(B, brdh, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_RETURN(B,brs->brs_fd);  
+}
+
+
+
+
+/**
  * Update the private data of the standard struct by the standard struct
  *
  *	@param B BAKA thread/global state.
@@ -1224,6 +1274,10 @@ bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, b
     goto error;
   }
   
+  // Do this *last*. 
+  if (BK_FLAG_ISSET(flags, BK_RINGDIR_FILENAME_ITERATE_FLAG_FREE))
+    free((char *)filename);
+
   BK_RETURN(B, next_filename);  
 
  error:
@@ -1301,7 +1355,11 @@ bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename,
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;
   }
-  
+
+  // Do this *last*. 
+  if (BK_FLAG_ISSET(flags, BK_RINGDIR_FILENAME_ITERATE_FLAG_FREE))
+    free((char *)filename);
+
   BK_RETURN(B, previous_filename);  
 
  error:

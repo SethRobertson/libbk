@@ -4,6 +4,8 @@
 	(bk_ringdir_did_rotate_occur): Function to test if rotation
 	occured on the last call to bk_ringdir_rotate().
 	(bk_ringdir_rotate): Set flag is rotation occrs.
+	(bk_ringdir_standard_get_fd): File descriptor accessor.
+	(brd_create): Verify that input pattern creates valid filenames.
 
 2004-03-26  Alexander Dupuy  <dupuy@sysdetect.com>
 
