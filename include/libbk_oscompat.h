@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.33 2002/10/20 05:17:53 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.34 2002/10/21 16:02:26 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -344,18 +344,6 @@ struct tm *gmtime_r(const time_t *timenow, struct tm *buffer);
 #else
 # define BK_GETHOSTBYNAME2(n,f)	(gethostbyname2(n,f))
 #endif /* HAVE_GETHOSTBYNAME2 */
-
-#if BK_QUAD_TYPE==LONG_LONG
-# define bk_quad_t long long
-# define bk_uquad_t unsigned long long
-#else
-# if BK_QUAD_TYPE==LONG
-#  define bk_quad_t long
-#  define bk_uquad_t unsigned long
-# endif
-#endif
-
-#define bk_u_quad_t bk_uquad_t
 
 #ifdef HAVE_SETENV
 # define BK_SETENV(B, variable, value, overwrite)	(setenv(variable, value, overwrite))
