@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.27 2004/03/30 04:18:34 seth Exp $
+# $Id: Makefile,v 1.28 2004/04/24 01:44:29 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -28,6 +28,7 @@ BK_SIMPLE_PROGS=			\
 	b_chill				\
 	bdtee				\
 	bk_daemon			\
+	bk_funi				\
 	bttcp				\
 	genrand				\
 	mmcat				\

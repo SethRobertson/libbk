@@ -1,3 +1,8 @@
+2004-04-23  Seth Robertson  <seth@pearl.sysdetect.com>
+
+	* src/bk_funi.c: Funi lives!  (get away from the tyranny, and more
+	to the point double-shell-parse of su)
+
 2004-04-23  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_time.c (bk_time_duration_parse): Add function to parse
@@ -7,9 +12,9 @@
 
 	* lib/b_ringdir.c (bk_ringdir_destroy): Add checkpoint after
 	current open file closes.
-	
+
 	(bk_ringdir_rotate): Add checkpoint after close in case we get
-	error before subsequent open.  
+	error before subsequent open.
 
 2004-04-19  James Tanis  <jtt@buscemi.sysdetect.com>
 
@@ -37,7 +42,7 @@
 2004-04-14  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_ringdir.c (bk_ringdir_filename_predecessor): Use full path
-	pattern. 
+	pattern.
 	(bk_ringdir_filename_successor): ditto.
 
 2004-04-07  James Tanis  <jtt@buscemi.sysdetect.com>
@@ -53,7 +58,7 @@
 
 	* include/libbk.h: bk_struct_registry_t as opaque struct, not void *
 	[using void * prevents gcc from finding bugs, requires extra casts]
-	
+
 	* lib/b_string.c (bk_string_registry_insert): zero out unused entries;
 	don't reduce next_index on forced insert; verify string match on lookup
 
@@ -72,7 +77,7 @@
 
 	* lib/b_rand.c (USE_MEM_ENTROPY): enable use of uninitialized memory
 	for extra entropy only if neither Insure nor Valgrind are around
-	
+
 2004-02-11  Seth Robertson  <seth@sysdetect.com>
 
 	* lib/b_stats.c: Talk about how to improve accuracy
