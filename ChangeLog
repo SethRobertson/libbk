@@ -1,5 +1,10 @@
 2001-11-15  Seth Robertson  <seth@startide.sysdetect.com>
 
+	* lib/b_ioh.c (CALLBACK) (bk_ioh_close): Don't close if we are in
+	the middle of a user callback, as this will leave the callee
+	hanging.  Defer the close instead.  Eliminate notifyclose--we will
+	*always* notify.
+
 	* lib/b_relay.c (bk_relay_iohhandler): He is throttled on read,
 	not me, when I write out some data.
 

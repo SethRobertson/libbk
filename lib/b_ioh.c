@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.17 2001/11/15 19:52:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.18 2001/11/15 20:55:28 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,7 +27,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-#define CALLBACK(B, ioh,data, state) ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state))) ///< Function to evaluate user callback with new data/state information
+#define CALLBACK(B, ioh,data, state) do { BK_FLAG_SET((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK); bk_debug_printf_and(B, 2, "Calling user callback for ioh %p with state %d\n",(ioh),(state)); ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state))); BK_FLAG_CLEAR((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK); } while (0) ///< Function to evaluate user callback with new data/state information
 #define IOH_DEFAULT_DATA_SIZE	128		///< Default read size
 #define IOH_VS			2		///< Number of vectors to hold length and msg
 #define IOH_EOLCHAR		'\n'		///< End of line character
@@ -93,6 +93,7 @@ struct bk_ioh
   struct bk_ioh_queue	ioh_readq;		///< Data queued for reading
   struct bk_ioh_queue	ioh_writeq;		///< Data queued for writing
   char			ioh_eolchar;		///< End of line character
+  bk_flags		ioh_deferredclosearg;	///< Flags argument to deferred close
   bk_flags		ioh_extflags;		///< Flags--see libbk.h
   bk_flags		ioh_intflags;		///< Flags
 #define IOH_FLAGS_SHUTDOWN_INPUT	0x01	///< Input shut down
@@ -100,10 +101,11 @@ struct bk_ioh
 #define IOH_FLAGS_SHUTDOWN_OUTPUT_PEND	0x04	///< Output shut down
 #define IOH_FLAGS_SHUTDOWN_CLOSING	0x08	///< Attempting to close
 #define IOH_FLAGS_SHUTDOWN_DESTROYING	0x10	///< Attempting to destroy
-#define IOH_FLAGS_SHUTDOWN_NOTIFYDIE	0x20	///< Notify callback on actual death
 #define IOH_FLAGS_DONTCLOSEFDS		0x40	///< Don't close FDs on death
 #define IOH_FLAGS_ERROR_INPUT		0x80	///< Input had I/O error or EOF
 #define IOH_FLAGS_ERROR_OUTPUT		0x100	///< Output had I/O error
+#define IOH_FLAGS_CLOSE_PENDING		0x200	///< We want to close, but are in a user callback
+#define IOH_FLAGS_IN_CALLBACK		0x400	///< We are in a user callback
 };
 
 
@@ -485,6 +487,13 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
 
   // <TODO>Consider trying a spontaneous write here, if nbio is set, especially if writes are not pending </TODO>
 
+  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
+  {
+    BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
+    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg);
+    BK_RETURN(B, -1);
+  }
+
   BK_RETURN(B, ret);
 }
 
@@ -593,6 +602,12 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
   if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
     bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
 
+  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
+  {
+    BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
+    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg);
+    BK_VRETURN(B);
+  }
 
   BK_VRETURN(B);
 }
@@ -642,6 +657,13 @@ void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 
   if (cmds)
     ret = ioh_execute_cmds(B, ioh, cmds, 0);
+
+  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
+  {
+    BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
+    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg);
+    BK_VRETURN(B);
+  }
 
   BK_VRETURN(B);
 }
@@ -727,11 +749,16 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_fun_trace(B, stderr, BK_ERR_NONE, 0);
   }
 
+  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_IN_CALLBACK))
+  {
+    BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
+    ioh->ioh_deferredclosearg = flags;
+    BK_VRETURN(B);
+  }
+
   // Save flags for _destroy()
   if (BK_FLAG_ISSET(flags, BK_IOH_DONTCLOSEFDS))
     BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_DONTCLOSEFDS);
-  if (BK_FLAG_ISSET(flags, BK_IOH_NOTIFYANYWAY))
-    BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_NOTIFYDIE);
 
   // Don't do it if we are already doing it
   if ((BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_CLOSING) &&
@@ -849,8 +876,7 @@ void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
     bk_run_close(B, ioh->ioh_run, ioh->ioh_fdout, 0);
 
   // Notify user
-  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_NOTIFYDIE))
-    CALLBACK(B, ioh, NULL, BK_IOH_STATUS_IOHCLOSING);
+  CALLBACK(B, ioh, NULL, BK_IOH_STATUS_IOHCLOSING);
 
   ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, IOH_FLUSH_DESTROY);
   ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, IOH_FLUSH_DESTROY);
@@ -933,7 +959,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
   // Check for error or exceptional conditions
   if (BK_FLAG_ISSET(gottypes, BK_RUN_DESTROY) || BK_FLAG_ISSET(gottypes, BK_RUN_CLOSE))
   {
-    bk_ioh_close(B, ioh, BK_IOH_ABORT|BK_IOH_NOTIFYANYWAY);
+    bk_ioh_close(B, ioh, BK_IOH_ABORT);
     BK_VRETURN(B);
   }
 
@@ -1073,6 +1099,13 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
     }
   }
 
+  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
+  {
+    BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING);
+    bk_ioh_close(B, ioh, ioh->ioh_deferredclosearg);
+    BK_VRETURN(B);
+  }
+
   if (ret >= 0)
     ret = ioh_execute_ifspecial(B, ioh, &ioh->ioh_writeq, 0);
       
@@ -1080,7 +1113,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, u_int fd, u_int gottypes,
   if (ret < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Message type handler failed severely\n");
-    bk_ioh_close(B, ioh, BK_IOH_NOTIFYANYWAY|BK_IOH_ABORT);
+    bk_ioh_close(B, ioh, BK_IOH_ABORT);
     BK_VRETURN(B);
   }
 
@@ -1644,6 +1677,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	}
       }
     }
+
     BK_RETURN(B, size);
     break;
 

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.53 2001/11/14 06:57:44 seth Exp $
+ * $Id: libbk.h,v 1.54 2001/11/15 20:55:28 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -633,7 +633,6 @@ extern void bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_fla
 extern void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags);
 extern void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 #define BK_IOH_ABORT		0x01		///< During bk_ioh_close: Abort stream immediately -- don't wait to drain */
-#define BK_IOH_NOTIFYANYWAY	0x02		///< During bk_ioh_close: Call handler notifying when close actually completes */
 #define BK_IOH_DONTCLOSEFDS	0x04		///< During bk_ioh_close: Don't close the file descriptors during close */
 extern void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
 extern int bk_ioh_stdrdfun(bk_s B, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags);		///< read() when implemented in ioh style
