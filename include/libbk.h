@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.103 2002/01/14 18:54:07 jtt Exp $
+ * $Id: libbk.h,v 1.104 2002/01/15 20:21:20 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -106,14 +106,20 @@ struct bk_version
 };
 
 
+
+
 /**
- * @name Blocking Non-blocking flags
+ * Blocking nonblocking state.
  */
-// @{
+struct bk_iohh_bnbio
+{
+  bk_flags			bib_flags;	///< Everyone needs flags.
 #define BK_IOHH_BNBIO_FLAG_LINGER	0x1	///< Linger on close untill all write data flushed.
 #define BK_IOHH_BNBIO_FLAG_SYNC		0x2	///< Linger on write until write completes.
 #define BK_IOHH_BNBIO_FLAG_NO_LINGER	0x4	///< Turn off LINGER or SYNC.
-// @}
+  struct bk_polling_io *	bib_bpi;	///< Polling strucuture. 
+};
+
 
 
 #define BK_VERSION_MAJOR(v) ((v)->bv_vers_major)
@@ -292,6 +298,7 @@ typedef enum
   BkGetHostByFooStateErr,			///< You cannot trust the info
   BkGetHostByFooStateNetinfoErr,		///< You cannot trust bni (but the @a hostent is OK.
 } bk_gethostbyfoo_state_e;
+
 
 
 /** 
@@ -1204,6 +1211,17 @@ extern int64_t bk_nvmap_name2value(bk_s B,  struct bk_name_value_map nvmap[], co
 extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map nvmap[], int64_t val);
 
 
+/* b_exec.c */
+extern int bk_pipe_to_process(bk_s B, int *fdinp, int*fdoutp, bk_flags flags);
+extern int bk_exec(bk_s B, const char *proc, char *const args[], char *const env[], bk_flags flags);
+#define BK_EXEC_FLAG_SEARCH_PATH	0x1	///< Search PATH for the process
+extern char *bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags flags);
+extern int bk_exec_cmd(bk_s B, const char *cmd, char *const env[], bk_flags flags);
+extern int bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const env[], u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
+extern pid_t bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const args[], char *const env[], bk_flags flags);
+#define BK_EXEC_FLAG_USE_SUPPLIED_FDS		0x1 ///< Use the fd's supplied as copyu in args
+extern pid_t bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const env[], u_int limit, const char *spliton, void *variabledb, bk_flags tokenize_flags, bk_flags flags);
+extern pid_t bk_pipe_to_cmd(bk_s B, int *fdin,int *fdout, const char *cmd, char *const env[], bk_flags flags);
 
 
 #endif /* _BK_h_ */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.20 2002/01/14 16:17:27 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.21 2002/01/15 20:21:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1331,7 +1331,6 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
 static int bk_run_checkeventq(bk_s B, struct bk_run *run, const struct timeval *starttime, struct timeval *delta)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int ret = 0;
   struct br_equeue *top;
   struct timeval curtime;
 

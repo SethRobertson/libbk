@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.5 2002/01/11 17:49:32 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.6 2002/01/15 20:21:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -35,13 +35,6 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * @file b_bnbio.c
  * All the routines required to handle "blocking" I/O in an asynchrnous enviornment.
  */
-
-
-struct bk_iohh_bnbio
-{
-  bk_flags			bib_flags;	///< Everyone needs flags.
-  struct bk_polling_io *	bib_bpi;	///< Polling strucuture. 
-};
 
 
 
