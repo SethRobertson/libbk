@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.6 2003/04/13 00:24:39 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.7 2003/04/16 21:25:51 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -96,11 +96,12 @@ struct bk_threadcomm
 
 
 
+#ifdef BK_USING_PTHREADS
 static void *bk_thread_continue(void *opaque);
 
 
 
-#ifdef BK_USING_PTHREADS
+
 /**
  * Thread safe counting initialization
  *
