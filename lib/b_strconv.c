@@ -1,18 +1,18 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.10 2003/03/19 00:10:35 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.11 2003/04/09 03:57:13 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
- * 
+ *
  * Copyright (c) 2002 The Authors. All rights reserved.
- * 
+ *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- * 
+ *
  * Mail <projectbaka@baka.org> for further information
- * 
+ *
  * --Copyright LIBBK--
  */
 
@@ -55,7 +55,7 @@ static int bk_string_atou64_int(bk_s B, const char *string, u_int64_t *value, in
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
  *	@param flags Fun for the future.
- *    	@see bk_string_atou64_int
+ *	@see bk_string_atou64_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
@@ -94,7 +94,7 @@ int bk_string_atou32(bk_s B, const char *string, u_int32_t *value, bk_flags flag
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
  *	@param flags Fun for the future.
- *    	@see bk_string_atou64_int
+ *	@see bk_string_atou64_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
@@ -130,8 +130,8 @@ int bk_string_atoi32(bk_s B, const char *string, int32_t *value, bk_flags flags)
 
 
 /**
- * Convert ascii string to time_t.  This is the same as bk_string_atoi32 for now, 
- * but will keep us from casting to int32 all over the place.  We'll be happy 
+ * Convert ascii string to time_t.  This is the same as bk_string_atoi32 for now,
+ * but will keep us from casting to int32 all over the place.  We'll be happy
  * about this if this code still exists in 2038.
  *
  * THREADS: MT-SAFE
@@ -140,7 +140,7 @@ int bk_string_atoi32(bk_s B, const char *string, int32_t *value, bk_flags flags)
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
  *	@param flags Fun for the future.
- *    	@see bk_string_atou64_int
+ *	@see bk_string_atou64_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
@@ -184,7 +184,7 @@ int bk_string_atot(bk_s B, const char *string, time_t *value, bk_flags flags)
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
  *	@param flags Fun for the future.
- *    	@see bk_string_atou64_int
+ *	@see bk_string_atou64_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
@@ -220,7 +220,7 @@ int bk_string_atou64(bk_s B, const char *string, u_int64_t *value, bk_flags flag
  *	@param string String to convert
  *	@param value Copy-out of number the string represents
  *	@param flags Fun for the future.
- *    	@see bk_string_atou64_int
+ *	@see bk_string_atou64_int
  *	@return <i>-1</i> on error (string not converted)
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
@@ -267,7 +267,7 @@ int bk_string_atoi64(bk_s B, const char *string, int64_t *value, bk_flags flags)
  *	@param value Copy-out of number the string represents
  *	@param sign Copy-out sign of number converted
  *	@param flags Fun for the future.
- *    	@see bk_string_atou64_int
+ *	@see bk_string_atou64_int
  *	@return <i>-1</i> on call failure
  *	@return <br><i>0</i> on success
  *	@return <br><i>positive</i> on non-null terminated number--best effort
@@ -546,7 +546,7 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
 			src);
 	goto justhex;
       }
-	
+
       // not found, or not full match (not preceded and followed by bit/NUL)
       if (!(symbol = bk_strstrn(B, names + 1, tok, sep - tok))
 	  || symbol[sep - tok] > 32 || symbol[-1] > 32)
@@ -587,6 +587,94 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
 
 
 /**
+ * Convert symbolic value to it corresponding textual name.  You must NOT free
+ * the return value.
+ *
+ * Reverse of @a bk_string_atosymbol().
+ *
+ * THREADS: MT-SAFE (assuming convlist is safe)
+ *
+ *	@param B BAKA Thread/global state
+ *	@param value Source value to convert
+ *	@param convlist Symbolic value to name lookup table (null terminated)
+ *	@param flags Future meta-ness.
+ *	@return <i>NULL</i> Call failure, symbol does not appear in convlist
+ *	@return <br><i>const text string</i> on success
+ */
+const char *bk_string_symboltoa(bk_s B, u_int value, struct bk_symbol *convlist, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!convlist)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  while (convlist && convlist->bs_string)
+  {
+    if (value == convlist->bs_val)
+      BK_RETURN(B, convlist->bs_string);
+    convlist++;
+  }
+
+  BK_RETURN(B, NULL);
+}
+
+
+
+/**
+ * Convert textual name to a corresponding symbolic value.
+ *
+ * Reverse of @a bk_string_symboltoa().
+ *
+ * THREADS: MT-SAFE (assuming convlist is safe)
+ *
+ *	@param B BAKA Thread/global state
+ *	@param name Name to conver to value
+ *	@param value Value to copy-out
+ *	@param convlist Symbolic value to name lookup table (null terminated)
+ *	@param flags BK_STRING_ATOSYMBOL_CASEINSENSITIVE
+ *	@return <i>-1</i> Call failure
+ *	@return <br><i>0</i> Success!
+ *	@return <br><i>1</i> Name did not appear in lookup table
+ */
+int bk_string_atosymbol(bk_s B, const char *name, u_int *value, struct bk_symbol *convlist, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!convlist || !name || !value)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  *value = 0;
+
+  while (convlist && convlist->bs_string)
+  {
+    int iseq;
+
+    if (BK_FLAG_ISSET(flags, BK_STRING_ATOSYMBOL_CASEINSENSITIVE))
+      iseq = strcasecmp(name, convlist->bs_string);
+    else
+      iseq = strcmp(name, convlist->bs_string);
+
+    if (!iseq)
+    {
+      *value = convlist->bs_val;
+      BK_RETURN(B, 0);
+    }
+
+    convlist++;
+  }
+
+  BK_RETURN(B, 1);
+}
+
+
+
+/**
  * Compute the number of textual columns required to print an integer.
  *
  * THREADS: MT-SAFE
@@ -609,7 +697,7 @@ bk_string_intcols(bk_s B, int64_t num, u_int base)
     { 0.0, 0.0, M_LN2, 0.0, 2.0 * M_LN2, 0.0, 0.0, 0.0, 3.0 * M_LN2, 0.0,
       M_LN10, 0.0, 0.0, 0.0, 0.0, 0.0, 4.0 * M_LN2};
   int val;
-  
+
   if (base > 16 || logbase[base] == 0.0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid base %d\n", base);
@@ -617,7 +705,7 @@ bk_string_intcols(bk_s B, int64_t num, u_int base)
   }
 
   if (num == 0)					// avoid computing log(0)
-    BK_RETURN(B, 1);    
+    BK_RETURN(B, 1);
 
   if (num < 0)
   {
@@ -626,10 +714,10 @@ bk_string_intcols(bk_s B, int64_t num, u_int base)
   }
   else
     val = 0;
-    
+
   val += 1.0 + log(num) / logbase[base];
 
-  BK_RETURN(B, val);  
+  BK_RETURN(B, val);
 }
 
 
@@ -657,18 +745,18 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
   char *end = NULL;
   int err;
   int ret = 0;
-  
+
   if (!string || !value)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   // Set errno, just to be sure.
   errno = 0;
   tmp = strtod(string, &end);
   err = errno;
-  
+
   if (tmp == 0.0)
   {
     // check for inf/nan unrecognized by libc strtod()
@@ -789,6 +877,6 @@ bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
   {
     *value = tmp;
   }
-  
-  BK_RETURN(B,ret);  
+
+  BK_RETURN(B,ret);
 }

@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.21 2002/11/11 22:53:59 jtt Exp $
+# $Id: Makefile,v 1.22 2003/04/09 03:57:14 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -20,6 +20,7 @@ BK_SUBDIR=entropy
 BK_SIMPLE_INTERNALPROGS=		\
 		mutex			\
 		test_bio		\
+		test_clc		\
 		test_config		\
 		test_errorstuff		\
 		../test/test_fun	\

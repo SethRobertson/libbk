@@ -1,15 +1,15 @@
 /*
- * $Id: libbk.h,v 1.224 2003/04/07 18:43:06 jtt Exp $
+ * $Id: libbk.h,v 1.225 2003/04/09 03:57:11 seth Exp $
  *
  * ++Copyright LIBBK++
- * 
+ *
  * Copyright (c) 2001,2002 The Authors. All rights reserved.
- * 
+ *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- * 
+ *
  * Mail <projectbaka@baka.org> for further information
- * 
+ *
  * --Copyright LIBBK--
  */
 
@@ -40,6 +40,9 @@ struct bk_netinfo;
 struct bk_polling_io;
 struct bk_stat_list;
 struct bk_stat_node;
+struct bk_threadlist;
+struct bk_threadnode;
+
 
 
 
@@ -75,7 +78,7 @@ struct bk_stat_node;
  * Short-circuit OR for non-boolean values.  Returns first argument if nonzero,
  * else second argument.  (<em>Note:</em> may expand first arg multiple times).
  */
-#define BK_OR(a,b) ((a)?:(b))			
+#define BK_OR(a,b) ((a)?:(b))
 //#elif defined(__GNUC__)			// insure++ can handle this
 //#define BK_OR(a,b) ({ typeof(a) x = (a); x = (x ? x : (b)); })
 #else
@@ -141,7 +144,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
  * Insure (at least on linux) doesn't get that realloc(NULL,len) is legal
  * (it complains about freeing NULL), so this macro takes care of that.
  *
- * <WARNING> 
+ * <WARNING>
  * The pointer arg get evaluatied *twice*. Don't use side effects (which is a bad idea anyay).
  * </WARNING>
  */
@@ -154,7 +157,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
  * @name BAKA Version and support routines.
  */
 // @{
-/** 
+/**
  * @name bk_version
  *
  * A simple structure to encode versioning numbers. Mostly exists for the
@@ -182,7 +185,7 @@ struct bk_iohh_bnbio
 #define BK_IOHH_BNBIO_FLAG_TIMEDOUT	0x10	///< This bnbio has timed out (not set by user).
   time_t			bib_read_to;	/// Timeout for reading.
   // Not implementing write timeout 'till we know we need them (space considerations).
-  struct bk_polling_io *	bib_bpi;	///< Polling strucuture. 
+  struct bk_polling_io *	bib_bpi;	///< Polling strucuture.
   void *			bib_read_to_handle; ///< Event for read timeout.
 };
 
@@ -193,8 +196,8 @@ struct bk_iohh_bnbio
 
 /**
  * Compare two version strucures (pointers).
- * 	@param a First version structure
- * 	@param b Second version structure
+ *	@param a First version structure
+ *	@param b Second version structure
  *	@return <i>positive<i> if @a is greater than @b <br>
  *	@return <i>0<i> if @a is equal to @b <br>
  *	@return <i>negative<i> if @a is less than @b
@@ -206,8 +209,8 @@ struct bk_iohh_bnbio
 
 /**
  * Compare a version structure with a major number.
- * 	@param v The version structure
- * 	@param m The major number
+ *	@param v The version structure
+ *	@param m The major number
  *	@return <i>positive<i> if @v is greater than @m <br>
  *	@return <i>0<i> if @v is equal to @m <br>
  *	@return <i>negative<i> if @v is less than @m
@@ -218,9 +221,9 @@ struct bk_iohh_bnbio
 
 /**
  * Check of a version structure is compatible with a major number
- * <em>NB</em> This macro assums that all major numbers are > 1. 
- * 	@param v The version structure
- * 	@param m The major number
+ * <em>NB</em> This macro assums that all major numbers are > 1.
+ *	@param v The version structure
+ *	@param m The major number
  *	@return <i>1<i> if @v is compatible with @m <br>
  *	@return <i>0<i> if @v is not compatible with @m
  */
@@ -283,9 +286,10 @@ struct bk_general
   struct bk_debug	*bg_debug;		///< Debug info
   struct bk_funlist	*bg_reinit;		///< Reinitialization list
   struct bk_funlist	*bg_destroy;		///< Destruction list
+  struct bk_threadlist	*bg_tlist;		///< Thread list
   struct bk_proctitle	*bg_proctitle;		///< Process title info
   struct bk_config	*bg_config;		///< Configuration info
-  struct bk_child	*bg_child;		///< Tracked child info 
+  struct bk_child	*bg_child;		///< Tracked child info
   struct bk_stat_list	*bg_funstats;		///< Function performance stats
   char			*bg_funstatfile;		///< Filename to output funperfstats
   char			*bg_program;		///< Name of program
@@ -294,6 +298,7 @@ struct bk_general
 #define BK_BGFLAGS_DEBUGON	0x02		///< Is debugging on?
 #define BK_BGFLAGS_SYSLOGON	0x04		///< Is syslog on?
 #define BK_BGFLAGS_THREADON	0x08		///< Is threading on?
+#define BK_BGFLAGS_THREADREADY	0x10		///< libbk is thread ready
 #ifdef BK_USING_PTHREADS
   pthread_mutex_t	bg_wrmutex;		///< Lock on writing of general structure <TODO>Verify that readers either get old or new value--otherwise this needs to be a rdwr lock and all hell starts breaking loose</TODO>
 #endif /* BK_USING_PTHREADS */
@@ -303,6 +308,7 @@ struct bk_general
 #define BK_GENERAL_CHILD(B)	((B)?(B)->bt_general->bg_child:(struct bk_child *)bk_nullptr) ///< Access the bk_general debug queue
 #define BK_GENERAL_REINIT(B)	((B)?(B)->bt_general->bg_reinit:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general reinit list
 #define BK_GENERAL_DESTROY(B)	((B)?(B)->bt_general->bg_destroy:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general destruction list
+#define BK_GENERAL_TLIST(B)	((B)?(B)->bt_general->bg_tlist:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general thread list
 #define BK_GENERAL_PROCTITLE(B) ((B)?(B)->bt_general->bg_proctitle:(struct bk_proctitle *)bk_nullptr) ///< Access the bk_general process title state
 #define BK_GENERAL_FUNSTATS(B) ((B)?(B)->bt_general->bg_funstats:(struct bk_stat_list *)bk_nullptr) ///< Access the bk_general function statistics state
 #define BK_GENERAL_FUNSTATFILE(B) ((B)?(B)->bt_general->bg_funstatfile:(char *)bk_nullptr) ///< Access the bk_general function statistics output filename
@@ -314,7 +320,9 @@ struct bk_general
 #define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON) ///< Is debugging on?
 #define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON) ///< Is system logging on?
 #define BK_GENERAL_FLAG_ISTHREADON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADON) ///< Is threading on?
+#define BK_GENERAL_FLAG_ISTHREADREADY(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADREADY) ///< Is threading on?
 #define BK_GENERAL_ISFUNSTATSON(B) (BK_GENERAL_FUNSTATFILE(B) && BK_GENERAL_FUNSTATS(B)) ///< Is fun stats on?
+#define bk_general_thread_create(B, name, start, opaque, flags) bk_thread_create(B, BK_GENERAL_TLIST(B), name, start, opaque, flags)
 // @}
 
 
@@ -322,10 +330,10 @@ struct bk_general
  * @name File locking manifest constants of interest
  */
 // @{
-#define BK_FILE_LOCK_ADMIN_EXTENSION 	"adm"
-#define BK_FILE_LOCK_EXTENSION 		"lck"
-#define BK_FILE_LOCK_MODE_EXCLUSIVE 	"EXCLUSIVE"
-#define BK_FILE_LOCK_MODE_SHARED 	"SHARED"
+#define BK_FILE_LOCK_ADMIN_EXTENSION	"adm"
+#define BK_FILE_LOCK_EXTENSION		"lck"
+#define BK_FILE_LOCK_MODE_EXCLUSIVE	"EXCLUSIVE"
+#define BK_FILE_LOCK_MODE_SHARED	"SHARED"
 // @}
 
 /**
@@ -345,13 +353,13 @@ struct bk_general
 #define CONVERT_SECS_NTP2UNIX(secs)	((secs) - 2208988800UL) ///< Convert secs from ntp to unix.
 #define CONVERT_SECS_UNIX2NTP(secs)	((secs) + 2208988800UL) ///< Concver secs from unix to ntp.
 
-#define CONVERT_SECSNTP2TIMEVAL(secs) 	CONVERT_SECS_NTP2UNIX(secs) ///< Convenience function
-#define CONVERT_SECSTIMEVAL2NTP(secs) 	CONVERT_SECS_UNIX2NTP(secs) ///< Convenience function
+#define CONVERT_SECSNTP2TIMEVAL(secs)	CONVERT_SECS_NTP2UNIX(secs) ///< Convenience function
+#define CONVERT_SECSTIMEVAL2NTP(secs)	CONVERT_SECS_UNIX2NTP(secs) ///< Convenience function
 #define CONVERT_SUBSECSNTP2TIMEVAL(subsecs)	((((((u_int64_t)(subsecs))*1000000)/(1<<31))+1)/2)
 #define CONVERT_SUBSECSTIMEVAL2NTP(subsecs)	((((((u_int64_t)(subsecs))*(1LL<<32))/500000)+1)/2)
 
-#define CONVERT_SECSNTP2TIMESPEC(secs) 	CONVERT_SECS_NTP2UNIX(secs) ///< Convenience function
-#define CONVERT_SECSTIMESPEC2NTP(secs) 	CONVERT_SECS_UNIX2NTP(secs) ///< Convenience function
+#define CONVERT_SECSNTP2TIMESPEC(secs)	CONVERT_SECS_NTP2UNIX(secs) ///< Convenience function
+#define CONVERT_SECSTIMESPEC2NTP(secs)	CONVERT_SECS_UNIX2NTP(secs) ///< Convenience function
 #define CONVERT_SUBSECSNTP2TIMESPEC(subsecs)	((((((u_int64_t)(subsecs))*1000000000)/(1<<31))+1)/2)
 #define CONVERT_SUBSECSTIMESPEC2NTP(subsecs)	((((((u_int64_t)(subsecs))*(1LL<<32))/500000000)+1)/2)
 // @}
@@ -388,8 +396,8 @@ typedef struct __bk_thread
 
 /**
  * Type for on demand functions
- * 
- *	@param B BAKA thread/global state 
+ *
+ *	@param B BAKA thread/global state
  *	@param run The @a bk_run structure to use.
  *	@param opaque User args passed back.
  *	@param demand The flag which when raised causes this function to run.
@@ -401,8 +409,8 @@ typedef int (*bk_run_on_demand_f)(bk_s B, struct bk_run *run, void *opaque, vola
 
 /**
  * Type for poll/idle functions
- * 
- *	@param B BAKA thread/global state 
+ *
+ *	@param B BAKA thread/global state
  *	@param run The @a bk_run structure to use.
  *	@param opaque User args passed back.
  *	@param starttime The start time of the latest invocation of @a bk_run_once.
@@ -468,7 +476,7 @@ struct bk_child_comm
 
 
 
-/** 
+/**
  * Possible status types to iohhandlers.
  */
 typedef enum
@@ -527,12 +535,12 @@ typedef enum
 {
   BkFileLockTypeShared=0,			///< Shared lock.
   BkFileLockTypeExclusive,			///< Exclusive lock.
-} bk_file_lock_type_e; 
+} bk_file_lock_type_e;
 
 
 
 /**
- * Name <=> value map. 
+ * Name <=> value map.
  *
  * <WARNING>Storing negative values (or UINT_MAX) in map doesn't work as it may
  * be confused with -1 failure return from @a bk_nvmap_name2value.</WARNING>
@@ -586,7 +594,7 @@ typedef enum
 /**
  * Actions permitted in modifying fd flags
  */
-typedef enum 
+typedef enum
 {
   BkFileutilsModifyFdFlagsActionAdd=1,
   BkFileutilsModifyFdFlagsActionDelete,
@@ -598,8 +606,8 @@ typedef enum
 /**
  * Enum list of known network address types.
  */
-typedef enum 
-{ 
+typedef enum
+{
   BkNetinfoTypeUnknown=0,			///< Special "unset" marker
   BkNetinfoTypeInet,				///< IPv4 address
   BkNetinfoTypeInet6,				///< IPv6 address
@@ -660,7 +668,7 @@ typedef void (*bk_fd_handler_t)(bk_s B, struct bk_run *run, int fd, u_int gottyp
  *	@param args User args
  *	@param sock The new socket.
  *	@param bag The address group pair (if you requested it).
- *	@param server_handle The handle for referencing the server (accepting connections only). 
+ *	@param server_handle The handle for referencing the server (accepting connections only).
  *	@param state State as described by @a bk_addrgroup_state_e.
  *
  */
@@ -669,7 +677,7 @@ typedef int (*bk_bag_callback_f)(bk_s B, void *args, int sock, struct bk_addrgro
 /**
  * Structure which describes a network "association". This name is slightly
  * bogus owing to the fact that server listens (which aren't tehcnically
- * associations) and unconnected udp use this structure too. 
+ * associations) and unconnected udp use this structure too.
  */
 struct bk_addrgroup
 {
@@ -727,7 +735,7 @@ do {						\
   errno = save_errno;				\
   return retval;				\
   /* NOTREACHED */				\
-} while (0)					
+} while (0)
 
 
 /**
@@ -762,7 +770,7 @@ do {						\
   errno = save_errno;				\
   return;					\
   /* NOTREACHED */				\
-} while (0)					
+} while (0)
 // @}
 
 
@@ -933,8 +941,8 @@ typedef struct bk_vstr
 struct bk_config_user_pref
 {
   char *	bcup_include_tag;		///< Include file tag
-  char *	bcup_separators;	 	///< key/value separator chars
-  char *	bcup_commentchars;	 	///< comment chars
+  char *	bcup_separators;		///< key/value separator chars
+  char *	bcup_commentchars;		///< comment chars
   bk_flags	bcup_flags;			///< Everyone needs flags
 };
 
@@ -956,7 +964,7 @@ struct bk_funinfo
 
 
 /**
- * @a bk_servinfo struct. 
+ * @a bk_servinfo struct.
  *
  * Pretty much the same thing as a @a servent, but wth a few @a
  * BAKAisms.
@@ -966,7 +974,7 @@ struct bk_servinfo
   bk_flags		bsi_flags;		///< Everyone needs flags
   u_int			bsi_port;		///< Port (network order)
   char *		bsi_servstr;		///< Service string
-  /* 
+  /*
    * XXX Protostr removed 'cause Seth&Alex said too. Jtt thinks it belongs
    * as this is not no lonter a stand-alone structure, but I suppose you
    * can always use a real servent if you need to.
@@ -990,8 +998,8 @@ struct bk_protoinfo
 
 
 
-/** 
- * Everything you ever wanted to know about a network address. 
+/**
+ * Everything you ever wanted to know about a network address.
  */
 struct bk_netaddr
 {
@@ -1032,15 +1040,15 @@ struct bk_netinfo
 
 
 /**
- * On Solaris and BSD, the IN6_IS_ADDR_MULTICAST macro takes a pointer to 
- * a struct in6_addr.  This is useful since each operating system has 
- * different names for the members of a struct in6_addr.  Unfortunately, 
- * Linux decided to expose its internals and have IN6_IS_ADDR_MULTICAST 
+ * On Solaris and BSD, the IN6_IS_ADDR_MULTICAST macro takes a pointer to
+ * a struct in6_addr.  This is useful since each operating system has
+ * different names for the members of a struct in6_addr.  Unfortunately,
+ * Linux decided to expose its internals and have IN6_IS_ADDR_MULTICAST
  * take as input a member from the structure.  Feh.
  */
 #ifdef IN6_MULTICAST_TAKES_S6_ADDR // Linux ipv6 implementation
 #define BK_IN6_IS_ADDR_MULTICAST(a) IN6_IS_ADDR_MULTICAST(a.s6_addr)
-#else 
+#else
 #ifdef IN6_MULTICAST_TAKES_IN6_ADDR // Sane ipv6 implementation
 #define BK_IN6_IS_ADDR_MULTICAST(a) IN6_IS_ADDR_MULTICAST(&(a))
 #endif // IN6_MULTICAST_TAKES_IN6_ADDR
@@ -1245,8 +1253,8 @@ typedef struct
 
 
 /**
- * @name BAKA String Registry 
- * Maps string to a uniq identifier for purposes of quick compare and perfect hashing. 
+ * @name BAKA String Registry
+ * Maps string to a uniq identifier for purposes of quick compare and perfect hashing.
  */
 // @{
 /**
@@ -1266,7 +1274,7 @@ struct bk_str_id
   char *		bsi_str;		///< The string
   bk_str_id_t		bsi_id;			///< Thd id
 };
-   
+
 // @}
 
 
@@ -1281,7 +1289,7 @@ struct bk_str_id
  */
 struct bk_vault_node
 {
-  char    	*key;				///< Key index of data
+  char	*key;				///< Key index of data
   void          *value;				///< Value of data being stored
 };
 
@@ -1289,6 +1297,16 @@ struct bk_vault_node
 typedef dict_h bk_vault_t;			///< Abbreviation for some vague notion of abstraction...
 // @}
 
+
+
+/**
+ * Sybolic name to value conversion structure for bk_string_*symbol*
+ */
+struct bk_symbol
+{
+  const u_int bs_val;				///< Symbolic Value
+  const char *bs_string;			///< Textual name
+};
 
 
 
@@ -1313,6 +1331,7 @@ typedef dict_h bk_vault_t;			///< Abbreviation for some vague notion of abstract
 /* b_general.c */
 extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, struct bk_config_user_pref *bcup, int error_queue_length, int log_facility, bk_flags flags);
 #define BK_GENERAL_NOPROCTITLE 1		///< Specify that proctitle is not desired during general baka initialization
+#define BK_GENERAL_THREADREADY	0x2		///< Be ready for threading
 extern bk_s bk_general_thread_init(bk_s B, char *name);
 extern void bk_general_thread_destroy(bk_s B);
 extern void bk_general_proctitle_set(bk_s B, char *);
@@ -1563,7 +1582,7 @@ extern bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flag
 #define		BK_IOH_COALESCE_FLAG_MUST_COPY		0x1 ///< Coalesce code *must* copy.
 #define		BK_IOH_COALESCE_FLAG_TRAILING_NULL	0x2 ///< Ensure trailing null (implies must-copy)
 // Out flags
-#define 	BK_IOH_COALESCE_OUT_FLAG_NO_COPY	0x1 ///< Data not copied.
+#define	BK_IOH_COALESCE_OUT_FLAG_NO_COPY	0x1 ///< Data not copied.
 extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str);
 extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, const char *format, ...);
 extern int bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_alg, struct bk_vptr auth_key, char *auth_name , int encrypt_alg, struct bk_vptr encrypt_key, bk_flags flags);
@@ -1637,6 +1656,9 @@ extern int bk_string_atou64(bk_s B, const char *string, u_int64_t *value, bk_fla
 extern int bk_string_atoi64(bk_s B, const char *string, int64_t *value, bk_flags flags);
 extern int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *names, bk_flags flags);
 extern int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names, bk_flags flags);
+extern const char *bk_string_symboltoa(bk_s B, u_int value, struct bk_symbol *convlist, bk_flags flags);
+extern int bk_string_atosymbol(bk_s B, const char *name, u_int *value, struct bk_symbol *convlist, bk_flags flags);
+#define BK_STRING_ATOSYMBOL_CASEINSENSITIVE 0x1
 extern int bk_string_intcols(bk_s B, int64_t num, u_int base);
 extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags);
 #define BK_STRING_ATOD_FLAG_ALLOW_INF 0x1
@@ -1848,7 +1870,7 @@ extern time_t bk_timegm(bk_s B, struct tm *timeptr, bk_flags flags);
 #define bk_gmtime_r(t,tm) gmtime_r((t),(tm))
 #else
 #define bk_gmtime_r(t,tm) ((tm) ? gmtime(t) : 0)
-#endif  
+#endif
 size_t bk_time_ntp_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags flags);
 extern int bk_time_ntp_parse(bk_s B, const char *src, struct timespec *dst, bk_flags flags);
 
@@ -1907,7 +1929,7 @@ extern struct bk_listnum_main *bk_listnum_create(bk_s B, bk_flags flags);
 extern struct bk_listnum_head *bk_listnum_get(bk_s B, struct bk_listnum_main *main, u_int number, bk_flags flags);
 extern void bk_listnum_destroy(bk_s B, struct bk_listnum_main *main);
 extern struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *main, struct bk_listnum_head *prev, bk_flags flags);
-#define BK_LISTNUM_PRUNE_EMPTY 	0x01		///< Prune empty list nodes and search again instead of returning
+#define BK_LISTNUM_PRUNE_EMPTY	0x01		///< Prune empty list nodes and search again instead of returning
 
 
 /* b_md5.c */
@@ -1977,5 +1999,16 @@ extern void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, 
 extern void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_quad_t *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags);
 extern void bk_stat_add(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, u_quad_t usec, bk_flags flags);
 extern void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, bk_flags flags);
+
+/* b_thread.c */
+extern struct bk_threadlist *bk_threadlist_create(bk_s B, bk_flags flags);
+extern void bk_threadlist_destroy(bk_s B, struct bk_threadlist *tlist, bk_flags flags);
+extern struct bk_threadnode *bk_threadnode_create(bk_s B, const char *threadname, bk_flags flags);
+extern void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags);
+#ifdef BK_USING_PTHREADS
+extern pthread_t *bk_thread_create(bk_s, struct bk_threadlist *tlist, const char *threadname, void *(*start)(bk_s B, void *opaque), void *opaque, bk_flags flags);
+extern void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadnode *tnode, bk_flags flags);
+#endif /* BK_USING_PTHREADS */
+
 
 #endif /* _BK_h_ */

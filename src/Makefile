@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.12 2003/03/27 19:15:41 seth Exp $
+# $Id: Makefile,v 1.13 2003/04/09 03:57:14 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -19,11 +19,14 @@
 # If you are writing a test program which excersizes and exemplifies a libbk feature, you should
 # probably commit that progam to ../test.
 
+BK_SIMPLE_INTERNALPROGS=		\
+	proto				\
+#line fodder eater. Do not remove.
+
 BK_SIMPLE_PROGS=			\
 	bttcp				\
 	genrand				\
 	mmcat				\
-	proto				\
 	timeout				\
 	$(BK_TMP_PROG)			\
 #line fodder eater. Do not remove.

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.33 2003/03/28 20:33:35 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.34 2003/04/09 03:57:13 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -93,6 +93,12 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
   pthread_mutex_init(&BK_GENERAL_WRMUTEX(B), NULL);
 #endif /* BK_USING_PTHREADS */
 
+  if (BK_FLAG_ISSET(flags, BK_GENERAL_THREADREADY))
+  {
+    BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADREADY);
+    fsm_threaded_makeready(FSM_PREFER_SAFE);
+  }
+
   BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
 
   if (!(B->bt_general->bg_debug = bk_debug_init(B, 0)))
@@ -112,6 +118,11 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
 
   if (!(B->bt_general->bg_proctitle = bk_general_proctitle_init(B, argc, argv, envp, &program, 0)))
     goto error;
+
+#ifdef BK_USING_THREADS
+  if (!(B->bt_general->bg_tlist = bk_threadlist_create(B, 0)))
+    goto error;
+#endif /*BK_USING_THREADS*/
 
   B->bt_general->bg_program = program;
 
@@ -150,6 +161,18 @@ void bk_general_destroy(bk_s B)
 	bk_funlist_call(B, BK_GENERAL_DESTROY(B), 0, 0);
 	bk_funlist_destroy(B, BK_GENERAL_DESTROY(B));
       }
+
+#ifdef BK_USING_THREADS
+      /*
+       * <WARNING>We perhaps need to cancel all child threads and
+       * verify they are dead.  What we are actually doing is a little
+       * more drastic, non-portable, and dangerous.</WARNING>
+       */
+      pthread_kill_other_threads_np();
+
+      if (B->bt_general->bg_tlist)
+	bk_threadlist_destroy(B, B->bt_general->bg_tlist, 0);
+#endif /*BK_USING_THREADS*/
 
       if (BK_GENERAL_ISFUNSTATSON(B))
       {
@@ -311,6 +334,12 @@ bk_s bk_general_thread_init(bk_s B, char *name)
     if (B)
       bk_error_printf(B, BK_ERR_WARN, "Invalid argument\n");
     return(NULL);
+  }
+
+  if (B && BK_GENERAL_FLAG_ISTHREADREADY(B))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Cannot enable threading, is not BK_GENERAL_THREADREADY\n");
+    goto error;
   }
 
   if (!BK_MALLOC(B1))

@@ -1,3 +1,28 @@
+2003-04-08  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* include/libbk.h (bk_general_thread_create): What people call to
+	create threads when using libbk.  Note bk_general must have been
+	initialized with BK_GENERAL_THREADREADY.
+
+	* lib/b_general.c (bk_general_init): Create thread tracking list.
+
+	* lib/b_thread.c: Convenience routines (mostly internal) to create
+	and track a thread.
+
+2003-04-07  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* test/test_clc.c: Routine for CLC performance testing
+
+	* lib/b_strconv.c (bk_string_{symboltoa,atosymbol}): Provide
+	conversion routines from values to strings and vis versa.  Similar
+	to the flag routines, but doesn't use obscure flag formats, and
+	doesn't allow multiencoding of values (3=foo|bar).
+
+	* src/proto.c: Provide hints (search for XXX) for the typical
+	places you will need to modify the prototype code.  Update the
+	flags and options to match the useful general additions made to
+	other programs.
+
 2003-03-31  Seth Robertson  <seth@winwood.sysdetect.com>
 
 	* src/proto.c (main): Move poptFree to avoid freeing data in use.

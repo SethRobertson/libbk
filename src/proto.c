@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: proto.c,v 1.30 2003/04/01 04:35:34 seth Exp $";
+static const char libbk__rcsid[] = "$Id: proto.c,v 1.31 2003/04/09 03:57:14 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,6 +19,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  *
+ * XXX - customize here
  * Example libbk user with main() prototype.
  */
 #include <libbk.h>
@@ -30,6 +31,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define STD_LOCALEDIR_DEF     "/usr/local/baka"	///< Default base of where locale directory might be found
 #define STD_LOCALEDIR_SUB     "locale"		///< Sub-component from install base where locale might be found
 #define ERRORQUEUE_DEPTH      32		///< Default error queue depth
+// XXX - customize here
 #define PERSON_NAME	      N_("World")	///< Default name to greet
 #define PERSON_KEY	      "Greeter"		///< Name to query in config to greet
 
@@ -51,15 +53,16 @@ struct global_structure
  */
 struct program_config
 {
-  const char * 		pc_person;		///< The person to greet
-  bk_flags 		pc_flags;		///< Flags are fun!
+  // XXX - customize here
+  const char *		pc_person;		///< The person to greet
+  bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x001			///< Verbose output
 };
 
 
 
-static int proginit(bk_s B, struct program_config *pconfig);
-static void progrun(bk_s B, struct program_config *pconfig);
+static int proginit(bk_s B, struct program_config *pc);
+static void progrun(bk_s B, struct program_config *pc);
 
 
 
@@ -79,15 +82,20 @@ main(int argc, char **argv, char **envp)
   BK_ENTRY_MAIN(B, __FUNCTION__, __FILE__, "SIMPLE");
   int c;
   int getopterr = 0;
+  int debug_level = 0;
   char i18n_localepath[_POSIX_PATH_MAX];
   char *i18n_locale;
-  struct program_config Pconfig, *pconfig = NULL;
+  struct program_config Pconfig, *pc = NULL;
   poptContext optCon = NULL;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', N_("Turn on debugging"), NULL },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', N_("Turn on verbose message"), NULL },
     {"no-seatbelts", 0, POPT_ARG_NONE, NULL, 0x1000, N_("Sealtbelts off & speed up"), NULL },
+    {"seatbelts", 0, POPT_ARG_NONE, NULL, 0x1001, N_("Enable function tracing"), NULL },
+    {"profiling", 0, POPT_ARG_STRING, NULL, 0x1002, N_("Enable and write profiling data"), N_("filename") },
+
+    // XXX - customize here
     {"person", 'p', POPT_ARG_STRING, NULL, 'p', N_("Set the person to greet"), N_("person") },
     {"long-arg-only", 0, POPT_ARG_NONE, NULL, 1, N_("An example of a long argument without a shortcut"), NULL },
     {NULL, 's', POPT_ARG_NONE, NULL, 2, N_("An example of a short argument without a longcut"), NULL },
@@ -117,14 +125,16 @@ main(int argc, char **argv, char **envp)
     if (optionsTable[c].argDescrip) (*((char **)&(optionsTable[c].argDescrip)))=_(optionsTable[c].argDescrip);
   }
 
-  pconfig = &Pconfig;
-  memset(pconfig, 0, sizeof(*pconfig));
+  pc = &Pconfig;
+  memset(pc, 0, sizeof(*pc));
+  // XXX - customize here
 
   if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not initialize options processing\n");
     bk_exit(B, 254);
   }
+  // XXX - customize here
   poptSetOtherOptionHelp(optCon, _("[NON-FLAG ARGUMENTS]"));
 
   while ((c = poptGetNextOpt(optCon)) >= 0)
@@ -132,23 +142,54 @@ main(int argc, char **argv, char **envp)
     switch (c)
     {
     case 'd':					// debug
-      bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, 0, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
-      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0); 				// Set up debugging, from config file
-      bk_debug_printf(B, "Debugging on\n");
+      if (!debug_level)
+      {
+	// Set up debugging, from config file
+	bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);
+	bk_debug_printf(B, "Debugging on\n");
+	debug_level++;
+      }
+      else if (debug_level == 1)
+      {
+	/*
+	 * Enable output of error and higher error logs (this can be
+	 * annoying so require -dd)
+	 */
+	bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, BK_ERR_NONE, BK_ERR_ERR, BK_ERROR_CONFIG_FH | BK_ERROR_CONFIG_HILO_PIVOT | BK_ERROR_CONFIG_SYSLOGTHRESHOLD);
+	bk_debug_printf(B, "Extra debugging on\n");
+	debug_level++;
+      }
+      else if (debug_level == 2)
+      {
+	/*
+	 * Enable output of all levels of bk_error logs (this can be
+	 * very annoying so require -ddd)
+	 */
+	bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, BK_ERR_NONE, BK_ERR_DEBUG, BK_ERROR_CONFIG_FH | BK_ERROR_CONFIG_HILO_PIVOT | BK_ERROR_CONFIG_SYSLOGTHRESHOLD);
+	bk_debug_printf(B, "Super-extra debugging on\n");
+	debug_level++;
+      }
       break;
     case 'v':					// verbose
-      BK_FLAG_SET(pconfig->pc_flags, PC_VERBOSE);
+      BK_FLAG_SET(pc->pc_flags, PC_VERBOSE);
       bk_error_config(B, BK_GENERAL_ERROR(B), ERRORQUEUE_DEPTH, stderr, BK_ERR_NONE, BK_ERR_ERR, 0);
       break;
     case 0x1000:				// no-seatbelts
       BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
       break;
+    case 0x1001:				// seatbelts
+      BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
+      break;
+    case 0x1002:				// profiling
+      bk_general_funstat_init(B, (char *)poptGetOptArg(optCon), 0);
+      break;
     default:
       getopterr++;
       break;
 
+    // XXX - customize here
     case 'p':					// person
-      pconfig->pc_person = poptGetOptArg(optCon);
+      pc->pc_person = poptGetOptArg(optCon);
       break;
     case 1:					// long-arg-only
       printf("You specificed the long-arg-only option\n");
@@ -170,6 +211,7 @@ main(int argc, char **argv, char **envp)
     for (; argv[argc]; argc++)
       ; // Void
 
+  // XXX - customize here (argv test)
   if (c < -1 || getopterr)
   {
     if (c < -1)
@@ -180,13 +222,13 @@ main(int argc, char **argv, char **envp)
     bk_exit(B, 254);
   }
 
-  if (proginit(B, pconfig) < 0)
+  if (proginit(B, pc) < 0)
   {
-    bk_die(B, 254, stderr, _("Could not perform program initialization\n"), BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+    bk_die(B, 254, stderr, _("Could not perform program initialization\n"), BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 
-  progrun(B, pconfig);
-    
+  progrun(B, pc);
+
   poptFreeContext(optCon);
   bk_exit(B, 0);
   return(255);					// Stupid INSIGHT stuff.
@@ -198,19 +240,21 @@ main(int argc, char **argv, char **envp)
  * General program initialization
  *
  *	@param B BAKA Thread/Global configuration
- *	@param pconfig Program configuration
+ *	@param pc Program configuration
  *	@return <i>0</i> Success
  *	@return <br><i>-1</i> Total terminal failure
  */
-static int proginit(bk_s B, struct program_config *pconfig)
+static int proginit(bk_s B, struct program_config *pc)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
 
-  if (!pconfig)
+  if (!pc)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
     BK_RETURN(B, -1);
   }
+
+  // XXX - customize here
 
   BK_RETURN(B, 0);
 }
@@ -221,24 +265,26 @@ static int proginit(bk_s B, struct program_config *pconfig)
  * Normal processing of program
  *
  *	@param B BAKA Thread/Global configuration
- *	@param pconfig Program configuration
+ *	@param pc Program configuration
  *	@return <i>0</i> Success--program may terminate normally
  *	@return <br><i>-1</i> Total terminal failure
  */
-static void progrun(bk_s B, struct program_config *pconfig)
+static void progrun(bk_s B, struct program_config *pc)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  // XXX - customize here
   const char *person;
 
-  if (!pconfig)
+  if (!pc)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
     BK_VRETURN(B);
   }
 
+  // XXX - customize here
   person = BK_GWD(B, PERSON_KEY, _("Wordl"));	// <KLUDGE>Should use PERSON_NAME, but xgettext is lame</KLUDGE>
-  if (pconfig->pc_person)
-    person = pconfig->pc_person;
+  if (pc->pc_person)
+    person = pc->pc_person;
 
   printf(_("Hello %s\n"), person);
 
