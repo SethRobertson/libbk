@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.8 2001/12/04 19:51:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.9 2001/12/05 00:29:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -42,7 +42,7 @@ struct start_service_state
   bk_flags			sss_flags;	///< Everyone needs flags.
   struct bk_netinfo *  		sss_lbni;	///< bk_netinfo.
   struct bk_netinfo *  		sss_rbni;	///< bk_netinfo.
-  bk_bag_callback_t		sss_callback;	///< User callback.
+  bk_bag_callback_f		sss_callback;	///< User callback.
   void *			sss_args;	///< User args.
   char *			sss_securenets;	///< Securenets info.
   int				sss_backlog;	///< Listen backlog.
@@ -294,7 +294,7 @@ bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, char **servist
  *	@return <i>0</i> on success.
  */
 int
-bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags)
+bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *hoststr = NULL;
@@ -397,7 +397,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
  *	@return <i>0</i> on success.
  */
 int
-bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defurl, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags)
+bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defurl, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *defhoststr = NULL;
@@ -470,7 +470,7 @@ sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent *h, struct
     break;
   }
 
-  // XXX - pass securenets here
+  // <TODO> pass securenets here </TODO>
   if (bk_net_init(B, run, sss->sss_lbni, NULL, 0, sss->sss_flags, sss->sss_callback, sss->sss_args, sss->sss_backlog) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not open service\n");
@@ -575,7 +575,7 @@ int
 bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
 			      char *rurl, char *defrhost, char *defrserv,
 			      char *lurl, char *deflhost, char *deflserv,
-			      char *defproto, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags )
+			      char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags )
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *rhoststr = NULL;
@@ -749,7 +749,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
  *	@return <i>0</i> on success.
  */
 int
-bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *defurl, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags)
+bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *defurl, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *defhoststr = NULL;

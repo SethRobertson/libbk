@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.6 2001/12/04 19:51:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.7 2001/12/05 00:29:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -102,7 +102,7 @@ bna_destroy(bk_s B, struct bk_netaddr *bna)
 
   if (bna->bna_netinfo_addrs) netinfo_addrs_delete(bna->bna_netinfo_addrs, bna);
   if (bna->bna_pretty) free (bna->bna_pretty);
-  if (bna->bna_type == BK_NETINFO_TYPE_LOCAL && bna->bna_path) 
+  if (bna->bna_type == BkNetinfoTypeLocal && bna->bna_path) 
     free(bna->bna_path);
 
   bk_debug_printf_and(B, 128, "bna free: %p\n", bna);
@@ -153,7 +153,7 @@ bk_netaddr_destroy (bk_s B, struct bk_netaddr *bna)
  * 	figure it out ourselves?
  */
 struct bk_netaddr *
-bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags flags)
+bk_netaddr_user(bk_s B, bk_netaddr_type_e type, void *addr, int len, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_netaddr *bna = NULL;
@@ -166,15 +166,15 @@ bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags fl
 
   switch (type)
   {
-  case BK_NETINFO_TYPE_INET:
+  case BkNetinfoTypeInet:
     if (!len) len = sizeof(struct in_addr);
     break;
 
-  case BK_NETINFO_TYPE_INET6:
+  case BkNetinfoTypeInet6:
     if (!len) len = sizeof(struct in6_addr);
     break;
 
-  case BK_NETINFO_TYPE_LOCAL:
+  case BkNetinfoTypeLocal:
     if (!len) 
     {
       if ((len=bk_strnlen(B, addr, MAXPATHLEN))<0)
@@ -190,7 +190,7 @@ bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags fl
     }
     break;
 
-  case BK_NETINFO_TYPE_ETHER:
+  case BkNetinfoTypeEther:
     if (!len) len = sizeof(struct ether_addr);
     break;
 
@@ -209,7 +209,7 @@ bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags fl
   bna->bna_flags = flags;
   bna->bna_len = len;
 
-  if (type == BK_NETINFO_TYPE_LOCAL)
+  if (type == BkNetinfoTypeLocal)
   {
     if (!(bna->bna_path = strdup(addr)))
     {
@@ -252,7 +252,7 @@ bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags fl
  *	@return a new @a netaddr on success.
  */
 struct bk_netaddr *
-bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags)
+bk_netaddr_addrdup (bk_s B, bk_netaddr_type_e type, void *addr, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_netaddr *bna=NULL;
@@ -275,29 +275,30 @@ bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags)
   
   switch (type)
   {
-  case BK_NETINFO_TYPE_INET:
+  case BkNetinfoTypeInet:
     bk_debug_printf_and(B, 1, "Copying INET\n");
     memmove(&bna->bna_inet, addr, sizeof(struct in_addr));
     bna->bna_len=sizeof(struct in_addr);
     break;
 
-  case BK_NETINFO_TYPE_INET6:
+  case BkNetinfoTypeInet6:
     bk_debug_printf_and(B, 1, "Copying INET6\n");
     memmove(&bna->bna_inet6, addr, sizeof(struct in6_addr));
     bna->bna_len=sizeof(struct in6_addr);
     break;
 
-  case BK_NETINFO_TYPE_LOCAL:
+  case BkNetinfoTypeLocal:
     bk_debug_printf_and(B, 1, "Copying LOCAL\n");
     if (!(bna->bna_path=strdup((char *)addr)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not strdup addr path: %s\n", strerror(errno));
       goto error;
     }
-    bna->bna_len=strlen((char *)addr);		/* XXX Should this be +1? */
+    /* <WARNING> Should this be +1? </WARNING> */
+    bna->bna_len=strlen((char *)addr);		
     break;
 
-  case BK_NETINFO_TYPE_ETHER:
+  case BkNetinfoTypeEther:
     bk_debug_printf_and(B, 1, "Copying ETHER\n");
     memmove(&bna->bna_ether, addr, sizeof(struct ether_addr));
     bna->bna_len=sizeof(struct ether_addr);
@@ -355,7 +356,7 @@ update_bna_pretty(bk_s B, struct bk_netaddr *bna)
 
   switch (bna->bna_type)
   {
-  case BK_NETINFO_TYPE_INET:
+  case BkNetinfoTypeInet:
     if (!inet_ntop(AF_INET, &bna->bna_inet, scratch2, SCRATCHLEN2))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not convert ip addr to string: %s\n", strerror(errno));
@@ -364,7 +365,7 @@ update_bna_pretty(bk_s B, struct bk_netaddr *bna)
     snprintf(scratch, SCRATCHLEN,"<AF_INET:%s>", scratch2);
     break;
 
-  case BK_NETINFO_TYPE_INET6:
+  case BkNetinfoTypeInet6:
     if (!inet_ntop(AF_INET6, &bna->bna_inet6, scratch2, SCRATCHLEN2))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not convert ip6 addr to string: %s\n", strerror(errno));
@@ -373,12 +374,12 @@ update_bna_pretty(bk_s B, struct bk_netaddr *bna)
     snprintf(scratch, SCRATCHLEN,"<AF_INET6:%s>", scratch2);
     break;
 
-  case BK_NETINFO_TYPE_LOCAL:
+  case BkNetinfoTypeLocal:
     snprintf(scratch, SCRATCHLEN,"<AF_LOCAL:%s>", bna->bna_path);
     break;
 
-  case BK_NETINFO_TYPE_ETHER:
-    /* XXX Finish this */
+  case BkNetinfoTypeEther:
+    /* <TODO> Finish this  </TODO> */
     snprintf(scratch, SCRATCHLEN,"<ETHER:%s>", "");
     break;
 
@@ -431,13 +432,13 @@ bk_netaddr_clone (bk_s B, struct bk_netaddr *obna)
   
   switch (obna->bna_type)
   {
-  case BK_NETINFO_TYPE_INET:
-  case BK_NETINFO_TYPE_INET6:
-  case BK_NETINFO_TYPE_ETHER:
+  case BkNetinfoTypeInet:
+  case BkNetinfoTypeInet6:
+  case BkNetinfoTypeEther:
     memmove(&(nbna->bna_addr), &(obna->bna_addr), obna->bna_len);
     break;
 
-  case BK_NETINFO_TYPE_LOCAL:
+  case BkNetinfoTypeLocal:
     if (!(nbna->bna_path=strdup(obna->bna_path)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not strdup netaddr path: %s\n", strerror(errno));
@@ -473,7 +474,7 @@ bk_netaddr_clone (bk_s B, struct bk_netaddr *obna)
  *	@return <i>-1</i> on failure.<br>
  *	@return BK_NETINFO_TYPE on success.
  */
-int
+bk_netaddr_type_e
 bk_netaddr_af2nat(bk_s B, int af)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -482,15 +483,15 @@ bk_netaddr_af2nat(bk_s B, int af)
   switch (af)
   {
   case AF_INET:
-    type=BK_NETINFO_TYPE_INET;
+    type=BkNetinfoTypeInet;
     break;
 
   case AF_INET6:
-    type=BK_NETINFO_TYPE_INET6;
+    type=BkNetinfoTypeInet6;
     break;
 
   case AF_LOCAL:
-    type=BK_NETINFO_TYPE_LOCAL;
+    type=BkNetinfoTypeLocal;
     break;
 
   default:
@@ -521,19 +522,19 @@ bk_netaddr_nat2af(bk_s B, int type)
   
   switch (type)
   {
-  case BK_NETINFO_TYPE_INET:
+  case BkNetinfoTypeInet:
     af=AF_INET;
     break;
 
-  case BK_NETINFO_TYPE_INET6:
+  case BkNetinfoTypeInet6:
     af=AF_INET6;
     break;
 
-  case BK_NETINFO_TYPE_LOCAL:
+  case BkNetinfoTypeLocal:
     af=AF_LOCAL;
     break;
 
-  case BK_NETINFO_TYPE_ETHER:
+  case BkNetinfoTypeEther:
     bk_error_printf(B, BK_ERR_ERR, "ETHER has not address family\n");
     af=-1;
     break;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.15 2001/12/04 19:51:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.16 2001/12/05 00:29:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -66,7 +66,7 @@ static void bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs);
  *
  *	@param B BAKA thread/global state.
  *	@param protostr The string containing the protocol name or number.
- *	@param ip Optional copyout version of the protocol structure.
+ *	@param iproto Optional copyout version of the protocol structure.
  *	@param bni Optional @a netinfo structure which will have its proto
  *	field filled out on a successful conclusion.
  *	@return <i>-1</i> on failure.
@@ -76,9 +76,9 @@ int
 bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_netinfo *bni, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct protoent *p, *n=NULL;
+  struct protoent *p, *n = NULL;
   char **s;
-  int alias_count=0;
+  int alias_count = 0;
   int ret;
   int num;
   int count;
@@ -98,7 +98,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
   {
     /* If the copyout is set force a lookup */
     BK_FLAG_SET(flags, BK_GETPROTOBYFOO_FORCE_LOOKUP);
-    *iproto=NULL;
+    *iproto = NULL;
     if (!BK_CALLOC(n))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate protoent: %s\n", strerror(errno));
@@ -108,12 +108,12 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
 
   
   /* MUTEX_LOCK */
-  if (bk_string_atoi(B,protostr,&num,0)==0)
+  if (bk_string_atoi(B,protostr,&num,0) == 0)
   {
     /* This is a number so only do search if forced */
     if (BK_FLAG_ISSET(flags, BK_GETPROTOBYFOO_FORCE_LOOKUP))
     {
-      if (!(p=getprotobynumber(num)))
+      if (!(p = getprotobynumber(num)))
       {
 	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to protocol: %s\n", protostr, strerror(errno));
@@ -122,14 +122,14 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
     }
     else
     {
-      p=&dummy;
+      p = &dummy;
       memset(p,0,sizeof(*p));
-      p->p_proto=num;
+      p->p_proto = num;
     }
   }
   else
   {
-    if (!(p=getprotobyname(protostr)))
+    if (!(p = getprotobyname(protostr)))
     {
       /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to protocol: %s\n", protostr, strerror(errno));    
@@ -139,7 +139,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
 
   if (iproto)
   {
-    if (p->p_name && !(n->p_name=strdup(p->p_name)))
+    if (p->p_name && !(n->p_name = strdup(p->p_name)))
     {
       /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not dup protocol name: %s\n", strerror(errno));
@@ -148,19 +148,19 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
 
     if (p->p_aliases)
     {
-      for(s=p->p_aliases; *s; s++)
+      for(s = p->p_aliases; *s; s++)
 	alias_count++;
     
-      if (!(n->p_aliases=calloc((alias_count+1),sizeof(*(n->p_aliases)))))
+      if (!(n->p_aliases = calloc((alias_count+1),sizeof(*(n->p_aliases)))))
       {
 	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate proto alias buffer: %s\n", strerror(errno));
 	goto error;
       }
 
-      for(count=0; count<alias_count; count++)
+      for(count = 0; count<alias_count; count++)
       {
-	if (!(n->p_aliases[count]=strdup(p->p_aliases[count])))
+	if (!(n->p_aliases[count] = strdup(p->p_aliases[count])))
 	{
 	  /* MUTEX_UNLOCK */
 	  bk_error_printf(B, BK_ERR_ERR, "Could not duplicate a protocol aliase: %s\n", strerror(errno));
@@ -168,11 +168,11 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
 	}
       }
     }
-    n->p_proto=p->p_proto;
+    n->p_proto = p->p_proto;
   }
   
   /* Sigh have to save this to automatic so we can unlock before return */
-  ret=p->p_proto;
+  ret = p->p_proto;
 
   if (bni)
     bk_netinfo_update_protoent(B,bni,p);
@@ -181,7 +181,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
   
   if (iproto) 
   {
-    *iproto=n;
+    *iproto = n;
   }
   else
   {
@@ -193,7 +193,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
 
  error: 
   if (n) bk_protoent_destroy(B,n);
-  if (iproto) *iproto=NULL;
+  if (iproto) *iproto = NULL;
   
   BK_RETURN(B,-1);
 }
@@ -221,7 +221,7 @@ bk_protoent_destroy(bk_s B, struct protoent *p)
 
   if (p->p_aliases)
   {
-    for (s=p->p_aliases; *s; s++)
+    for (s = p->p_aliases; *s; s++)
     {
       free(*s); /* We've already checked if *s exists */
     }
@@ -251,21 +251,21 @@ int
 bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct servent *s, *n=NULL;
+  struct servent *s, *n = NULL;
   char **s1;
-  int alias_count=0;
+  int alias_count = 0;
   int ret;
   int num;					///< Port number (*host* order)
   int count;
-  char *proto=NULL;
-  char *bni_proto=NULL;
+  char *proto = NULL;
+  char *bni_proto = NULL;
   struct servent dummy;
-  struct protoent *lproto=NULL;
+  struct protoent *lproto = NULL;
   char defproto[10];
   
   /* If it is possible to extract the protostr from the bni, do so and cache*/
   if (bni && bni->bni_bpi)
-    bni_proto=bni->bni_bpi->bpi_protostr;
+    bni_proto = bni->bni_bpi->bpi_protostr;
 
   /* We must have a servstr and *some* protostr */
   if (!servstr || (!iproto && !bni_proto))
@@ -286,21 +286,21 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
    * the following correctly determines the protostr.
    */
   if (iproto)
-    proto=iproto;
+    proto = iproto;
   else
-    proto=bni_proto;
+    proto = bni_proto;
 
   if (!proto)
   {
     snprintf(defproto,sizeof(defproto),"%d", IPPROTO_TCP);
-    proto=defproto;
+    proto = defproto;
   }
 
 
   /* NB: if is is set then *is get initialized to *something* immediately */
   if (is)
   {
-    *is=NULL;
+    *is = NULL;
     BK_FLAG_SET(flags, BK_GETSERVBYFOO_FORCE_LOOKUP);
     if (!BK_CALLOC(n))
     {
@@ -313,7 +313,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
    * ARGGHH!! First you have to resolve the protobyfoo. Furthermore you
    * have to go all the way as it were.
    */
-  if (bk_getprotobyfoo(B, proto, &lproto, bni, BK_GETPROTOBYFOO_FORCE_LOOKUP)<0)
+  if (bk_getprotobyfoo(B, proto, &lproto, bni, BK_GETPROTOBYFOO_FORCE_LOOKUP) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not convert proto string: %s\n", proto);
     goto error;
@@ -325,17 +325,17 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
    */
   if (lproto)
   {
-    proto=lproto->p_name;
+    proto = lproto->p_name;
   }
   
   
   /* MUTEX_LOCK */
-  if (bk_string_atoi(B, servstr, &num, 0)==0)
+  if (bk_string_atoi(B, servstr, &num, 0) == 0)
   {
     /* This a a number so only do seach if forced */
     if (BK_FLAG_ISSET(flags, BK_GETSERVBYFOO_FORCE_LOOKUP))
     {
-      if (!(s=getservbyport(num, proto)))
+      if (!(s = getservbyport(num, proto)))
       {
 	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to service: %s\n", servstr, strerror(errno));
@@ -344,15 +344,15 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
     }
     else
     {
-      s=&dummy;
+      s = &dummy;
       memset(s,0,sizeof(*s));
-      s->s_port=htons(num);
-      s->s_proto=proto;
+      s->s_port = htons(num);
+      s->s_proto = proto;
     }
   }
   else
   {
-    if (!(s=getservbyname(servstr, proto)))
+    if (!(s = getservbyname(servstr, proto)))
     {
       /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to service: %s\n", servstr, strerror(errno));    
@@ -362,7 +362,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
 
   if (is)
   {
-    if (!(n->s_name=strdup(s->s_name)))
+    if (!(n->s_name = strdup(s->s_name)))
     {
       /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not dup service name: %s\n", strerror(errno));
@@ -371,20 +371,20 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
 
     if (s->s_aliases)
     {
-      for(s1=s->s_aliases; *s1; s1++)
+      for(s1 = s->s_aliases; *s1; s1++)
 	alias_count++;
     
-      if (!(n->s_aliases=calloc((alias_count+1),sizeof(*n->s_aliases))))
+      if (!(n->s_aliases = calloc((alias_count+1),sizeof(*n->s_aliases))))
       {
 	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate service alias buffer: %s\n", strerror(errno));
 	goto error;
       }
 
-      for(count=0; count<alias_count; count++)
+      for(count = 0; count<alias_count; count++)
       {
 	/* MUTEX_UNLOCK */
-	if (!(n->s_aliases[count]=strdup(s->s_aliases[count])))
+	if (!(n->s_aliases[count] = strdup(s->s_aliases[count])))
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not duplicate a service aliase: %s\n", strerror(errno));
 	  goto error;
@@ -392,25 +392,25 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
       }
     }
 
-    if (!(n->s_proto=strdup(s->s_proto)))
+    if (!(n->s_proto = strdup(s->s_proto)))
     {
       /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not duplicate proto name: %s\n", strerror(errno));
       goto error;
     }
-    n->s_port=s->s_port;
+    n->s_port = s->s_port;
   }
   
   if (bni) bk_netinfo_update_servent(B, bni, s);
 
   /* Sigh have to save this to automatic so we can unlock before return */
-  ret=s->s_port;
+  ret = s->s_port;
 
   /* MUTEX_UNLOCK */
   
   if (is)
   {
-    *is=n;
+    *is = n;
   }
   else
   {
@@ -425,7 +425,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
  error: 
   if (lproto) bk_protoent_destroy(B,lproto);
   if (n) bk_servent_destroy(B,n);
-  if (is) *is=NULL;
+  if (is) *is = NULL;
   
   BK_RETURN(B,-1);
 }
@@ -453,7 +453,7 @@ bk_servent_destroy(bk_s B, struct servent *s)
 
   if (s->s_aliases)
   {
-    for (s1=s->s_aliases; *s1; s1++)
+    for (s1 = s->s_aliases; *s1; s1++)
     {
       free(*s1); /* We've already checked if *s exists */
     }
@@ -512,20 +512,20 @@ void *
 bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct bk_run *run, bk_gethostbyfoo_callback_f callback, void *args, bk_flags user_flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int flags=0;					/* 1 == Is an address */
-  int len=0;					/* Len. of address by family */
+  int flags = 0;					/* 1 == Is an address */
+  int len = 0;					/* Len. of address by family */
   struct in_addr in_addr;			/* Temp in_addr */
   struct in6_addr in6_addr;			/* Temp in6_addr */
-  struct hostent *h=NULL;			/* Result of getbyfoo(3) */
-  struct bk_gethostbyfoo_state *bgs=NULL;	/* Saved state for callback */
+  struct hostent *h = NULL;			/* Result of getbyfoo(3) */
+  struct bk_gethostbyfoo_state *bgs = NULL;	/* Saved state for callback */
   struct hostent fake_hostent;			/* Fake hostent */
   char **buf[2];				/* Buf. for addrs of fake */
   char *buf2[400];				/* Buf. for addrs of fake */
-  void *addr=NULL;				/* Temp addr buf for "fake" hostname creation */
-  struct hostent *tmp_h=NULL;			/* Temporary version. */
+  void *addr = NULL;				/* Temp addr buf for "fake" hostname creation */
+  struct hostent *tmp_h = NULL;			/* Temporary version. */
   struct in_addr inaddr_any;			/* Pretty self explanatory */
   
-  inaddr_any.s_addr=INADDR_ANY;
+  inaddr_any.s_addr = INADDR_ANY;
 
   /* No point to using *this* func. without copyout, so we check ih */
   if (!name || !(bni || BK_FLAG_ISSET(flags, BK_GETHOSTBYFOO_FLAG_FQDN)) ||
@@ -539,8 +539,8 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   memset(buf,0,sizeof(buf));
   memset(buf2,0,sizeof(buf2));
   memset(&fake_hostent,0,sizeof(fake_hostent));
-  fake_hostent.h_addr_list=(char **)buf;
-  buf[0]=buf2;
+  fake_hostent.h_addr_list = (char **)buf;
+  buf[0] = buf2;
 
   /*
    * First check if we are trything to deal with ANY address
@@ -550,27 +550,31 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
     if (!family)
     {
       /* 
-       * XXX What do we do here/ Error or progress with a warning. Since
+       * <WARNING>
+       * What do we do here/ Error or progress with a warning. Since
        * it's overwhelmingly likey that the caller means AF_INET, we will
        * issue a warning and carry on.
+       * </WARNING>
        */
       bk_error_printf(B, BK_ERR_WARN, "Address family for ANY addres unset. Assuming AF_INET and forging on.\n");
-      family=AF_INET;
+      family = AF_INET;
     }
       
     switch (family)
     {
     case AF_INET:
-      len=sizeof(struct in_addr);
+      len = sizeof(struct in_addr);
       BK_FLAG_SET(flags,0x1);
-      addr=&inaddr_any;
+      addr = &inaddr_any;
       break;
     case AF_INET6:
       /* 
-       * XXX This is *bogus* AF_INET6 doesn't define an "any address"
+       * <WARNING>
+       * This is *bogus* AF_INET6 doesn't define an "any address"
        * only an "any sockaddr" which is not what we want. Well we should
        * hack something together here and return it, but for the moment
        * we just call it unsupported.
+       * </WARNING>
        */
       /* Intentional fallthrough */
     default:
@@ -590,10 +594,10 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
       }
     }
 
-    family=AF_INET; /* Yes this might be redundant. Leave me alone */
-    len=sizeof(struct in_addr);
+    family = AF_INET; /* Yes this might be redundant. Leave me alone */
+    len = sizeof(struct in_addr);
     BK_FLAG_SET(flags, 0x1);
-    addr=&in_addr;
+    addr = &in_addr;
   }
   else if (inet_pton(AF_INET6, name, &in6_addr))
   {
@@ -607,9 +611,9 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
     }
 
     BK_FLAG_SET(flags, 0x1);
-    family=AF_INET6;
-    len=sizeof(struct in6_addr);
-    addr=&in6_addr;
+    family = AF_INET6;
+    len = sizeof(struct in6_addr);
+    addr = &in6_addr;
   }
 
   /* MUTEX_LOCK */
@@ -617,9 +621,9 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   {
     if (addr)
     {
-      h=&fake_hostent;
-      h->h_addrtype=family;
-      h->h_length=len;
+      h = &fake_hostent;
+      h->h_addrtype = family;
+      h->h_length = len;
       memmove(h->h_addr_list[0], addr, len);
     }
     else
@@ -630,7 +634,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   }
   else if (BK_FLAG_ISSET(flags, 0x1))
   {
-    if (!(h=gethostbyaddr(((family==AF_INET)?(char *)&in_addr:(char *)&in6_addr), len, family)))
+    if (!(h = gethostbyaddr(((family==AF_INET)?(char *)&in_addr:(char *)&in6_addr), len, family)))
     {
       /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not convert %s address: %s\n", (family==AF_INET)?"AF_INET":"AF_INET6",hstrerror(h_errno));
@@ -641,18 +645,18 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   {
     if (family) 
     {
-      h=gethostbyname2(name, family);
+      h = gethostbyname2(name, family);
     }
     else
     {
-      if (!(h=gethostbyname2(name, AF_INET)))
+      if (!(h = gethostbyname2(name, AF_INET)))
       {
-	h=gethostbyname2(name, AF_INET6);
-	family=AF_INET6; /* Sure this gets set if h==NULL, so what? :-) */
+	h = gethostbyname2(name, AF_INET6);
+	family = AF_INET6; /* Sure this gets set if h==NULL, so what? :-) */
       }
       else
       {
-	family=AF_INET;
+	family = AF_INET;
       }
 
       if (!h)
@@ -664,7 +668,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
     }
   }
 
-  if (copy_hostent(B,&tmp_h,h)<0)
+  if (copy_hostent(B,&tmp_h,h) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not copy hostent\n");
     /* MUTEX_UNLOCK */
@@ -683,25 +687,39 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
    * code can survive returning to at least one select loop run without the
    * hostname info.
    */
-  if (!(bgs=bgs_create(B)))
+  if (!(bgs = bgs_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bgs: %s\n", strerror(errno));
     goto error;
   }
+  /*
+   * Do *not* pass off anything here, enqueue_delta can still fail and will
+   * have to free stuff and callback the user
+   */
   bgs->bgs_hostent = tmp_h;
-  /* Do *not*  NULL tmp_h here. If there's an error we do want to free this */
-  bgs->bgs_callback=callback;			/* Pass off callback */
-  bgs->bgs_args=args;
-  bgs->bgs_flags=flags;
-  bgs->bgs_bni=bni;
-  bgs->bgs_run=run;
+  bgs->bgs_callback = callback;
+  bgs->bgs_args = args;
+  bgs->bgs_flags = flags;
+  bgs->bgs_bni = bni;
+  bgs->bgs_run = run;
 
-// XXX - use SYSD_GWD() to allow non-delay callback
-
-  if (bk_run_enqueue_delta(B, run, 0, gethostbyfoo_callback, bgs, &bgs->bgs_event, 0)<0)
+  if (atoi(BK_GWD(B,"gethostbyfoo_synch","0")))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not enqueue gethostbyfoo callback\n");
-    goto error;
+    gethostbyfoo_callback(B, run, bgs, NULL, 0);
+    /* 
+     * <WARNING> 
+     * You might need to null out some things here if you add code which
+     * will goto error.
+     * </WARNING> 
+     */
+  }
+  else
+  {
+    if (bk_run_enqueue_delta(B, run, 0, gethostbyfoo_callback, bgs, &bgs->bgs_event, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not enqueue gethostbyfoo callback\n");
+      goto error;
+    }
   }
 
   BK_RETURN(B,bgs);
@@ -787,7 +805,7 @@ bk_gethostbyfoo_abort(bk_s B, void *opaque)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_gethostbyfoo_state *bgs;
 
-  if (!(bgs=opaque))
+  if (!(bgs = opaque))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
@@ -820,7 +838,7 @@ bk_destroy_hostent(bk_s B, struct hostent *h)
   
   if (h->h_aliases)
   {
-    for(s=h->h_aliases; *s; s++)
+    for(s = h->h_aliases; *s; s++)
     {
       free(*s);
     }
@@ -829,7 +847,7 @@ bk_destroy_hostent(bk_s B, struct hostent *h)
 
   if (h->h_addr_list)
   {
-    for (s=h->h_addr_list; *s; s++)
+    for (s = h->h_addr_list; *s; s++)
     {
       free(*s);
     }
@@ -855,7 +873,7 @@ static int
 copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct hostent *n=NULL;
+  struct hostent *n = NULL;
   int count,c;
   char **s;
 
@@ -871,9 +889,9 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
     goto error;
   }
 
-  *ih=NULL;
+  *ih = NULL;
 
-  if (h->h_name && !(n->h_name=strdup(h->h_name)))
+  if (h->h_name && !(n->h_name = strdup(h->h_name)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not strdup h_name: %s\n", strerror(errno));
     goto error;
@@ -881,17 +899,17 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
 
   if (h->h_aliases)
   {
-    for(count=0,s=h->h_aliases; *s; s++)
+    for(count = 0,s = h->h_aliases; *s; s++)
       count++;
-    if (!(n->h_aliases=calloc(count+1, sizeof(*s))))
+    if (!(n->h_aliases = calloc(count+1, sizeof(*s))))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not calloc aliases: %s\n", strerror(errno));
       goto error;
     }
   
-    for(c=0; c<count;c++)
+    for(c = 0; c<count;c++)
     {
-      if (!(n->h_aliases[c]=strdup(h->h_aliases[c])))
+      if (!(n->h_aliases[c] = strdup(h->h_aliases[c])))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not strdup an alias: %s\n", strerror(errno));
 	goto error;
@@ -907,13 +925,13 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
     if (h->h_addrtype == AF_INET)
     {
       struct in_addr **ia;
-      for (count=0,ia=(struct in_addr **)(h->h_addr_list); *ia; ia++)
+      for (count = 0,ia = (struct in_addr **)(h->h_addr_list); *ia; ia++)
 	count++;
     }
     else if (h->h_addrtype == AF_INET6)
     {
       struct in6_addr **ia;
-      for (count=0,ia=(struct in6_addr **)(h->h_addr_list); *ia; ia++)
+      for (count = 0,ia = (struct in6_addr **)(h->h_addr_list); *ia; ia++)
 	count++;
     }
     else
@@ -929,7 +947,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
     }
 
     /* We *should* be able to do this one memmove, but this is safer. */
-    for(c=0; c<count; c++)
+    for(c = 0; c<count; c++)
     {
       if (!(n->h_addr_list[c] = malloc(h->h_length)))
       {
@@ -940,7 +958,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
     }
   }
 
-  *ih=n;
+  *ih = n;
 
   BK_RETURN(B,0);
 
@@ -969,8 +987,8 @@ static void
 gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_gethostbyfoo_state *bgs=args;
-  bk_gethostbyfoo_state_e state=BkGetHostByFooStateOk; 
+  struct bk_gethostbyfoo_state *bgs = args;
+  bk_gethostbyfoo_state_e state = BkGetHostByFooStateOk; 
 
   if (!run || !bgs)
   {
@@ -979,14 +997,14 @@ gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, const struct timev
   }
   
   /* First null out event so we don't try to dequeue it later */
-  bgs->bgs_event=NULL;
+  bgs->bgs_event = NULL;
 
   if (bgs->bgs_bni && bgs->bgs_hostent)
   {
-    if (bk_netinfo_update_hostent(B, bgs->bgs_bni, bgs->bgs_hostent)<0)
+    if (bk_netinfo_update_hostent(B, bgs->bgs_bni, bgs->bgs_hostent) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not update netinfo with hostent\n");
-      state=BkGetHostByFooStateNetinfoErr;
+      state = BkGetHostByFooStateNetinfoErr;
     }
   }
 

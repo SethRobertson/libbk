@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.3 2001/11/27 00:58:41 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.4 2001/12/05 00:29:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -37,13 +37,12 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  *	@return <i>0</i> on success.
  */
 int
-bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_t action)
+bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_e action)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   long oflags = 0;
 
-  if (action != BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_SET &&
-      (oflags=fcntl(fd, F_GETFL))<0)
+  if (action != BkFileutilsModifyFdFlagsActionSet && (oflags=fcntl(fd, F_GETFL)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not recover current flags: %s\n", strerror(errno));
     goto error;
@@ -51,13 +50,13 @@ bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_
 
   switch (action)
   {
-  case BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_ADD:
+  case BkFileutilsModifyFdFlagsActionAdd:
     BK_FLAG_SET(oflags,flags);
     break;
-  case BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_DELETE:
+  case BkFileutilsModifyFdFlagsActionDelete:
     BK_FLAG_CLEAR(oflags,flags);
     break;
-  case BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_SET:
+  case BkFileutilsModifyFdFlagsActionSet:
     oflags=flags;
     break;
   default:
@@ -68,7 +67,7 @@ bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_
 
   if (fcntl(fd, F_SETFL, oflags))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Coudl not set new flags: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not set new flags: %s\n", strerror(errno));
     goto error;
   }
   BK_RETURN(B,0);

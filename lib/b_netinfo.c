@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.10 2001/12/04 19:51:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.11 2001/12/05 00:29:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -37,9 +37,8 @@ static int bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct
  * Create a bk_netinfo struct
  *
  *	@param B BAKA thread/global state.
- * XXX - document
  *	@returns <i>NULL</i> on failure.<br>
- *	@returns the @a struct @a bk_netinfo on success.
+ *	@returns the @a bk_netinfo on success.
  */
 struct bk_netinfo *
 bk_netinfo_create(bk_s B)
@@ -128,8 +127,8 @@ bk_netinfo_destroy(bk_s B, struct bk_netinfo *bni)
  *	@param obna Will contain the @a netaddr which conflicts (if
  *	applicable). <em>Optional</em>
  *	@returns <i>-1</i> on failure.<br>
+ *	@returns <i>1</i> on sanity failure.
  *	@returns <i>0</i> on success.
- *	XXX - document (1) return and any others
  */
 int
 bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna)
@@ -151,7 +150,7 @@ bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, str
       bna->bna_type != ibna->bna_type)
   {
     bk_error_printf(B, BK_ERR_ERR, "Baka netinfo structures do not support heterogenious address types (%d != %d)\n", bna->bna_type, ibna->bna_type);
-    BK_RETURN(B,1); /* XXX What type of error is this? */
+    BK_RETURN(B,1);
   }
 
   if (!netinfo_addrs_minimum(bni->bni_addrs))
@@ -238,7 +237,6 @@ bk_netinfo_delete_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, 
   /* 
    * If we're deleting one our primary or secondary addresses, make sure it
    * gets NULL'ed out.
-   * XXX Should this return an error or special return value?
    */
    
   if (bna == bni->bni_addr)
@@ -690,7 +688,7 @@ XXX - This should be nuked since the bni will have the netinfo type set
  *	@return <i>0</i> on success.
  */
 int
-bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_t type, struct sockaddr *sa, bk_flags flags)
+bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_e type, struct sockaddr *sa, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret;
@@ -708,7 +706,7 @@ bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, b
   }
   
   /* If type is not specified pull it out of the bna */
-  if (type == BK_NETINFO_TYPE_UNKNOWN)
+  if (type == BkNetinfoTypeUnknown)
   {
     if (bna)
     {
@@ -909,14 +907,14 @@ bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_u
  *	@return an allocated @a bk_netinfo.
  */
 struct bk_netinfo *
-bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side)
+bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret;
   struct bk_netinfo *bni = NULL;
   struct bk_netaddr *bna = NULL;
   char scratch[100];
-  bk_netaddr_type_t netaddr_type;
+  bk_netaddr_type_e netaddr_type;
   struct sockaddr_in *sin4 = NULL;
   struct sockaddr_in6 *sin6 = NULL;
   struct sockaddr_un *sun = NULL;
@@ -927,7 +925,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side)
 
   switch (side)
   {
-  case BK_SOCKET_SIDE_LOCAL:
+  case BkSocketSideLocal:
     len = sizeof(sa);
     if (getsockname(s, &sa, &len) < 0)
     {
@@ -936,7 +934,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side)
     }
     break;
 
-  case BK_SOCKET_SIDE_REMOTE:
+  case BkSocketSideRemote:
     len = sizeof(sa);
     if (getpeername(s, &sa, &len) < 0)
     {
@@ -961,7 +959,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side)
 
   switch (netaddr_type)
   {
-  case BK_NETINFO_TYPE_INET:
+  case BkNetinfoTypeInet:
     if (!proto)
     {
       int type;
@@ -1012,7 +1010,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side)
     }
     break;
   
-  case BK_NETINFO_TYPE_INET6:
+  case BkNetinfoTypeInet6:
     if (!proto)
     {
       int type;
@@ -1063,8 +1061,8 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side)
     }
     break;
   
-  case BK_NETINFO_TYPE_LOCAL:
-    /* XXXX Do this for local type */
+  case BkNetinfoTypeLocal:
+    /* <TODO> Do this for local type </TODO>*/
 #if 0
     if (un2bni(B, bni, bna, (struct sockaddr_un *)sa, flags) < 0)
     {
@@ -1187,7 +1185,7 @@ bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni)
 static int bna_oo_cmp(void *a, void *b)
 {
   struct bk_netaddr *bna1 = a, *bna2 = b;
-  /* XXX Should we require that bna_flags be equal too? */
+  /* <WARNING> Should we require that bna_flags be equal too? </WARNING> */
   return (!(bna1->bna_type == bna2->bna_type && 
 	    bna1->bna_len == bna2->bna_len &&
 	    memcmp(&(bna1->bna_addr), &(bna2->bna_addr), bna1->bna_len) == 0));

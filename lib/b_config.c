@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.23 2001/12/04 19:51:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.24 2001/12/05 00:29:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -892,6 +892,7 @@ bck_destroy(bk_s B, struct bk_config_key *bck)
   if (bck->bck_values)
   {
 
+    // XXX = should have break w/o trailing semi after bk_error_printf
     DICT_NUKE_CONTENTS(bck->bck_values, config_values, bcv, bk_error_printf(B, BK_ERR_ERR, "Could not nuke a value from a key: %s\n", config_values_error_reason(bck->bck_values, NULL));, bcv_destroy(B, bcv));
     config_values_destroy(bck->bck_values);
   }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.19 2001/12/04 19:51:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.20 2001/12/05 00:29:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,8 +19,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  *
- * Example libbk user with main() prototype.
-XXX - doc failure
+ * This file implements both ends of a bidirectional network pipe. 
  */
 
 #include <libbk.h>
@@ -331,7 +330,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 	pc->pc_server == server_handle)
     {
       pc->pc_server = NULL;			/* Very important */
-      // XXX - remove
+      // <TODO> Remove this </TODO>
       fprintf(stderr,"Clean server close\n");
       BK_FLAG_CLEAR(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
       goto done;
@@ -352,13 +351,13 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 
   /* If we need to hold on to bag save it here */
 
-  // XXX Add options to set inbufhints, max, and outbufmax
+  // <TODO> Add options to set inbufhints, max, and outbufmax </TODO>
   if (!(std_ioh = bk_ioh_init(B, fileno(stdin), fileno(stdout), NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on stdin/stdout\n");
     goto error;
   }
-  // XXX Add options to set inbufhints, max, and outbufmax
+  // <TODO> Add options to set inbufhints, max, and outbufmax </TODO>
   if (!(net_ioh = bk_ioh_init(B, sock, sock, NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh network\n");
@@ -401,8 +400,7 @@ relay_finish(bk_s B, void *args, u_int state)
     BK_VRETURN(B);
   }
   
-  
-  /* XXX Report statistics here */
+  /* <TODO> Report statistics here </TODO> */
   bk_run_set_run_over(B,pc->pc_run);
   BK_VRETURN(B);
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.16 2001/12/04 19:51:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.17 2001/12/05 00:29:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -72,7 +72,7 @@ struct addrgroup_state
   int			as_sock;		///< Socket
   struct bk_addrgroup *	as_bag;			///< Addrgroup info
   u_long		as_timeout;		///< Timeout in usecs
-  bk_bag_callback_t	as_callback;		///< Called when sock ready
+  bk_bag_callback_f	as_callback;		///< Called when sock ready
   void *		as_args;		///< User args for callback
   void *		as_eventh;		///< Timeout event handle
   struct bk_run *	as_run;			///< run handle.
@@ -272,7 +272,7 @@ as_destroy(bk_s B, struct addrgroup_state *as)
 
   if (as->as_eventh) bk_run_dequeue(B, as->as_run, as->as_eventh, 0);
 
-  /* XXX Is this correct??? */
+  /* <WARNING> Is this correct??? </WARNING> */
   net_close(B,as);
   free(as);
   BK_VRETURN(B);
@@ -309,7 +309,7 @@ as_destroy(bk_s B, struct addrgroup_state *as)
  *	@return new socket on success.
  */
 int
-bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_t callback, void *args, int backlog)
+bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_f callback, void *args, int backlog)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_addrgroup *bag = NULL;		/* address group state */
@@ -358,16 +358,16 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
 
   switch(bag->bag_type)
   {
-  case BK_NETINFO_TYPE_INET:
-  case BK_NETINFO_TYPE_INET6:
+  case BkNetinfoTypeInet:
+  case BkNetinfoTypeInet6:
     ret = do_net_init_af_inet(B, as);
     break;
 
-  case BK_NETINFO_TYPE_LOCAL:
+  case BkNetinfoTypeLocal:
     ret = do_net_init_af_local(B, as);
     break;
 
-  case BK_NETINFO_TYPE_ETHER:
+  case BkNetinfoTypeEther:
     bk_error_printf(B, BK_ERR_ERR, "Ether type not supported\n");
     goto error;
 
@@ -584,9 +584,11 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
   if (!(bna = bk_netinfo_advance_primary_address(B,remote)))
   {
     /* 
-     * XXX If there are *no* addresses at all, do we return a useful error?
+     * <WARNING>
+     * If there are *no* addresses at all, do we return a useful error?
      * We probably return SysError which is about as good as we can do so
      * this is probably OK
+     * </WARNING>
      */
     net_init_end(B, as);
     /* 
@@ -599,7 +601,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
      * (certainly returning the socket number is meaningless). But much
      * more imporant than this is is the fact we *know* we're on the
      * connecting side of a tcp association here and thus when tcp_end()
-     * returns as HAS BEEN DESTROYED. Now you *could* save as->as_sock
+     * returns 'as' HAS BEEN DESTROYED. Now you *could* save as->as_sock
      * before calling tcp_end(), but why bother?
      */
     BK_RETURN(B,0);
@@ -624,13 +626,15 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
   as->as_sock = s;
   
   /* Force non-blocking. We will restore this later */
-  if (bk_fileutils_modify_fd_flags(B, s, O_NONBLOCK, BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_ADD) < 0)
+  if (bk_fileutils_modify_fd_flags(B, s, O_NONBLOCK, BkFileutilsModifyFdFlagsActionAdd) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not set O_NONBLOCK on socket: %s\n", strerror(errno));
     /* 
-     * XXX Should this really be fatal? Well, given what a totally bizzare
+     * <WARNING>
+     * Should this really be fatal? Well, given what a totally bizzare
      * situation you must be in for this to fail, jtt actually thinks this
      * is reasonable.
+     * </WARNING>
      */
     goto error;
   }
@@ -708,7 +712,7 @@ open_inet_local(bk_s B, struct addrgroup_state *as)
     goto error;
   }
 
-  /* XXX Use SA_LEN macro here */
+  /* <TODO> Use SA_LEN macro here </TODO> */
   if (bind(s, &sa, sizeof(sa)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not bind to local address: %s\n", strerror(errno));
@@ -799,7 +803,7 @@ net_init_end(bk_s B, struct addrgroup_state *as)
       bag->bag_proto = as->as_bag->bag_proto;
       bag->bag_type = as->as_bag->bag_type;
 
-      if (!(bag->bag_local = bk_netinfo_from_socket(B,as->as_sock, bag->bag_proto, BK_SOCKET_SIDE_LOCAL)))
+      if (!(bag->bag_local = bk_netinfo_from_socket(B,as->as_sock, bag->bag_proto, BkSocketSideLocal)))
       {
 	/* 
 	 * This is an error since we should *always be able to do this, but
@@ -813,10 +817,10 @@ net_init_end(bk_s B, struct addrgroup_state *as)
 	bk_netinfo_set_primary_address(B,bag->bag_local,NULL);
       }
 
-      if (!(bag->bag_remote = bk_netinfo_from_socket(B,as->as_sock, bag->bag_proto, BK_SOCKET_SIDE_REMOTE)))
+      if (!(bag->bag_remote = bk_netinfo_from_socket(B,as->as_sock, bag->bag_proto, BkSocketSideRemote)))
       {
 	// This is quite common in server case, so a WARN not an ERR
-	bk_error_printf(B, BK_ERR_WARN, "Could not generate remote side netinfo\n (possibly normal)");
+	bk_error_printf(B, BK_ERR_WARN, "Could not generate remote side netinfo (possibly normal)\n");
       }
       else
       {
@@ -835,7 +839,8 @@ net_init_end(bk_s B, struct addrgroup_state *as)
      * this point, so we "withdraw" it from our saved state (so we don't
      * try to close it when we clean up.
      *
-     * XXX Unconnected UDP (we will need BkAddrGroupStateDgram or something)
+     * <TODO> Unconnected UDP (we will need BkAddrGroupStateDgram or
+     * something) </TODO>
      */
     if (as->as_state == BkAddrGroupStateConnected)
     {
@@ -970,7 +975,19 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
     goto error;
   }
   
-  if (BK_FLAG_ISSET(gottype, BK_RUN_CLOSE|BK_RUN_DESTROY|BK_RUN_BAD_FD))
+  if (BK_FLAG_ISSET(gottype, BK_RUN_DESTROY))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Our run environment has been destroyed\n");
+    goto error;
+  }
+
+  if (BK_FLAG_ISSET(gottype, BK_RUN_BAD_FD))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "%d has become a bad fd\n", fd);
+    goto error;
+  }
+
+  if (BK_FLAG_ISSET(gottype, BK_RUN_CLOSE))
   {
     // We're looping around in our own callbacks (most likely) 
     BK_VRETURN(B);
@@ -1001,7 +1018,7 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
     bk_error_printf(B, BK_ERR_ERR, "Could not withdraw socket from run\n");
   }
 
-  if (bk_netinfo_to_sockaddr(B, bag->bag_remote, NULL, BK_NETINFO_TYPE_UNKNOWN, &sa, 0 < 0))
+  if (bk_netinfo_to_sockaddr(B, bag->bag_remote, NULL, BkNetinfoTypeUnknown, &sa, 0 < 0))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not convert remote address to sockaddr any more\n");
     goto error;
@@ -1099,13 +1116,15 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
   as->as_sock = s;
   
   /* Force non-blocking. We will restore this later */
-  if (bk_fileutils_modify_fd_flags(B, s, O_NONBLOCK, BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_ADD) < 0)
+  if (bk_fileutils_modify_fd_flags(B, s, O_NONBLOCK, BkFileutilsModifyFdFlagsActionAdd) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not set O_NONBLOCK on socket: %s\n", strerror(errno));
     /* 
-     * XXX Should this really be fatal? Well, given what a totally bizzare
+     * <WARNING>
+     * Should this really be fatal? Well, given what a totally bizzare
      * situation you must be in for this to fail, jtt actually thinks this
      * is reasonable.
+     * </WARNING>
      */
     goto error;
   }
@@ -1153,7 +1172,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
       nbag->bag_proto = as->as_bag->bag_proto;
       nbag->bag_type = as->as_bag->bag_type;
 
-      if (!(nbag->bag_local = bk_netinfo_from_socket(B, as->as_sock, nbag->bag_proto, BK_SOCKET_SIDE_LOCAL)))
+      if (!(nbag->bag_local = bk_netinfo_from_socket(B, as->as_sock, nbag->bag_proto, BkSocketSideLocal)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not generate local side netinfo\n");
 	goto error;
@@ -1209,7 +1228,19 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
     goto error;
   }
   
-  if (BK_FLAG_ISSET(gottype, BK_RUN_CLOSE|BK_RUN_DESTROY|BK_RUN_BAD_FD))
+  if (BK_FLAG_ISSET(gottype, BK_RUN_DESTROY))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Our run environment has been destroyed\n");
+    goto error;
+  }
+
+  if (BK_FLAG_ISSET(gottype, BK_RUN_BAD_FD))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "%d has become a bad fd\n", fd);
+    goto error;
+  }
+
+  if (BK_FLAG_ISSET(gottype, BK_RUN_CLOSE))
   {
     // We're looping around in our own callbacks (most likely) 
     BK_VRETURN(B);
@@ -1353,7 +1384,7 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
     }
   }
 
-  if (bag->bag_type == BK_NETINFO_TYPE_UNKNOWN)
+  if (bag->bag_type == BkNetinfoTypeUnknown)
   {
     bk_error_printf(B, BK_ERR_ERR, "Address family not determinable\n");
     goto error;
@@ -1385,7 +1416,7 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
  *	@return <i>0</i> on success.
  */
 int
-bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securenets, bk_bag_callback_t callback, void *args, bk_flags flags)
+bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct addrgroup_state *as = NULL; 
@@ -1410,7 +1441,7 @@ bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securene
   as->as_user_flags = flags;
   as->as_run = run;
 
-  if (!(as->as_bag->bag_local = bk_netinfo_from_socket(B, s, 0, BK_SOCKET_SIDE_LOCAL)))
+  if (!(as->as_bag->bag_local = bk_netinfo_from_socket(B, s, 0, BkSocketSideLocal)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not determine local address information\n");
     goto error;

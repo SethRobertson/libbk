@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.76 2001/12/05 00:18:21 seth Exp $
+ * $Id: libbk.h,v 1.77 2001/12/05 00:29:55 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -128,9 +128,9 @@ struct bk_general
   struct bk_config	*bg_config;		///< Configuration info
   char			*bg_program;		///< Name of program
   bk_flags		bg_flags;		///< Flags
-#define BK_BGFLAGS_FUNON	1		///< Is function tracing on?
-#define BK_BGFLAGS_DEBUGON	2		///< Is debugging on?
-#define BK_BGFLAGS_SYSLOGON	4		///< Is syslog on?
+#define BK_BGFLAGS_FUNON	0x1		///< Is function tracing on?
+#define BK_BGFLAGS_DEBUGON	0x2		///< Is debugging on?
+#define BK_BGFLAGS_SYSLOGON	0x4		///< Is syslog on?
 };
 #define BK_GENERAL_ERROR(B)	((B)?(B)->bt_general->bg_error:(struct bk_error *)bk_nullptr) ///< Access the bk_general error queue
 #define BK_GENERAL_DEBUG(B)	((B)?(B)->bt_general->bg_debug:(struct bk_debug *)bk_nullptr) ///< Access the bk_general debug queue
@@ -201,10 +201,9 @@ typedef void (*bk_gethostbyfoo_callback_f)(bk_s B, struct bk_run *run, struct ho
  */
 typedef enum
 {
-// XXXX make these enums CamelCase
-  BK_SOCKET_SIDE_LOCAL=1,			///< The local side.
-  BK_SOCKET_SIDE_REMOTE,			///< The remote side.
-} bk_socket_side_t;
+  BkSocketSideLocal=1,			///< The local side.
+  BkSocketSideRemote,			///< The remote side.
+} bk_socket_side_e;
 
 
 
@@ -213,11 +212,10 @@ typedef enum
  */
 typedef enum 
 {
-// XXXX make these enums CamelCase
-  BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_ADD=1,
-  BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_DELETE,
-  BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_SET,
-} bk_fileutils_modify_fd_flags_action_t;
+  BkFileutilsModifyFdFlagsActionAdd=1,
+  BkFileutilsModifyFdFlagsActionDelete,
+  BkFileutilsModifyFdFlagsActionSet,
+} bk_fileutils_modify_fd_flags_action_e;
 
 
 
@@ -226,13 +224,12 @@ typedef enum
  */
 typedef enum 
 { 
-// XXXX make these enums CamelCase
-  BK_NETINFO_TYPE_UNKNOWN=0,			///< Special "unset" marker
-  BK_NETINFO_TYPE_INET,				///< IPv4 address
-  BK_NETINFO_TYPE_INET6,			///< IPv6 address
-  BK_NETINFO_TYPE_LOCAL,			///< AF_LOCAL/AF_UNIX address
-  BK_NETINFO_TYPE_ETHER,			///< Ethernet address
-} bk_netaddr_type_t;
+  BkNetinfoTypeUnknown=0,			///< Special "unset" marker
+  BkNetinfoTypeInet,				///< IPv4 address
+  BkNetinfoTypeInet6,				///< IPv6 address
+  BkNetinfoTypeLocal,				///< AF_LOCAL/AF_UNIX address
+  BkNetinfoTypeEther,				///< Ethernet address
+} bk_netaddr_type_e;
 
 
 #define BK_NETINFO_TYPE_NONE BK_NETINFO_TYPE_UNKNOWN ///< Alias for BK_NETINFO_TYPE_UNKNOWN
@@ -291,7 +288,7 @@ typedef void (*bk_fd_handler_t)(bk_s B, struct bk_run *run, int fd, u_int gottyp
  *	@param state State as described by @a bk_addrgroup_state_e.
  *
  */
-typedef void (*bk_bag_callback_t)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state);
+typedef void (*bk_bag_callback_f)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state);
 
 /**
  * Structure which describes a network "association". This name is slightly
@@ -305,7 +302,7 @@ struct bk_addrgroup
   struct bk_netinfo *	bag_local;		///< Local side information */
   struct bk_netinfo *	bag_remote;		///< Remote side information */
   int			bag_proto;		///< Cached proto */
-  bk_netaddr_type_t	bag_type;		///< Cached address family */
+  bk_netaddr_type_e	bag_type;		///< Cached address family */
 };
 
 
@@ -547,7 +544,7 @@ struct bk_protoinfo
 struct bk_netaddr
 {
   bk_flags		bna_flags;		///< Everyone needs flags
-  bk_netaddr_type_t	bna_type;		///< Type of address
+  bk_netaddr_type_e	bna_type;		///< Type of address
   u_int			bna_len;		///< Length of address
   union
   {
@@ -875,19 +872,19 @@ extern int bk_netinfo_update_servent(bk_s B, struct bk_netinfo *bni, struct serv
 extern int bk_netinfo_update_protoent(bk_s B, struct bk_netinfo *bni, struct protoent *p);
 extern int bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h);
 extern struct bk_netaddr *bk_netinfo_get_addr(bk_s B, struct bk_netinfo *bni);
-extern int bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_t type, struct sockaddr *sa, bk_flags flags);
+extern int bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_e type, struct sockaddr *sa, bk_flags flags);
 #define BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY	0x1 ///< Allow bad address information to indicate ANY addresss.
-extern struct bk_netinfo *bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side);
+extern struct bk_netinfo *bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side);
 extern const char *bk_netinfo_info(bk_s B, struct bk_netinfo *bni);
 extern struct bk_netaddr * bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni);
 
 /* b_netaddr.c */
 extern struct bk_netaddr *bk_netaddr_create(bk_s B);
 extern void bk_netaddr_destroy(bk_s B, struct bk_netaddr *bna);
-extern struct bk_netaddr *bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags flags);
-extern struct bk_netaddr *bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_flags flags);
+extern struct bk_netaddr *bk_netaddr_user(bk_s B, bk_netaddr_type_e type, void *addr, int len, bk_flags flags);
+extern struct bk_netaddr *bk_netaddr_addrdup (bk_s B, bk_netaddr_type_e type, void *addr, bk_flags flags);
 extern struct bk_netaddr *bk_netaddr_clone (bk_s B, struct bk_netaddr *obna);
-extern int bk_netaddr_af2nat(bk_s B, int af);
+extern bk_netaddr_type_e bk_netaddr_af2nat(bk_s B, int af);
 extern int bk_netaddr_nat2af(bk_s B, int type);
 
 
@@ -904,10 +901,10 @@ extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obs
 /* b_netutils.c */
 extern int bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa);
 extern int bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char **servicestr,  char *defservicestr, char **protostr, char *defprotostr);
-extern int bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defurl, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags);
-extern int bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags);
-extern int bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *defurl, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags);
-extern int bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, char *rurl, char *defrhost, char *defrserv, char *lurl, char *deflhost, char *deflserv, char *defproto, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags );
+extern int bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defurl, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags);
+extern int bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags);
+extern int bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *defurl, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags);
+extern int bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, char *rurl, char *defrhost, char *defrserv, char *lurl, char *deflhost, char *deflserv, char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags );
 extern int bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, char **servistr, char **protostr);
 
 
@@ -920,12 +917,12 @@ extern int bk_signal(bk_s B, int signo, bk_sighandler handler, bk_flags flags);
 int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb)(bk_s B, void *opaque, u_int state), void *opaque, bk_flags flags);
 
 /* b_fileutils.c */
-extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_t action);
+extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_e action);
 
 /* b_addrgroup.c */
-extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_t callback, void *args, int backlog);
+extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_f callback, void *args, int backlog);
 void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
-extern int bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securenets, bk_bag_callback_t callback, void *args, bk_flags flags);
+extern int bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags);
 extern int bk_addrgroup_get_server_socket(bk_s B, void *server_handle);
 extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
 extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
