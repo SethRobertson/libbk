@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.5 2003/05/07 22:33:08 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.6 2003/06/12 20:57:41 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -781,17 +781,17 @@ static int bsl_ko_cmp(struct bk_stat_node *a, struct bk_stat_node *b)
 }
 static ht_val bsl_obj_hash(struct bk_stat_node *a)
 {
-  u_int ret = bk_strhash(a->bsn_name1, BK_HASH_NOMODULUS);
+  u_int ret = bk_strhash(a->bsn_name1, 0);
 
   if (a->bsn_name2)
-    ret += bk_strhash(a->bsn_name2, BK_HASH_NOMODULUS);
+    ret += bk_strhash(a->bsn_name2, 0);
   return(ret);
 }
 static ht_val bsl_key_hash(struct bk_stat_node *a)
 {
-  u_int ret = bk_strhash(a->bsn_name1, BK_HASH_NOMODULUS);
+  u_int ret = bk_strhash(a->bsn_name1, 0);
 
   if (a->bsn_name2)
-    ret += bk_strhash(a->bsn_name2, BK_HASH_NOMODULUS);
+    ret += bk_strhash(a->bsn_name2, 0);
   return(ret);
 }

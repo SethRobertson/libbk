@@ -1,3 +1,9 @@
+2003-06-12  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_string.c (bk_strhash): make nomodulus the default [we never use
+	modulus anywhere]
+	(bk_bufhash): make nomodulus the default; special case numeric vals
+
 2003-06-10  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_thread.c (bk_monitor_memory_thread): gdb can't implement
@@ -92,7 +98,7 @@
 	* lib/b_ioh.c (bk_ioh_flush): Don't leak CLCs.
 
 	* lib/b_pollio.c (bk_polling_io_close): Handle Linger more
-	correctly (actually wait for output to drain).
+	correctly [actually wait for output to drain]
 
 2003-05-16  Seth Robertson  <seth@startide.sysdetect.com>
 

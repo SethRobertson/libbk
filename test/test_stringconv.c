@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.16 2003/06/03 21:14:14 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.17 2003/06/12 20:57:42 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -184,7 +184,7 @@ void progrun(bk_s B, struct program_config *pconfig)
 	  printf("Converted to 0x%llx or %lld or 0%llo\n",(u_int64_t)i64,i64,(u_int64_t)i64);
 	break;
       case 4:
-	ui32 = bk_strhash(line, BK_STRHASH_NOMODULUS);
+	ui32 = bk_strhash(line, 0);
 	printf("Hashed to 0x%x\n",ui32);
 	break;
       case 5:

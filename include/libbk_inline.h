@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_inline.h,v 1.2 2003/06/04 16:25:01 jtt Exp $
+ * $Id: libbk_inline.h,v 1.3 2003/06/12 20:57:41 dupuy Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -49,7 +49,7 @@ typedef void *		bk_dll_h;		///< Opaque handle to "generic" baka dll.
  *
  * There are no flags here (and please avoid creating any if possible)
  * owing to the fact that to support flags we would have to "violate" the
- * "clean replacement of CLC" philosphy -- unless we supported the DICT_
+ * "clean replacement of CLC" philosophy -- unless we supported the DICT_
  * flags, but that seems too grotty for words.
  */
 struct bk_generic_dll_header

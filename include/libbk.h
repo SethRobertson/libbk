@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.243 2003/06/12 19:01:32 seth Exp $
+ * $Id: libbk.h,v 1.244 2003/06/12 20:57:41 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1687,10 +1687,11 @@ extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags fla
 
 /* b_string.c */
 extern u_int bk_strhash(const char *a, bk_flags flags);
-#define BK_HASH_V2		0x02		///< Better (but slower) hashing function
+#define BK_HASH_V2		0x02		///< Better/slower hashing
+#define BK_HASH_MODULUS		0x04		///< Modulus by large prime
 extern u_int bk_bufhash(const struct bk_vptr *b, bk_flags flags);
-#define BK_HASH_NOMODULUS	0x01		///< Do not perform modulus of hash by a large prime
-#define BK_STRHASH_NOMODULUS	BK_HASH_NOMODULUS
+#define BK_HASH_STRING		0x01		///< String hash if len=1/2/4/8
+
 extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const dict_h kvht_vardb, const char **variabledb, bk_flags flags);
 #define BK_WHITESPACE					" \t\r\n" ///< General definition of horizonal and vertical whitespace
 #define BK_VWHITESPACE					"\r\n" ///< General definition of vertical whitespace

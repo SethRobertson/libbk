@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.24 2003/04/17 23:29:00 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.25 2003/06/12 20:57:41 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -686,11 +686,11 @@ static int debug_ko_cmp(char *a, struct bk_debugnode *b)
 /** CLC helper functions and structures for debug_clc */
 static unsigned int debug_obj_hash(struct bk_debugnode *a)
 {
-  return(bk_strhash(a->bd_name, BK_STRHASH_NOMODULUS));
+  return(bk_strhash(a->bd_name, 0));
 }
 
 /** CLC helper functions and structures for debug_clc */
 static unsigned int debug_key_hash(char *a)
 {
-  return(bk_strhash(a, BK_STRHASH_NOMODULUS));
+  return(bk_strhash(a, 0));
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_vault.c,v 1.2 2003/05/03 04:23:29 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_vault.c,v 1.3 2003/06/12 20:57:42 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -97,10 +97,10 @@ static int vault_ko_cmp(void *a, void *bck2)
 static ht_val vault_obj_hash(void *bck)
 {
   struct bk_vault_node *a = bck;
-  return(bk_strhash(a->key,BK_HASH_NOMODULUS));
+  return(bk_strhash(a->key, 0));
 }
 static ht_val vault_key_hash(void *a)
 {
-  return(bk_strhash(a,BK_HASH_NOMODULUS));
+  return(bk_strhash(a, 0));
 }
 // @}

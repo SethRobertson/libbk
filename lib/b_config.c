@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_config.c,v 1.34 2003/06/11 01:43:21 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_config.c,v 1.35 2003/06/12 20:57:41 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1365,11 +1365,11 @@ static int kv_ko_cmp(void *a, void *bck)
 }
 static ht_val kv_obj_hash(void *bck)
 {
-  return(bk_strhash(((struct bk_config_key *)bck)->bck_key, BK_STRHASH_NOMODULUS));
+  return(bk_strhash(((struct bk_config_key *)bck)->bck_key, 0));
 }
 static ht_val kv_key_hash(void *a)
 {
-  return(bk_strhash((char *)a, BK_STRHASH_NOMODULUS));
+  return(bk_strhash((char *)a, 0));
 }
 
 

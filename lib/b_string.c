@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.87 2003/06/03 21:52:01 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.88 2003/06/12 20:57:41 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -100,7 +100,8 @@ static void bsre_destroy(bk_s B, struct bk_str_registry_element *bsre);
  * THREADS: MT-SAFE
  *
  *	@param k The string to be hashed
- *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function, BK_HASH_V2 for better, but slower mixing
+ *	@param flags BK_HASH_MODULUS perform modulus by large prime<br>
+ *	BK_HASH_V2 use better, but slower hashing function
  *	@return <i>hash</i> of number
  */
 u_int
@@ -226,7 +227,7 @@ bk_strhash(const char *k, bk_flags flags)
   }
 #undef mix
 
-  if (BK_FLAG_ISSET(flags, BK_HASH_NOMODULUS))
+  if (BK_FLAG_ISCLEAR(flags, BK_HASH_MODULUS))
     return(h);
   else
     return(h % P);
@@ -237,13 +238,19 @@ bk_strhash(const char *k, bk_flags flags)
 /**
  * Hash a buffer.
  *
- * Equivalent to bk_oldstrhash() except that it works on bk_vptr buffers.
+ * Special case small buffers (lengths 1, 2, 4, or 8) on the assumption that
+ * these are actually byte/short/int/long or double values rather than strings.
+ * For other lengths, string hashing is used.
  *
  * THREADS: MT-SAFE
  *
  *	@param b The buffer to be hashed
- *	@param flags BK_HASH_NOMODULUS to prevent modulus in hash function
+ *	@param flags BK_HASH_MODULUS perform modulus by large prime<br>
+ *	BK_HASH_STRING string hash all buffers, even for small powers of 2
  *	@return <i>hash</i> of number
+ *
+ * <TODO>BK_HASH_V2 use better, but slower hashing function, e.g. as above or
+ * http://www.concentric.net/~Ttwang/tech/inthash.htm for numerics</TODO>
  */
 u_int
 bk_bufhash(const struct bk_vptr *b, bk_flags flags)
@@ -254,10 +261,31 @@ bk_bufhash(const struct bk_vptr *b, bk_flags flags)
   size_t i;
   const char *p = (const char *)b->ptr;
 
-  for (h = 17, i = 0; i < b->len; p++, i++)
-    h = h * M + *p;
+  switch (b->len)
+  {
+  case 1:
+    h = *p;
+    break;
 
-  if (BK_FLAG_ISSET(flags, BK_HASH_NOMODULUS))
+  case 2:
+    h = *(const short *)p;
+    break;
+
+  case 4:
+    h = *(const int *)p;
+    break;
+
+  case 8:
+    h = ((const int *)p)[0] ^ ((const int *)p)[1];
+    break;
+
+  default:
+    for (h = 17, i = 0; i < b->len; p++, i++)
+      h = h * M + *p;
+    break;
+  }
+
+  if (BK_FLAG_ISCLEAR(flags, BK_HASH_MODULUS))
     return(h);
   else
     return(h % P);
