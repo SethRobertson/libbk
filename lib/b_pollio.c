@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.34 2003/06/03 21:03:08 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.35 2003/06/03 23:19:15 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -711,7 +711,7 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
 
   if (timeout > 0
 #ifdef BK_USING_PTHREADS
-      && BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_THREADED) && BK_GENERAL_FLAG_ISTHREADON(B)
+      && (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_THREADED) || !BK_GENERAL_FLAG_ISTHREADON(B))
 #endif /* BK_USING_PTHREADS */
       )
   {
@@ -759,8 +759,8 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
       {
 	ts.tv_sec = timeout / 1000;
 	ts.tv_nsec = (timeout % 1000) * 1000000;
-	pthread_cond_timedwait(&bpi->bpi_rdcond, &bpi->bpi_lock, &ts);
-	timedout++;
+	if (pthread_cond_timedwait(&bpi->bpi_rdcond, &bpi->bpi_lock, &ts) < 0 && errno == ETIMEDOUT)
+	  timedout++;
       }
     }
     else
@@ -781,7 +781,7 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
 	abort();
 #endif /* BK_USING_PTHREADS */
 
-      if (timeout > 0 && !bpi->bpi_wrtimeoutevent)
+      if (timeout > 0 && !bpi->bpi_rdtimeoutevent)
 	timedout++;
     }
   }
@@ -818,6 +818,12 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
   }
 
  unlockexit:
+  // Dequeue timeout event if necessary
+  if (timeout > 0 && bpi->bpi_rdtimeoutevent && !timedout)
+  {
+    bk_run_dequeue(B, bpi->bpi_ioh->ioh_run, bpi->bpi_rdtimeoutevent, BK_RUN_DEQUEUE_EVENT);
+  }
+
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
     abort();
@@ -883,10 +889,12 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
 
   if (timeout > 0
 #ifdef BK_USING_PTHREADS
-      && BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_THREADED) && BK_GENERAL_FLAG_ISTHREADON(B)
+      && (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_THREADED) || !BK_GENERAL_FLAG_ISTHREADON(B))
 #endif /* BK_USING_PTHREADS */
       )
   {
+    // Timeout if we are not using threads...
+
     if (bk_run_enqueue_delta(B, bpi->bpi_ioh->ioh_run, timeout, bpi_wrtimeout, bpi, &bpi->bpi_wrtimeoutevent, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not enqueue new pollio timeout event\n");
@@ -922,7 +930,8 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
       {
 	ts.tv_sec = timeout / 1000;
 	ts.tv_nsec = (timeout % 1000) * 1000000;
-	pthread_cond_timedwait(&bpi->bpi_wrcond, &bpi->bpi_lock, &ts);
+	if (pthread_cond_timedwait(&bpi->bpi_wrcond, &bpi->bpi_lock, &ts) < 0 && errno == ETIMEDOUT)
+	  timedout++;
       }
     }
     else
@@ -947,13 +956,6 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
 	timedout++;
     }
   }
-
-  // Made it in time--need to dequeue timeout event
-  if (timeout > 0 && bpi->bpi_wrtimeoutevent && !timedout)
-  {
-    bk_run_dequeue(B, bpi->bpi_ioh->ioh_run, bpi->bpi_wrtimeoutevent, BK_RUN_DEQUEUE_EVENT);
-  }
-
 
   if (ret < 0)
     bk_error_printf(B, BK_ERR_ERR, "Could not submit write\n");
@@ -997,6 +999,12 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
   }
 
  unlockexit:
+  // Dequeue timeout event if necessary
+  if (timeout > 0 && bpi->bpi_wrtimeoutevent && !timedout)
+  {
+    bk_run_dequeue(B, bpi->bpi_ioh->ioh_run, bpi->bpi_wrtimeoutevent, BK_RUN_DEQUEUE_EVENT);
+  }
+
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
     abort();
@@ -1437,7 +1445,9 @@ bk_polling_io_geterr(bk_s B, struct bk_polling_io *bpi)
 
 
 /**
- * Timeout a polling_io read.
+ * Timeout a polling_io read IMPLICITLY--this will cause bk_run_once
+ * to exit which will notice that the event handler is gone which will
+ * figure that a timeout must have fired.
  *
  * THREADS: MT-SAFE
  *
@@ -1458,6 +1468,10 @@ bpi_rdtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *st
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
+
+  // Run is exiting--I assume we should just go away...
+  if (BK_FLAG_ISSET(flags, BK_RUN_DESTROY))
+    BK_VRETURN(B);
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
@@ -1482,7 +1496,9 @@ bpi_rdtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *st
 
 
 /**
- * Timeout a polling_io write.
+ * Timeout a polling_io write IMPLICITLY--this will cause bk_run_once
+ * to exit which will notice that the event handler is gone which will
+ * figure that a timeout must have fired.
  *
  * THREADS: MT-SAFE
  *
@@ -1503,6 +1519,10 @@ bpi_wrtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *st
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
+
+  // Run is exiting--I assume we should just go away...
+  if (BK_FLAG_ISSET(flags, BK_RUN_DESTROY))
+    BK_VRETURN(B);
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)

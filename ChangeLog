@@ -1,3 +1,13 @@
+2003-06-03  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_getbyfoo.c (bk_gethostbyfoo): Memory leak due to reentrant
+	gethostbyname_r functions.
+
+	* lib/b_pollio.c (bk_polling_io_write): Timeout processing
+	confused--stale event queue jobs possible
+	(bk_polling_io_read): Same confusion here, plus more from original
+	implementation copy-paste error from io-write
+
 2003-06-03  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* ssl/Makefile: BK_NO_STRICT_PROTOTYPES=true for *BSD compile
