@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.18 2004/01/05 19:26:38 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.19 2004/05/18 22:03:10 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -42,6 +42,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 static int bk_string_atou64_int(bk_s B, const char *string, u_int64_t *value, int *sign, bk_flags flags);
+static char *bk_string_xmlsafe(bk_s B, const char *string, bk_flags flags);
 
 
 
@@ -387,6 +388,58 @@ static int bk_string_atou64_int(bk_s B, const char *string, u_int64_t *value, in
 
 
 /**
+ * Quote control characters as "\3" style escapes, and surround string with
+ * double quotes.  This could be replaced with a more general baka quoting
+ * function, but the functionality here is sufficient for the needs of flag
+ * the normal convention of leading "0x" to detect hexadecimal numbers
+ * and "0" to detect octal numbers.
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA Thread/global state
+ *	@param string String to convert
+ *	@param flags Fun for the future.
+ *	@return <br>dynamically allocated, converted string on success
+ *	@return <br><i>NULL</i> on failure to allocate/convert
+ */
+static char *bk_string_xmlsafe(bk_s B, const char *string, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *converted;
+
+  if (!string)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  if ((converted = malloc(strlen(string) * 4 + 3)))
+  {
+    int i, j = 0;
+
+    converted[j++] = '"';
+    for (i = 0; string[i]; i++)
+    {
+      if (string[i] <= 32)
+      {
+	converted[j++] = '\\';
+	if (string[i] > 7)
+	  converted[j++] = '0' + (string[i] / 8);
+	converted[j++] = '0' + (string[i] % 8);
+      }
+      else
+	converted[j++] = string[i];
+    }
+    converted[j++] = '"';
+    converted[j++] = '\0';
+  }
+
+  BK_RETURN(B, converted);
+}
+
+
+
+/**
  * Convert flags to a string.
  *
  * Will use symbolic flags as provided by %b-style names if there is enough
@@ -447,8 +500,12 @@ int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *n
 
 	if (names[-1] <= 32)			// stupid coder wrote "\1\2"
 	{
-	  bk_error_printf(B, BK_ERR_WARN, "Invalid flag names string %s\n",
-			  names);
+	  char *badnames = bk_string_xmlsafe(B, names, 0);
+
+	  bk_error_printf(B, BK_ERR_WARN, "Invalid flag names string%s\n",
+			  badnames ? badnames : "");
+	  if (badnames)
+	    free (badnames);
 	  goto justhex;
 	}
 
@@ -563,9 +620,13 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names,
       if (!(symbol = bk_strstrn(B, names + 1, tok, sep - tok))
 	  || symbol[sep - tok] > 32 || symbol[-1] > 32)
       {
+	char *flagnames = bk_string_xmlsafe(B, names, 0);
+
 	bk_error_printf(B, ret < 0 ? BK_ERR_ERR : BK_ERR_WARN,
-			"Flags string \"%s\" has symbol(s) not in \"%s\"\n",
-			src, names);
+			"Flags string \"%s\" has symbol(s) not in %s\n",
+			src, flagnames ? flagnames : "flag names");
+	if (flagnames)
+	  free (flagnames);
 	goto badsymbol;
       }
 

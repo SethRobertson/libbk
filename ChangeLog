@@ -1,3 +1,45 @@
+2004-05-18  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_strconv.c (bk_string_xmlsafe): #963: don't print control chars
+
+2004-05-06  Seth Robertson  <seth@sysdetect.com>
+
+	* src/bk_daemon.c: Fix bk_daemon bug James introduced
+
+2004-05-04  Brian Larkins  <brian@sysdetect.com>
+
+	* lib/Makefile, lib/b_dll.c, include/libbk_inline.h:
+
+	fun defs in headers?
+	only for inline functions
+	but this one's too big.
+
+	* test/test_ringdir.c:
+	proto change broke this
+	add a null pointer or two
+	maybe missed commit?
+
+	* include/libbk.h:
+	casting lvalues?
+	not in gcc 3.3!
+	modify statements
+
+2004-04-29  James Tanis  <jtt@sysdetect.com>
+
+	* include/libbk.h: time_t is a long not an unsigned long
+
+2004-04-29  Seth Robertson  <seth@sysdetect.com>
+
+	* src/bk_funi.c: Handle -U gid initialization
+
+2004-04-27  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_netutils.c, lib/b_string.c: stale commit
+
+2004-04-27  James Tanis  <jtt@sysdetect.com>
+
+	* include/libbk.h: Connection expire code.
+
 2004-04-26  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* src/bk_daemon.c (child): Only open stdin, stderr, and stdout on
