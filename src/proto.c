@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.1 2001/07/08 23:20:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.2 2001/08/16 21:10:48 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,9 +19,10 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
-struct proto_global
+
+
+struct global_structure
 {
-  bk_s		pg_bk;				/* Baka structure */
 } Global;
 
 
@@ -29,7 +30,9 @@ struct proto_global
 int
 main(int argc, char **argv, char **envp)
 {
-  if (!(Global.pg_bk=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), 64, BK_ERR_ERR, 0)))
+  bk_s pg_bk;					/* Baka general structure */
+
+  if (!(pg_bk=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), 64, BK_ERR_ERR, 0)))
   {
     fprintf(stderr,"Could not initialize baka structure");
     exit(1);

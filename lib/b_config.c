@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.6 2001/07/15 05:13:26 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.7 2001/08/16 21:10:48 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -76,12 +76,12 @@ static int kv_ko_cmp(void *a, void *bck)
 
 static ht_val kv_obj_hash(void *bck)
 {
-  return(bk_strhash(((struct bk_config_key *)bck)->bck_key));
+  return(bk_strhash(((struct bk_config_key *)bck)->bck_key, BK_STRHASH_NOMODULUS));
 }
 
 static ht_val kv_key_hash(void *a)
 {
-  return(bk_strhash((char *)a));
+  return(bk_strhash((char *)a, BK_STRHASH_NOMODULUS));
 }
 
 static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };

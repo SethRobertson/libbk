@@ -1,3 +1,12 @@
+2001-08-16  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_config.c (kv_key_hash): Switch to new strhash API.
+
+	* lib/b_debug.c: Fill out debug function.
+
+	* lib/b_string.c (bk_strhash): This is code trans-scribed
+	*directly* from K&P, modula the NOMODULUS flag I just put in.
+
 2001-07-15  James Tanis  <jtt@outpost.tanis.org>
 
 	* lib/b_config.c (bck_create): Main maintence function.

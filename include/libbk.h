@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.19 2001/07/13 16:21:44 jtt Exp $
+ * $Id: libbk.h,v 1.20 2001/08/16 21:10:47 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -121,14 +121,16 @@ typedef struct __bk_thread
 
 
 /* b_debug.c */
+#define BK_DEBUG_KEY "debug"
+#define BK_DEBUG_DEFAULTLEVEL "*DEFAULT*"
 #define bk_debug_and(B,l) (BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B) && (BK_BT_CURFUN(B)->bf_debuglevel & (l)))
-#define bk_debug_vprintf_and(B,l,f,ap) (bk_debug_and(B,l) && sos_debug_vprintf(B,f,ap))
-#define bk_debug_printf_and(B,l,f,args...) (bk_debug_and(B,l) && sos_debug_printf(B,f,##args))
-#define bk_debug_printbuf_and(B,l,v) (bk_debug_and(B,l) && sos_debug_printf(B,v))
+#define bk_debug_vprintf_and(B,l,f,ap) (bk_debug_and(B,l) && bk_debug_vprintf(B,f,ap))
+#define bk_debug_printf_and(B,l,f,args...) (bk_debug_and(B,l) && bk_debug_printf(B,f,##args))
+#define bk_debug_printbuf_and(B,l,i,p,v) (bk_debug_and(B,l) && bk_debug_printbuf(B,i,p,v))
 #define bk_debug_print(B,s) bk_debug_iprint(B,BK_GENERAL_DEBUG(B),s)
 #define bk_debug_printf(B,f,args...) bk_debug_iprintf(B,BK_GENERAL_DEBUG(B),f,##args)
 #define bk_debug_vprintf(B,f,ap) bk_debug_ivprintf(B,BK_GENERAL_DEBUG(B),f,ap)
-#define bk_debug_printbuf(B,v) bk_debug_iprintbuf(B,BK_GENERAL_DEBUG(B),v)
+#define bk_debug_printbuf(B,i,p,v) bk_debug_iprintbuf(B,BK_GENERAL_DEBUG(B),i,pv)
 
 
 
@@ -136,7 +138,7 @@ typedef struct __bk_thread
 #define bk_error_print(B,l,s) bk_error_iprint(B,l,BK_GENERAL_ERROR(B),s)
 #define bk_error_printf(B,l,f,args...) bk_error_iprintf(B,l,BK_GENERAL_ERROR(B),f,##args)
 #define bk_error_vprintf(B,l,f,ap) bk_error_ivprintf(B,l,BK_GENERAL_ERROR(B),f,ap)
-#define bk_error_printbuf(B,l,v) bk_error_iprintbuf(B,l,BK_GENERAL_ERROR(B),v)
+#define bk_error_printbuf(B,l,i,p,v) bk_error_iprintbuf(B,l,BK_GENERAL_ERROR(B),i,p,v)
 
 
 
@@ -239,7 +241,7 @@ extern int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config 
 extern void bk_debug_config(bk_s B, struct bk_debug *bdinfo, FILE *fh, int sysloglevel, bk_flags flags);
 extern void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf);
 extern void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, char *format, ...) __attribute__ ((format (printf, 3, 4)));
-extern void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, bk_vptr *buf);
+extern void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo,  char *intro, char *prefix, bk_vptr *buf);
 extern void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, char *format, va_list ap);
 
 
@@ -251,7 +253,7 @@ extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen,
 extern u_int32_t bk_error_query(bk_s B, struct bk_error *beinfo, const char *funname, const char *pkgname, const char *program);
 extern void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf);
 extern void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *format, ...) __attribute__ ((format (printf, 4,5)));
-extern void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, bk_vptr *buf);
+extern void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *intro, char *prefix, bk_vptr *buf);
 extern void bk_error_ivprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *format, va_list ap);
 
 
@@ -304,6 +306,23 @@ extern void bk_run_destroy(bk_s B, struct bk_run *run);
 
 
 /* b_string.c */
-extern u_int bk_strhash(char *a);
+extern u_int bk_strhash(char *a, bk_flags flags);
+#define BK_STRHASH_NOMODULUS	0x01
+extern char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, void *variabledb, bk_flags flags);
+#define BK_STRING_TOKENIZE_WHITESPACE			" \t\r\n"
+#define BK_STRING_TOKENIZE_MULTISPLIT			0x001	/* Allow multiple split characters to seperate items (foo::bar are two tokens, not three)  */
+#define BK_STRING_TOKENIZE_SINGLEQUOTE			0x002	/* Handle single quotes */
+#define BK_STRING_TOKENIZE_DOUBLEQUOTE			0x004	/* Handle double quotes */
+#define BK_STRING_TOKENIZE_SIMPLEVARIABLE		0x008	/* Convert $VAR */
+#define BK_STRING_TOKENIZE_BACKSLASH			0x010	/* Backslash quote next char */
+#define BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR	0x020	/* Convert \n et al */
+#define BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT	0x040	/* Convert \010 et al */
+#define BK_STRING_TOKENIZE_SIMPLE	(BK_STRING_TOKENIZE_MULTISPLIT)
+#define BK_STRING_TOKENIZE_NORMAL	(BK_STRING_TOKENIZE_MULTISPLIT|BK_STRING_TOKENIZE_DOUBLEQUOTE)
+#define BK_STRING_TOKENIZE_CONFIG	(BK_STRING_TOKENIZE_DOUBLEQUOTE)
+extern void bk_string_tokenize_destroy(bk_s B, char **tokenized);
+extern char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf);
+extern int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags);
+extern int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags);
 
 #endif /* _BK_h_ */
