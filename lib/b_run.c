@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.33 2002/11/07 01:31:14 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.34 2002/11/08 23:42:23 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -945,7 +945,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   }
 
   /* 
-   * If some caller has registered and idle task then check to see *if*
+   * If some caller has registered an idle task then check to see *if*
    * we would have blocked in select(2) for at least *some* amount of time.
    * If so, rewrite the timeout to { 0,0 } (poll), but note that idle
    * tasks should run.
