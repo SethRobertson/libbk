@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.80 2003/03/17 23:46:50 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.81 2003/03/20 17:30:55 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,6 +23,15 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+
+/*
+ * Some platforms provide a definition for this in unistd.h, but even
+ * those platforms say that you have to declare environ in your
+ * program.
+ */
+char **environ;
+
 
 
 /**
