@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.165 2002/08/22 21:25:04 lindauer Exp $
+ * $Id: libbk.h,v 1.166 2002/08/27 23:33:07 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1340,6 +1340,26 @@ extern void bk_exit(bk_s B, u_char retcode);
 extern char *bk_gethostname(bk_s B);
 
 
+/* b_strconv.c */
+extern int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags);
+extern int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags);
+extern int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flags);
+extern int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags);
+extern int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *names, bk_flags flags);
+extern int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names, bk_flags flags);
+extern char *bk_encode_base64(bk_s B, const bk_vptr *str, const char *eolseq);
+extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
+extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
+extern int bk_string_intcols(bk_s B, int64_t num, u_int base);
+extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags);
+#define BK_STRING_ATOD_FLAG_ALLOW_INF 0x1
+#define BK_STRING_ATOD_FLAG_ALLOW_NAN 0x2
+extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags);
+#define BK_STRING_ATOF_FLAG_ALLOW_INF BK_STRING_ATOD_FLAG_ALLOW_INF
+#define BK_STRING_ATOF_FLAG_ALLOW_NAN BK_STRING_ATOD_FLAG_ALLOW_NAN
+
+
+
 /* b_string.c */
 extern u_int bk_strhash(const char *a, bk_flags flags);
 extern u_int bk_oldstrhash(const char *a, bk_flags flags);
@@ -1365,38 +1385,22 @@ extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, con
 #define BK_STRING_TOKENIZE_CONFIG	(BK_STRING_TOKENIZE_DOUBLEQUOTE)
 extern void bk_string_tokenize_destroy(bk_s B, char **tokenized);
 extern char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk_vptr *buf, bk_flags flags);
-extern int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags);
-extern int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags);
-extern int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flags);
-extern int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags);
 extern char *bk_string_rip(bk_s B, char *string, const char *terminators, bk_flags flags);
 extern char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags flags);
 #define BK_STRING_QUOTE_NONPRINT	0x01	///< During bk_string_quote: Quote non-printable
 #define BK_STRING_QUOTE_NULLOK		0x02	///< During bk_string_quote: Output NULL
 #define BK_NULLSTR			"NULL"  ///< During bk_string_quote: String rep of NULL
-extern int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *names, bk_flags flags);
-extern int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names, bk_flags flags);
 extern ssize_t bk_strnlen(bk_s B, const char *s, size_t max);
-extern char *bk_encode_base64(bk_s B, const bk_vptr *str, const char *eolseq);
-extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
 extern char *bk_strndup(bk_s B, const char *s, size_t len);
 extern char *bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len);
 extern char *bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t len);
 extern void *bk_memrchr(bk_s B, const void *buffer, int character, size_t len);
 extern int bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2);
-extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
-extern int bk_string_intcols(bk_s B, int64_t num, u_int base);
 extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #define BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY	0x1 ///< Take more time to return use as little memory as possible.
 extern int bk_vstr_cat(bk_s B,  bk_flags flags, bk_vstr *dest, const char *src_fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #define BK_VSTR_CAT_FLAG_STINGY_MEMORY		0x1 ///< Take more time; use less memory
 extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags);
-extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags);
-#define BK_STRING_ATOD_FLAG_ALLOW_INF 0x1
-#define BK_STRING_ATOD_FLAG_ALLOW_NAN 0x2
-extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags);
-#define BK_STRING_ATOF_FLAG_ALLOW_INF BK_STRING_ATOD_FLAG_ALLOW_INF
-#define BK_STRING_ATOF_FLAG_ALLOW_NAN BK_STRING_ATOD_FLAG_ALLOW_NAN
 extern void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset);
 
 
