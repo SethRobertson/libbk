@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.23 2003/10/07 17:46:41 brian Exp $";
+static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.24 2003/10/07 17:49:31 brian Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -375,7 +375,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
   securenets = NULL;
   sss->sss_backlog = backlog;
 
-  if (!(BK_FLAG_ISSET(flags, BK_NETUTILS_ANY_LOCAL)))
+  if (!(BK_FLAG_ISSET(flags, BK_NETUTILS_ANY_ADDR)))
   {
     if (!(ghbf_info = bk_gethostbyfoo(B, hoststr, 0, sss->sss_lbni, run, sss_serv_gethost_complete, sss, 0)))
     {
