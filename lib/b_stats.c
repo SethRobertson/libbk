@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.6 2003/06/12 20:57:41 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.7 2003/06/13 02:27:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -410,14 +410,14 @@ void bk_stat_node_start(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
   }
 
 #ifdef BK_USING_PTHREADS
-  if (pthread_mutex_lock(&bnode->bsn_lock) != 0)
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
   gettimeofday(&bnode->bsn_start, NULL);
 
 #ifdef BK_USING_PTHREADS
-  if (pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -457,7 +457,7 @@ void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
   gettimeofday(&end, NULL);
 
 #ifdef BK_USING_PTHREADS
-  if (pthread_mutex_lock(&bnode->bsn_lock) != 0)
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -485,7 +485,7 @@ void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
   bnode->bsn_start.tv_sec = 0;
 
 #ifdef BK_USING_PTHREADS
-  if (pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -511,6 +511,7 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
   struct bk_stat_node *bnode;
   char perfbuf[MAXPERFINFO];
   bk_vstr ostring;
+  char *funstatfilessave = BK_GENERAL_FUNSTATFILE(B);
 
   if (!blist)
   {
@@ -518,39 +519,48 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
     BK_RETURN(B, NULL);
   }
 
+  /*
+   * Prevent recursion and locking problems.  However disables
+   * (unlocked, thank you very much) *global* function tracing.  If we
+   * implement per-thread stats, this will have to change.  Really only
+   * suitable for program cleanup.
+   */
+  BK_GENERAL_FUNSTATFILE(B) = NULL;
+
   ostring.ptr = malloc(MAXPERFINFO);
   ostring.max = MAXPERFINFO;
   ostring.cur = 0;
 
   if (BK_FLAG_ISSET(flags, BK_STAT_DUMP_HTML))
   {
-    if (bk_vstr_cat(B, 0, &ostring, "<table summary=\"Performance Information\"><caption><em>Program Performance Statistics</em></caption><tr><th>Primary Name</th><th>Secondary Name</th><th>Minimum time (usec)</th><th>Average time (usec)</th><th>Maximum time (usec)</th><th>Count</th><th>Total time (usec)</th></tr>\n") < 0)
+    if (bk_vstr_cat(B, 0, &ostring, "<table summary=\"Performance Information\"><caption><em>Program Performance Statistics</em></caption><tr><th>Primary Name</th><th>Secondary Name</th><th>Minimum time (usec)</th><th>Average time (usec)</th><th>Maximum time (usec)</th><th>Count</th><th>Total time (sec)</th></tr>\n") < 0)
       goto error;
   }
 
   for (bnode = bsl_minimum(blist->bsl_list); bnode; bnode = bsl_successor(blist->bsl_list, bnode))
   {
 #ifdef BK_USING_PTHREADS
-    if (pthread_mutex_lock(&bnode->bsn_lock) != 0)
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
       abort();
 #endif /* BK_USING_PTHREADS */
 
     if (BK_FLAG_ISSET(flags, BK_STAT_DUMP_HTML))
     {
-      snprintf(perfbuf, sizeof(perfbuf), "<tr><td>%s</td><td>%s</td><td>%llu</td><td>%.3f</td><td>%llu</td><td>%u</td><td>%llu</td></tr>\n",bnode->bsn_name1, bnode->bsn_name2, bnode->bsn_minutime, bnode->bsn_count?(float)bnode->bsn_sumutime/bnode->bsn_count:0.0, bnode->bsn_maxutime, bnode->bsn_count,bnode->bsn_sumutime);
+      snprintf(perfbuf, sizeof(perfbuf), "<tr><td>%s</td><td>%s</td><td align=\"right\">%llu</td><td align=\"right\">%.3f</td><td align=\"right\">%llu</td><td align=\"right\">%u</td><td align=\"right\">%.6lf</td></tr>\n",bnode->bsn_name1, bnode->bsn_name2, bnode->bsn_minutime, bnode->bsn_count?(float)bnode->bsn_sumutime/bnode->bsn_count:0.0, bnode->bsn_maxutime, bnode->bsn_count,(double)bnode->bsn_sumutime/1000000.0);
     }
     else
     {
-      snprintf(perfbuf, sizeof(perfbuf), "\"%s\",\"%s\",\"%llu\",\"%.3f\",\"%llu\",\"%u\",\"%llu\"\n",bnode->bsn_name1, bnode->bsn_name2, bnode->bsn_minutime, bnode->bsn_count?(float)bnode->bsn_sumutime/bnode->bsn_count:0.0, bnode->bsn_maxutime, bnode->bsn_count,bnode->bsn_sumutime);
+      snprintf(perfbuf, sizeof(perfbuf), "\"%s\",\"%s\",\"%llu\",\"%.3f\",\"%llu\",\"%u\",\"%.6lf\"\n",bnode->bsn_name1, bnode->bsn_name2, bnode->bsn_minutime, bnode->bsn_count?(float)bnode->bsn_sumutime/bnode->bsn_count:0.0, bnode->bsn_maxutime, bnode->bsn_count,(double)bnode->bsn_sumutime/1000000.0);
     }
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     if (bk_vstr_cat(B, 0, &ostring, perfbuf) < 0)
       goto error;
   }
-
-#ifdef BK_USING_PTHREADS
-    if (pthread_mutex_unlock(&bnode->bsn_lock) != 0)
-      abort();
-#endif /* BK_USING_PTHREADS */
 
   if (BK_FLAG_ISSET(flags, BK_STAT_DUMP_HTML))
   {
@@ -566,6 +576,8 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
       free(ostring.ptr);
     ostring.ptr = NULL;
   }
+
+  BK_GENERAL_FUNSTATFILE(B) = funstatfilessave;
 
   BK_RETURN(B, ostring.ptr);
 }
@@ -640,7 +652,7 @@ void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_
   }
 
 #ifdef BK_USING_PTHREADS
-  if (pthread_mutex_lock(&bnode->bsn_lock) != 0)
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -657,7 +669,7 @@ void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_
     *count = bnode->bsn_count;
 
 #ifdef BK_USING_PTHREADS
-  if (pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -731,7 +743,7 @@ void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, bk_flag
   }
 
 #ifdef BK_USING_PTHREADS
-  if (pthread_mutex_lock(&bnode->bsn_lock) != 0)
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
@@ -745,7 +757,7 @@ void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, bk_flag
   bnode->bsn_count++;
 
 #ifdef BK_USING_PTHREADS
-  if (pthread_mutex_unlock(&bnode->bsn_lock) != 0)
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bnode->bsn_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 

@@ -1,3 +1,16 @@
+2003-06-12  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_thread.c (struct bk_threadcomm): Try to preserve
+	ITIMER_PROF so that profiling will work across threads (into one
+	pool--not per-thread).
+
+	* lib/b_stats.pl: Sort stats HTML output.  Not in a more
+	convenient place because it is assumed that this is for developers
+	only.
+
+	* lib/b_stats.c (bk_stat_dump): Prevent profiling while you are
+	dumping profiling (nasty locking problems).
+
 2003-06-12  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_string.c (bk_strhash): make nomodulus the default [we never use

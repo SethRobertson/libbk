@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.15 2003/06/12 19:01:32 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.16 2003/06/13 02:27:59 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -105,6 +105,7 @@ struct bk_threadcomm
 {
   void		       *(*btc_start)(bk_s B, void *opaque); ///< How to start child
   void		       *btc_opaque;		///< Temporary communication (parent->child)
+  struct itimerval	btc_itimer;		///< Itimer for preservation of gprof
   bk_s			btc_B;			///< Baka environment for thread
 };
 
@@ -479,7 +480,7 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
   }
   tcomm->btc_start = start;
   tcomm->btc_opaque = opaque;
-
+  getitimer(ITIMER_PROF, &tcomm->btc_itimer);
   if (!(tcomm->btc_B = bk_general_thread_init(B, threadname)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not thread BAKA\n");
@@ -585,6 +586,7 @@ static void *bk_thread_continue(void *opaque)
   B = tcomm->btc_B;
   subopaque = tcomm->btc_opaque;
   start = tcomm->btc_start;
+  setitimer(ITIMER_PROF, &tcomm->btc_itimer, NULL);
 
   free(opaque);
 
