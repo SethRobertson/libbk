@@ -1,3 +1,12 @@
+2003-02-11  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_memx.c (bk_memx_addstr): Wrapper around bk_memx_get to
+	handle the common(?) case where you want to have an infinately
+	expandable string which keeps getting appended to.
+
+	* lib/b_md5.c (bk_MD5_extract_printable): Make sure that extracted
+	string is in fact null terminated
+
 2003-02-05  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* include/libbk.h: Added bk_bitfield and bk_timespec.

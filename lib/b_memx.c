@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.11 2002/11/11 22:53:58 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.12 2003/02/11 06:22:38 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -248,4 +248,51 @@ bk_memx_lop(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags)
   bm->bm_curused -= count;
 
   BK_RETURN(B,0);    
+}
+
+
+
+/**
+ * Special hack in this is a string.  Create the necessary space and
+ * append the supplied string on the end of the old string.
+ * Maintaining NULL termination, of course.
+ *
+ * @param B Baka Thread/global environment
+ * @param bm Memx structure
+ * @param str String to append
+ * @param flags Fun for the future
+ * @return <i>-1</i> on failure
+ * @return <i>0</i> on success
+ */
+int bk_memx_addstr(bk_s B, struct bk_memx *bm, char *str, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int len;
+  int nullpresent = 0;
+  char *new;
+
+  if (!str || !bm)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  len = strlen(str);
+
+  if (bm->bm_curused)
+    nullpresent = 1;
+  else
+    len++;
+
+  if (!(new = bk_memx_get(B, bm, len, NULL, BK_MEMX_GETNEW)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not obtain space to append string\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (nullpresent)
+    new--;					// We have to overwrite previous NUL
+
+  strcpy(new, str);
+  BK_RETURN(B, 0);
 }

@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_md5.c,v 1.8 2003/01/09 08:03:02 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_md5.c,v 1.9 2003/02/11 06:22:38 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -389,7 +389,7 @@ static void Transform(u_int32_t *buf, u_int32_t *in)
  * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
- *	@param str The string
+ *	@param str The string (which better be big enough!)
  *	@param ctx The MD5 context
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
@@ -413,6 +413,7 @@ bk_MD5_extract_printable(bk_s B, char *str, bk_MD5_CTX *ctx, bk_flags flags)
     snprintf(tmp, sizeof(tmp), "%02x", (ctx->digest[cnt] & 0xff));
     memcpy(str+cnt*2, tmp, 2);
   }
+  str[cnt*2] = 0;				// Null terminate
 
   BK_RETURN(B,0);  
 }

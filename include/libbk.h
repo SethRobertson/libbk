@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.207 2003/02/08 01:57:17 dupuy Exp $
+ * $Id: libbk.h,v 1.208 2003/02/11 06:22:38 seth Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1430,6 +1430,7 @@ extern void bk_memx_destroy(bk_s B, struct bk_memx *bm, bk_flags flags);
 extern void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused, bk_flags flags);
 #define BK_MEMX_GETNEW		  1		///< Get new allocation in @a bk_memx_get
 #define bk_memx_new(B, bm, count, curused, flags) bk_memx_get((B), (bm), (count), (curused), (flags)|BK_MEMX_GETNEW) ///< For alex
+extern int bk_memx_addstr(bk_s B, struct bk_memx *bm, char *str, bk_flags flags);
 extern int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags);
 extern int bk_memx_lop(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags);
 
