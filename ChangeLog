@@ -1,3 +1,11 @@
+2001-11-15  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_relay.c (bk_relay_iohhandler): He is throttled on read,
+	not me, when I write out some data.
+
+	* lib/b_ioh.c (ioh_queue): Queue full return code being dropped by
+	all and sundry.
+
 2001-11-15  Seth Robertson  <seth@yeah.baka.org>
 
 	* lib/b_fun.c (bk_fun_exit): More info about implicit exits

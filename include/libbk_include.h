@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.8 2001/11/13 01:59:27 seth Exp $
+ * $Id: libbk_include.h,v 1.9 2001/11/15 19:52:15 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -57,6 +57,10 @@
 #include <netinet/ip_icmp.h>
 #include <net/ethernet.h>
 #endif /* !_WIN32 || __CYGWIN32__ */
+
+#if defined(USING_DMALLOC)
+#include <dmalloc.h>
+#endif /* USING_DMALLOC */
 
 #ifdef REALLY_NEEDED
 #include <arpa/nameser.h>

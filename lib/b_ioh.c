@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.16 2001/11/15 18:27:21 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.17 2001/11/15 19:52:15 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -485,7 +485,7 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
 
   // <TODO>Consider trying a spontaneous write here, if nbio is set, especially if writes are not pending </TODO>
 
-  BK_RETURN(B, 0);
+  BK_RETURN(B, ret);
 }
 
 
@@ -1236,7 +1236,7 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
 
     // Buffer fully written
     bytes -= bid->bid_inuse;
-    ioh_dequeue(B, ioh, &ioh->ioh_writeq, bid, 0);
+    ioh_dequeue(B, ioh, iohq, bid, 0);
   }
   biq_iterate_done(iohq->biq_queue, iter);
 
@@ -1265,7 +1265,7 @@ static int ioh_dequeue(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *iohq, st
     BK_RETURN(B, -1);
   }
 
-  bk_debug_printf_and(B, 1, "Dequeuing data %p/%d/%d for IOH queue %p\n", bid->bid_data, bid->bid_inuse, bid->bid_allocated, iohq);
+  bk_debug_printf_and(B, 1, "Dequeuing bid %p data %p/%d/%d for IOH queue %p\n", bid, bid->bid_data, bid->bid_inuse, bid->bid_allocated, iohq);
 
   if (biq_delete(iohq->biq_queue, bid) != DICT_OK)
   {
@@ -1317,13 +1317,14 @@ static int ioh_queue(bk_s B, struct bk_ioh_queue *iohq, char *data, u_int32_t al
     BK_RETURN(B,-1);
   }
 
-  bk_debug_printf_and(B, 1, "Enqueuing data %p/%d/%d or flags %x for IOH queue %p\n", data, inuse, allocated, msgflags, iohq);
+  bk_debug_printf_and(B, 1, "Enqueuing data %p/%d/%d or flags %x for IOH queue %p(%d)\n", data, inuse, allocated, msgflags, iohq, iohq->biq_queuelen);
 
   if (BK_FLAG_ISCLEAR(flags, BK_IOH_BYPASSQUEUEFULL))
   {
     if (iohq->biq_queuemax && (inuse + iohq->biq_queuelen > iohq->biq_queuemax))
     {
-      bk_error_printf(B, BK_ERR_NOTICE, "IOH queue %p has filled up\n", iohq);
+      bk_debug_printf_and(B, 1, "IOH queue filling up\n");
+      bk_error_printf(B, BK_ERR_NOTICE, "IOH queue %p has filled up (%d + %d > %d)\n", iohq, inuse, iohq->biq_queuelen, iohq->biq_queuemax);
       BK_RETURN(B,1);
     }
   }
@@ -1393,7 +1394,7 @@ static int ioht_raw_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags fl
     bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, BK_RUN_WANTWRITE, BK_RUN_WANTWRITE, 0);
   }
 
-  BK_ORETURN(B, 0);
+  BK_ORETURN(B, ret);
 }
 
 
@@ -1434,7 +1435,7 @@ static int ioht_block_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags 
       bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, BK_RUN_WANTWRITE, BK_RUN_WANTWRITE, 0);
   }
 
-  BK_RETURN(B, 0);
+  BK_RETURN(B, ret);
 }
 
 
