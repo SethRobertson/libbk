@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.37 2003/11/22 06:07:52 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.38 2003/12/28 04:53:08 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1651,6 +1651,25 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
     as->as_state = bk_net_init_sys_error(B, errno);
     goto error;
   }
+
+  /*
+   * <WARNING>The linux man page says that accept():
+   *
+   *   creates a new connected socket with mostly the
+   *   same properties as s
+   *
+   * Gee, thanks Linux for clearing that up.  The question is, what
+   * properties are not copied?  Do we need to set keepalives et al?
+   * The "official" Linux LKML word is:
+   *
+   *   if you want a well-written, portable program, you
+   *   must set the file descriptor flags after an accept(2) call
+   *
+   * Note this says nothing about socket properties, though.  Should
+   * we call the user back with a socket to allow him to set
+   * properties again?  Or expect them to do it as part of connected?
+   * </WARNING>
+   */
 
   if (!(nas = as_server_copy(B, as, newfd)))
   {
