@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.10 2001/12/21 21:53:32 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.11 2001/12/21 22:42:41 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -82,16 +82,21 @@ do {											\
 
 
 /**
- * Parse a url in a roughly rfc2396 compliant way. This is to say: what it
- * does is rfc2396 compliant; it doesn't go the whole 9 yards. Place
+ * Parse a url in a roughly rfc2396 compliant way. This is to say:
+ * what it does is rfc2396 compliant; it doesn't go the whole 9 yards
+ * (interpreting relative paths WRT path of base document). Place
  * results in returned structure with undeterminable value set to
- * NULL. This funtion sets the BK_URL_foo flag for each sectin foo which is
- * actually located. If the flag BK_URL_STRICT_PARSE is <em>not</em> set,
- * the function will then attempt to apply some fuzzy (non-rfr2396
- * compliant) logic to make things URL's like "foobar.baka.org" come uot
- * more like you might expect in a network enviornment.
+ * NULL. This funtion sets the BK_URL_foo flag for each sectin foo
+ * which is actually located. If the flag BK_URL_STRICT_PARSE is
+ * <em>not</em> set, the function will then attempt to apply some
+ * fuzzy (non-rfr2396 compliant) logic to make things URL's like
+ * "foobar.baka.org" come out more like you might expect in a network
+ * enviornment.
+ *
+ * <TODO> Explain modes </TODO>
  *
  * The RE (from rfc 2396) which we implement is:
+ *	http://www.ics.uci.edu/pub/ietf/uri/#Related
  *     ^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?
  *      12            3  4          5       6  7        8 9
  *
@@ -107,9 +112,9 @@ do {											\
  *
  * Basic URI looks like: <scheme>://<authority><path>?<query>#<fragment>
  *
- *
  *	@param B BAKA thread/global state.
  *	@param url Url to parse.
+ *	@param mode The mode of parsing.
  *	@param flags Flags for the future.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_url on sucess.
@@ -147,11 +152,8 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 
   // Search for scheme.
   start = url;
-  /*
-   * <WANRNING> 
-   * The inclusion if [ is *not* RFC compliant, but necessary to enforce BAKA ipv6 conventions.
-   * </WANRNING> 
-   */
+
+  // The inclusion if [ is compliant with rfc2732 ipv6 literal address parsing
   end = strpbrk(start, ":/?#[");
   
   if (end && *end == ':')
@@ -290,7 +292,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
      * <WARNING>
      * Ordering in the fuzzy logic section is important. For instance you
      * want to make sure you promote (and demote too I suppose) all info
-     * into (out of) the authority section before creatin the host serv
+     * into (out of) the authority section before creating the host serv
      * thingys.
      * </WARNING>
      */
@@ -298,7 +300,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 
     /*
      * If we have a relative path and no authority component (not that we
-     * *can* have an autority component *without* an aboslute path :-)),
+     * *can* have an authority component *without* an aboslute path :-)),
      * then "promote" the first path component to authority.
      */
     if (BK_FLAG_ISCLEAR(bu->bu_flags, BK_URL_FLAG_AUTHORITY) &&
@@ -318,7 +320,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 	  authority_end = path_end;
 
 	/*
-	 * eYou must free this even though it does not appear to be set
+	 * You must free this even though it does not appear to be set
 	 * owing to the fact that in BkUrlParseStrEmpty mode all ptrs are
 	 * strdup'ed to "" even if unset.
 	 */
@@ -353,6 +355,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
       {
 	host++;
 	// ipv6 address (we're mandating square brackets around ipv6's).
+	// XXX - strnchr or strpbrk or something like that
 	if (!(host_end = strchr(host, ']')))
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Malformed ipv6 address\n");
@@ -364,7 +367,10 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 	host_end = host;
       }
 
-      if ((serv = strchr(host_end, ':')))
+      //foo/bar:baz
+
+      // XXX - strnchr or something like that
+      if ((serv = strpbrk(host_end, ":/?#")))
       {
 	if (host_end == host)
 	{
