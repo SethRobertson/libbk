@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_string.c,v 1.2 2002/07/19 21:44:48 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: test_string.c,v 1.3 2002/07/23 15:10:09 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -119,6 +119,10 @@ do { if ((expr) != res) fprintf(stderr, "%s != %s\n", #expr, #res); } while (0)
 void progrun(bk_s B, struct program_config *pconfig)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  bk_flags flags;
+  char buf[512];
+  char *onebit = "\1onebit";
+  char *twobits = "\1onebit\3threebit";
 
   TEST(bk_strnspacecmp(B, "a", "b", 1, 1), -1);
 
@@ -129,6 +133,61 @@ void progrun(bk_s B, struct program_config *pconfig)
   TEST(bk_strnspacecmp(B, "a b", "a \t b", 2, 5), 0);
 
   TEST(bk_strnspacecmp(B, "a \t b", "a b", 5, 3), 0);
+
+  // <TODO>Many functions need test cases (some are in test_stringconv)</TODO>
+
+  // check too little space
+  TEST(bk_string_flagtoa(B, 5, buf, 2, NULL, 0), -1);
+
+  TEST(bk_string_atoflag(B, buf, &flags, NULL, 0), 1);
+
+  // check basic hex
+  TEST((bk_string_flagtoa(B, 5, buf, 4, NULL, 0),
+	strcmp(buf, "0x5")), 0);
+  TEST((bk_string_flagtoa(B, 5, buf, 256, NULL, 0),
+	strcmp(buf, "0x5")), 0);
+
+  TEST((bk_string_atoflag(B, buf, &flags, NULL, 0),flags), 5);
+
+  // check too little space
+  TEST(bk_string_flagtoa(B, 5, buf, 3, onebit, 0), -1);
+
+  TEST(bk_string_atoflag(B, buf, &flags, twobits, 0), 1);
+
+  // check too little space for symbolic
+  TEST((bk_string_flagtoa(B, 5, buf, 4, onebit, 0),
+	strcmp(buf, "0x5")), 0);
+  TEST((bk_string_flagtoa(B, 5, buf, 10, onebit, 0),
+	strcmp(buf, "0x5")), 0);
+  TEST((bk_string_flagtoa(B, 5, buf, 19, twobits, 0),
+	strcmp(buf, "0x5")), 0);
+
+  // check partial symbolic
+  TEST((bk_string_flagtoa(B, 5, buf, 11, onebit, 0),
+	strcmp(buf, "onebit~0x5")), 0);
+
+  TEST((bk_string_atoflag(B, buf, &flags, NULL, 0),flags), 5);
+
+  TEST((bk_string_flagtoa(B, 5, buf, 256, onebit, 0),
+	strcmp(buf, "onebit~0x5")), 0);
+
+  TEST((bk_string_atoflag(B, buf, &flags, twobits, 0),flags), 5);
+
+  TEST((bk_string_flagtoa(B, 7, buf, 256, twobits, 0),
+	strcmp(buf, "onebit,threebit~0x7")), 0);
+
+  TEST((bk_string_atoflag(B, buf, &flags, twobits, 0),flags), 7);
+
+  // check full symbolic
+  TEST((bk_string_flagtoa(B, 5, buf, 20, twobits, 0),
+	strcmp(buf, "onebit,threebit=0x5")), 0);
+
+  TEST((bk_string_atoflag(B, buf, &flags, onebit, 0),flags), 5);
+
+  TEST((bk_string_flagtoa(B, 5, buf, 256, twobits, 0),
+	strcmp(buf, "onebit,threebit=0x5")), 0);
+
+  TEST((bk_string_atoflag(B, buf, &flags, twobits, 0),flags), 5);
 
   BK_VRETURN(B);
 }

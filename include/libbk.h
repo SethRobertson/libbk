@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.157 2002/07/23 02:56:28 dupuy Exp $
+ * $Id: libbk.h,v 1.158 2002/07/23 15:10:08 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1347,13 +1347,14 @@ extern char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_
 #define BK_STRING_QUOTE_NONPRINT	0x01	///< During bk_string_quote: Quote non-printable
 #define BK_STRING_QUOTE_NULLOK		0x02	///< During bk_string_quote: Output NULL
 #define BK_NULLSTR			"NULL"  ///< During bk_string_quote: String rep of NULL
-char *bk_string_flagtoa(bk_s B, const bk_flags src, bk_flags flags);
-extern int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, bk_flags flags);
+extern int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *names, bk_flags flags);
+extern int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names, bk_flags flags);
 extern ssize_t bk_strnlen(bk_s B, const char *s, size_t max);
 extern char *bk_encode_base64(bk_s B, const bk_vptr *str, const char *eolseq);
 extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
 extern char *bk_strndup(bk_s B, const char *s, size_t len);
 extern char *bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len);
+extern char *bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t len);
 extern void *bk_memrchr(bk_s B, const void *buffer, int character, size_t len);
 extern int bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2);
 extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);

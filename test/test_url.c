@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_url.c,v 1.13 2002/07/19 21:44:48 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: test_url.c,v 1.14 2002/07/23 15:10:09 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -211,7 +211,6 @@ void progrun(bk_s B, struct program_config *pconfig)
   u_int nextstart;
   char *params;
   char *parampath;
-  char *paramquery;
   static char *numbers[] =
     {
       "zero",

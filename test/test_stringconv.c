@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.8 2002/07/19 21:44:48 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.9 2002/07/23 15:10:09 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -54,6 +54,8 @@ char *prompts[] =
 {
   "String to unsigned 32 bit integer conversion.  Please enter number:  ",
   "String to signed 32 bit integer conversion.  Please enter number:  ",
+  "String to unsigned 64 bit integer conversion.  Please enter number:  ",
+  "String to signed 64 bit integer conversion.  Please enter number:  ",
   "String hash.  Please enter string to hash:  ",
   "String tokenization.  Please enter arguments followed by the string to tokenize.\n  <limit>#<spliton>#<flagbits>#<string to tokenize>\n  0x01 - Multisplit (foo::bar are two tokens, not three)\n  0x02 - Singlequote quoting\n  0x04 - Doublequote quoting\n  0x10 - Backslash quoting of next character\n  0x20 - Backslash character interpolation\\n\n  0x40 - Backslash octal number ascii interpolation\010\n\n",
   NULL,
@@ -131,6 +133,8 @@ void progrun(bk_s B, struct program_config *pconfig)
   char line[MAXLINE];
   u_int32_t ui32;
   int32_t i32;
+  u_int64_t ui64;
+  int64_t i64;
   int ret;
   int state=0;
 
@@ -138,6 +142,7 @@ void progrun(bk_s B, struct program_config *pconfig)
   fflush(stdout);
   while (fgets(line,sizeof(line),stdin))
   {
+    printf("%s", line);
     bk_string_rip(B, line, NULL, 0);		/* Nuke CRLF */
 
     if (!strcmp(line,"END"))
@@ -162,10 +167,26 @@ void progrun(bk_s B, struct program_config *pconfig)
 	  printf("Converted to 0x%x or %d or 0%o\n",(u_int)i32,i32,(u_int)i32);
 	break;
       case 2:
+	ui64 = ~0;
+	ret = bk_string_atoull(B, line, &ui64, 0);
+	if (ret < 0)
+	  printf("bk_string_atou failed with %d -- converted to 0x%llx or %llu or 0%llo\n",ret,ui64,ui64,ui64);
+	else
+	  printf("Converted to 0x%llx or %llu or 0%llo\n",ui64,ui64,ui64);
+	break;
+      case 3:
+	i64 = ~0;
+	ret = bk_string_atoill(B, line, &i64, 0);
+	if (ret < 0)
+	  printf("bk_string_atoi failed with %d -- converted to 0x%llx or %lld or 0%llo\n",ret,(u_int64_t)i64,i64,(u_int64_t)i64);
+	else
+	  printf("Converted to 0x%llx or %lld or 0%llo\n",(u_int64_t)i64,i64,(u_int64_t)i64);
+	break;
+      case 4:
 	ui32 = bk_strhash(line, BK_STRHASH_NOMODULUS);
 	printf("Hashed to 0x%x\n",ui32);
 	break;
-      case 3:
+      case 5:
 	{
 	  char *split, *flag,*string;
 	  u_int limit;

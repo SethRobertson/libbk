@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.46 2002/07/23 02:56:29 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.47 2002/07/23 15:10:08 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -44,6 +44,10 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define SUBSTATE(x)		state &= ~(x)	///< Get rid of superstate
 
 #define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	///< Check to see if the limit on numbers of tokens has been reached or not.  Yes, limit>1 and limit-- will always have the same truth value
+
+#define FLAG_APPROX '~'
+#define FLAG_EQUAL  '='
+#define FLAG_SEP    ','
 
 
 static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, int *sign, bk_flags flags);
@@ -338,15 +342,17 @@ int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags)
   u_int64_t tmp;
   int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
 
-  /* We could trivially check for 32 bit overflow, but what is the proper response? */
-  *value = (u_int32_t)tmp;
-
-  /* We are pretending number terminated at the minus sign */
-  if (sign < 0)
+  if (ret >= 0)
   {
-    *value = 0;
-    if (ret == 0) ret=1;
+    if (sign < 0 || tmp > UINT32_MAX)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "%s outside range of u_int32_t\n", string);
+      ret = -1;
+    }
   }
+
+  if (ret >= 0)
+    *value = tmp;
 
   BK_RETURN(B, ret);
 }
@@ -354,7 +360,7 @@ int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags)
 
 
 /**
- * Convert ascii string to signed int
+ * Convert ascii string to signed int32
  *
  *	@param B BAKA Thread/global state
  *	@param string String to convert
@@ -373,15 +379,22 @@ int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags)
   u_int64_t tmp;
   int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
 
+  if (ret >= 0)
+  {
+    if (sign == -1 && tmp == -(int64_t)INT32_MIN) // min is -(max + 1)
+      sign = 1;					// wrap obviates sign convert
+    else if (tmp > INT32_MAX)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "%s outside range of int32_t\n", string);
+      ret = -1;
+    }
+  }
 
-  /* We could trivially check for 32 bit overflow, but what is the proper response? */
-  *value = tmp;
-
-  /* Not enough bits -- I guess this is still a pos */
-  if (*value < 0)
-    *value = 0;
-
-  *value *= sign;
+  if (ret >= 0)
+  {
+    *value = tmp;
+    *value *= sign;
+  }
 
   BK_RETURN(B, ret);
 }
@@ -408,14 +421,14 @@ int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flag
   u_int64_t tmp;
   int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
 
-  *value = tmp;
-
-  /* We are pretending number terminated at the minus sign */
-  if (sign < 0)
+  if (sign < 0)					// not a valid unsigned
   {
-    *value = 0;
-    if (ret == 0) ret=1;
+    bk_error_printf(B, BK_ERR_ERR, "%s outside range of u_int64_t\n", string);
+    ret = -1;
   }
+
+  if (ret >= 0)
+    *value = tmp;
 
   BK_RETURN(B, ret);
 }
@@ -442,13 +455,22 @@ int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags)
   u_int64_t tmp;
   int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
 
-  *value = tmp;
+  if (ret >= 0)
+  {
+    if (sign == -1 && (int64_t)tmp == INT64_MIN) // min is -(max + 1)
+      sign = 1;					// wrap obviates sign convert
+    else if (0 > (int64_t)tmp)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "%s outside range of int64_t\n", string);
+      ret = -1;
+    }
+  }
 
-  /* Not enough bits -- I guess this is still a pos */
-  if (*value < 0)
-    *value = 0;
-
-  *value *= sign;
+  if (ret >= 0)
+  {
+    *value = tmp;
+    *value *= sign;
+  }
 
   BK_RETURN(B, ret);
 }
@@ -477,7 +499,9 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
   signed char decode[256];
   int base;
   u_int tmp;
+  u_int64_t val;
   int neg = 1;
+  int digits = -1;
 
   if (!string || !value || !sign)
   {
@@ -497,12 +521,12 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
   while (isspace(*string))
     string++;
 
+  // empty/whitespace string is a best-effort zero
   if (!*string)
   {
-    *sign = 1;
     *value = 0;
-
-    BK_RETURN(B,1);
+    *sign = 1;
+    BK_RETURN(B, 1);
   }
 
   /* Sign determination */
@@ -521,6 +545,7 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
     {
     case 'x':
     case 'X':
+      digits = 1;
       base = 16; string += 2; break;
     case '0':
     case '1':
@@ -530,6 +555,7 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
     case '5':
     case '6':
     case '7':
+      digits = 0;
       base = 8; string += 1; break;
     default:
       base = 10; break;
@@ -538,21 +564,39 @@ static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, in
   else
     base = 10;
 
-  *value = 0;
+  val = 0;
+
   while (*string)
   {
+    u_int64_t oldval = val;
     int x = decode[(int)*string++];
 
     /* Is this the end of the number? */
     if (x < 0 || x >= base)
+    {
+      string--;					// point back at "end" char
       break;
+    }
 
-    *value *= base;
-    *value += x;
+    digits = 0;
+
+    val *= base;
+    val += x;
+
+    if (val < oldval)				// cheezy overflow detection
+    {
+      bk_error_printf(B, BK_ERR_ERR, "%s outside range of u_int64_t\n", string);
+      BK_RETURN(B, -1);
+    }
   }
 
+  if (digits < 0)
+    BK_RETURN(B, -1);				// we saw trash, but no digits
+
   *sign = neg;
-  BK_RETURN(B, *((u_char *)string));
+  *value = val;
+  // digits == 1 iff we saw only "0x"
+  BK_RETURN(B, digits ? 1 : (*string != '\0'));
 }
 
 
@@ -1109,27 +1153,106 @@ char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags f
 
 
 /**
- * Convert flags (number/bitfield) to a string (ascii hex encoding)
- *  Reverse of @a bk_string_atoflag
+ * Convert flags to a string.
+ *
+ * Will use symbolic flags as provided by %b-style names if there is enough
+ * room and there are names for all bits set; always appends hex encoding.
+ * Reverse of @a bk_string_atoflag().
  *
  *	@param B BAKA Thread/global state
- *	@param src Source number to convert
- *	@param flags Fun for the future
- *	@return <i>NULL</i> on allocation failure
- *	@return <br><i>string</i> on success (you must free)
+ *	@param src Source flags to convert
+ *	@param dst Copy-out string
+ *	@param len Length of copy-out buffer
+ *	@param names Flag names, encoded as "\1flagbit1\2bittwo\3bitthree" etc.
+ *	@param flags Future meta-ness.
+ *	@return <i>-1</i> Call failure, not enough room
+ *	@return <br><i>0</i> on success
+ *	@return <br>Copy-out <i>dst</i>
  */
-char *bk_string_flagtoa(bk_s B, const bk_flags src, bk_flags flags)
+int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *names, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char *ret;
-  char scratch[16];
+  bk_flags in;
+  char *out;
+  size_t outlen;
+  int anybits = 0;
+  int ret;
 
-  snprintf(scratch, sizeof(scratch), "0x%x",src);
+#define OUT(char) do {*out++ = (char); if (!--outlen) goto justhex;} while (0)
 
-  if (!(ret = strdup(scratch)))
+  if (!dst || !len || !src)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create flags string: %s\n",strerror(errno));
-    BK_RETURN(B, NULL);
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (names)					// try symbolic representation
+  {
+    int bit;
+
+    in = src;
+    out = dst;
+    outlen = len;
+
+    while ((bit = *names++) != 0)
+    {
+      bit = 1 << (bit - 1);
+
+      if (BK_FLAG_ISSET(in, bit))
+      {
+	int c;
+
+	if (anybits)
+	  OUT(FLAG_SEP);
+	anybits = 1;
+
+	for ( ; (c = *names) > 32; names++)
+	  OUT(c);
+
+	if (names[-1] <= 32)			// stupid coder wrote "\1\2"
+	{
+	  bk_error_printf(B, BK_ERR_WARN, "Invalid flag names string %s\n",
+			  names);
+	  goto justhex;
+	}
+
+	BK_FLAG_CLEAR(in, bit);
+      }
+      else
+      {
+	for ( ; *names > 32; names++)
+	  ;					// skip this (unset) flag
+      }
+    }
+
+    if (anybits)
+      if (in != 0)				// non-symbolic bits set
+	OUT(FLAG_APPROX);			// mark hex as authoritative
+      else
+	OUT(FLAG_EQUAL);
+
+    in = src;
+  }
+  else
+  {
+  justhex:					// can't do symbolic rep
+    in = src;
+    out = dst;
+    outlen = len;
+  }
+
+  ret = snprintf(out, outlen, "0x%x", in);
+
+  if ((size_t)ret >= outlen)
+  {						// not enough room
+    if (anybits)
+    {
+      anybits = 0;
+      goto justhex;
+    }
+
+    *dst = '\0';				// ensure reasonableness
+    ret = -1;
   }
 
   BK_RETURN(B, ret);
@@ -1138,19 +1261,26 @@ char *bk_string_flagtoa(bk_s B, const bk_flags src, bk_flags flags)
 
 
 /**
- * Convert a string to flags.  Reverse of @a bk_string_flagtoa.
+ * Convert a string to flags.
+ *
+ * Decodes symbolic flags if present and all flags are provided in names;
+ * otherwise performs hex decoding.  Reverse of @a bk_string_flagtoa.
  *
  *	@param B BAKA Thread/global state
  *	@param src Source ascii string to convert
  *	@param dst Copy-out flags
- *	@param flags Fun for the future
+ *	@param names Flag names, encoded as "\1flagbit1\2bittwo\3bitthree" etc.
+ *	@param flags Future meta-ness.
  *	@return <i>-1</i> Call failure, not a valid string
  *	@return <br><i>0</i> on success
  *	@return <br>Copy-out <i>dst</i>
  */
-int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, bk_flags flags)
+int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, const char *names, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  const char *in = src;
+  const char *end;
+  int ret;
 
   if (!dst || !src)
   {
@@ -1158,13 +1288,54 @@ int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  if (bk_string_atou(B, src, dst, 0) < 0)
+  if ((end = strrchr(in, FLAG_APPROX)))		// hex is canonical
+    goto justhex;
+
+  if ((end = strrchr(in, FLAG_EQUAL)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not convert flags string\n");
-    BK_RETURN(B, -1);
+    const char *tok;
+    const char *sep;
+    const char *symbol;
+    bk_flags out = 0;
+
+    for (tok = in; tok < end; tok = sep + 1)
+    {
+      if (!(sep = strchr(tok, FLAG_SEP)))
+	sep = end;
+
+      if (tok == sep)				// empty symbol; bail
+      {
+	bk_error_printf(B, BK_ERR_WARN, "Flags string \"%s\" has empty symbol\n",
+			src);
+	goto justhex;
+      }
+	
+      // not found, or not full match (not preceded and followed by bit/NUL)
+      if (!(symbol = bk_strstrn(B, names + 1, tok, sep - tok))
+	  || symbol[sep - tok] > 32 || symbol[-1] > 32)
+      {
+	bk_error_printf(B, BK_ERR_WARN, "Flags string \"%s\" has symbol(s) not in \"%s\"\n",
+			src, names);
+	goto justhex;
+      }
+
+      BK_FLAG_SET(out, 1 << (symbol[-1] - 1));
+    }
+
+    *dst = out;
+    BK_RETURN(B, 0);
   }
 
-  BK_RETURN(B, 0);
+ justhex:
+  if (end)
+    in = end + 1;
+
+  ret = bk_string_atou(B, in, dst, 0);
+  if (ret)
+    bk_error_printf(B, ret > 0 ? BK_ERR_WARN : BK_ERR_ERR,
+		    "Could not convert flags string \"%s\"\n", src);
+
+  BK_RETURN(B, ret);
 }
 
 
@@ -1515,7 +1686,6 @@ bk_strndup(bk_s B, const char *s, size_t len)
 
 
 
-// <TODO>This can be removed ifdef HAVE_MEMMEM once B is gone</TODO>
 /**
  * Search for a fixed string within a buffer without exceeding a specified
  * max.  This is like @a strstr(3) but doesn't assume that the supplied
@@ -1566,7 +1736,74 @@ bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len)
 
   BK_RETURN(B,NULL);  
 #else  /* !HAVE_MEMMEM */
+  if (!haystack || !needle)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
   BK_RETURN(B, memmem(haystack, len, needle, strlen(needle)));
+#endif /* !HAVE_MEMMEM */
+}
+
+
+
+/**
+ * Search for a bounded string within a null-terminated buffer.  This is like
+ * @a strstr(3) but the needle is not assumed to be null terminated.  The
+ * haystack is assumed to be null terminated.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param haystack The string in which to search.
+ *	@param needle The buffer to search for. 
+ *	@param nlen The length of needle.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return pointer to @a needle in @a haystack on success.
+ */
+char *
+bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t nlen)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+#ifndef HAVE_MEMMEM
+  const char *p;
+  const char *q;
+  const char *upper_bound;
+  size_t len;
+
+  if (!haystack || !needle)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  p = haystack;
+
+  len = strlen(haystack);
+  if (len >= nlen)
+  {
+    upper_bound = haystack + len - nlen;
+  
+    while(p < upper_bound)
+    {
+      if (!(q = memchr(p, *needle, upper_bound - p)))
+	break;					// Not found
+
+      if (BK_STREQN(q, needle, nlen))
+	BK_RETURN(B, (char *)q);      
+      
+      p = q + 1;
+    }
+  }
+
+  BK_RETURN(B,NULL);  
+#else  /* !HAVE_MEMMEM */
+  if (!haystack || !needle)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  BK_RETURN(B, memmem(haystack, strlen(haystack), needle, nlen);
 #endif /* !HAVE_MEMMEM */
 }
 
