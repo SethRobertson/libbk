@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.101 2004/02/05 08:58:47 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.102 2004/02/06 01:42:00 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1433,9 +1433,8 @@ int
 bk_memdiff(bk_s B, const void *b1, const void *b2, u_int len1, u_int len2)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-#ifdef BROKEN_RT2904
-  const char *s1 = b1;
-  const char *s2 = b2;
+  const u_char *s1 = b1;
+  const u_char *s2 = b2;
   u_int i;
   int res = 0;
 
@@ -1463,14 +1462,6 @@ bk_memdiff(bk_s B, const void *b1, const void *b2, u_int len1, u_int len2)
     i = -i;
 
   BK_RETURN(B, i + res);
-#else
-  int res = memcmp(b1, b2, MIN(len1,len2));
-
-  if (!res)
-    res = len1-len2;
-
-  BK_RETURN(B, res);
-#endif
 }
 
 

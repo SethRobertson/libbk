@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_string.c,v 1.11 2003/12/02 23:17:21 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: test_string.c,v 1.12 2004/02/06 01:42:01 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -158,6 +158,18 @@ void progrun(bk_s B, struct program_config *pconfig)
   TEST(bk_memdiff(B, "ab", "ade", 2, 3), INT_MIN + 768 - 2);
 
   TEST(bk_memdiff(B, "add", "ade", 3, 3), INT_MIN + 1024 - 1);
+
+  TEST(bk_memdiff(B, "\177\020\377\377", "\177\020\177\062", 4, 4),
+       -(INT_MIN + 1024 - 128));
+
+  TEST(bk_memdiff(B, "\177\020\000\000", "\177\020\177\062", 4, 4),
+       INT_MIN + 1024 - 127);
+
+  TEST(bk_memdiff(B, "\377\377\377\377", "\177\020\177\062", 4, 4),
+       -(INT_MIN + 512 - 128));
+
+  TEST(bk_memdiff(B, "\000\000\000\000", "\177\020\177\062", 4, 4),
+       INT_MIN + 512 - 127);
 
   // <TODO>Many functions need test cases (some are in test_stringconv)</TODO>
 

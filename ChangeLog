@@ -1,7 +1,10 @@
+2004-02-05  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_string.c (bk_memdiff): #2904: use u_char comparison
+
 2004-02-05  Seth Robertson  <seth@startide.sysdetect.com>
 
-	* lib/b_string.c (bk_memdiff): See RT 2904.  Bug still
-	outstanding.
+	* lib/b_string.c (bk_memdiff): #2904: workaround using memcmp
 
 	* xml/b_search.c (bkxml_nodesearch): Actually set *last like we
 	say we will
