@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.11 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.12 2005/01/23 07:33:13 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -296,7 +296,7 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
     // <TODO>Use SSL_CTX_use_certificate_chain_file()?</TODO>
     if (SSL_CTX_use_certificate_file(ssl_ctx->bsc_ssl_ctx, cert_path, SSL_FILETYPE_PEM) < 1)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not set SSL certificate: %s.\n", ERR_error_string(ERR_get_error(), NULL));
+      bk_error_printf(B, BK_ERR_ERR, "Could not set SSL certificate %s: %s.\n", cert_path, ERR_error_string(ERR_get_error(), NULL));
       goto error;
     }
   }
@@ -305,7 +305,7 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
   {
     if (SSL_CTX_use_PrivateKey_file(ssl_ctx->bsc_ssl_ctx, key_path, SSL_FILETYPE_PEM) < 1)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not set SSL private key: %s.\n", ERR_error_string(ERR_get_error(), NULL));
+      bk_error_printf(B, BK_ERR_ERR, "Could not set SSL private key %s: %s.\n", key_path, ERR_error_string(ERR_get_error(), NULL));
       goto error;
     }
   }
