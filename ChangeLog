@@ -1,3 +1,7 @@
+2004-11-22    <jbl@localhost.localdomain>
+
+	* include/libbk.h (BK_STRCMP): Added BK_STRCMP.
+
 2004-11-12    <jbl@localhost.localdomain>
 
 	* lib/b_ringdir.c (bk_ringdir_get_status): Added a settings file

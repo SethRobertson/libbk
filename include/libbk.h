@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.311 2004/11/12 22:15:52 lindauer Exp $
+ * $Id: libbk.h,v 1.312 2004/11/23 03:39:53 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -141,6 +141,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_FLAG_ALLSET(var,bit) (((var) & (bit)) == (bit)) ///< Test if all bits are set in a simple bitfield
 #define BK_FLAG_ISSET(var,bit) ((var) & (bit))	///< Test if bit (any of the bits) is set in a simple bitfield
 #define BK_FLAG_ISCLEAR(var,bit) (!((var) & (bit))) ///< Test of bit is clear in a simple bitfield
+#define BK_STRCMP(a,b) (((a) && (b)) ? strcmp((a),(b)) : ((a) ? 1 : -1)) ///< Strcmp with nulls allowed
 #define BK_STREQ(a,b) ((a) && (b) && !strcmp((a),(b))) ///< Are two strings equal
 #define BK_STREQN(a,b,n) ((a) && (b) && ((int)n>=0) && !strncmp(a,b,n)) ///< Are two strings equal for the first n characters?
 #define BK_STREQCASE(a,b) ((a) && (b) && !strcasecmp((a),(b))) ///< Are two strings equal (ignoring case)
