@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.26 2002/05/09 00:03:38 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.27 2002/06/21 23:31:52 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -180,6 +180,8 @@ main(int argc, char **argv, char **envp)
     bk_exit(B, 254);
   }
     
+  poptFreeContext(optCon);
+
   if (proginit(B, pconfig) < 0)
   {
     bk_die(B, 254, stderr, _("Could not perform program initialization\n"), BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
