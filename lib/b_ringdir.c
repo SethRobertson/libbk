@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.19 2004/12/21 17:50:31 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.20 2005/02/07 20:23:01 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -329,6 +329,13 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
     if ((*brd->brd_brc.brc_open)(B, brd->brd_opaque, brd->brd_cur_filename, BkRingDirCallbackSourceInit, ringdir_open_flags))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open %s\n", brd->brd_cur_filename);
+      goto error;
+    }
+
+    if (BK_FLAG_ISCLEAR(brd->brd_flags,BK_RINGDIR_FLAG_NO_CHECKPOINT) &&
+	((*brd->brd_brc.brc_chkpnt)(B, brd->brd_opaque, BkRingDirChkpntActionChkpnt, brd->brd_directory, brd->brd_pattern, &brd->brd_cur_file_num, BkRingDirCallbackSourceRotate, 0) < 0))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Failed to checkpoint\n");
       goto error;
     }
 
