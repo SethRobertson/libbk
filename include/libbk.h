@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.94 2001/12/31 23:37:41 jtt Exp $
+ * $Id: libbk.h,v 1.95 2002/01/02 17:05:34 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -760,12 +760,12 @@ struct bk_url
 #define BK_URL_FLAG_PATH		0x4	///< Path section set.
 #define BK_URL_FLAG_QUERY		0x8	///< Query section set.
 #define BK_URL_FLAG_FRAGMENT		0x10	///< Fragment section set.
-#define BK_URL_FLAG_HOST		0x20	///< Fragment section set.
-#define BK_URL_FLAG_SERV		0x40	///< Fragment section set.
+#define BK_URL_FLAG_HOST		0x20	///< Host authority section set.
+#define BK_URL_FLAG_SERV		0x40	///< Service authority section set.
 #define BK_URL_FLAG_STRICT_PARSE	0x80	///< Don't do BAKA fuzzy logic.
   bk_url_parse_mode_e		bu_mode;	///< Mode of URL
   char *			bu_url;		///< Original URL
-  union bk_url_element_u	bu_scheme;	///< Sheme specification
+  union bk_url_element_u	bu_scheme;	///< Scheme specification
   union bk_url_element_u	bu_authority;	///< Authority specification
   union bk_url_element_u	bu_path;	///< Path specification
   union bk_url_element_u	bu_query;	///< Path specification
