@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_search.c,v 1.9 2003/11/15 00:51:57 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_search.c,v 1.10 2003/12/08 20:34:47 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -237,4 +237,58 @@ bkxml_attrnode_valbyname(bk_s B, xmlNodePtr node, const char *findname, bk_flags
   }
   
   BK_RETURN(B, bkxml_attrnode_data(B, NULL, (xmlNodePtr)attr, 0));  
+}
+
+
+
+/**
+ * Check if next (or this) xml ELEMENT node has given name. Copy out new
+ * node location in nodep (if it exists). If *nodep == node and the next
+ * node does not match, do *not* alter nodep.
+ *
+ * This function is a more restrictive version of bkxml_nodesearch() above
+ * which allows you to essentially demand "dtd correctness" by always
+ * looking for what is supposed to come next rather than just locating all
+ * the relevent tags in any order.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param node. Check starts from this node.
+ *	@param name. Name to check for.
+ *	@param nodep. Optional CO xmlNodePtr ptr pointing at next node.
+ *	@param flags Flags.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ *	@return <i>1</i> if next element node is not name.
+ */
+int
+bkxml_check_next_node_name(bk_s B, xmlNodePtr node, const xmlChar *name, xmlNodePtr *nodep, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsysd-jobstep");
+
+  if (!node || !name)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  // Initialize nodep if it is not simply a reference to node.
+  if (nodep && *nodep != node)
+    *nodep = NULL;
+
+  if (BK_FLAG_ISCLEAR(flags, BKXML_CHECK_NEXT_NODE_NAME_CHECK_THIS_NODE))
+    node = node->next;
+
+  // Find next node.
+  while(node->type != XML_ELEMENT_NODE)
+    node = node->next;
+
+  // Compare
+  if (!xmlStrEqual(node->name, name))
+    BK_RETURN(B,1);    
+
+  // Copy out if desired.
+  if (nodep)
+    *nodep = node;
+
+  BK_RETURN(B,0);  
 }

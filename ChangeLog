@@ -1,3 +1,9 @@
+2003-12-08  James Tanis  <jtt@pearl.sysdetect.com>
+
+	* xml/b_search.c (bkxml_check_next_node_name): Function to check
+	the name of the next element node (replaces many uses of
+	bkxml_nodesearch() while requiring "dtd correctness")
+
 2003-12-05  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h: declare bk_vptr_* functions

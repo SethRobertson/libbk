@@ -1,5 +1,5 @@
 /*
- * $Id: libbkxml.h,v 1.7 2003/11/15 00:51:58 jtt Exp $
+ * $Id: libbkxml.h,v 1.8 2003/12/08 20:34:48 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -33,6 +33,7 @@ extern char *bkxml_attrnode_data(bk_s B, xmlDocPtr doc, xmlNodePtr node, bk_flag
 extern xmlDocPtr bkxml_minimize_doc(bk_s B, xmlDocPtr input, bk_flags flags);
 extern int bkxml_md5_doc(bk_s B, xmlDocPtr input, char **digestp, char **min_textp, bk_flags flags);
 extern char *bkxml_attrnode_valbyname(bk_s B, xmlNodePtr node, const char *findname, bk_flags flags);
-
+extern int bkxml_check_next_node_name(bk_s B, xmlNodePtr node, const xmlChar *name, xmlNodePtr *nodep, bk_flags flags);
+#define BKXML_CHECK_NEXT_NODE_NAME_CHECK_THIS_NODE 	0x1 ///< Should we consider this node 
 
 #endif /* _LIBBKXML_h_ */
