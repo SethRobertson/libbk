@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.5 2001/07/08 23:20:20 jtt Exp $
+# $Id: Makefile,v 1.6 2001/08/27 03:10:24 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -16,6 +16,7 @@
 #
 
 BK_SIMPLE_PROGS=proto
+
 
 GROUPTOP=..
 GROUPSUBDIR=src

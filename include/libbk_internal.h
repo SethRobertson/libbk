@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.10 2001/08/17 04:12:53 seth Exp $
+ * $Id: libbk_internal.h,v 1.11 2001/08/27 03:10:22 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -102,6 +102,18 @@ struct bk_fun
   void		*bf_args;
 };
 
+
+
+/* b_memx.c */
+struct bk_memx
+{
+  void		*bm_array;			/* Extensible memory */
+  size_t	bm_unitsize;			/* Size of units */
+  size_t	bm_curalloc;			/* Allocated memory */
+  size_t	bm_curused;			/* Current used */
+  u_int		bm_incr;			/* Increment amount */
+  bk_flags	bm_flags;			/* Other info */
+};
 
 
 /* b_run.c */

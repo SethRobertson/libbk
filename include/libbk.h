@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.21 2001/08/17 04:12:53 seth Exp $
+ * $Id: libbk.h,v 1.22 2001/08/27 03:10:22 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -91,14 +91,14 @@ struct bk_general
 #define BK_BGFLAGS_DEBUGON	2		/* Is debugging on? */
 #define BK_BGFLAGS_SYSLOGON	4		/* Is syslog on? */
 };
-#define BK_GENERAL_ERROR(B)	((B)->bt_general->bg_error)
-#define BK_GENERAL_DEBUG(B)	((B)->bt_general->bg_debug)
-#define BK_GENERAL_REINIT(B)	((B)->bt_general->bg_reinit)
-#define BK_GENERAL_DESTROY(B)	((B)->bt_general->bg_destroy)
-#define BK_GENERAL_PROCTITLE(B) ((B)->bt_general->bg_proctitle)
-#define BK_GENERAL_CONFIG(B)	((B)->bt_general->bg_config)
-#define BK_GENERAL_PROGRAM(B)	((B)->bt_general->bg_program)
-#define BK_GENERAL_FLAGS(B)	((B)->bt_general->bg_flags)
+#define BK_GENERAL_ERROR(B)	(B?(B)->bt_general->bg_error:(struct bk_error *)bk_nullptr)
+#define BK_GENERAL_DEBUG(B)	(B?(B)->bt_general->bg_debug:(struct bk_debug *)bk_nullptr)
+#define BK_GENERAL_REINIT(B)	(B?(B)->bt_general->bg_reinit:(struct bk_funlist *)bk_nullptr)
+#define BK_GENERAL_DESTROY(B)	(B?(B)->bt_general->bg_destroy:(struct bk_funlist *)bk_nullptr)
+#define BK_GENERAL_PROCTITLE(B) (B?(B)->bt_general->bg_proctitle:(struct bk_proctitle *)bk_nullptr)
+#define BK_GENERAL_CONFIG(B)	(B?(B)->bt_general->bg_config:(struct bk_config *)bk_nullptr)
+#define BK_GENERAL_PROGRAM(B)	(B?(B)->bt_general->bg_program:(char *)bk_nullptr)
+#define BK_GENERAL_FLAGS(B)	(B?(B)->bt_general->bg_flags:bk_zeroint)
 #define BK_GENERAL_FLAG_ISFUNON(B)   BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON)
 #define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON)
 #define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON)
@@ -210,6 +210,8 @@ extern void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, 
 #define BK_SYSLOG_FLAG_NOFUN 1			/* Don't want function name included */
 #define BK_SYSLOG_FLAG_NOLEVEL 2		/* Don't want error level included */
 extern const char *bk_general_errorstr(bk_s B, int level);
+extern void *bk_nullptr;			/* NULL pointer junk */
+extern int bk_zeroint;				/* Zero integer junk */
 
 struct bk_config
 {
@@ -273,12 +275,20 @@ extern const char *bk_fun_funname(bk_s B, int ancestordepth, bk_flags flags);
 
 
 /* b_funlist.c */
-extern struct bk_funlist *bk_funlist_init(bk_s B);
+extern struct bk_funlist *bk_funlist_init(bk_s B, bk_flags flags);
 extern void bk_funlist_destroy(bk_s B, struct bk_funlist *funlist);
-extern void bk_funlist_call(bk_s B, struct bk_funlist *funlist, u_int aux);
-extern int bk_funlist_insert(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(bk_s, void *, u_int), void *args);
-extern int bk_funlist_delete(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(bk_s, void *, u_int), void *args);
+extern void bk_funlist_call(bk_s B, struct bk_funlist *funlist, u_int aux, bk_flags flags);
+extern int bk_funlist_insert(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(bk_s, void *, u_int), void *args, bk_flags flags);
+extern int bk_funlist_delete(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(bk_s, void *, u_int), void *args, bk_flags flags);
 
+
+/* b_memx.c */
+extern struct bk_memx *bk_memx_create(bk_s B, size_t objsize, u_int start_hint, u_int incr_hint, bk_flags flags);
+extern void bk_memx_destroy(bk_s B, struct bk_memx *bm, bk_flags flags);
+#define BK_MEMX_PRESERVE_ARRAY    1		/* Don't destroy created array */
+extern void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused, bk_flags flags);
+#define BK_MEMX_GETNEW		  1		/* Get new allocation */
+extern int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags);
 
 
 /* b_run.c */
@@ -318,11 +328,12 @@ extern char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spl
 #define BK_STRING_TOKENIZE_BACKSLASH			0x010	/* Backslash quote next char */
 #define BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR	0x020	/* Convert \n et al */
 #define BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT	0x040	/* Convert \010 et al */
+#define BK_STRING_TOKENIZE_SKIPLEADING			0x080   /* Bypass leading split chars */
 #define BK_STRING_TOKENIZE_SIMPLE	(BK_STRING_TOKENIZE_MULTISPLIT)
 #define BK_STRING_TOKENIZE_NORMAL	(BK_STRING_TOKENIZE_MULTISPLIT|BK_STRING_TOKENIZE_DOUBLEQUOTE)
 #define BK_STRING_TOKENIZE_CONFIG	(BK_STRING_TOKENIZE_DOUBLEQUOTE)
 extern void bk_string_tokenize_destroy(bk_s B, char **tokenized);
-extern char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf);
+extern char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_flags flags);
 extern int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags);
 extern int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags);
 

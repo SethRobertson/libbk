@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_debug.c,v 1.5 2001/08/19 14:07:12 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_debug.c,v 1.6 2001/08/27 03:10:23 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,7 +24,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define debug_create(o,k,f,a)		ht_create(o,k,f,a)
 #define debug_destroy(h)		ht_destroy(h)
 #define debug_insert(h,o)		ht_insert(h,o)
-#define debug_insert_uniq(h,n,o)	ht_insert(h,n,o)
+#define debug_insert_uniq(h,n,o)	ht_insert_uniq(h,n,o)
 #define debug_search(h,k)		ht_search(h,k)
 #define debug_delete(h,o)		ht_delete(h,o)
 #define debug_minimum(h)		ht_minimum(h)
@@ -310,18 +310,7 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf)
 
   if (bdinfo->bd_sysloglevel != BK_ERR_NONE)
   {
-    char *outline;
-
-    tmp = strlen(funname) + strlen(buf) + 10;
-    if (!(outline = malloc(tmp)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, __FUNCTION__/**/": Cannot allocate %d byte string for debug print: %s\n",tmp,strerror(errno));
-      return;
-    }
-
-    snprintf(outline, tmp, "%s: %s\n",funname, buf);
-    syslog(bdinfo->bd_sysloglevel, outline, strlen(outline));
-    free(outline);
+    bk_general_syslog(B, bdinfo->bd_sysloglevel, 0, "%s: %s",funname, buf);
   }
 
   if (bdinfo->bd_fh)
@@ -337,11 +326,11 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf)
     }
 
     if (BK_GENERAL_PROGRAM(B))
-      snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", fullprefix, BK_GENERAL_PROGRAM(B), getpid());
+      snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", fullprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
     fullprefix[sizeof(fullprefix)-1] = 0;		/* Ensure terminating NULL */
 
 
-    fprintf(bdinfo->bd_fh, "%s: %s: %s\n",fullprefix, funname, buf);
+    fprintf(bdinfo->bd_fh, "%s: %s: %s",fullprefix, funname, buf);
   }
 
   return;
@@ -381,7 +370,7 @@ void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, char *intro, char *pref
 {
   char *out;
 
-  if (!(out = bk_string_printbuf(B, intro, prefix, buf)))
+  if (!(out = bk_string_printbuf(B, intro, prefix, buf, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, __FUNCTION__/**/": Could not convert buffer for debug printing\n");
     return;

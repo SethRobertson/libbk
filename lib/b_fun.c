@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fun.c,v 1.6 2001/08/17 04:12:54 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.7 2001/08/27 03:10:23 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,7 +23,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define funstack_create(o,k,f)		dll_create((o),(k),(f))
 #define funstack_destroy(h)		dll_destroy(h)
 #define funstack_insert(h,o)		dll_insert((h),(o))
-#define funstack_insert_uniq(h,n,o)	dll_insert((h),(n),(o))
+#define funstack_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
 #define funstack_search(h,k)		dll_search((h),(k))
 #define funstack_delete(h,o)		dll_delete((h),(o))
 #define funstack_minimum(h)		dll_minimum(h)
@@ -159,6 +159,12 @@ void bk_fun_trace(bk_s B, FILE *out, int sysloglevel, bk_flags flags)
  */
 void bk_fun_set(bk_s B, int state, bk_flags flags)
 {
+  if (!B)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    return;
+  }
+
   if (state == BK_FUN_OFF)
     BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B),BK_BGFLAGS_FUNON);
   else if (state == BK_FUN_ON)

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.1 2001/08/17 04:12:53 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.2 2001/08/27 03:10:23 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,7 +25,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define errq_create(o,k,f,a)		dll_create(o,k,f)
 #define errq_destroy(h)			dll_destroy(h)
 #define errq_insert(h,o)		dll_insert(h,o)
-#define errq_insert_uniq(h,n,o)		dll_insert(h,n,o)
+#define errq_insert_uniq(h,n,o)		dll_insert_uniq(h,n,o)
 #define errq_search(h,k)		dll_search(h,k)
 #define errq_delete(h,o)		dll_delete(h,o)
 #define errq_minimum(h)			dll_minimum(h)
@@ -247,7 +247,7 @@ void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *
 {
   char *out;
 
-  if (!(out = bk_string_printbuf(B, intro, prefix, buf)))
+  if (!(out = bk_string_printbuf(B, intro, prefix, buf, 0)))
   {
     /* XXX - Could not convert buffer for debug printing */
     return;
@@ -350,35 +350,24 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
   }
 
   if (BK_GENERAL_PROGRAM(B))
-    snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", fullprefix, BK_GENERAL_PROGRAM(B), getpid());
+    snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", fullprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
   fullprefix[sizeof(fullprefix)-1] = 0;		/* Ensure terminating NULL */
 
  if (sysloglevel != BK_ERR_NONE)
   {
     if (flags & BE_ERROR_SYSLOG_WANT_FULL)
     {
-      char *outline;
-
-      tmp = strlen(fullprefix) + strlen(node->ben_msg) + 10;
-      if (!(outline = malloc(tmp)))
-      {
-	/* Cannot allocate %d byte string for debug print: %s\n" */
-	return;
-      }
-
-      snprintf(outline, tmp, "%s: %s\n",fullprefix, node->ben_msg);
-      syslog(sysloglevel, outline, strlen(outline));
-      free(outline);
+      bk_general_syslog(B, sysloglevel, 0, "%s: %s",fullprefix, node->ben_msg);
     }
     else
     {
-      syslog(sysloglevel, node->ben_msg, strlen(node->ben_msg));
+      bk_general_syslog(B, sysloglevel, 0, "%s",node->ben_msg);
     }
   }
 
   if (fh)
   {
-    fprintf(fh, "%s: %s\n",fullprefix, node->ben_msg);
+    fprintf(fh, "%s: %s",fullprefix, node->ben_msg);
   }
 
   return;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.8 2001/08/19 14:07:11 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.9 2001/08/27 03:10:22 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -70,7 +70,7 @@ struct bk_config_value
 #define config_kv_create(o,k,f,a)	ht_create((o),(k),(f),(a))
 #define config_kv_destroy(h)		ht_destroy(h)
 #define config_kv_insert(h,o)		ht_insert((h),(o))
-#define config_kv_insert_uniq(h,n,o)	ht_insert((h),(n),(o))
+#define config_kv_insert_uniq(h,n,o)	ht_insert_uniq((h),(n),(o))
 #define config_kv_search(h,k)		ht_search((h),(k))
 #define config_kv_delete(h,o)		ht_delete((h),(o))
 #define config_kv_minimum(h)		ht_minimum(h)
@@ -91,8 +91,9 @@ static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
 #define config_values_create(o,k,f)		dll_create((o),(k),(f))
 #define config_values_destroy(h)		dll_destroy(h)
 #define config_values_insert(h,o)		dll_insert((h),(o))
+#define config_values_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
 #define config_values_append(h,o)		dll_append((h),(o))
-#define config_values_insert_uniq(h,n,o)	dll_insert((h),(n),(o))
+#define config_values_append_uniq(h,n,o)	dll_append_uniq((h),(n),(o))
 #define config_values_search(h,k)		dll_search((h),(k))
 #define config_values_delete(h,o)		dll_delete((h),(o))
 #define config_values_minimum(h)		dll_minimum(h)

@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.8 2001/08/17 04:12:53 seth Exp $
+# $Id: Makefile,v 1.9 2001/08/27 03:10:22 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -21,8 +21,11 @@ BK_LARGE_LIBSRC=		       		\
 		b_config.c			\
 		b_error.c			\
 		b_fun.c 			\
+		b_funlist.c			\
 		b_general.c			\
+		b_memx.c			\
 		b_string.c			\
+# Line eater fodder -- leave
 
 GROUPTOP=..
 GROUPSUBDIR=lib

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.11 2001/08/16 21:10:48 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.12 2001/08/27 03:10:23 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,6 +27,10 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
 static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_flags flags);
 
 
+void *bk_nullptr = NULL;
+int bk_zeroint = 0;
+
+
 
 /*
  * Grand creation of libbk state structure
@@ -34,6 +38,7 @@ static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_fl
 bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, int error_queue_length, int log_facility, bk_flags flags)
 {
   bk_s B;
+  char *program;
 
   if (!(B = bk_general_thread_init(NULL, "*MAIN*")))
     goto error;
@@ -51,17 +56,19 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
   if (!(BK_GENERAL_ERROR(B) = bk_error_init(B, error_queue_length, NULL, log_facility, 0)))
     goto error;
 
-  if (!(BK_GENERAL_DESTROY(B) = bk_funlist_init(B)))
+  if (!(BK_GENERAL_DESTROY(B) = bk_funlist_init(B, 0)))
     goto error;
 
-  if (!(BK_GENERAL_REINIT(B) = bk_funlist_init(B)))
+  if (!(BK_GENERAL_REINIT(B) = bk_funlist_init(B,0)))
     goto error;
 
   if (!(BK_GENERAL_CONFIG(B) = bk_config_init(B, configfile, 0)))
     goto error;
 
-  if (!(BK_GENERAL_PROCTITLE(B) = bk_general_proctitle_init(B, argc, argv, envp, &BK_GENERAL_PROGRAM(B), 0)))
+  if (!(BK_GENERAL_PROCTITLE(B) = bk_general_proctitle_init(B, argc, argv, envp, &program, 0)))
     goto error;
+
+  BK_GENERAL_PROGRAM(B) = program;
 
   if (log_facility && BK_GENERAL_PROGRAM(B))
   {
@@ -89,7 +96,7 @@ void bk_general_destroy(bk_s B)
     {
       if (BK_GENERAL_DESTROY(B))
       {
-	bk_funlist_call(B,BK_GENERAL_DESTROY(B), 0);
+	bk_funlist_call(B,BK_GENERAL_DESTROY(B), 0, 0);
 	bk_funlist_destroy(B,BK_GENERAL_DESTROY(B));
       }
 
@@ -126,7 +133,7 @@ void bk_general_reinit(bk_s B)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
   if (BK_GENERAL_REINIT(B))
-    bk_funlist_call(B, BK_GENERAL_REINIT(B), 0);
+    bk_funlist_call(B, BK_GENERAL_REINIT(B), 0, 0);
 
   BK_VRETURN(B);
 }
@@ -139,7 +146,7 @@ void bk_general_reinit(bk_s B)
 int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, bk_funlist_insert(B, BK_GENERAL_REINIT(B), bf_fun, args));
+  BK_RETURN(B, bk_funlist_insert(B, BK_GENERAL_REINIT(B), bf_fun, args, 0));
 }
 
 
@@ -150,7 +157,7 @@ int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *
 int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, bk_funlist_delete(B, BK_GENERAL_REINIT(B), bf_fun, args));
+  BK_RETURN(B, bk_funlist_delete(B, BK_GENERAL_REINIT(B), bf_fun, args, 0));
 }
 
 
@@ -161,7 +168,7 @@ int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *
 int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, bk_funlist_insert(B, BK_GENERAL_REINIT(B), bf_fun, args));
+  BK_RETURN(B, bk_funlist_insert(B, BK_GENERAL_REINIT(B), bf_fun, args, 0));
 }
 
 
@@ -172,7 +179,7 @@ int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void 
 int bk_general_destroy_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, bk_funlist_delete(B, BK_GENERAL_REINIT(B), bf_fun, args));
+  BK_RETURN(B, bk_funlist_delete(B, BK_GENERAL_REINIT(B), bf_fun, args, 0));
 }
 
 
@@ -249,7 +256,7 @@ void bk_general_proctitle_set(bk_s B, char *title)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   size_t len, rest;
 
-  if (!title)
+  if (!title || !B)
   {
     bk_error_printf(B,BK_ERR_ERR,"Invalid arguments\n");
     BK_VRETURN(B);

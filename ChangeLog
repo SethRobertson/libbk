@@ -1,5 +1,25 @@
-2001-08-17  Seth Robertson  <seth@yeah.baka.org>
+2001-08-26  Seth Robertson  <seth@yeah.baka.org>
 
+	* include/libbk.h: BK_GENERAL_* macros to check for B allocation
+	before dereference.
+
+	* lib/b_string.c (bk_string_tokenize_split): Finished tokenization code.
+
+	* lib/b_memx.c: Dynamic array extension code
+
+2001-08-19  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_string.c: Filling out string functions
+
+	* lib/b_error.c (be_error_output): Convert to using bk_general_syslog
+
+	* lib/b_debug.c (bk_debug_iprint): Convert to using bk_general_syslog
+
+	* lib/*.c: CLC #defines had _uniq screwed up
+	
+	* lib/b_funlist.c: Fill out funlist functions
+
+	* lib/b_general.c: New funlist APIs.
 
 2001-08-16  Seth Robertson  <seth@yeah.baka.org>
 
