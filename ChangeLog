@@ -1,3 +1,9 @@
+2004-10-25  James Tanis  <jtt@fry.sysdetect.com>
+
+	* lib/b_string.c (bk_string_tokenize_split): Return an empty array
+	instead of an array with one empty element when input string is
+	empty. 
+
 2004-10-22  James Tanis  <jtt@fry.sysdetect.com>
 
 	* lib/b_string.c (bk_string_tokenize_split): If we're going to
