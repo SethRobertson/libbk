@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.20 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.21 2005/02/05 15:31:19 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -454,11 +454,28 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
   struct bk_threadcomm *tcomm = NULL;
   pthread_attr_t attr;
   int ret;
+  void *stupid;
 
   if (!start || !tlist || !threadname)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_RETURN(B, NULL);
+
+    /*
+     * <TRICKY>This is stupid code which will never be reached (which
+     * due to a gcc bug it does not know) to work around two different
+     * gcc optimization bugs:
+     *
+     * warning: variable `foo' might be clobbered by `longjmp' or `vfork'
+     *
+     * You are supposed to be able to make the variables volatile and
+     * solve the problem, but it didn't work.  This *forces* the variables
+     * into stack variables out of registers so they cannot be clobbered.
+     * Sigh.</TRICKY>
+     */
+    stupid = &tnode;
+    stupid = &tcomm;
+    stupid = &__bk_funinfo;
   }
 
   // set up thread attributes with PTHREAD_CREATE_DETACHED default
@@ -576,7 +593,12 @@ static void *bk_thread_continue(void *opaque)
   sigset_t mask;
 
   if (!tcomm)
+  {
     return(NULL);
+
+    // <TRICKY>Work around gcc bug</TRICKY>
+    subopaque = &subopaque;
+  }
 
   // Block all signals except SIGCONT (to allow interrupting select calls)
   sigfillset(&mask);
@@ -773,6 +795,12 @@ void bk_thread_kill_others(bk_s B, bk_flags flags)
 #endif
 
   BK_VRETURN(B);
+
+  // <TRICKY>Work around gcc bug</TRICKY>
+ {
+   void *stupid;
+   stupid = &__bk_funinfo;
+ }
 }
 
 
