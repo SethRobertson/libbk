@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.78 2003/05/09 03:25:02 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.79 2003/05/09 09:00:36 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -406,13 +406,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
     BK_FLAG_SET(curioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT);
   }
 
-  if (BK_STRING_ATOI(B, BK_GWD(B, "bk_follow_pause", "1"), &curioh->ioh_follow_pause, 0) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not convert follow pause interval\n");
-    goto error;
-  }
-
-  // Sigh we'ree going to stat in check_follow() too, but how often ib bk_ioh_init() called really?
+  // We'll also stat in check_follow(), but how often is this really called?
   if (BK_FLAG_ISSET(flags, BK_IOH_FOLLOW))
   {
     if (fstat(fdin, &st) < 0)
@@ -423,12 +417,19 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
 
     if (!S_ISREG(st.st_mode))
     {
-      bk_error_printf(B, BK_ERR_WARN, "We can only follow a regular file. Rejecting follow mode\n");
+      bk_error_printf(B, BK_ERR_NOTICE, "Non-regular files are implicitly followed\n");
       BK_FLAG_CLEAR(flags, BK_IOH_FOLLOW);
-
     }
     else
+    {
+      if (BK_STRING_ATOI(B, BK_GWD(B, "bk_follow_pause", "1"),
+			 &curioh->ioh_follow_pause, 0) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "bk_follow_pause not a valid integer\n");
+	goto error;
+      }
       check_follow(B, curioh, 0);
+    }
   }
 
   bk_debug_printf_and(B, 1, "Created IOH %p for fds %d %d\n",curioh,fdin, fdout);
@@ -4362,10 +4363,10 @@ bk_ioh_last_error(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
 
 /**
- * Check if an ioh in follow mode is at the end of the line. If so, remove
- * it from the read set, and enqueue an event to check again after a short
- * pause. If it's not at the end of the line insert it in the read set
- * (yikes!) and update the ioh stat info.
+ * Check if an ioh in follow mode is at the end of file. If so, remove it from
+ * the read set, and enqueue an event to check again after a short pause. If
+ * it's not at the end of the file insert it in the read set (yikes!) and
+ * update the ioh stat info.
  *
  * THREADS: REENTRANT (ioh must already be locked)
  *
