@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.27 2004/04/27 20:05:24 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.28 2004/06/16 20:26:51 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -828,7 +828,7 @@ bk_netutils_make_conn(bk_s B, struct bk_run *run, const char *url, const char *d
     defurl="";
 
   if (((ret=bk_parse_endpt_no_defaults(B, defurl, &defhoststr, &defservstr, &defprotostr)) < 0) ||
-      ((ret=bk_netutils_make_conn_verbose(B, run, url, defhoststr, defservstr, defprotostr, NULL, NULL, NULL, timeout, callback, args, flags)) < 0))
+      ((ret=bk_netutils_make_conn_verbose(B, run, url, defhoststr, defservstr, NULL, NULL, NULL, defprotostr, timeout, callback, args, flags)) < 0))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not start connection\n");
   }

@@ -1,3 +1,8 @@
+2004-06-16  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_netutils.c (bk_netutils_make_conn): Arguments for
+	bk_netutils_make_conn_verbose() were totally in the wrong order. 
+
 2004-06-09  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_dll.c (bk_dll_insert_internal): Actually return return
