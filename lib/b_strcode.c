@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.9 2002/12/30 21:24:45 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.10 2003/02/28 21:06:17 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -333,8 +333,14 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
   int len, l;
   char c;
   char *tmp;
-  
-  len = CHUNK_LEN(strlen(str), 1024);
+
+  /* Each source character can consume up to 3 characters of destination
+   * space.  We can either assume every character will take up 3 bytes of
+   * the destination space, or make an extra pass through the source to
+   * calculate the exact amount of space needed.  I choose to just assume
+   * the worst case.
+   */
+  len = CHUNK_LEN(3*strlen(str), 1024);
   if (!(xml = malloc(len)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate xml string: %s\n", strerror(errno));

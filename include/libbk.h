@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.209 2003/02/13 22:05:24 lindauer Exp $
+ * $Id: libbk.h,v 1.210 2003/02/28 21:06:16 lindauer Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1617,6 +1617,7 @@ extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
 /* b_strconv.c */
 extern int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags);
 extern int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags);
+extern int bk_string_atot(bk_s B, const char *string, time_t *value, bk_flags flags);
 extern int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flags);
 extern int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags);
 extern int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *names, bk_flags flags);

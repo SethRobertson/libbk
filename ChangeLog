@@ -1,3 +1,13 @@
+2003-02-28  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_strcode.c (bk_string_str2xml): Allocate enough memory to
+	hold the result so that we don't dump core.
+
+	* lib/b_error.c (be_error_append): Prevent garbage after error
+	message by zeroing memory first.
+
+	* lib/b_strconv.c (bk_string_atot): Added bk_string_atot.
+
 2003-02-23  James Tanis  <jtt@hawking.sysdetect.com>
 
 	* lib/b_string.c (bk_string_unique_string): Avoid placing EOS

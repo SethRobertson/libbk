@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.8 2003/01/24 18:13:05 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.9 2003/02/28 21:06:17 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -101,6 +101,52 @@ int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags)
  *	number conversion still performed
  */
 int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int sign = 0;
+  u_int64_t tmp;
+  int ret = bk_string_atoull_int(B, string, &tmp, &sign, flags);
+
+  if (ret >= 0)
+  {
+    if (sign == -1 && tmp == -(int64_t)INT32_MIN) // min is -(max + 1)
+      sign = 1;					// wrap obviates sign convert
+    else if (tmp > INT32_MAX)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "%s outside range of int32_t\n", string);
+      ret = -1;
+    }
+  }
+
+  if (ret >= 0)
+  {
+    *value = tmp;
+    *value *= sign;
+  }
+
+  BK_RETURN(B, ret);
+}
+
+
+
+/**
+ * Convert ascii string to time_t.  This is the same as bk_string_atoi for now, 
+ * but will keep us from casting to int32 all over the place.  We'll be happy 
+ * about this if this code still exists in 2038.
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA Thread/global state
+ *	@param string String to convert
+ *	@param value Copy-out of number the string represents
+ *	@param flags Fun for the future.
+ *    	@see bk_string_atoull_int
+ *	@return <i>-1</i> on error (string not converted)
+ *	@return <br><i>0</i> on success
+ *	@return <br><i>positive</i> on non-null terminated number--best effort
+ *	number conversion still performed
+ */
+int bk_string_atot(bk_s B, const char *string, time_t *value, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;

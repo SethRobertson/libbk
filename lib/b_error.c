@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.35 2003/02/25 00:23:37 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.36 2003/02/28 21:06:17 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001,2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1156,6 +1156,8 @@ static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *nod
     return;
 
   be_error_time(node, timeprefix, sizeof(timeprefix));
+
+  memset(fullprefix, 0, sizeof(fullprefix));
 
   if (BK_GENERAL_PROGRAM(B))
     snprintf(fullprefix, sizeof(fullprefix), "%s%.14s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), (int)getpid());
