@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.17 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.18 2002/08/08 20:25:55 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -323,13 +323,13 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
     BK_RETURN(B, -1);
   }
 
-  /* Conver NULL to a real empty url */
+  /* Convert NULL to a real empty url */
   if (!url)
-    url="";
+    url = "";
 
   if (bk_parse_endpt_spec(B, url, &hoststr, defhoststr?defhoststr:BK_ADDR_ANY, &servstr, defservstr?defservstr:"0", &protostr, defprotostr?defprotostr:"tcp")<0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not convert endpoint specifier\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not get endpoint from '%s'\n", url);
     goto error;
   }
 
@@ -613,7 +613,8 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
   /* Parse out the remote "URL" */
   if (bk_parse_endpt_spec(B, rurl, &rhoststr, defrhost, &rservstr, defrserv, &rprotostr, defproto?defproto:"tcp")<0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not convert remote endpoint specify\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not get remote endpoint from '%s'\n",
+		    rurl);
     goto error;
   }
 
@@ -628,10 +629,14 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
   if (!deflserv) deflserv = "0";
   if (!defproto) defproto = "tcp";
 
+  /* Convert NULL to a real empty url */
+  if (!lurl)
+    lurl = "";
+
   /* Parse out the local side "URL" */
-  if (bk_parse_endpt_spec(B, lurl?lurl:"", &lhoststr, deflhost?deflhost:BK_ADDR_ANY, &lservstr, deflserv, &lprotostr, defproto)<0)
+  if (bk_parse_endpt_spec(B, lurl, &lhoststr, deflhost?deflhost:BK_ADDR_ANY, &lservstr, deflserv, &lprotostr, defproto)<0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not convert remote endpoint specify\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not get endpoint from '%s'\n", lurl);
     goto error;
   }
 
@@ -645,7 +650,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
   /* Die on unset things */
   if (!lhoststr || !lservstr || !lprotostr)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Must specify all three of remote host/service/protocol\n");
+    bk_error_printf(B, BK_ERR_ERR, "Must specify all three of host/service/protocol\n");
     goto error;
   }
 

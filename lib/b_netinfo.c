@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.15 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.16 2002/08/08 20:25:55 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -566,7 +566,8 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
   
   if ((type = bk_netaddr_af2nat(B, h->h_addrtype))<0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not convert af to netaddr type\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert AF %d to netaddr type\n",
+		    h->h_addrtype);
     goto error;
   }
 
