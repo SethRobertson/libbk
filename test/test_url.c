@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_url.c,v 1.3 2001/12/11 17:04:06 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_url.c,v 1.4 2001/12/11 21:35:51 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -210,7 +210,7 @@ void progrun(bk_s B, struct program_config *pconfig)
       snprintf(outputline + nextstart, 1024 - nextstart, "%s", bu->bu_path);
     }
 
-    printf("%-20s %-20s %s://%s:%s%s\n", inputline, outputline,  bu->bu_proto, bu->bu_host, bu->bu_serv, bu->bu_path);
+    printf("%-20s %-20s > %s ** %s ** %s ** %s\n", inputline, outputline,  bu->bu_proto, bu->bu_host, bu->bu_serv, bu->bu_path);
   }
   
   BK_VRETURN(B);
