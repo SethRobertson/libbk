@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_nvmap.c,v 1.7 2003/01/23 22:15:16 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_nvmap.c,v 1.8 2003/01/23 22:37:13 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -80,7 +80,7 @@ bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, int val)
 
   for(n = nvmap; n->bnvm_name; n++)
   {
-    if (n->bnvm_val == val)
+    if (n->bnvm_val == (unsigned) val)
     {
       BK_RETURN(B,n->bnvm_name);      
     }
