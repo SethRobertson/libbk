@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.45 2003/08/26 00:45:24 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.46 2003/12/01 23:55:25 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -253,7 +253,7 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_LINGER);
   }
 
-  if (BK_FLAG_ISSET(flags, BK_POLLING_DONT_LINGER))
+  if (BK_FLAG_ISSET(flags, BK_POLLING_DONT_LINGER) || BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_WRITE_DEAD))
   {
     BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_LINGER);
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_DONT_LINGER);
@@ -524,7 +524,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
 	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate vptr for I/O data: %s\n", strerror(errno));
 	  goto error;
 	}
-	*pid->pid_data = data[0]; 
+	*pid->pid_data = data[0];
 	data[0].ptr = NULL;
       }
       else
@@ -556,7 +556,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
 
     // The ioh is now dead.
     bk_debug_printf_and(B, 128,"Polling IOH is closing\n");
-    
+
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_IOH_DEAD);
 
 #ifdef BK_USING_PTHREADS
@@ -590,7 +590,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_WRITE_DEAD);
 
     bk_error_printf(B, BK_ERR_ERR, "Polling write failed at IOH level\n");
-    
+
 
 #ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
@@ -1032,7 +1032,10 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
   }
 
   if (ret < 0)
+  {
     bk_error_printf(B, BK_ERR_ERR, "Could not submit write\n");
+    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_WRITE_DEAD);
+  }
 
   if (ret == 0)
   {

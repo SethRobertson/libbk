@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.101 2003/10/20 22:56:12 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.102 2003/12/01 23:55:25 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3812,7 +3812,10 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
 
   errno = 0;
   if ((ret = writev(fd, buf, size)) < 0)
-    bk_error_printf(B, BK_ERR_ERR, "write syscall failed on fd %d of size %u: %s\n", fd, size, strerror(errno));
+  {
+    if (!IOH_EBLOCKING)
+      bk_error_printf(B, BK_ERR_ERR, "write syscall failed on fd %d of size %u: %s\n", fd, size, strerror(errno));
+  }
 
   erno = errno;
 

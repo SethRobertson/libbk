@@ -1,3 +1,11 @@
+2003-12-01  Seth Robertson  <seth@blue.sysdetect.com>
+
+	* lib/b_pollio.c (bk_polling_io_close): Don't try to flush writes
+	if write channel is dead.
+
+	* lib/b_ioh.c (bk_ioh_stdwrfun): Don't cry if writev returns
+	EWOULDBLOCK/EAGAIN
+
 2003-11-22  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_string.c (bk_string_registry_idbystr): don't return the last id
@@ -28,7 +36,7 @@
 2003-10-20  James Tanis  <jtt@pearl.sysdetect.com>
 
 	* src/bttcp.c (relay_finish): Only execute when the relay is
-	finsihed. 
+	finsihed.
 
 	* src/bdtee.c (proginit): Truncate tee file if it exists.
 	(proginit): Close extraneous child descriptors.
@@ -40,7 +48,7 @@
 
 	* lib/b_exec.c (bk_pipe_to_process): Allow caller to close all
 	"extraneous" descriptors (ie not stdin, stdout, stderr, and pipe
-	descriptors) in child. 
+	descriptors) in child.
 	(bk_pipe_to_exec): Close extraneous child desc's if asked.
 	(bk_pipe_to_cmd_tokenize): Ditto.
 
