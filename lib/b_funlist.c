@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_funlist.c,v 1.5 2001/11/18 20:00:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_funlist.c,v 1.6 2001/11/27 00:58:41 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -84,9 +84,9 @@ struct bk_fun
 struct bk_funlist *bk_funlist_init(bk_s B, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_funlist *funlist;
+  struct bk_funlist *funlist=NULL;
 
-  if (!(funlist = malloc(sizeof(*funlist))))
+  if (!(BK_CALLOC(funlist)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate function list structure: %s\n",strerror(errno));
     BK_RETURN(B, NULL);
@@ -96,9 +96,14 @@ struct bk_funlist *bk_funlist_init(bk_s B, bk_flags flags)
   if (!(funlist->bf_list = funlist_create(NULL, NULL, DICT_UNORDERED, NULL)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate function list list: %s\n", funlist_error_reason(NULL, NULL));
+    goto error;
   }
 
   BK_RETURN(B, funlist);
+
+ error:
+  if (funlist) bk_funlist_destroy(B, funlist);
+  BK_RETURN(B, NULL);
 }
 
 
@@ -120,8 +125,11 @@ void bk_funlist_destroy(bk_s B, struct bk_funlist *funlist)
     BK_VRETURN(B);
   }
 
-  DICT_NUKE_CONTENTS(funlist->bf_list, funlist, curfun, bk_error_printf(B, BK_ERR_ERR, "Could not dictionary delete during nuke: %s\n",funlist_error_reason(funlist->bf_list, NULL)); break, free(curfun));
-  funlist_destroy(funlist->bf_list);
+  if (funlist->bf_list)
+  {
+    DICT_NUKE_CONTENTS(funlist->bf_list, funlist, curfun, bk_error_printf(B, BK_ERR_ERR, "Could not dictionary delete during nuke: %s\n",funlist_error_reason(funlist->bf_list, NULL)); break, free(curfun));
+    funlist_destroy(funlist->bf_list);
+  }
   free(funlist);
 
   BK_VRETURN(B);
@@ -173,7 +181,7 @@ void bk_funlist_call(bk_s B, struct bk_funlist *funlist, u_int aux, bk_flags fla
 int bk_funlist_insert(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(bk_s, void *, u_int), void *args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_fun *curfun;
+  struct bk_fun *curfun = NULL;
 
   if (!funlist && !bf_fun)
   {
@@ -238,7 +246,7 @@ int bk_funlist_delete(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(bk_s, v
     int ret = 0;
     if (funlist_delete(funlist->bf_list, curfun) != DICT_OK)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not delete requested function immediate after it was found! %s\n",funlist_error_reason(funlist->bf_list, NULL));
+      bk_error_printf(B, BK_ERR_ERR, "Could not delete requested function immediate after it was found! %s\n", funlist_error_reason(funlist->bf_list, NULL));
       ret = -1;
     }
     free(curfun);

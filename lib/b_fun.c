@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fun.c,v 1.14 2001/11/18 20:02:37 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.15 2001/11/27 00:58:41 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -20,6 +20,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * @file
  * These functions provide a Function tracing/stack, and provide function name
  * information for debugging/error message, and provide per-function debug levels.
+ * See BK_ENTRY, BK_*RETURN, and bk_fun* macros.
  */
 
 #include <libbk.h>
@@ -138,7 +139,10 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
   }
 
   if (!B)
-    goto freeme;
+  {
+    free(fh);
+    return;
+  }
 
   for(cur = (struct bk_funinfo *)funstack_minimum(BK_BT_FUNSTACK(B)); cur && cur != fh; cur = (struct bk_funinfo *)funstack_successor(BK_BT_FUNSTACK(B), cur))
     ; // Intentionally void
@@ -157,8 +161,7 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
   else
   {
     bk_error_printf(B, BK_ERR_ERR,"Could not find function to exit: %s\n",fh->bf_funname);
-  freeme:
-    free(fh);
+    /* free(fh);  ---  Whether to leak memory or to double free... */
   }
 }
 
@@ -181,7 +184,9 @@ void bk_fun_reentry_i(bk_s B, struct bk_funinfo *fh)
     else
       fh->bf_debuglevel = 0;
 
-    funstack_insert(BK_BT_FUNSTACK(B), fh);
+    if (funstack_insert(BK_BT_FUNSTACK(B), fh) != DICT_OK)
+      bk_error_printf(B, BK_ERR_WARN, "Could not insert function stack frame: %s\n",funstack_error_reason(BK_BT_FUNSTACK(B), NULL));
+
     BK_BT_CURFUN(B) = fh;
   }
 }
@@ -222,7 +227,6 @@ void bk_fun_set(bk_s B, int state, bk_flags flags)
 {
   if (!B)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     return;
   }
 

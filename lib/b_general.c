@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.23 2001/11/18 20:14:45 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.24 2001/11/27 00:58:41 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -427,6 +427,8 @@ void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list
 /**
  * Decode error level to error string
  *
+ * <TODO>i18n me</TODO>
+ *
  *	@param B BAKA Thread/state information
  *	@param level The baka log level to decode
  *	@return <i>Error level string</i> which was found ("Unknown" if not known)
@@ -525,6 +527,11 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
   if (!argv || !envp)
     BK_FLAG_SET(PT->bp_flags, BK_PROCTITLE_OFF);
 
+#if defined(__INSIGHT__)
+  BK_FLAG_SET(PT->bp_flags, BK_PROCTITLE_OFF);
+#endif /* (__INSIGHT__) */
+
+
   /*
    * If the OS can support this functionality, create new copy of argv&envp,
    * repoint original pointers to this location, and set up proctitle vector
@@ -533,25 +540,25 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
   {
     int envc = 0;
 
-#define ARRAY_DUPLICATE(new,orig,size) \
-    do { \
-      int tmp; \
-      \
-      if (!((new) = (char **)malloc(((size)+1)*sizeof(char *)))) \
-      { \
-	bk_error_printf(B, BK_ERR_ERR, "Could not allocate duplicate array: %s\n",strerror(errno)); \
-	goto error; \
-      } \
-      \
-      for(tmp=0;tmp<size;tmp++) \
-      { \
-	if (!((new)[tmp] = strdup((orig)[tmp]))) \
-	{ \
-	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate duplicate array entry %d: %s\n",tmp,strerror(errno)); \
-	  goto error; \
-	} \
-      } \
-      (new)[tmp] = NULL; \
+#define ARRAY_DUPLICATE(new,orig,size)											\
+    do {														\
+      int tmp;														\
+															\
+      if (!((new) = (char **)malloc(((size)+1)*sizeof(char *))))							\
+      {															\
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate duplicate array: %s\n",strerror(errno));			\
+	goto error;													\
+      }															\
+															\
+      for(tmp=0;tmp<size;tmp++)												\
+      {															\
+	if (!((new)[tmp] = strdup((orig)[tmp])))									\
+	{														\
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate duplicate array entry %d: %s\n",tmp,strerror(errno));	\
+	  goto error;													\
+	}														\
+      }															\
+      (new)[tmp] = NULL;												\
     } while (0)
 
     /* Create duplicate argv */
@@ -640,6 +647,8 @@ static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *PT, bk_fla
 	free(PT->bp_envp[cntr]);
       free(PT->bp_envp);
     }
+
+    environ = NULL;
   }
   free(PT);
 

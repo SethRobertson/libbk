@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.69 2001/11/26 23:08:24 jtt Exp $
+ * $Id: libbk.h,v 1.70 2001/11/27 00:58:41 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -58,7 +58,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_STREQN(a,b,n) ((a) && (b) && ((int)n>=0) && !strncmp(a,b,n)) ///< Are two strings different?
 
 #define BK_CALLOC(p) BK_CALLOC_LEN(p,sizeof(*(p))) ///< Structure allocation calloc with assignment and type cast
-#define BK_CALLOC_LEN(p,l) ((p) = (typeof(p))calloc(1,l))	///< Calloc with assignment and type cast
+#define BK_CALLOC_LEN(p,l) ((p) = (typeof(p))calloc(1,(l)))	///< Calloc with assignment and type cast
 #define BK_MALLOC(p) BK_MALLOC_LEN(p,sizeof(*(p))) ///< Structure allocation malloc with assignment and type cast
 #define BK_MALLOC_LEN(p,l) ((p) = (typeof(p))malloc(l))	///< Malloc with assignment and type cast
 #define BK_ZERO(p) memset((p),0,sizeof(*p))	///< Memset for the common case
@@ -578,8 +578,6 @@ extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *co
 extern void bk_general_proctitle_set(bk_s B, char *);
 extern void bk_general_reinit(bk_s B);
 extern void bk_general_destroy(bk_s B);
-extern bk_s bk_general_thread_init(bk_s B, char *name);
-extern void bk_general_thread_destroy(bk_s B);
 extern int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
 extern int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
 extern int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);

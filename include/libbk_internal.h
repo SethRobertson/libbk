@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.19 2001/11/20 19:34:56 jtt Exp $
+ * $Id: libbk_internal.h,v 1.20 2001/11/27 00:58:41 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -27,5 +27,9 @@
 #define SCRATCHLEN2 ((SCRATCHLEN)-100)
 
 /* FRIENDLY FUNCTIONS */
+
+extern bk_s bk_general_thread_init(bk_s B, char *name);
+extern void bk_general_thread_destroy(bk_s B);
+
 
 #endif /* _libbk_internal_h_ */

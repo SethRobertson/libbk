@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.14 2001/11/18 20:00:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.15 2001/11/27 00:58:41 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -21,7 +21,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * The baka error functionality, producing error logs to allow
  * error reporting without assumptions about the consumer or
  * destination of these logs.  baka errors are generally not expected
- * to be used for end-user reporting of errors.
+ * to be used for end-user reporting of errors.  See bk_error_* macros
  */
 
 #include <libbk.h>
@@ -40,10 +40,10 @@ struct bk_error
 {
   FILE		*be_fh;				///< Error info file handle
   u_int		be_seqnum;			///< Sequence number
-  dict_h	be_markqueue;			///< Queue of high priority error messages
+  dict_h	be_markqueue;			///< Queue of marks of queue locations
   dict_h	be_hiqueue;			///< Queue of high priority error messages
   dict_h	be_lowqueue;			///< Queue of low priority error messages
-  char		be_hilo_pivot;			///< Pivot value
+  char		be_hilo_pivot;			///< Pivot value--error severity threshold which determins into which of the above two queues messages will go.
 #define BK_ERROR_PIVOT	BK_ERR_ERR		///< Default HI-LO pivot
   char		be_sysloglevel;			///< Error syslog level
   u_short	be_curHiSize;			///< Current queue size
@@ -95,7 +95,7 @@ struct bk_error_node
 static struct bk_error_node *bk_error_marksearch(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 static char bk_error_sysloglevel_char(int sysloglevel);
 static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_node *node, bk_flags flags);
-#define BE_ERROR_SYSLOG_WANT_FULL  1
+#define BE_ERROR_SYSLOG_WANT_FULL  1		///< Want long-style syslog messages with timestamps, hostnames over and above what syslog gives
 
 
 
@@ -224,6 +224,7 @@ void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *
 /**
  * Add an error string to the error queue -- save time, buffer marked up with function
  * name and error level, and if necessary, output.
+ *
  *	@param B BAKA thread/global state 
  *	@param sysloglevel The BK_ERR level of important of this message
  *	@param beinfo The error state structure. 
@@ -238,6 +239,7 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf
   int level = bk_error_sysloglevel_char(sysloglevel);
   dict_h be_queue;
   u_short *be_cursize;
+  const char fmt[]="%s/%c: %s";
   
   if (!(funname = bk_fun_funname(B, 0, 0)))
   {
@@ -254,13 +256,13 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf
   node->ben_seq = beinfo->be_seqnum++;
   node->ben_level = sysloglevel;
 
-  tmp = strlen(funname) + strlen(buf) + 6;
+  tmp = strlen(funname) + strlen(buf) + sizeof(fmt);
   if (!(node->ben_msg = malloc(tmp)))
   {
     /* <KLUDGE>cannot allocate storage for error message</KLUDGE> */
     goto error;
   }
-  snprintf(node->ben_msg, tmp, "%s/%c: %s",funname, level, buf);
+  snprintf(node->ben_msg, tmp, fmt,funname, level, buf);
   
 
   /* Encoded information about OS LOG_* manifest constant numbering */
@@ -295,7 +297,7 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf
   }
   (*be_cursize)++;
 
-  if (sysloglevel <= beinfo->be_hilo_pivot && (sysloglevel != BK_ERR_NONE || !beinfo->be_fh))
+  if ((sysloglevel <= beinfo->be_hilo_pivot && sysloglevel != BK_ERR_NONE) && beinfo->be_fh)
     be_error_output(B, beinfo->be_fh, beinfo->be_sysloglevel, node, 0);
 
   return;
@@ -342,7 +344,9 @@ void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *fo
 
 
 /**
- * Convert a chunk of raw data into printable string form, and call it an error.
+ * Convert a chunk of raw data into printable string form, and call it an error.  There may be more space-efficient
+ * ways of doing this for pure-ascii data with a (potentially non-null termianted) length.
+ *
  *	@param B BAKA thread/global state 
  *	@param sysloglevel The BK_ERR level of important of this message
  *	@param beinfo The error state structure. 
@@ -361,6 +365,8 @@ void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *
   }
 
   bk_error_iprintf(B, sysloglevel, beinfo, out);
+  free(out);
+
   return;
 }
 
@@ -397,7 +403,7 @@ void bk_error_ivprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *f
  * clear all entries made *after* the mark, including the mark.
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
- *	@param mark The constant pointer which represents a location in the error queue: only newer messages will be flushed.
+ *	@param mark The constant pointer/key which represents a location in the error queue: only newer messages will be flushed.
  *	@param flags Future expansion
  */
 void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags)
@@ -453,8 +459,8 @@ void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
 
 	if (node->ben_msg)
 	  free(node->ben_msg);
-	free(node);
 	errq_delete(beinfo->be_markqueue, node);
+	free(node);
       }
       errq_iterate_done(*curq, iter);
     }
@@ -466,10 +472,16 @@ void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
 
 
 /**
- * Mark a position in the error queues for future reference.  The mark is a constant
- * pointer--the same value will be used for any other mark usage.  This allows you to
- * only see "recent" errors.
- #
+ * Mark a position in the error queues for future reference.  The mark
+ * is a constant pointer--the same value will be used for any other
+ * mark usage--the pointer is used for comparison purposes, NOT the
+ * data it is pointed to (e.g. save the pointer externally in a
+ * variable instead of using "FOO" or strdup("FOO")).  This allows you
+ * to only see "recent" errors.
+ *
+ * Note the mark is not bounded in size--you should clear.  This may have
+ * to change in the threaded environment.
+ *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
  *	@param mark The constant pointer which represents a location in the error queue.
@@ -508,7 +520,7 @@ void bk_error_imark(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags 
  *
  *	@param B BAKA Thread/global state
  *	@param beinfo Error handle
- *	@param mark Constant pointer to search for in mark queue
+ *	@param mark Constant pointer/key to search for in mark queue
  *	@param flags Fun for the future
  *	@return <i>NULL</i> if mark could not be found
  *	@return <br><i>node</i> giving mark "location" information representing the first occurance of the mark
@@ -536,7 +548,7 @@ static struct bk_error_node *bk_error_marksearch(bk_s B, struct bk_error *beinfo
  *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
- *	@param mark The constant pointer which represents a location in the error queue.
+ *	@param mark The constant pointer/key which represents a location in the error queue.
  *	@param flags Future expansion
  */
 void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags)
@@ -562,20 +574,20 @@ void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
  *	@param fh The stdio file handle to print the messages to
- *	@param mark The constant pointer which represents a location in the error queue: only newer messages will be printed.
+ *	@param mark The constant pointer/key which represents a location in the error queue: only newer messages will be printed.
  *	@param minimumlevel The minimum BK_ERR level for which to output error messages (BK_ERR_NONE will output all levels)
  *	@param sysloglevel If not BK_ERR_NONE, the system log level at which to log these messages.
  *	@param flags Future expansion
  */
 void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int minimumlevel, int sysloglevel, bk_flags flags)
 {
-  struct bk_error_node *hi, *lo, *cur, *mode;
+  struct bk_error_node *hi, *lo, *cur, *marknode;
 
-  mode = NULL;
+  marknode = NULL;
 
   if (mark)
   {
-    if (!(mode = bk_error_marksearch(B, beinfo, mark, flags)))
+    if (!(marknode = bk_error_marksearch(B, beinfo, mark, flags)))
     {
       // <KLUDGE>We cannot do anything, but cannot tell anyone about it</KLUDGE>
       return;
@@ -585,9 +597,10 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int m
   hi = errq_maximum(beinfo->be_hiqueue);
   lo = errq_maximum(beinfo->be_lowqueue);
 
+  // Print the queues in FIFO order, interlacing the low and hi queue messages as appropriate
   while (hi || lo)
   {
-    int wanthi;
+    int wanthi;					// Do I want to output the message from the hi queue or the low queue next
 
     if (!hi || !lo)
       wanthi = !lo;
@@ -605,10 +618,10 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int m
       lo = errq_predecessor(beinfo->be_lowqueue, lo);
     }
 
-    if (mode)
+    if (marknode)
     {
-      if (cur->ben_time < mode->ben_time ||
-	  (cur->ben_time == mode->ben_time && ((int)(cur->ben_seq - mode->ben_seq)) < 0))
+      if (cur->ben_time < marknode->ben_time ||
+	  (cur->ben_time == marknode->ben_time && ((int)(cur->ben_seq - marknode->ben_seq)) < 0))
 	continue;					// We yet to reach the mark
     }
 
@@ -634,11 +647,11 @@ static char bk_error_sysloglevel_char(int sysloglevel)
 {
   switch(sysloglevel)
   {
-  case BK_ERR_CRIT: return('C');
-  case BK_ERR_ERR: return('E');
-  case BK_ERR_WARN: return('W');
-  case BK_ERR_NOTICE: return('N');
-  case BK_ERR_DEBUG: return('D');
+  case BK_ERR_CRIT: return('1');
+  case BK_ERR_ERR: return('2');
+  case BK_ERR_WARN: return('3');
+  case BK_ERR_NOTICE: return('4');
+  case BK_ERR_DEBUG: return('5');
   default: return('?');
   }
 }
@@ -661,7 +674,7 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
   char fullprefix[40];
   struct tm *tm = localtime(&node->ben_time);
 
-  if ((tmp = strftime(timeprefix, sizeof(timeprefix), "%m/%d %H:%M:%S", tm)) != 14)
+  if ((tmp = strftime(timeprefix, sizeof(timeprefix), "%Y-%m-%d %H:%M:%S", tm)) != 19)
   {
 #if 0
     /*
@@ -676,7 +689,7 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
   if (BK_GENERAL_PROGRAM(B))
     snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
   else
-    strncpy(fullprefix,timeprefix,sizeof(fullprefix));
+    snprintf(fullprefix, sizeof(fullprefix), "%s", timeprefix);
   fullprefix[sizeof(fullprefix)-1] = 0;		/* Ensure terminating NULL */
 
  if (sysloglevel != BK_ERR_NONE)

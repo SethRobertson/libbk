@@ -1,3 +1,9 @@
+2001-11-26  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_bits.c lib/b_general.c lib/b_config.c lib/b_debug.c
+	lib/b_error.c lib/b_fileutils.c lib/b_fun.c lib/b_funlist.c:
+	Day one, code review.
+
 2001-11-26  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_fileutils.c (bk_fileutils_modify_fd_flags): Added SET

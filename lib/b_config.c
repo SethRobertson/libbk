@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.19 2001/11/20 19:51:57 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.20 2001/11/27 00:58:41 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,9 +25,13 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * spaces). There are no comments per se, but a key of the form 
  * 	#key 
  * is unlikely to every be searched for and thus becomes a de facto comment.
+ *
  * This facility also support included config files with the
- * 	#include <filename> 
- * directive. Include loops are detected and quashed. 
+ * 	#include=<filename> 
+ * directive ("#include token" directive may be changed at init
+ * time--seperator between directive and file is the configured file
+ * seperator"). Include loops are detected and quashed.
+ *
  * Blank lines are ignored.
  */
 
@@ -52,9 +56,9 @@ struct bk_config
   bk_flags			bc_flags;	///< Everyone needs flags
   struct bk_config_fileinfo *	bc_bcf;		///< Files of conf data
   dict_h			bc_kv;		///< Hash of value dlls
-  int				bc_kv_error;	///< clc errno for bc_kv
   struct bk_config_user_pref 	bc_bcup;	///< User prefrences
 };
+
 
 
 /**
@@ -70,6 +74,7 @@ struct bk_config_fileinfo
 };
 
 
+
 /**
  * Information about a specific key found when parsing the configuration file
  */
@@ -81,11 +86,12 @@ struct bk_config_key
 };
 
 
+
 /**
  * A individual value for a key.
  *
  * <TODO>Doesn't this need a bk_config_fileinfo ptr as well, to
- * give context to the lineno?  Or is the lineno monotomically increasing?</TODO>
+ * give context to the lineno?</TODO>
  */
 struct bk_config_value
 {
@@ -136,6 +142,7 @@ static ht_val kv_obj_hash(void *bck);
 static ht_val kv_key_hash(void *a);
 static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
 // @}
+
 
 
 /**
@@ -244,7 +251,7 @@ bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, b
 
   if (load_config_from_file(B, bc, bcf) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not load config from file: %s\n", filename);
+    bk_error_printf(B, BK_ERR_WARN, "Could not load config from file: %s\n", filename);
     /* Non-fatal */
   }
   
@@ -272,18 +279,16 @@ bk_config_destroy(bk_s B, struct bk_config *obc)
 
   if (!bc)
   {
-    bk_error_printf(B, BK_ERR_WARN, "Trying to destroy a NULL config struct\n");
+    bk_error_printf(B, BK_ERR_ERR, "Trying to destroy a NULL config struct\n");
     BK_VRETURN(B);
   }
 
   if (bc->bc_kv)
   {
     struct bk_config_key *bck;
-    while((bck=config_kv_minimum(bc->bc_kv)))
-    {
-      config_kv_delete(bc->bc_kv,bck);
-      bck_destroy(B,bck);
-    }
+
+    DICT_NUKE_CONTENTS(bc->bc_kv, config_kv, bck, bk_error_printf(B, BK_ERR_ERR, "Could not delete minimum from list: %s",config_kv_error_reason(bc->bc_kv, NULL)), bck_destroy(B, bck));
+
     bk_debug_printf_and(B,128,"KV free: %p\n", bc->bc_kv);
     config_kv_destroy(bc->bc_kv);
   }
@@ -329,7 +334,6 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
   int ret=0;
   char line[LINELEN];
   int lineno=0;
-  struct stat st;
 
   if (!bc || !bcf)
   {
@@ -345,7 +349,7 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
   }
 
   /* Get the stat and search for loops */
-  if (fstat(fileno(fp),&bcf->bcf_stat)<0)
+  if (fstat(fileno(fp),&bcf->bcf_stat) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not fstat %s: %s\n",bcf->bcf_filename, strerror(errno));
     ret=-1;
@@ -386,7 +390,7 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
     }
 
     /* 
-     * The separator for the key value is ONE SPACE (ie not any span of 
+     * The separator for the key value is ONE instance of seperator (ie not any span of 
      * white space). This way the value *may* contain leading white space if
      * the user wishes
      */
@@ -400,22 +404,24 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
     value += strlen (bc->bc_bcup.bcup_separator); /* XXX Should we cache this strlen? */
 
     /* "line" now points at the key and "value" at the value */
-    if (BK_STREQN(line, bc->bc_bcup.bcup_include_tag, strlen(bc->bc_bcup.bcup_include_tag)))
+    if (BK_STREQ(line, bc->bc_bcup.bcup_include_tag))
     {
       struct bk_config_fileinfo *nbcf;
+
       if (!(nbcf=bcf_create(B,value,bcf)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not create bcf for included file: %s\n", value);
 	ret=-1;
 	goto done;
       }
-      if (load_config_from_file(B, bc, nbcf)<0)
+      if (load_config_from_file(B, bc, nbcf) < 0)
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not fully load: %s\n", value);
-	BK_RETURN(B,-1);
+	bk_error_printf(B, BK_ERR_WARN, "Could not fully load: %s\n", value);
+	bcf_destroy(B, nbcf);
+	/* Try to read rest of file anyway */
       }
     }
-    else if (config_manage(B, bc, line, value, NULL, lineno)<0)
+    else if (config_manage(B, bc, line, value, NULL, lineno) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not add %s ==> %s to DB\n", key, value);
       ret=-1;
@@ -440,16 +446,16 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
 
 
 /**
- * Internal management function. This the main workhorse of the system. It
- * operates entirely by checking the state of the arguments and determining
- * what to do based on this. If @a key is null, it is created and @a value
- * appended to it (NULL values are not permitted, though obviously there is
- * no reason that @a value cannot be ""). If @a ovalue is NULL, then @a
- * value is added to @a key. If both @a ovalue and @a value are non-NULL,
- * then @a value replaces @a ovalue. If @a ovalue is non-NULL, but @a value
- * is NULL, then @a olvalue is deleted from @a key. If deleting @a ovalue
- * from @a key would result in @a key being devoid of values, @a key is
- * deleted.
+ * Internal management function. This the main workhorse of the
+ * system. It operates entirely by checking the state of the arguments
+ * and determining what to do based on this. If @a key is not found,
+ * it is created and @a value appended to it (NULL values are not
+ * permitted, though obviously there is no reason that @a value cannot
+ * be ""). If @a ovalue is NULL, then @a value is added to @a key. If
+ * both @a ovalue and @a value are non-NULL, then @a value replaces @a
+ * ovalue. If @a ovalue is non-NULL, but @a value is NULL, then @a
+ * olvalue is deleted from @a key. If deleting @a ovalue from @a key
+ * would result in @a key being devoid of values, @a key is deleted.
  * 
  *	@param B BAKA thread/global state.
  *	@param bc Configure structure.
@@ -468,6 +474,7 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
   struct bk_config_key *bck=NULL;
   struct bk_config_value *bcv=NULL;
   int flags=0;
+  int ret=0;
 
   if (!bc || !key || (!value && !ovalue))
   {
@@ -518,12 +525,7 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
   {
     if (!(bcv=config_values_search(bck->bck_values, (char *)ovalue)))
     {
-      /* 
-       * jtt thinks failure to locate something you want to delete is just
-       * a warning and *not* and erorr.
-       */
-	 
-      bk_error_printf(B, BK_ERR_WARN, "Could not locate value: %s in key: %s\n", value, key);
+      bk_error_printf(B, BK_ERR_ERR, "Could not locate value: %s in key: %s\n", value, key);
       goto error;
     }
 
@@ -536,6 +538,7 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not strdup new value: %s (restoring %s)\n", value, ovalue);
 	bcv->bcv_value=hold;
+	ret=-1;
       }
       else
       {
@@ -560,7 +563,7 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
     }
   }
 
-  BK_RETURN(B, 0);
+  BK_RETURN(B, ret);
 
  error:
   /* Destroy the value first to make sure you don't double free */
@@ -694,6 +697,8 @@ bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ov
  *	@param B BAKA thread/global state.
  *	@param ibc The baka config structure to use. If NULL, the structure
  *	is extracted from @a B.
+ *	@return <i>-1</i> on call failure, failure to find key.
+ *	@return <br><i>0</i> on success.
  */
 int 
 bk_config_delete_key(bk_s B, struct bk_config *ibc, const char *key)
@@ -701,7 +706,6 @@ bk_config_delete_key(bk_s B, struct bk_config *ibc, const char *key)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_config *bc;
   struct bk_config_key *bck;
-  int ret=0;
 
   if (!key)
   {
@@ -714,14 +718,19 @@ bk_config_delete_key(bk_s B, struct bk_config *ibc, const char *key)
   if (!(bck=config_kv_search(bc->bc_kv, (char *)key)))
   {
     bk_error_printf(B, BK_ERR_WARN, "Attempt do delete nonexistent key: %s\n", key);
-    goto done;
+    goto error;
   }
 
-  config_kv_delete(bc->bc_kv, bck);
+  if (config_kv_delete(bc->bc_kv, bck) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not delete %s from key list: %s\n", key, config_kv_error_reason(bc->bc_kv,NULL));
+  }
   bck_destroy(B, bck);
 
- done: 
-  BK_RETURN(B, ret);
+  BK_RETURN(B, 0);
+
+ error:
+  BK_RETURN(B, -1);
 }
 
 
@@ -846,7 +855,7 @@ bck_create(bk_s B, const char *key, bk_flags flags)
 
   bck->bck_flags=flags;
   
-  if (!(bck->bck_values=config_values_create(bcv_oo_cmp,bcv_ko_cmp,DICT_UNORDERED)))
+  if (!(bck->bck_values=config_values_create(bcv_oo_cmp,bcv_ko_cmp, DICT_UNORDERED)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create values clc\n");
     goto error;
@@ -878,11 +887,13 @@ bck_destroy(bk_s B, struct bk_config_key *bck)
     BK_VRETURN(B);
   }
   
-  if (bck->bck_key) free (bck->bck_key);
+  if (bck->bck_key)
+    free (bck->bck_key);
 
   /* This CLC header can be NULL if there was an error during bck creation */
   if (bck->bck_values)
   {
+    // XXX - DICT_NUKE_CONTENTS
     while((bcv=config_values_minimum(bck->bck_values)))
     {
       config_values_delete(bck->bck_values, bcv);
@@ -1018,6 +1029,7 @@ bk_config_print(bk_s B, struct bk_config *ibc, FILE *fp)
  *	@param B BAKA thread/global state 
  *	@param B BAKA thread/global state 
  *	@param B BAKA thread/global state 
+// XXX-seth
  */
 static int
 check_for_double_include(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *cur_bcf, struct bk_config_fileinfo *new_bcf)

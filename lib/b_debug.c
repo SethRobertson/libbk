@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_debug.c,v 1.11 2001/11/07 21:35:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_debug.c,v 1.12 2001/11/27 00:58:41 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -486,6 +486,8 @@ void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, char *intro, char *pref
   }
 
   bk_debug_iprintf(B, bdinfo, out);
+  free(out);
+
   return;
 }
 

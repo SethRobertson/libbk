@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bits.c,v 1.7 2001/11/18 20:00:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_bits.c,v 1.8 2001/11/27 00:58:41 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -18,7 +18,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 /**
  * @file
- * Bitfield fundamental routines (creation, destruction, import, export)
+ * Multibyte bitfield fundamental routines (creation, destruction, import, export).
+ * See also BK_BITS_*
  */
 
 #include <libbk.h>
@@ -42,8 +43,10 @@ char *bk_bits_create(bk_s B, size_t size, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *ret;
 
+  if (!size) size=1;
+
   /* always allocate something */
-  if (!(ret = malloc(BK_BITS_SIZE(size ? size : 1))))
+  if (!(ret = malloc(BK_BITS_SIZE(size))))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bit storage: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
@@ -79,7 +82,9 @@ void bk_bits_destroy(bk_s B, char *base)
 
 
 /**
- * Save bitfield to a character string for storage
+ * Save bitfield to a character string for storage. Allocates memory
+ * which should be freed with free(3). Remember that you still may
+ * need to destroy the bitfield you are converting.
  *
  *	@param B BAKA thread/global state 
  *	@param base The bitfield we are converting to ascii format
@@ -91,7 +96,7 @@ void bk_bits_destroy(bk_s B, char *base)
 char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char *ret, *cur;
+  char *ret=NULL, *cur;
   int len,tmp;
 
   if (!base)
@@ -107,7 +112,7 @@ char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate bits storage: %s\n",strerror(errno));
       BK_RETURN(B, NULL);
     }
-    strcpy(ret, "0");		/* distinct from "00" = zero byte */
+    strcpy(ret, "0");				/* distinct from "00" = zero byte */
     BK_RETURN(B, ret);
   }
 
@@ -125,7 +130,7 @@ char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
     u_char byte = *base;
 
     if ((int)(size -= 8) < 0)
-      byte &= (0xff >> -size);	/* clear unused bits from MSB down */
+      byte &= (0xff >> -size);			/* clear unused bits from MSB down */
       
     tmp = snprintf(cur, len, "%02x", (u_char)byte);
     if (tmp < 0 || tmp >= len)
@@ -151,8 +156,10 @@ char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
 /**
  * Restore a saved bitfield back to memory representation.
  *
- * Note string must be exactly as it was given during _save, specifically,
- * the bitfield must be null terminated.
+ * Note string must be exactly as it was given during _save,
+ * specifically, the bitfield must be null terminated.  Also note that
+ * the size is rounded up to the nearest octet--a 7 bit bitfield will
+ * be returned, here, as an 8 bit bitfield.
  *
  *	@param B BAKA thread/global state 
  *	@param saved The ascii data previously created by @a bk_bits_save
@@ -164,7 +171,7 @@ char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
 char *bk_bits_restore(bk_s B, char *saved, size_t *size, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char *ret, *cur;
+  char *ret=NULL, *cur;
   int len;
   u_int tmp;
 
@@ -175,11 +182,17 @@ char *bk_bits_restore(bk_s B, char *saved, size_t *size, bk_flags flags)
   }
 
   len = strlen(saved);
-  if (len == 1)			/* zero bits */
+  if (len == 1)					/* zero bits */
   {
     if (size) *size = 0;
 
-    BK_ORETURN(B, malloc(1));	/* try to return a pointer if possible */
+    if (!(ret = malloc(1)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for zero length bitfield: %s\n", strerror(errno));
+      BK_RETURN(B, NULL);
+    }
+
+    BK_RETURN(B, ret);				/* try to return a pointer if possible */
   }
 
   if (size) *size = 4 * len;
