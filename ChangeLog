@@ -1,3 +1,8 @@
+2004-11-12    <jbl@localhost.localdomain>
+
+	* lib/b_ringdir.c (bk_ringdir_get_status): Added a settings file
+	and an API to retrieve current buffer status.
+	
 2004-10-27  James Tanis  <jtt@fry.sysdetect.com>
 
 	* lib/b_config.c (config_manage): Null values should be

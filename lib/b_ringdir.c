@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.17 2004/11/10 17:17:12 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.18 2004/11/12 22:15:53 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -75,6 +75,8 @@ struct bk_ringdir_standard
 static struct bk_ring_directory *brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *pattern, struct bk_ringdir_callbacks *callbacks, bk_flags flags);
 static void brd_destroy(bk_s B, struct bk_ring_directory *brd);
 static char *create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags);
+static int write_settings(bk_s B, struct bk_ring_directory *brd, const char *directory, const char *pattern, bk_flags flags);
+
 
 #define TEST_FILE_NUM 1
 
@@ -110,6 +112,12 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
   brd->brd_max_num_files = max_num_files;
   brd->brd_brc = *callbacks;			// Structure copy.
   brd->brd_flags = flags;
+
+  if (write_settings(B, brd, directory, pattern, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Failed to write settings file.\n");
+    goto error;
+  }
 
   if (rotate_size == BK_RINGDIR_GET_SIZE_ERROR)
   {
@@ -1544,4 +1552,227 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
     free(tmp_path);
 
   BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Get oldest and max file number for this ring buffer.
+ *
+ * The caller should note that the status may change
+ * (the writer may advance) between calling this 
+ * function and actually acting on the results.
+ *
+ * @param B BAKA Thread/global state
+ * @param brd ring directory info
+ * @param pattern template for ring filenames (full path)
+ * @param current copy-out current file
+ * @param oldest copy-out oldest file
+ * @param max copy-out max number of files
+ * @param flags Reserved.
+ * @return <i>0</i> on success
+ * @return <i>-1</i> on failure
+ */
+int
+bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t *oldest, u_int32_t *max, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *max_filename = NULL;
+  char *chkpnt_filename = NULL;
+  char *oldest_filename = NULL;
+  int len;
+  int ret;
+  int fd = -1;
+
+  if (!(max_filename = bk_string_alloc_sprintf(B, 0, 0, "%s.max", pattern)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create max file name\n");
+    goto error;
+  }
+
+  if (!(chkpnt_filename = bk_string_alloc_sprintf(B, 0, 0, "%s", pattern)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create cache file name\n");
+    goto error;
+  }
+
+  // Read the ringdir max file count
+  if ((fd = open(max_filename, O_RDONLY)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not open %s for reading: %s\n", max_filename, strerror(errno));
+    goto error;
+  }
+
+  free(max_filename);
+  max_filename = NULL;
+    
+  len = sizeof(*max);
+  do 
+  {
+    if ((ret = read(fd, max+sizeof(*max)-len, len)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Failed to read out check value: %s\n", strerror(errno));
+      goto error;
+    }
+      
+    len -= ret;
+  } while (len);
+
+  close(fd);
+  fd = -1;
+
+  *max = ntohl(*max);
+
+  // Read the ringdir cache file
+  if ((fd = open(chkpnt_filename, O_RDONLY)) < 0)
+  {
+    if (errno == ENOENT)
+    {
+      *current = 0;
+      *oldest = 0;
+    }
+    else
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not open %s for reading: %s\n", chkpnt_filename, strerror(errno));
+      goto error;
+    }
+  }
+  else
+  {
+    len = sizeof(*current);
+    do 
+    {
+      if ((ret = read(fd, current+sizeof(*current)-len, len)) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Failed to read out check value: %s\n", strerror(errno));
+	goto error;
+      }
+      
+      len -= ret;
+    } while (len);
+
+    close(fd);
+    fd = -1;
+
+    *current = ntohl(*current);
+
+    *oldest = (*current + 1) % *max;
+
+    // Special check in case this ring buffer is new
+    if (!(oldest_filename = create_file_name(B, pattern, *oldest, 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not build filename for oldest file.\n");
+      goto error;
+    }
+
+    if (access(oldest_filename, F_OK) < 0)
+    {
+      if (errno == ENOENT)
+      {
+	// The next file in the ring doesn't yet exist, so file 0 is actually oldest.
+	*oldest = 0;
+      }
+      else
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not check existence of oldest file\n");
+	goto error;
+      }
+    }
+
+    free(oldest_filename);
+    oldest_filename = NULL;
+  }
+
+  free(chkpnt_filename);
+  chkpnt_filename = NULL;
+
+  BK_RETURN(B, 0);
+
+ error:
+  if (max_filename)
+    free(max_filename);
+
+  if (chkpnt_filename)
+    free(chkpnt_filename);
+
+  if (oldest_filename)
+    free(oldest_filename);
+
+  if (fd != -1)
+    close(fd);
+
+  BK_RETURN(B, -1);
+}
+
+
+
+/**
+ * Write information about the setup of the ring buffer to disk.
+ *
+ * @param B BAKA Thread/global state
+ * @param brd ring directory info
+ * @param directory location of ring
+ * @param pattern template for ring filenames
+ * @param flags Reserved.
+ * @return <i>0</i> on success
+ * @return <i>-1</i> on failure
+ */
+static int
+write_settings(bk_s B, struct bk_ring_directory *brd, const char *directory, const char *pattern, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int fd = -1;
+  int ret;
+  int len;
+  char *max_filename = NULL;
+  u_int32_t value;
+
+  if (!brd || !directory || !pattern)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Internal error: illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!(max_filename = bk_string_alloc_sprintf(B, 0, 0, "%s%s.max", directory, pattern)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create max file name\n");
+    goto error;
+  }
+
+  // Record size of ring buffer for readers
+  value = htonl(brd->brd_max_num_files);
+
+  if ((fd = open(max_filename, O_WRONLY|O_CREAT, 0777)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not open %s for writing: %s\n", max_filename, strerror(errno));
+    goto error;
+  }
+
+  len = sizeof(value);
+  do 
+  {
+    if ((ret = write(fd, ((char *)&value)+sizeof(value)-len, len)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Failed to write out max value: %s\n", strerror(errno));
+      goto error;
+    }
+    len -= ret;
+  } while(len);
+
+  close(fd);
+  fd = -1;
+
+  free(max_filename);
+  max_filename = NULL;
+
+  BK_RETURN(B, 0);
+
+ error:
+  if (fd != -1)
+    close(fd);
+
+  if (max_filename)
+    free(max_filename);
+
+  BK_RETURN(B, -1);
 }
