@@ -1,3 +1,14 @@
+2001-09-29  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h (BK_STRING_QUOTE_NULLOK): allow NULL char *
+	(BK_NULLSTR): string placeholder for NULL
+
+	* lib/b_bits.c (bk_bits_save): decrement size by 8 bits per char
+	(bk_bits_restore): size (in bits) is 4*strlen(x)
+
+	* lib/b_string.c (bk_string_tokenize_split): avoid segv for default ws
+	(bk_string_quote): generate NULL for NULL, if ok
+
 2001-09-25    <dupuy@sysdetect.com>
 
 	* include/libbk_include.h: include winsock.h, process.h, instead

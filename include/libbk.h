@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.31 2001/09/17 23:14:36 dupuy Exp $
+ * $Id: libbk.h,v 1.32 2001/09/29 13:25:31 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -367,6 +367,8 @@ extern int bk_string_atoill(bk_s B, char *string, int64_t *value, bk_flags flags
 extern char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags);
 extern char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags);
 #define BK_STRING_QUOTE_NONPRINT	0x01	/* Quote non-printable */
+#define BK_STRING_QUOTE_NULLOK		0x02	/* Output NULL */
+#define BK_NULLSTR			"NULL"  /* String rep of NULL  */
 char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags);
 extern int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags);
 

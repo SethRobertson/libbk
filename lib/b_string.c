@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.5 2001/09/04 05:00:06 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.6 2001/09/29 13:25:31 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -398,7 +398,8 @@ char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, v
     goto error;
   }
 
-  if (spliton) spliton = BK_WHITESPACE;
+  if (!spliton)
+    spliton = BK_WHITESPACE;
 
   if (BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_SKIPLEADING))
   {
@@ -778,8 +779,15 @@ char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags)
 
   if (!src)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
-    BK_RETURN(B, NULL);
+    if (BK_FLAG_ISSET(flags, BK_STRING_QUOTE_NULLOK))
+    {
+      if (!(ret = strdup(BK_NULLSTR)))
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for NULL\n");
+    }
+    else
+      bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+
+    BK_RETURN(B, ret);		/* "NULL" or NULL */
   }
 
   if (!needquote) needquote = "\"";

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bits.c,v 1.1 2001/09/08 19:13:52 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_bits.c,v 1.2 2001/09/29 13:25:31 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -87,9 +87,14 @@ char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
   }
 
   cur = ret;
-  while (size--)
+  while (size > 0)
   {
-    tmp = snprintf(cur, len, "%02x", (u_char)*base);
+    u_char byte = *base;
+
+    if ((int)(size -= 8) < 0)
+      byte &= (0xff >> -size);	/* clear unused bits from MSB down */
+      
+    tmp = snprintf(cur, len, "%02x", (u_char)byte);
     if (tmp < 0 || tmp >= len)
     {
       bk_error_printf(B, BK_ERR_ERR, "Fatal math error in computing ascii size, probably: %s\n",strerror(errno));
@@ -130,9 +135,9 @@ char *bk_bits_restore(bk_s B, char *saved, size_t *size, bk_flags flags)
   }
 
   len = strlen(saved);
-  if (size) *size = (len+1)/2;
+  if (size) *size = 4 * len;
 
-  if (!(ret = malloc((len+1)/2)))
+  if (!(ret = malloc(4 * len)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for bitfield: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
