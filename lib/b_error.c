@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.4 2001/08/31 05:03:35 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.5 2001/09/03 15:31:03 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -203,7 +203,9 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf
   }
   (*be_cursize)++;
 
-  be_error_output(B, beinfo->be_fh, beinfo->be_sysloglevel, node, 0);
+  if (sysloglevel <= beinfo->be_hilo_pivot && sysloglevel != BK_ERR_NONE)
+    be_error_output(B, beinfo->be_fh, beinfo->be_sysloglevel, node, 0);
+
   return;
 
  error:
