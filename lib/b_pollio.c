@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.27 2003/05/15 21:00:35 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.28 2003/05/15 21:51:51 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -228,10 +228,7 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
   BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_CLOSING);
   BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
-  if (BK_FLAG_ISSET(flags, BK_POLLING_LINGER))
-  {
-    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_LINGER);
-  }
+  BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_LINGER);	// Assume linger until everything is written...
 
   if (BK_FLAG_ISSET(flags, BK_POLLING_DONT_LINGER))
   {
@@ -868,7 +865,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
     }
   }
 
-  while ((ret = bk_ioh_write(B, bpi->bpi_ioh, data, 0)) > 0 && !timedout)
+  while (((ret = bk_ioh_write(B, bpi->bpi_ioh, data, 0)) > 0) && !timedout)
   {
     if (bk_polling_io_is_canceled(B, bpi, 0))
     {
