@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.60 2002/08/22 21:25:04 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.61 2002/08/23 03:01:39 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -32,7 +32,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif
 
 #ifndef INFINITY
-#define INFINITY (1.0/0.0)
+#define INFINITY HUGE_VAL			// 1.0/0.0 causes gcc warnings
 #endif
 
 #define TOKENIZE_FIRST		8		///< How many we will start with 
