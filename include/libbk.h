@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.282 2004/04/07 22:38:07 jtt Exp $
+ * $Id: libbk.h,v 1.283 2004/04/13 17:54:28 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2102,8 +2102,8 @@ extern int bk_vptr_trimleft(bk_s B, struct bk_vptr *vptr, const void *ptr);
 extern int bk_vptr_ntrimleft(bk_s B, struct bk_vptr *vptr, size_t n);
 extern int bk_vptr_cmp(bk_vptr *v1, bk_vptr *v2);
 
-/* b_ringdir.c */
 
+/* b_ringdir.c */
 typedef void *bk_ringdir_t;
 
 enum bk_ringdir_chkpnt_actions
@@ -2113,10 +2113,19 @@ enum bk_ringdir_chkpnt_actions
   BkRingDirChkpntActionDelete,			///< Delete checkpoint state
 };
 
+
+
+enum bk_ringdir_callback_source
+{
+  BkRingDirCallbackSourceInit,			///< Callback called from init function.
+  BkRingDirCallbackSourceRotate,		///< Callback called from rotate function.
+  BkRingDirCallbackSourceDestroy,		///< Callback called from destroy function.
+};
+
+
 /**
  * This call back API for the ring directory 
  */
-
 struct bk_ringdir_callbacks
 {
   /**
@@ -2130,13 +2139,20 @@ struct bk_ringdir_callbacks
    * memory checkers. We suggest returning the function name (ie function
    * pointer) instead. For your convenience, you are passed all the values
    * which the caller passed to @a bk_ringdir_init(), you may use them how
-   * you will.
+   * you will. The @a private data in this function is intended to give the
+   * plugin author a mechanism for permitting the caller to pass
+   * information from the calling context to the plugin init() call in case
+   * it is required for completing some aspect of the init call. It is
+   * <emphasis>not</emphasis> the @a opaque data of all the rest of the
+   * prototypes in this API. That @a opqque is the return value from this
+   * function.
    *
    *	@param B BAKA thread/global state.
    *	@param directory The "path" to the ring directory;
    *	@param rotate_size How big a file may grow before rotation.
    *	@param max_num_files How many files in the ring dir before reuse.
    *	@param file_name_pattern The sprintf-like pattern for creating names in the directory.
+   *	@param private Private data for this function from the caller.
    *	@param flags Flags for future use.
    *
    * BK_RINGDIR_FLAG_DO_NOT_CREATE: If you passed this flag, do not create
@@ -2145,7 +2161,7 @@ struct bk_ringdir_callbacks
    *	@return <i>NULL</i> on failure.<br>
    *	@return <i>private_data</i> on success.
    */
-  void *(*brc_init)(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, bk_flags flags);
+  void *(*brc_init)(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, void *private, bk_flags flags);
 
 
 
@@ -2190,6 +2206,7 @@ struct bk_ringdir_callbacks
    *	@param B BAKA thread/global state.
    *	@param opaque Your private data.
    *	@param directory The directory you may be asked to nuke.
+   *	@param source The ring direction action which triggerd this callback
    *	@param flags Flags for future use.
    *
    * BK_RINGDIR_FLAG_OPEN_APPEND: If you are passed this flag you should
@@ -2199,7 +2216,7 @@ struct bk_ringdir_callbacks
    *	@return <i>-1</i> on failure.<br>
    *	@return <i>0</i> on success.
    */
-  int (*brc_open)(bk_s B, void *opaque, const char *filename, bk_flags flags);
+  int (*brc_open)(bk_s B, void *opaque, const char *filename, enum bk_ringdir_callback_source source, bk_flags flags);
 
 
 
@@ -2209,11 +2226,12 @@ struct bk_ringdir_callbacks
    *	@param B BAKA thread/global state.
    *	@param opaque Your private data.
    *	@param directory The directory you may be asked to nuke.
+   *	@param source The ring direction action which triggerd this callback
    *	@param flags Flags for future use.
    *	@return <i>-1</i> on failure.<br>
    *	@return <i>0</i> on success.
    */
-  int (*brc_close)(bk_s B, void *opaque, const char *filename, bk_flags flags);
+  int (*brc_close)(bk_s B, void *opaque, const char *filename, enum bk_ringdir_callback_source source, bk_flags flags);
 
 
 
@@ -2223,11 +2241,12 @@ struct bk_ringdir_callbacks
    *	@param B BAKA thread/global state.
    *	@param opaque Your private data.
    *	@param directory The directory you may be asked to nuke.
+   *	@param source The ring direction action which triggerd this callback
    *	@param flags Flags for future use.
    *	@return <i>-1</i> on failure.<br>
    *	@return <i>0</i> on success.
    */
-  int (*brc_unlink)(bk_s B, void *opaque, const char *filename, bk_flags flags);
+  int (*brc_unlink)(bk_s B, void *opaque, const char *filename, enum bk_ringdir_callback_source source, bk_flags flags);
 
 
 
@@ -2252,11 +2271,12 @@ struct bk_ringdir_callbacks
    *	@param directory The directory you may be asked to nuke.
    *	@param pattern The file pattern.
    *	@param valuep The file pattern.
+   *	@param source The ring direction action which triggerd this callback
    *	@param flags Flags for future use.
    *	@return <i>-1</i> on failure.<br>
    *	@return <i>0</i> on success.
    */
-  int (*brc_chkpnt)(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, bk_flags flags);
+  int (*brc_chkpnt)(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, enum bk_ringdir_callback_source source, bk_flags flags);
 };
 
 
@@ -2274,7 +2294,7 @@ struct bk_ringdir_callbacks
 #define BK_RINGDIR_GET_SIZE_ERROR	UINT32_MAX
 #define BK_RINGDIR_GET_SIZE_MAX		(BK_RINGDIR_GET_SIZE_ERROR - 1)
 
-extern bk_ringdir_t bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, struct bk_ringdir_callbacks *callbacks, bk_flags flags);
+extern bk_ringdir_t bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, void *private, struct bk_ringdir_callbacks *callbacks, bk_flags flags);
 extern void bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern int bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern void *bk_ringdir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags);
@@ -2285,13 +2305,13 @@ extern char *bk_ringdir_filename_current(bk_s B, bk_ringdir_t brdh, bk_flags fla
 extern char *bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename, bk_flags flags);
 #define BK_RINGDIR_FILENAME_ITERATE_FLAG_FREE	0x1 ///< For successor/predecessor free the input filename.
 
-extern void *bk_ringdir_standard_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, bk_flags flags);
+extern void *bk_ringdir_standard_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, void *private, bk_flags flags);
 extern void bk_ringdir_standard_destroy(bk_s B, void *opaque, const char *directory, bk_flags flags);
 extern off_t bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flags flags);
-extern int bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, bk_flags flags);
-extern int bk_ringdir_standard_close(bk_s B, void *opaque, const char *filename, bk_flags flags);
-extern int bk_ringdir_standard_unlink(bk_s B, void *opaque, const char *filename, bk_flags flags);
-extern int bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, bk_flags flags);
+extern int bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, enum bk_ringdir_callback_source source, bk_flags flags);
+extern int bk_ringdir_standard_close(bk_s B, void *opaque, const char *filename, enum bk_ringdir_callback_source source, bk_flags flags);
+extern int bk_ringdir_standard_unlink(bk_s B, void *opaque, const char *filename, enum bk_ringdir_callback_source source, bk_flags flags);
+extern int bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, enum bk_ringdir_callback_source source, bk_flags flags);
 extern int bk_ringdir_standard_update_private_data(bk_s B, bk_ringdir_t brdh, void *opaque, bk_flags flags);
 extern int bk_ringdir_standard_get_fd(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern void *bk_ringdir_standard_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags);

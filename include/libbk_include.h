@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.37 2004/01/05 19:26:37 seth Exp $
+ * $Id: libbk_include.h,v 1.38 2004/04/13 17:54:28 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -100,6 +100,7 @@
 #endif
 #include <stdarg.h>
 #include <string.h>
+#include <libgen.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <memory.h>
