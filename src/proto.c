@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.4 2001/09/07 16:24:46 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.5 2001/11/05 20:41:11 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -38,8 +38,8 @@ struct global_structure
  */
 struct program_config
 {
-  char	   *pc_person;				/* The person to greet */
-  bk_flags pc_flags;				/* Flags are fun! */
+  const char * 		pc_person;		/* The person to greet */
+  bk_flags 		pc_flags;		/* Flags are fun! */
 #define PC_VERBOSE	1
 };
 
@@ -56,11 +56,22 @@ main(int argc, char **argv, char **envp)
 {
   bk_s B = NULL;				/* Baka general structure */
   BK_ENTRY(B, __FUNCTION__, __FILE__, "SIMPLE");
-  int tmpvar;
-  int getopterr = 0;
+  char c;
+  int getopterr=0;
   extern char *optarg;
   extern int optind;
-  struct program_config Pconfig, *pconfig;
+  struct program_config Pconfig, *pconfig=NULL;
+  poptContext optCon=NULL;
+  const struct poptOption optionsTable[] = 
+  {
+    {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
+    {"person", 'p', POPT_ARG_STRING, NULL, 'p', "Turn on debugging", NULL },
+    {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
+    POPT_AUTOHELP
+    POPT_TABLEEND
+  };
+
+  optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0);
 
   if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), ERRORQUEUE_DEPTH, BK_ERR_ERR, 0)))
   {
@@ -72,17 +83,16 @@ main(int argc, char **argv, char **envp)
   pconfig = &Pconfig;
   memset(pconfig,0,sizeof(*pconfig));
 
-#if 0 /* getopt not part of cygwin; use popt (better) instead for all o/s */
-
-  while ((tmpvar = getopt(argc, argv, "dp:v")) != -1)
-    switch (tmpvar)
+  while ((c = poptGetNextOpt(optCon)) >= 0)
+  {
+    switch (c)
     {
     case 'd':
       bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);
       bk_debug_printf(B, "Debugging on\n");
       break;
     case 'p':
-      pconfig->pc_person = optarg;
+      pconfig->pc_person = poptGetOptArg(optCon);
       break;
     case 'v':
       BK_FLAG_SET(pconfig->pc_flags, PC_VERBOSE);
@@ -90,12 +100,17 @@ main(int argc, char **argv, char **envp)
       break;
     default:
       getopterr++;
+      break;
     }
-#endif /* 0 */
+  }
 
-  if (getopterr)
+  if (c < -1 || getopterr)
   {
-    usage(B);
+    if (c < -1)
+    {
+      fprintf(stderr, "%s\n", poptStrerror(c));
+    }
+    poptPrintUsage(optCon, stderr, 0);
     bk_exit(B,254);
   }
     
@@ -107,16 +122,6 @@ main(int argc, char **argv, char **envp)
   progrun(B, pconfig);
   bk_exit(B,0);
   abort();
-}
-
-
-
-/*
- * Usage
- */
-void usage(bk_s B)
-{
-  fprintf(stderr,"Usage: %s: [-dv]\n",BK_GENERAL_PROGRAM(B));
 }
 
 
@@ -145,7 +150,7 @@ int proginit(bk_s B, struct program_config *pconfig)
 void progrun(bk_s B, struct program_config *pconfig)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
-  char *person = "World";
+  const char *person = "World";
 
   if (!pconfig)
   {
