@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.69 2004/06/30 17:57:48 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.70 2004/07/03 08:15:00 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -700,6 +700,12 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
   if (!run || !event)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_IN_DESTROY))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Cannot enqueue event when we are in destroy\n");
     BK_RETURN(B, -1);
   }
 

@@ -1,3 +1,14 @@
+2004-07-03  Seth Robertson  <seth@cheviot.sysdetect.com>
+
+	* lib/b_run.c (bk_run_enqueue): Do not enqueue events if we are
+	attempting to destroy run.  This is a sign of a self-scheduling
+	job gone awry, typically.
+
+2004-06-29  Seth Robertson  <seth@cheviot.sysdetect.com>
+
+	* src/timeout.c (main): Option to wait for process to exit after
+	signaling.
+
 2004-06-30  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_intinfo.c (bk_intinfo_list_create): What the heck. Get the
@@ -10,7 +21,7 @@
 
 	* lib/b_exec.c (bk_pipe_to_process): work on systems without openpty,
 	get openpty definition on FreeBSD systems
-	
+
 	* include/libbk_oscompat.h (strnlen, nearbyint, trunc): FreeBSD fixes
 
 2004-06-24  Seth Robertson  <seth@cheviot.sysdetect.com>

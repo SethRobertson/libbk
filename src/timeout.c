@@ -9,6 +9,7 @@ int timeout=10;
 int finished=0;
 int status;
 int pid;
+int waitaftersignal=0;
 /*
  * This program exits with bizzare exit status so that it's more likely that
  * user scripts will be able to determine if the exit status derived from the
@@ -24,13 +25,14 @@ void reaper(int signum)
 {
   while(waitpid(pid,&status,0)>=0);
   finished++;
+  exit(status>>8);
 }
 
 int main(int argc, char **argv)
 {
   char ch;
 
-  while ((ch = getopt(argc, argv, "+s:t:e:")) != EOF)
+  while ((ch = getopt(argc, argv, "+s:t:e:w")) != EOF)
   {
     switch(ch)
     {
@@ -42,6 +44,9 @@ int main(int argc, char **argv)
       break;
     case 't':
       timeout=atoi(optarg);
+      break;
+    case 'w':
+      waitaftersignal++;
       break;
     default:
       usage();
@@ -61,7 +66,7 @@ int main(int argc, char **argv)
     perror("signal");
     exit(error_exit);
   }
-   
+
   if (!(pid=fork()))
   {
     if (execvp(*argv,argv)<0)
@@ -69,13 +74,18 @@ int main(int argc, char **argv)
       perror("fork");
       exit(error_exit);
     }
-   
+
   }
   sleep(timeout);
 
   if (!finished)
   {
     kill(pid,sig);
+    if (waitaftersignal)
+    {
+      waitpid(pid,&status,0);
+      exit(WEXITSTATUS(status));
+    }
     exit(error_exit);
   }
   exit(WEXITSTATUS(status));
@@ -84,5 +94,5 @@ int main(int argc, char **argv)
 
 void usage(void)
 {
-  fprintf(stderr,"timeout [-t timeout] [-s signal] <cmd> [args]\n");
+  fprintf(stderr,"timeout [[-e timeout_exit_code ] | [-w]] [-t timeout] [-s signal] <cmd> [args]\n");
 }
