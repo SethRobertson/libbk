@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.104 2004/01/05 19:26:38 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.105 2004/06/08 22:03:01 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -4552,7 +4552,7 @@ static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, cons
  *	@return <i>0</i> on success.
  */
 int
-bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_alg, struct bk_vptr auth_key, char *auth_name , int encrypt_alg, struct bk_vptr encrypt_key, bk_flags flags)
+bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_alg, bk_vptr auth_key, char *auth_name , int encrypt_alg, bk_vptr encrypt_key, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 

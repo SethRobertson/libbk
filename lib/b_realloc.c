@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_realloc.c,v 1.2 2004/06/07 17:01:57 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_realloc.c,v 1.3 2004/06/08 22:03:01 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -66,9 +66,9 @@ static dict_h buffer_pool = NULL;
 #define buffer_pool_iterate_done(h,i)		ht_iterate_done(h,i)
 #define buffer_pool_error_reason(h,i)		ht_error_reason(h,i)
 
-static int buffer_pool_oo_cmp(struct bk_vptr *a, struct bk_vptr *b);
-static int buffer_pool_ko_cmp(char *a, struct bk_vptr *b);
-static unsigned int buffer_pool_obj_hash(struct bk_vptr *b);
+static int buffer_pool_oo_cmp(bk_vptr *a, bk_vptr *b);
+static int buffer_pool_ko_cmp(char *a, bk_vptr *b);
+static unsigned int buffer_pool_obj_hash(bk_vptr *b);
 static unsigned int buffer_pool_key_hash(char *a);
 static struct ht_args buffer_pool_args = { 1021, 2, (ht_func)buffer_pool_obj_hash, (ht_func)buffer_pool_key_hash };
 // @}
@@ -109,7 +109,7 @@ bk_malloc_wrap_init(bk_flags flags)
 void
 bk_malloc_wrap_destroy(bk_flags flags)
 {
-  struct bk_vptr *vector;
+  bk_vptr *vector;
 
   if (!buffer_pool)
     return;
@@ -145,7 +145,7 @@ bk_malloc_wrap_destroy(bk_flags flags)
 void *
 bk_malloc_wrapper(size_t size)
 {
-  struct bk_vptr *vector = NULL;
+  bk_vptr *vector = NULL;
 
   if (!buffer_pool && bk_malloc_wrap_init(0) < 0)
     goto error;
@@ -212,7 +212,7 @@ bk_calloc_wrapper(size_t nmemb, size_t size)
 void
 bk_free_wrapper(void *buf)
 {
-  struct bk_vptr *vector;
+  bk_vptr *vector;
 
   if (!buffer_pool && bk_malloc_wrap_init(0) < 0)
     goto error;
@@ -245,7 +245,7 @@ bk_free_wrapper(void *buf)
 void *
 bk_realloc_wrapper(void *buf, size_t size)
 {
-  struct bk_vptr *vector;
+  bk_vptr *vector;
   void *new_buf = NULL;
 
   if (!buffer_pool && bk_malloc_wrap_init(0) < 0)
@@ -348,19 +348,19 @@ bk_strndup_wrapper(const char *str, size_t n)
 
 
 /** CLC helper functions and structures for buffer_pool_clc */
-static int buffer_pool_oo_cmp(struct bk_vptr *a, struct bk_vptr *b)
+static int buffer_pool_oo_cmp(bk_vptr *a, bk_vptr *b)
 {
   return((int)a->ptr - (int)b->ptr);
 }
 
 /** CLC helper functions and structures for buffer_pool_clc */
-static int buffer_pool_ko_cmp(char *a, struct bk_vptr *b)
+static int buffer_pool_ko_cmp(char *a, bk_vptr *b)
 {
   return((int)a - (int)b->ptr);
 }
 
 /** CLC helper functions and structures for buffer_pool_clc */
-static unsigned int buffer_pool_obj_hash(struct bk_vptr *a)
+static unsigned int buffer_pool_obj_hash(bk_vptr *a)
 {
   return((unsigned int)a->ptr);
 }

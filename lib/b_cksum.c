@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_cksum.c,v 1.11 2004/01/29 18:28:58 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_cksum.c,v 1.12 2004/06/08 22:03:01 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -44,7 +44,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  *	@param len Length of data in m that should be checksummed
  *	@return 16-bit <i>checksum</i> of data
  */
-int bk_in_cksum(bk_s B, struct bk_vptr *m, int len)
+int bk_in_cksum(bk_s B, bk_vptr *m, int len)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   u_short *w;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_vptr.c,v 1.3 2004/06/08 21:43:07 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_vptr.c,v 1.4 2004/06/08 22:03:02 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -36,7 +36,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
-extern int bk_vptr_append(bk_s B, struct bk_vptr *dp, const struct bk_vptr *sp)
+extern int bk_vptr_append(bk_s B, bk_vptr *dp, const bk_vptr *sp)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   void *tmp;
@@ -71,7 +71,7 @@ extern int bk_vptr_append(bk_s B, struct bk_vptr *dp, const struct bk_vptr *sp)
  *	@return <i>-1</i> on failure.<br>
  *	@return the <i>length</i> <em>removed</em> success.
  */
-int bk_vptr_trimleft(bk_s B, struct bk_vptr *vptr, const void *ptr)
+int bk_vptr_trimleft(bk_s B, bk_vptr *vptr, const void *ptr)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   size_t removed;
@@ -126,7 +126,7 @@ int bk_vptr_trimleft(bk_s B, struct bk_vptr *vptr, const void *ptr)
  *	@return <i>-1</i> on failure.<br>
  *	@return the <i>length</i> <em>removed</em> on success.
  */
-extern int bk_vptr_ntrimleft(bk_s B, struct bk_vptr *vptr, size_t n)
+extern int bk_vptr_ntrimleft(bk_s B, bk_vptr *vptr, size_t n)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 

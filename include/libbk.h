@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.293 2004/06/08 21:43:08 jtt Exp $
+ * $Id: libbk.h,v 1.294 2004/06/08 22:03:00 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1163,7 +1163,7 @@ struct bk_atomic_cntr
 
 union bk_url_element_u
 {
-  struct bk_vptr	bue_vptr;		///< vptr version.
+  bk_vptr	bue_vptr;		///< vptr version.
   char *		bue_str;		///< string version.
 };
 
@@ -1426,7 +1426,7 @@ extern u_int bk_bitcount(bk_s B, u_int word);
 
 
 /* b_cksum.c */
-extern int bk_in_cksum(bk_s B, struct bk_vptr *m, int len);
+extern int bk_in_cksum(bk_s B, bk_vptr *m, int len);
 
 
 
@@ -1659,7 +1659,7 @@ extern bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flag
 #define	BK_IOH_COALESCE_OUT_FLAG_NO_COPY	0x1 ///< Data not copied.
 extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str);
 extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, const char *format, ...);
-extern int bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_alg, struct bk_vptr auth_key, char *auth_name , int encrypt_alg, struct bk_vptr encrypt_key, bk_flags flags);
+extern int bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_alg, bk_vptr auth_key, char *auth_name , int encrypt_alg, bk_vptr encrypt_key, bk_flags flags);
 extern int bk_ioh_cancel_register(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern int bk_ioh_cancel_unregister(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern int bk_ioh_is_canceled(bk_s B, struct bk_ioh *ioh, bk_flags flags);
@@ -1770,7 +1770,7 @@ extern double bk_string_demagnify(bk_s B, const char *number, bk_flags flags);
 extern u_int bk_strhash(const char *a, bk_flags flags);
 #define BK_HASH_V2		0x02		///< Better/slower hashing
 #define BK_HASH_MODULUS		0x04		///< Modulus by large prime
-extern u_int bk_bufhash(const struct bk_vptr *b, bk_flags flags);
+extern u_int bk_bufhash(const bk_vptr *b, bk_flags flags);
 #define BK_HASH_STRING		0x01		///< String hash if len=1/2/4/8
 
 extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const dict_h kvht_vardb, const char **variabledb, bk_flags flags);
@@ -2147,9 +2147,9 @@ extern void volatile *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
 extern int bk_ring_length(bk_s B, struct bk_ring *ring, bk_flags flags);
 
 /* b_vptr.c */
-extern int bk_vptr_append(bk_s B, struct bk_vptr *dp, const struct bk_vptr *sp);
-extern int bk_vptr_trimleft(bk_s B, struct bk_vptr *vptr, const void *ptr);
-extern int bk_vptr_ntrimleft(bk_s B, struct bk_vptr *vptr, size_t n);
+extern int bk_vptr_append(bk_s B, bk_vptr *dp, const bk_vptr *sp);
+extern int bk_vptr_trimleft(bk_s B, bk_vptr *vptr, const void *ptr);
+extern int bk_vptr_ntrimleft(bk_s B, bk_vptr *vptr, size_t n);
 extern int bk_vptr_cmp(bk_vptr *v1, bk_vptr *v2);
 
 

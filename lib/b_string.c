@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.108 2004/05/28 21:00:28 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.109 2004/06/08 22:03:01 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -261,7 +261,7 @@ bk_strhash(const char *k, bk_flags flags)
  * http://www.concentric.net/~Ttwang/tech/inthash.htm for numerics</TODO>
  */
 u_int
-bk_bufhash(const struct bk_vptr *b, bk_flags flags)
+bk_bufhash(const bk_vptr *b, bk_flags flags)
 {
   const u_int M = 37U;				// Multiplier
   const u_int P = 2147486459U;			// Arbitrary large prime
