@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.5 2001/07/08 04:50:00 jtt Exp $
+# $Id: Makefile,v 1.6 2001/07/08 05:09:08 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -18,6 +18,7 @@ BK_LARGE_LIB=libbk.a
 
 BK_LARGE_LIBSRC=		       		\
 		b_debug.c			\
+		b_config.c			\
 		b_fun.c 			\
 		b_general.c			\
 
