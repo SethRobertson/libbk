@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.38 2003/12/25 06:27:18 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.39 2003/12/27 06:07:56 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,6 +25,16 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * receive you must "transmit" on both sides with inverse IP and port
  * combinations.  Multicast and broadcast support is transmit only.
  * (Stupidities of connected UDP).
+ *
+ * TODO:
+ *	--file-io filename  Instead of I/O to stdio, go to this file (typially PTY)
+ *	--transmit-limit bytes Limit transmission to this number bytes (e.g. -s)
+ *	--execute command   Instead of I/O to stdio, execute this program w/pipes
+ *	--execute-with-stderr Dup stderr of --execute to stdout
+ *	--execute-in-pty    Execute subprogram in a pty
+ *	--keepalives
+ *	--socks w/bind support?
+ *	* Verify bidirectional SSL authentication, encryption w/keygen ex *
  */
 
 #include <libbk.h>
