@@ -1,3 +1,11 @@
+2003-06-07  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_run.c (bk_run_close): Lock before searching fd association
+	list.
+
+	* lib/b_ioh.c (CALL_BACK): Make incallback a counter instead of a
+	flag--may be recursive.
+
 2003-06-05  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_pollio.c (polling_io_ioh_handler): Memory leak on writes

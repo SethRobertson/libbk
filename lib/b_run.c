@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.51 2003/06/07 18:21:44 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.52 2003/06/07 23:51:13 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1497,6 +1497,10 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	bk_run_runfd(B, run, x, type, curfd->brf_handler, curfd->brf_opaque, curtime, curfd->brf_flags);
 
 #ifdef BK_USING_PTHREADS
+	if (!islocked && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+	  abort();
+	islocked = 1;
+
 	// Look again, we may have been deleted in the interim
 	if (BK_GENERAL_FLAG_ISTHREADON(B) && (curfd = fdassoc_search(run->br_fdassoc, &x)))
 	{

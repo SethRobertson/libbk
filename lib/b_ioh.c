@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.85 2003/06/07 18:21:44 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.86 2003/06/07 23:51:13 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -54,7 +54,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define CALL_BACK(B, ioh, data, state)								\
  do												\
  {												\
-   BK_FLAG_SET((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK);					\
+   ioh->ioh_incallback++;                                                                       \
    if (BK_GENERAL_FLAG_ISTHREADON(B))								\
    {												\
      ioh->ioh_userid = pthread_self();                                                          \
@@ -65,7 +65,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
    ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state)));			\
    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)                \
      abort();                                                                                   \
-   BK_FLAG_CLEAR((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK);					\
+   ioh->ioh_incallback--;                                                                       \
    if (BK_GENERAL_FLAG_ISTHREADON(B))								\
    {												\
      BK_ZERO(&ioh->ioh_userid);                                                                 \
@@ -76,10 +76,10 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define CALL_BACK(B, ioh, data, state)								\
  do												\
  {												\
-   BK_FLAG_SET((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK);					\
+   ioh->ioh_incallback++;                                                                       \
    bk_debug_printf_and(B, 2, "Calling user callback for ioh %p with state %d\n",(ioh),(state));	\
    ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state)));			\
-   BK_FLAG_CLEAR((ioh)->ioh_intflags, IOH_FLAGS_IN_CALLBACK);					\
+   ioh->ioh_incallback--;                                                                       \
  } while (0)					///< Function to evaluate user callback with new data/state information
 #endif /* BK_USING_PTHREADS */
 
@@ -512,7 +512,7 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
     abort();
   if (BK_GENERAL_FLAG_ISTHREADON(B))
   {
-    while (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_IN_CALLBACK) && !pthread_equal(ioh->ioh_userid, pthread_self()))
+    while (ioh->ioh_incallback && !pthread_equal(ioh->ioh_userid, pthread_self()))
     {
       ioh->ioh_waiting++;
       pthread_cond_wait(&ioh->ioh_cond, &ioh->ioh_lock);
@@ -823,7 +823,7 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
     abort();
   if (BK_GENERAL_FLAG_ISTHREADON(B))
   {
-    while (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_IN_CALLBACK) && !pthread_equal(ioh->ioh_userid, pthread_self()))
+    while (ioh->ioh_incallback && !pthread_equal(ioh->ioh_userid, pthread_self()))
     {
       ioh->ioh_waiting++;
       pthread_cond_wait(&ioh->ioh_cond, &ioh->ioh_lock);
@@ -1123,7 +1123,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     abort();
 #endif /* BK_USING_PTHREADS */
 
-  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_IN_CALLBACK)
+  if (ioh->ioh_incallback
 #ifdef BK_USING_PTHREADS
       || ioh->ioh_waiting || (ioh->ioh_userid && pthread_equal(ioh->ioh_userid, pthread_self()))
 #endif /* BK_USING_PTHREADS */
@@ -1451,7 +1451,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
     abort();
   if (BK_GENERAL_FLAG_ISTHREADON(B))
   {
-    while (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_IN_CALLBACK) && !pthread_equal(ioh->ioh_userid, pthread_self()))
+    while (ioh->ioh_incallback && !pthread_equal(ioh->ioh_userid, pthread_self()))
     {
       ioh->ioh_waiting++;
       pthread_cond_wait(&ioh->ioh_cond, &ioh->ioh_lock);
