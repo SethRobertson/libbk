@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.96 2002/01/02 20:01:51 jtt Exp $
+ * $Id: libbk.h,v 1.97 2002/01/02 22:24:59 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -324,7 +324,7 @@ typedef enum
  * Name <=> value map. 
  * <WARNING> values should be non-negative or becareful of @abk_nvmap_name2value
  */
-struct bk_name_val_map
+struct bk_name_value_map
 {
   const char *		bnvm_name;		///< The name of pairt
   int64_t		bnvm_val;		///< The value of the pait
@@ -1185,8 +1185,8 @@ void bk_url_destroy(bk_s B, struct bk_url *bu);
 
 
 /* b_nvmap.c */
-extern int64_t bk_nvmap_name2value(bk_s B,  struct bk_name_val_map nvmap[], const char *name);
-extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_val_map nvmap[], int64_t val);
+extern int64_t bk_nvmap_name2value(bk_s B,  struct bk_name_value_map nvmap[], const char *name);
+extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map nvmap[], int64_t val);
 
 
 
