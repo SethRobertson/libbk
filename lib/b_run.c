@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.19 2001/12/19 20:21:02 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.20 2002/01/14 16:17:27 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1175,7 +1175,7 @@ u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   u_int type = 0;
 
-  if (!run && fd >= 0)
+  if (!run || fd < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
@@ -1210,7 +1210,7 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wa
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   u_int oldtype = 0;
 
-  if (!run && fd >= 0)
+  if (!run || fd < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);

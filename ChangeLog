@@ -1,3 +1,10 @@
+2002-01-14  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_run.c (bk_run_getpref): Proper argument checking.
+	(bk_run_setpref): Proper argument checking.
+
+	* lib/b_ioh.c (ioh_runhandler): Setpre on correct fd.
+
 2002-01-11  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (bk_iohh_bnbio_tell): use int64_t, not BSD quad_t

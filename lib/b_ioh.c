@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.35 2002/01/11 10:06:05 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.36 2002/01/14 16:17:27 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1146,7 +1146,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
 	ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
 	CALLBACK(B, ioh, NULL, BkIohStatusIohReadError);
 	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_INPUT);
-	bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTREAD, 0); // Clear read from select
+	bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read from select
       }
       else if (ret == 0)
       {
@@ -1154,7 +1154,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
 	ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
 	CALLBACK(B, ioh, NULL, BkIohStatusIohReadEOF);
 	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_INPUT); // This is a little bogus.....
-	bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTREAD, 0); // Clear read from select
+	bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read from select
       }
       else
       {

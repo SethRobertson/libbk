@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.4 2001/12/31 21:49:03 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.5 2002/01/14 16:17:27 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -518,6 +518,9 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
  * actuall ioh level.
  *
  *	@param B BAKA thread/global state.
+ *	@param bpi The @a bk_polling_io struct to use.
+ *	@param data The data to write out.
+ *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
@@ -540,8 +543,20 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, bk_flags f
     BK_RETURN(B, -1);
   }
 
+  if (bk_ioh_write(B, bpi->bpi_ioh, data, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not submit write\n");
+    BK_RETURN(B,-1);    
+  }
 
-  BK_RETURN(B,bk_ioh_write(B, bpi->bpi_ioh, data, 0));
+  if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
+      bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severly\n");
+    BK_RETURN(B,-1);
+  }
+
+  BK_RETURN(B,0);
 }
 
 
