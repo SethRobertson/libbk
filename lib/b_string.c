@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.27 2002/02/19 16:25:25 lindauer Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.28 2002/03/05 01:23:22 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1243,7 +1243,7 @@ char *bk_encode_base64(bk_s B, const bk_vptr *src, const char *eolseq)
 
 
 /**
- * Decode a base64 encoded string into memory buffer.
+ * Decode a base64 encoded buffer into memory buffer.
  *
  *	@param B BAKA Thread/Global state
  *	@param src Source memory to convert
@@ -1286,6 +1286,7 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
   len = strlen(str);
   end = str + len;
   r = ret->ptr;
+  ret->len = 0;
 
   while (str < end)
   {
@@ -1325,19 +1326,22 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
     bk_debug_printf_and(B, 1, "c0=%d,c1=%d,c2=%d,c3=%d\n", c[0],c[1],c[2],c[3]);
 
     *r++ = (c[0] << 2) | ((c[1] & 0x30) >> 4);
+    ret->len++;
 
     if (c[2] == EQ)
       break;
     *r++ = ((c[1] & 0x0F) << 4) | ((c[2] & 0x3C) >> 2);
+    ret->len++;
 
     if (c[3] == EQ)
       break;
     *r++ = ((c[2] & 0x03) << 6) | c[3];
+    ret->len++;
   }
 
  thats_it:
   *r = '\0';
-  ret->len = strlen(ret->ptr);
+  //ret->len = strlen(ret->ptr);
 
   BK_RETURN(B, ret);
 }

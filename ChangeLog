@@ -1,3 +1,8 @@
+2002-03-04  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_string.c (bk_decode_base64): Don't demand that base64 encoded
+	buffer to be string.
+
 2002-03-01  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk_oscompat.h (BK_INIT_FUN, BK_FINISH_FUN) [__INSURE__]:
