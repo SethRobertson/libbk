@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.277 2004/03/26 09:03:20 dupuy Exp $
+ * $Id: libbk.h,v 1.278 2004/04/06 21:15:47 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2101,5 +2101,185 @@ extern int bk_vptr_append(bk_s B, struct bk_vptr *dp, struct bk_vptr *sp);
 extern int bk_vptr_trimleft(bk_s B, struct bk_vptr *vptr, const void *ptr);
 extern int bk_vptr_ntrimleft(bk_s B, struct bk_vptr *vptr, size_t n);
 extern int bk_vptr_cmp(bk_vptr *v1, bk_vptr *v2);
+
+/* b_ringdir.c */
+
+typedef void *bk_ringdir_t;
+
+enum bk_ringdir_chkpnt_actions
+{
+  BkRingDirChkpntActionChkpnt,			///< Save checkpoint
+  BkRingDirChkpntActionRecover,			///< Recover checkpoint
+  BkRingDirChkpntActionDelete,			///< Delete checkpoint state
+};
+
+/**
+ * This call back API for the ring directory 
+ */
+
+struct bk_ringdir_callbacks
+{
+  /**
+   *
+   * Allocate and initialize private data for this particular
+   * implementation of a ring directory. The valued returnd from this
+   * function will the @a opaque argument in all the other functions in the
+   * API. This function is OPTIONAL but if it declared then it must return
+   * a non NULL value for success even if there is no private state
+   * created. Using (void *)1 works fine, but irriates the heck out of
+   * memory checkers. We suggest returning the function name (ie function
+   * pointer) instead. For your convenience, you are passed all the values
+   * which the caller passed to @a bk_ringdir_init(), you may use them how
+   * you will.
+   *
+   *	@param B BAKA thread/global state.
+   *	@param directory The "path" to the ring directory;
+   *	@param rotate_size How big a file may grow before rotation.
+   *	@param max_num_files How many files in the ring dir before reuse.
+   *	@param file_name_pattern The sprintf-like pattern for creating names in the directory.
+   *	@param flags Flags for future use.
+   *
+   * BK_RINGDIR_FLAG_DO_NOT_CREATE: If you passed this flag, do not create
+   * the directory if it doesn't exist; return an error instead.
+   *
+   *	@return <i>NULL</i> on failure.<br>
+   *	@return <i>private_data</i> on success.
+   */
+  void *(*brc_init)(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, bk_flags flags);
+
+
+
+  /**
+   * Create a @a bk_ring_directory
+   *
+   *	@param B BAKA thread/global state.
+   *	@param opaque Your private data.
+   *	@param directory The directory you may be asked to nuke.
+   *	@param flags Flags for future use.
+   *
+   * BK_RINGDIR_FLAG_NUKE_DIR_ON_DESTROY: If you passed this flag, the
+   * caller is requesting that you destroy the directory. You are not
+   * obliged to honor this, but it's a good idea.
+   */
+  void (*brc_destroy)(bk_s B, void *opaque, const char *directory, bk_flags flags);
+
+
+
+  /**
+   * Return the "size" of the current file. You may define size in any
+   * manner you chose. The only requirement is that the value returned from
+   * this function be greater than or equal to that of @a rotate_size (from
+   * the init function) when you desire rotation to occur. The macro
+   * BK_RINGDIR_GET_SIZE_MAX is provided as a convenience value for the
+   * largest legal return value from this function. 
+   *
+   *	@param B BAKA thread/global state.
+   *	@param opaque Your private data.
+   *	@param directory The directory you may be asked to nuke.
+   *	@param flags Flags for future use.
+   *	@return <i>BK_RINGDIR_GET_SIZE_ERROR</i> on failure.<br>
+   *	@return <i>non-negative</i> on success.
+   */
+  off_t (*brc_get_size)(bk_s B, void *opaque, const char *filename, bk_flags flags);
+
+
+
+  /**
+   * Open a new file by whatever method is appropriate for your implementation.
+   *
+   *	@param B BAKA thread/global state.
+   *	@param opaque Your private data.
+   *	@param directory The directory you may be asked to nuke.
+   *	@param flags Flags for future use.
+   *
+   * BK_RINGDIR_FLAG_OPEN_APPEND: If you are passed this flag you should
+   * open the file in append mode (ie we are starting up from a
+   * checkpointed location).
+   *
+   *	@return <i>-1</i> on failure.<br>
+   *	@return <i>0</i> on success.
+   */
+  int (*brc_open)(bk_s B, void *opaque, const char *filename, bk_flags flags);
+
+
+
+  /**
+   * Close a file in the manner consistent with your ringdir implementation.
+   *
+   *	@param B BAKA thread/global state.
+   *	@param opaque Your private data.
+   *	@param directory The directory you may be asked to nuke.
+   *	@param flags Flags for future use.
+   *	@return <i>-1</i> on failure.<br>
+   *	@return <i>0</i> on success.
+   */
+  int (*brc_close)(bk_s B, void *opaque, const char *filename, bk_flags flags);
+
+
+
+  /**
+   * Remove a file in the manner consistent with your ringdir implementation.
+   *
+   *	@param B BAKA thread/global state.
+   *	@param opaque Your private data.
+   *	@param directory The directory you may be asked to nuke.
+   *	@param flags Flags for future use.
+   *	@return <i>-1</i> on failure.<br>
+   *	@return <i>0</i> on success.
+   */
+  int (*brc_unlink)(bk_s B, void *opaque, const char *filename, bk_flags flags);
+
+
+
+  /**
+   * Do checkpointing managment. You will be called with one of the actions: 
+   *	BkRingDirChkpntActionChkpnt: 	Save value to checkpoint state "file"
+   *	BkRingDirChkpntActionRecover: 	Recover checkpoint value from state "file"
+   *	BkRingDirChkpntActionDelete: 	Delete the checkpoint state "file"
+   *
+   * The ring directory name and the file name pattern are supplied to you
+   * for your convience as your checkpoint key will almost certainly need
+   * to be some function of these to values.
+   *
+   * The value of @a valuep depends on the action. If saving then *valuep
+   * is the copy in value to save. If recoving then *valuep is the copy out
+   * value you need to update. If deleting, then @a valuep is NULL.
+   *
+   *
+   *	@param B BAKA thread/global state.
+   *	@param opaque Your private data.
+   *	@param action The action to take (described above).
+   *	@param directory The directory you may be asked to nuke.
+   *	@param pattern The file pattern.
+   *	@param valuep The file pattern.
+   *	@param flags Flags for future use.
+   *	@return <i>-1</i> on failure.<br>
+   *	@return <i>0</i> on success.
+   */
+  int (*brc_chkpnt)(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, bk_flags flags);
+};
+
+
+extern struct bk_ringdir_callbacks bk_ringdir_standard_callbacks;
+
+
+/* There is only one set of flags for all of the ring directory functions */
+#define BK_RINGDIR_FLAG_DO_NOT_CREATE		0x1 ///< Do not create directory if it doesn't exist
+#define BK_RINGDIR_FLAG_NUKE_DIR_ON_DESTROY	0x2 ///< Empty directory during destroy. Ask callback to nuke it.
+#define BK_RINGDIR_FLAG_NO_NUKE			0x4 ///< Override the above flags
+#define BK_RINGDIR_FLAG_NO_CONTINUE		0x8 ///< Do not continue from old check point
+#define BK_RINGDIR_FLAG_NO_CHECKPOINT		0x10 ///< Do not bother check pointing.
+#define BK_RINGDIR_FLAG_FORCE_ROTATE		0x20 ///< Rotate regardless of "size"
+#define BK_RINGDIR_FLAG_OPEN_APPEND		0x20 ///< Rotate regardless of "size"
+
+
+#define BK_RINGDIR_GET_SIZE_ERROR	UINT32_MAX
+#define BK_RINGDIR_GET_SIZE_MAX		(BK_RINGDIR_GET_SIZE_ERROR - 1)
+
+extern bk_ringdir_t bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, struct bk_ringdir_callbacks *callbacks, bk_flags flags);
+extern void bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags);
+extern int bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags);
+extern void *bk_rindir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags);
+
 
 #endif /* _BK_h_ */
