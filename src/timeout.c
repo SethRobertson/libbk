@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 {
   char ch;
 
-  while ((ch = getopt(argc, argv, "s:t:e:")) != EOF)
+  while ((ch = getopt(argc, argv, "+s:t:e:")) != EOF)
   {
     switch(ch)
     {
