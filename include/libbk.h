@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.216 2003/03/19 00:10:34 jtt Exp $
+ * $Id: libbk.h,v 1.217 2003/03/19 10:34:55 seth Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1780,6 +1780,7 @@ extern int bk_file_unlock(bk_s B, void *opaque, bk_flags flags);
 extern int bk_fileutils_match_extension(bk_s B, const char *path, const char * const *exts);
 extern int bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags);
 extern bk_vptr *bk_slurp(bk_s B, FILE *FH, int fd, const char *filename, int maxwastage, bk_flags flags);
+#define BK_SLURP_NULL_TERMINATE			0x01 ///< Ask for returned data to be null terminated
 
 
 

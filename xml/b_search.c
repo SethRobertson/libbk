@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_search.c,v 1.1 2003/03/19 00:03:05 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_search.c,v 1.2 2003/03/19 10:34:57 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -138,9 +138,8 @@ int bkxml_nodesearch(bk_s B, xmlNodePtr node, xmlNodePtr *last, xmlNodePtr *foun
  *	@param node The XML node to start the search
  *	@param findname The name of the element we are searching for--any if blank
  *	@param flags fun for the future
- *	@return <i>-1</i> on call failure
- *	@return <i>0</i> if the node could not be found
- *	@return <i>1</i> if the node was found
+ *	@return <i>NULL</i> on call failure, search failure
+ *	@return <br><i>attr pointer</i> if the attribute was found
  */
 xmlAttrPtr bkxml_attrsearch(bk_s B, xmlNodePtr node, char *findname, bk_flags flags)
 {

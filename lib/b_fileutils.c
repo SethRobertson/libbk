@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.15 2003/03/15 04:58:42 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.16 2003/03/19 10:34:56 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -808,7 +808,7 @@ bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags)
  * @param fd File description in place of filename (-1 to ignore)
  * @param filename Name of file to read (NULL to ignore)
  * @param maxwastage Maximum number of bytes to "waste" above potential file size (-1 to use defaults)
- * @param flags Fun for the future
+ * @param flags BK_SLURP_NULL_TERMINATE
  * @return <i>NULL</i> on call failure, allocation failure, I/O failure
  * @return <br><i>Allocate vptr to file</i> on success
  */
@@ -895,6 +895,20 @@ bk_vptr *bk_slurp(bk_s B, FILE *FH, int fd, const char *filename, int maxwastage
     }
     filename = NULL;
     goto againfd;
+  }
+
+  if (BK_FLAG_ISSET(flags, BK_SLURP_NULL_TERMINATE))
+  {
+    if (size-ret->len < 1)
+    {
+      if (!(tmp = realloc(ret->ptr, size+1)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not increase file size to %d: %s\n", size, strerror(errno));
+	goto error;
+      }
+      ret->ptr = tmp;
+    }
+    ((char *)ret->ptr)[ret->len] = 0;
   }
 
   BK_RETURN(B, ret);

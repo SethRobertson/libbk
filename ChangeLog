@@ -1,3 +1,8 @@
+2003-03-19  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_fileutils.c (bk_slurp): Enable slurped files to be null
+	terminated if you will be treating them like strings.
+
 2003-03-18  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* xml/b_search.c: libbkxml for non-awb-specific XML routines
