@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_time.c,v 1.3 2002/01/24 08:54:43 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_time.c,v 1.4 2002/02/01 18:32:09 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -313,8 +313,9 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
   {
     int len = 0;
 
-    if (sscanf(string, "%4u-%2u-%2uT%2u:%2u:%2u%n", &t.tm_year, &t.tm_mon,
-	       &t.tm_mday, &t.tm_hour, &t.tm_min, &t.tm_sec, &len) < 6)
+    if (sscanf(string, "%4u-%2u-%2uT%2u:%2u:%2u%n", (u_int *) &t.tm_year,
+	       (u_int *) &t.tm_mon, (u_int *) &t.tm_mday, (u_int *) &t.tm_hour,
+	       (u_int *) &t.tm_min, (u_int *) &t.tm_sec, &len) < 6)
       BK_RETURN(B, -1);
 
     t.tm_year -= 1900;

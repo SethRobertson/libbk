@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: testrandidea.c,v 1.3 2002/01/21 17:46:57 seth Exp $";
+static char libbk__rcsid[] = "$Id: testrandidea.c,v 1.4 2002/02/01 18:32:09 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -221,7 +221,7 @@ main(int argc, char **argv, char **envp)
       if (BK_FLAG_ISSET(pconfig->pc_flags, PC_BINARY))
 	printf("%c%c%c%c",((char *)&cntr)[0],((char *)&cntr)[1],((char *)&cntr)[2],((char *)&cntr)[3]);
       else
-	printf("cntr %d\n",cntr);
+	printf("cntr %u\n",cntr);
     }
     break;
 
@@ -242,7 +242,7 @@ main(int argc, char **argv, char **envp)
       if (BK_FLAG_ISSET(pconfig->pc_flags, PC_BINARY))
 	printf("%c%c%c%c",((char *)&cntr)[0],((char *)&cntr)[1],((char *)&cntr)[2],((char *)&cntr)[3]);
       else
-	printf("cntr %d\n",cntr);
+	printf("cntr %u\n",cntr);
     }
 
   case 2:
@@ -262,7 +262,7 @@ main(int argc, char **argv, char **envp)
       if (BK_FLAG_ISSET(pconfig->pc_flags, PC_BINARY))
 	printf("%c%c%c%c",((char *)&cntr)[0],((char *)&cntr)[1],((char *)&cntr)[2],((char *)&cntr)[3]);
       else
-	printf("cntr %d\n",cntr);
+	printf("cntr %u\n",cntr);
     }
 
   case 3:					// gettimeofday usec counter
@@ -285,7 +285,7 @@ main(int argc, char **argv, char **envp)
 	if (BK_FLAG_ISSET(pconfig->pc_flags, PC_BINARY))
 	  printf("%c%c%c%c",((char *)&diff.tv_usec)[0],((char *)&diff.tv_usec)[1],((char *)&diff.tv_usec)[2],((char *)&diff.tv_usec)[3]);
 	else
-	  printf("diff %lu\n",diff.tv_usec);
+	  printf("diff %ld\n",diff.tv_usec);
 	last=cur;
       }
     }

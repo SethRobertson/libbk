@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: genrand.c,v 1.1 2002/01/20 03:19:11 seth Exp $";
+static char libbk__rcsid[] = "$Id: genrand.c,v 1.2 2002/02/01 18:32:09 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -226,13 +226,13 @@ static void runit(bk_s B, struct program_config *pconfig)
     {
       if (!pconfig->pc_bytes || cntr + 8 <= pconfig->pc_bytes)
       {
-	printf("%08x",number);
+	printf("%08x", number);
 	used = 0;
 	cntr += 8;
       }
       else
       {
-	printf("%02x",data[--used]);
+	printf("%02x", (unsigned) data[--used]);
 	cntr += 2;
       }
     }
