@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_errorstuff.c,v 1.9 2002/10/18 18:22:58 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: test_errorstuff.c,v 1.10 2003/03/19 20:00:17 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -42,6 +42,7 @@ struct program_config
 #define PC_VERBOSE	1
 #define PC_STDERR	2
 #define PC_SYSLOG	4
+#define PC_QUEUE	8
 };
 
 
@@ -69,6 +70,7 @@ main(int argc, char **argv, char **envp)
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
     {"stderr", 'e', POPT_ARG_NONE, NULL, 'e', "Errors to stderr", NULL },
     {"syslog", 's', POPT_ARG_NONE, NULL, 's', "Errors to syslog", NULL },
+    {"queue", 'q', POPT_ARG_NONE, NULL, 'q', "Dump error queue before exiting", NULL },
 
     POPT_AUTOHELP
     POPT_TABLEEND
@@ -120,6 +122,10 @@ main(int argc, char **argv, char **envp)
       BK_FLAG_SET(pconfig->pc_flags, PC_SYSLOG);
       break;
 
+    case 'q':
+      BK_FLAG_SET(pconfig->pc_flags, PC_QUEUE);
+      break;
+
     default:
       usage(B);
       break;
@@ -161,7 +167,7 @@ main(int argc, char **argv, char **envp)
  */
 void usage(bk_s B)
 {
-  fprintf(stderr,"Usage: %s: [-desv]\n",BK_GENERAL_PROGRAM(B));
+  fprintf(stderr,"Usage: %s: [-desvq]\n",BK_GENERAL_PROGRAM(B));
 }
 
 
@@ -182,7 +188,7 @@ int proginit(bk_s B, struct program_config *pconfig)
   if (BK_FLAG_ISSET(pconfig->pc_flags, PC_STDERR))
     fh = stderr;
 
-  bk_error_config(B, BK_GENERAL_ERROR(B), ERRORQUEUE_DEPTH, fh, sysloglevel, BK_ERR_ERR, 
+  bk_error_config(B, BK_GENERAL_ERROR(B), ERRORQUEUE_DEPTH, fh, sysloglevel, BK_ERR_WARN, 
 		  BK_ERROR_CONFIG_FH | BK_ERROR_CONFIG_SYSLOGTHRESHOLD | BK_ERROR_CONFIG_HILO_PIVOT);
 
   BK_RETURN(B, 0);
@@ -216,6 +222,14 @@ void progrun(bk_s B, struct program_config *pconfig)
     bk_error_printf(B, BK_ERR_ERR, "Error aggregation test 3\n");
   }
   sleep(1);
+
+  if (BK_FLAG_ISSET(pconfig->pc_flags, PC_QUEUE))
+  {
+    bk_error_repeater_flush(B, 0);
+    fprintf(stderr, "\n------------------------\n");
+    bk_error_dump(B, stderr, NULL, BK_ERR_NONE, BK_ERR_NONE, 0);
+    fprintf(stderr, "------------------------\n\n");
+  }
 
 #if 0
   // test regular error output

@@ -1,3 +1,11 @@
+2003-03-19  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_error.c (bk_error_irepeater_flush): Make sure error
+	aggregation messages get added to the error queues.
+
+	* test/test_errorstuff.c (progrun): Call bk_error_repeater_flush
+	before bk_error_dump (here and other test programs).
+
 2003-03-19  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_fileutils.c (bk_slurp): Enable slurped files to be null

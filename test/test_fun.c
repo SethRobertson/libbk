@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_fun.c,v 1.5 2002/08/15 04:16:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_fun.c,v 1.6 2003/03/19 20:00:17 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -125,7 +125,10 @@ main(int argc, char **argv, char **envp)
   progrun(B);
 
   if (!debugging)
+  {
+    bk_error_repeater_flush(B, 0);    
     bk_error_dump(B,stderr,NULL,BK_ERR_DEBUG,BK_ERR_NONE,0);
+  }
 
   bk_exit(B,0);
   abort();

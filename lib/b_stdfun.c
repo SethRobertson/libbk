@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.11 2002/11/11 22:53:58 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.12 2003/03/19 20:00:16 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -102,6 +102,8 @@ static void bk_printserious(bk_s B, FILE *output, char *type, char *reason, bk_f
 
   if (BK_FLAG_ISSET(flags,BK_WARNDIE_WANTDETAILS))
   {
+    // force error aggregation first
+    bk_error_repeater_flush(B, 0);
     fprintf(output,"---------- Start %s Function Trace ----------\n",BK_GENERAL_PROGRAM(B));
     bk_fun_trace(B, output, BK_ERR_NONE, 0);
     fprintf(output,"---------- Start %s Error Queue ----------\n",BK_GENERAL_PROGRAM(B));

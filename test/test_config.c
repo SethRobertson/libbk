@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_config.c,v 1.8 2002/08/15 04:16:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_config.c,v 1.9 2003/03/19 20:00:17 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -74,6 +74,7 @@ main(int argc, char **argv, char **envp)
     case 'd':
       bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);
       bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, BK_ERR_NONE, BK_ERROR_CONFIG_FH|BK_ERROR_CONFIG_HILO_PIVOT);
+      bk_error_repeater_flush(B, 0);
       bk_error_dump(B,stderr,NULL,BK_ERR_DEBUG,BK_ERR_NONE,0);
       bk_debug_printf(B, "Debugging on\n");
       break;
