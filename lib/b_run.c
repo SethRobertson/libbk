@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.68 2004/06/07 21:51:22 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.69 2004/06/30 17:57:48 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -153,6 +153,7 @@ struct bk_run
   dict_h		br_ondemand_funcs;	///< On demands functions
   dict_h		br_idle_funcs;		///< Idle tasks (nothing else to do)
   pq_h			br_equeue;		///< Event queue
+  sigset_t		br_runsignals;		///< What signals we are handling with bk_run_signals
   volatile sig_atomic_t	br_signums[NSIG];	///< Number of signal events we have received
   struct br_sighandler	br_handlerlist[NSIG];	///< Handlers for signals
   bk_flags		br_flags;		///< General flags
@@ -393,6 +394,8 @@ struct bk_run *bk_run_init(bk_s B, bk_flags flags)
   br_signums = &run->br_signums;			// Initialize static signal array ptr
   br_beensignaled = 0;
 
+  sigemptyset(&run->br_runsignals);
+
   if (!(run->br_fdassoc = fdassoc_create((dict_function)fa_oo_cmp, (dict_function)fa_ko_cmp, DICT_HT_STRICT_HINTS, &fa_args)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Cannot create fd association: %s\n",fdassoc_error_reason(NULL, NULL));
@@ -560,7 +563,7 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 
   if (run->br_equeue)
     pq_destroy(run->br_equeue);
-  
+
   if (run->br_fdassoc)
     fdassoc_destroy(run->br_fdassoc);
 
@@ -599,6 +602,8 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
     BK_RETURN(B,-1);
   }
 
+  sigemptyset(&blockset);
+
   if (!handler || (ptr2uint_t)handler == (ptr2uint_t)SIG_IGN || (ptr2uint_t)handler == (ptr2uint_t)SIG_DFL)
   {							// Disabling signal
 #ifdef __INSURE__
@@ -611,12 +616,20 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
 #endif /* __INSURE__ */
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
+
+    sigdelset(&run->br_runsignals, signum);
+
+    sigaddset(&blockset, signum);
+    sigprocmask(SIG_BLOCK, &blockset, NULL);
   }
   else
   {							// Enabling signal
     act.sa_handler = bk_run_signal_ihandler;
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
+
+    sigaddset(&run->br_runsignals, signum);
+    sigprocmask(SIG_BLOCK, &run->br_runsignals, NULL);
   }
 
   // Decide on appropriate system call interrupt/restart semantic (default interrupt)
@@ -643,9 +656,6 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
     abort();
 #endif /* BK_USING_PTHREADS */
 
-  sigemptyset(&blockset);
-  sigaddset(&blockset, signum);
-  sigprocmask(SIG_BLOCK, &blockset, NULL);
   if (BK_FLAG_ISSET(flags, BK_RUN_SIGNAL_CLEARPENDING))
     run->br_signums[signum] = 0;
 
@@ -654,13 +664,13 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
     bk_error_printf(B, BK_ERR_ERR, "Could not insert signal: %s\n",strerror(errno));
     BK_RETURN(B, -1);
   }
-  sigprocmask(SIG_UNBLOCK, &blockset, NULL);
-
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BkGlobalSignalLock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
+
+  sigprocmask(SIG_UNBLOCK, &blockset, NULL);
 
   BK_RETURN(B, 0);
 }
@@ -997,11 +1007,13 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-#define BK_RUN_ONCE_ABORT_CHECK()				\
-  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE))	\
-    goto abort_run_once;					\
-  if (br_beensignaled)						\
-    goto beensignaled;						\
+#define BK_RUN_ONCE_ABORT_CHECK()					\
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE))		\
+    goto abort_run_once;						\
+  if (sigprocmask(SIG_UNBLOCK, &run->br_runsignals, NULL) < 0 ||	\
+      sigprocmask(SIG_BLOCK, &run->br_runsignals, NULL) < 0 ||		\
+      br_beensignaled)							\
+    goto beensignaled;
 
   /*
    * The purpose of the flag should be explained. libbk supports the idea
@@ -1395,8 +1407,24 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     islocked = 0;
 #endif /* BK_USING_PTHREADS */
 
-    // Wait for I/O or timeout
-    ret = select(run->br_selectn, &readset, &writeset, &xcptset, selectarg ? &timeout : NULL);
+    /*
+     * <KLUDGE>Linux does not have a working pselect(2) system call as
+     * far as I can see.  glibc emulates it like we do below.  Right
+     * now this is a race.  Probably not a HUGE race, but a race none
+     * the less.  We could improve this by:
+     *
+     * Using longjmp out of the signal handler.  Yuk, and probably difficult to
+     * coordinate.
+     *
+     * Writing a byte to the bk_run_select_changed socket to cause
+     * select to exit (which preassumes that select is working, see
+     * sysd bug 3434)</KLUDGE>
+     */
+    // Wait for I/O, signal, or timeout
+    sigprocmask(SIG_UNBLOCK, &run->br_runsignals, NULL);
+    if (!br_beensignaled)
+      ret = select(run->br_selectn, &readset, &writeset, &xcptset, selectarg ? &timeout : NULL);
+    sigprocmask(SIG_BLOCK, &run->br_runsignals, NULL);
 
 #ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)

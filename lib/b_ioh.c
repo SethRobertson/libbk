@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.105 2004/06/08 22:03:01 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.106 2004/06/30 17:57:48 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -40,15 +40,15 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 #if defined(EWOULDBLOCK) && defined(EAGAIN)
-#define IOH_EBLOCKING (errno == EWOULDBLOCK || errno == EAGAIN) ///< real error or just normal behavior?
+#define IOH_EBLOCKINGINTR (errno == EWOULDBLOCK || errno == EAGAIN || errno == EINTR) ///< real error or just normal behavior?
 #else
 #if defined(EWOULDBLOCK)
-#define IOH_EBLOCKING (errno == EWOULDBLOCK)	///< real error or just normal behavior?
+#define IOH_EBLOCKINGINTR (errno == EWOULDBLOCK || errno == EINTR)	///< real error or just normal behavior?
 #else
 #if defined(EAGAIN)
-#define IOH_EBLOCKING (errno == EAGAIN)		///< real error or just normal behavior?
+#define IOH_EBLOCKINGINTR (errno == EAGAIN || errno == EINTR)	///< real error or just normal behavior?
 #else
-#define IOH_EBLOCKING 0				///< real error or just normal behavior?
+#define IOH_EBLOCKINGINTR (errno == EINTR)		///< real error or just normal behavior?
 #endif
 #endif
 #endif
@@ -1596,7 +1596,8 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
       // Get some data
       ret = ioh_internal_read(B, ioh, ioh->ioh_fdin, data, MIN(room, (u_int32_t)ret), 0);
 
-      if (ret < 0 && IOH_EBLOCKING)
+      errno = ioh->ioh_errno;
+      if (ret < 0 && IOH_EBLOCKINGINTR)
       {
 	// Not ready after all.  Do nothing.
 	ret = 0;				// Don't claim we failed
@@ -2311,7 +2312,8 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 	free(iov);
 
-	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
+	errno == ioh->ioh_errno;
+	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKINGINTR))
 	{
 	  // Not quite ready for writing yet
 	  cnt = 0;
@@ -2593,7 +2595,8 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 
       bk_debug_printf_and(B, 2, "Post-write, cnt %d, size %d\n", cnt, size);
 
-      if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
+      errno = ioh->ioh_errno;
+      if (cnt == 0 || (cnt < 0 && IOH_EBLOCKINGINTR))
       {
 	// Not quite ready for writing yet
 	cnt = 0;
@@ -2875,7 +2878,8 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	}
 #endif /* BK_USING_PTHREADS */
 
-	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKING))
+	errno = ioh->ioh_errno;
+	if (cnt == 0 || (cnt < 0 && IOH_EBLOCKINGINTR))
 	{
 	  // Not quite ready for writing yet
 	  cnt = 0;
@@ -3769,13 +3773,15 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
 int bk_ioh_stdrdfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int ret, erno;
+  int ret, erno = 0;
 
   errno = 0;
   if ((ret = read(fd, buf, size)) < 0)
-    bk_error_printf(B, BK_ERR_ERR, "read syscall failed on fd %d of size %u: %s\n", fd, size, strerror(errno));
-
-  erno = errno;
+  {
+    erno = errno;
+    if (!IOH_EBLOCKINGINTR)
+      bk_error_printf(B, BK_ERR_ERR, "read syscall failed on fd %d of size %u: %s\n", fd, size, strerror(errno));
+  }
 
   bk_debug_printf_and(B, 1, "System read returns %d with errno %d\n", ret, errno);
 
@@ -3812,16 +3818,15 @@ int bk_ioh_stdrdfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t bu
 int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int ret, erno;
+  int ret, erno = 0;
 
   errno = 0;
   if ((ret = writev(fd, buf, size)) < 0)
   {
-    if (!IOH_EBLOCKING)
+    erno = errno;
+    if (!IOH_EBLOCKINGINTR)
       bk_error_printf(B, BK_ERR_ERR, "write syscall failed on fd %d of size %u: %s\n", fd, size, strerror(errno));
   }
-
-  erno = errno;
 
   bk_debug_printf_and(B, 1, "System writev returns %d with errno %d\n",ret,errno);
 

@@ -13,6 +13,18 @@
 	
 	* include/libbk_oscompat.h (strnlen, nearbyint, trunc): FreeBSD fixes
 
+2004-06-24  Seth Robertson  <seth@cheviot.sysdetect.com>
+
+	* lib/b_run.c (bk_run_signal): Track what signals we are handling
+	as part of bk_run.  Block by default.
+	(bk_run_once): Block bk_run_signals by default most of the time.
+	Window the signals open for testing and for select.  Insert
+	harangue about linux's lack of pselect(2)
+
+	* lib/b_ioh.c (IOH_EBLOCKINGINTR): Do not choke on EINTR from
+	read/write calls.  Also be more careful about saving and restoring
+	errno.
+
 2004-06-21  Seth Robertson  <seth@cheviot.sysdetect.com>
 
 	* lib/b_pollio.c (bk_polling_io_write): Time is a timeout, even on
