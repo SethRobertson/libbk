@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.5 2001/11/16 16:03:41 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.6 2001/11/16 22:26:16 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -866,7 +866,7 @@ bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_u
  *	@return an allocated @a bk_netinfo.
  */
 struct bk_netinfo *
-bk_netinfo_from_sockaddr(bk_s B, int s, int proto, bk_socket_side_t side)
+bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret;
@@ -874,9 +874,9 @@ bk_netinfo_from_sockaddr(bk_s B, int s, int proto, bk_socket_side_t side)
   struct bk_netaddr *bna=NULL;
   char scratch[100];
   bk_netaddr_type_t netaddr_type;
-  struct sockaddr_in *sin4;
-  struct sockaddr_in6 *sin6;
-  struct sockaddr_un *sun;
+  struct sockaddr_in *sin4=NULL;
+  struct sockaddr_in6 *sin6=NULL;
+  struct sockaddr_un *sun=NULL;
   int len;
   struct sockaddr sa;
 
@@ -889,7 +889,6 @@ bk_netinfo_from_sockaddr(bk_s B, int s, int proto, bk_socket_side_t side)
       bk_error_printf(B, BK_ERR_ERR, "Could not get local sockname: %s\n", strerror(errno));
       goto error;
     }
-      
     break;
 
   case BK_SOCKET_SIDE_REMOTE:
@@ -903,6 +902,7 @@ bk_netinfo_from_sockaddr(bk_s B, int s, int proto, bk_socket_side_t side)
   default:
     bk_error_printf(B, BK_ERR_ERR, "Unknown sock side specifier: %d\n", side);
     goto error;
+    break;
   }
 
   if (!(bni=bk_netinfo_create(B)))
@@ -916,6 +916,56 @@ bk_netinfo_from_sockaddr(bk_s B, int s, int proto, bk_socket_side_t side)
   switch (netaddr_type)
   {
   case BK_NETINFO_TYPE_INET:
+    if (!proto)
+    {
+      int type;
+
+      len=sizeof(type);
+      /* Guess the protocol */
+      if (getsockopt(s, SOL_SOCKET, SO_TYPE, &type, &len)<0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not get socket type: %s\n", strerror(errno));
+	goto error;
+      }
+      
+      switch (type)
+      {
+      case SOCK_STREAM:
+	proto=IPPROTO_TCP;
+	break;
+      case SOCK_DGRAM:
+	proto=IPPROTO_UDP;
+	break;
+      default:
+	bk_error_printf(B, BK_ERR_ERR, "Unknown or unsupported socket type: %d\n", type);
+	goto error;
+	break;
+      }
+    }
+
+    snprintf(scratch,100, "%d", proto);
+    if (bk_getprotobyfoo(B, scratch, NULL, bni, 0)<0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set protoent\n");
+      goto error;
+    }
+
+    sin4=(struct sockaddr_in *)(&sa);
+    snprintf(scratch,100,"%d", ntohs(sin4->sin_port));
+    if (bk_getservbyfoo(B, scratch, bni->bni_bpi->bpi_protostr, NULL, bni, 0)<0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
+      goto error;
+    }
+
+    BK_GET_SOCKADDR_LEN(B,sin4,len);
+    if (!(bna=bk_netaddr_user(B, netaddr_type, &(sin4->sin_addr), len, 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
+      goto error;
+    }
+    break;
+  
   case BK_NETINFO_TYPE_INET6:
     if (!proto)
     {
@@ -940,6 +990,7 @@ bk_netinfo_from_sockaddr(bk_s B, int s, int proto, bk_socket_side_t side)
       default:
 	bk_error_printf(B, BK_ERR_ERR, "Unknown or unsupported socket type: %d\n", type);
 	goto error;
+	break;
       }
     }
 
@@ -950,19 +1001,21 @@ bk_netinfo_from_sockaddr(bk_s B, int s, int proto, bk_socket_side_t side)
       goto error;
     }
 
-    snprintf(scratch,100,"%d", ntohs(sin4->sin_port));
+    sin6=(struct sockaddr_in6 *)(&sa);
+    snprintf(scratch,100,"%d", ntohs(sin6->sin6_port));
     if (bk_getservbyfoo(B, scratch, bni->bni_bpi->bpi_protostr, NULL, bni, 0)<0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
       goto error;
     }
 
-    BK_GET_SOCKADDR_LEN(B,&sin4,len);
-    if (!(bna=bk_netaddr_user(B, netaddr_type, &sa, len, 0)))
+    BK_GET_SOCKADDR_LEN(B,sin6,len);
+    if (!(bna=bk_netaddr_user(B, netaddr_type,&(sin6->sin6_addr), len, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
       goto error;
     }
+    break;
   
   case BK_NETINFO_TYPE_LOCAL:
     /* XXXX Do this for local type */
@@ -996,6 +1049,31 @@ bk_netinfo_from_sockaddr(bk_s B, int s, int proto, bk_socket_side_t side)
   if (bna) bk_netaddr_destroy(B,bna);
   if (bni) bk_netinfo_destroy(B,bni);
   BK_RETURN(B,NULL);
+}
+
+
+
+/**
+ * Return the pretty printing string. NB This space is "static" as far a
+ * the user is concerned, so I suppose this function is not reentrent.
+ *	@param B BAKA thread/global state.
+ *	@param bni @a bk_netinfo to print out.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+const char *
+bk_netinfo_info(bk_s B, struct bk_netinfo *bni)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bni)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+  
+  update_bni_pretty(B,bni);
+  BK_RETURN(B,bni->bni_pretty);
 }
 
 

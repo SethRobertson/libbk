@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.20 2001/11/16 19:16:17 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.21 2001/11/16 22:26:16 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -208,10 +208,15 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iorfunc readfun, bk_i
   struct linger linger;				// Linuxism for SO_LINGER???
   int tmp;
  
-  if ((fdin < 0 && fdout < 0) || (fdin < 0 && !readfun) || (fdout < 0 && !writefun) || !handler || !run)
+  if ((fdin < 0 && fdout < 0) || (fdin < 0 && !readfun) || (fdout < 0 && !writefun) || !run)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
+  }
+
+  if (!handler)
+  {
+    bk_error_printf(B, BK_ERR_WARN, "No handler specified. I hope you no what you are doing (like entering a relay)\n");
   }
 
 

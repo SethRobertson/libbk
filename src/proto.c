@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.15 2001/11/14 20:46:54 seth Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.16 2001/11/16 22:26:16 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -79,7 +79,7 @@ main(int argc, char **argv, char **envp)
   const struct poptOption optionsTable[] = 
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
-    {"person", 'p', POPT_ARG_STRING, NULL, 'p', "Turn on debugging", NULL },
+    {"person", 'p', POPT_ARG_STRING, NULL, 'p', "Set the person to greet", "person" },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
     {"long-arg-only", 0, POPT_ARG_NONE, NULL, 1, "An example of a long argument without a shortcut", NULL },
     {NULL, 's', POPT_ARG_NONE, NULL, 2, "An example of a short argument without a longcut", NULL },

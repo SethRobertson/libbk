@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.1 2001/11/15 22:19:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.2 2001/11/16 22:26:16 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -90,6 +90,7 @@ static int init_state(bk_s B, struct program_config *pc);
 static void remote_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args);
 static void local_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args);
 static void connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, bk_flags flags);
+static void relay_finish(bk_s B, void *args, u_int state);
 
 
 
@@ -430,7 +431,6 @@ init_state(bk_s B, struct program_config *pc)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
 
-
   if (!pc)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
@@ -479,7 +479,7 @@ init_state(bk_s B, struct program_config *pc)
     break;
   case BDTTCP_INIT_STATE_CONNECT:
     pc->pc_init_cur_state=BDTTCP_INIT_STATE_CONNECT;
-    if (bk_net_init(B, pc->pc_run, pc->pc_local, pc->pc_remote, pc->pc_timeout, 0, connect_complete, pc)<0)
+    if (bk_net_init(B, pc->pc_run, pc->pc_local, pc->pc_remote, pc->pc_timeout, 0, connect_complete, pc, 0)<0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not begin connect\n");
       goto error;
@@ -488,7 +488,6 @@ init_state(bk_s B, struct program_config *pc)
     break;
   case BDTTCP_INIT_STATE_DONE:
     pc->pc_init_cur_state=BDTTCP_INIT_STATE_DONE;
-    bk_run_set_run_over(B, pc->pc_run);
     break;
   default:
     fprintf(stderr,"Unknown init state: %d\n", pc->pc_init_next_state);
@@ -527,7 +526,6 @@ remote_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *b
   }
 
   bk_netinfo_set_primary_address(B, bni, NULL);
-  printf("Remote name: %s\n", bni->bni_pretty);
   pc->pc_init_next_state=BDTTCP_INIT_STATE_RESOLVE_LOCAL;
   init_state(B, pc);
   BK_VRETURN(B);
@@ -578,37 +576,90 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, bk_addr
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   struct program_config *pc;
+  struct bk_ioh *std_ioh=NULL, *net_ioh=NULL;
 
-  if (!(pc=args) || !bag)
+  if (!(pc=args))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
 
-  bk_run_set_run_over(B,pc->pc_run);
-  
   switch (result)
   {
-  case BK_ADDRGROUP_RESULT_FLAG_OK: 
-    printf("connect completed OK\n");
-
-    if (write(sock, "FOOBAR",6)<0)
-    {
-      perror("write");
-      exit(1);
-    }
+  case BK_ADDRGROUP_RESULT_OK:
     break;
-  case BK_ADDRGROUP_RESULT_FLAG_DESTROYED:
-    fprintf(stderr,"We are shutting down unexpectedly\n");
+  case BK_ADDRGROUP_RESULT_ABORT:
+  case BK_ADDRGROUP_RESULT_DESTROYED:
+    fprintf(stderr,"Software shutdown during connection setup\n");
     break;
-  case BK_ADDRGROUP_RESULT_FLAG_TIMEOUT:
-    fprintf(stderr,"Connection timedout completely\n");
+  case BK_ADDRGROUP_RESULT_TIMEOUT:
+    fprintf(stderr,"Connection timedout\n");
     break;
-  case BK_ADDRGROUP_RESULT_FLAG_IO_ERROR:
-    fprintf(stderr, "A fatal connect(2) I/O error has occured\n");
+  case BK_ADDRGROUP_RESULT_WIRE_ERROR:
+    fprintf(stderr,"I/O Error\n");
+    break;
+  case BK_ADDRGROUP_RESULT_BAD_ADDRESS:
+    fprintf(stderr,"Bad address\n");
     break;
   }
 
 
+  if (result != BK_ADDRGROUP_RESULT_OK)
+  {
+    goto error;
+  }
+
+  fprintf(stderr, "%s ==> %s\n", bk_netinfo_info(B,bag->bag_local), bk_netinfo_info(B,bag->bag_remote));
+
+  fflush(stdin);
+  fflush(stdout);
+  if (!(std_ioh=bk_ioh_init(B, fileno(stdin), fileno(stdout), bk_ioh_stdrdfun, bk_ioh_stdwrfun, NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on stdin/stdout\n");
+    goto error;
+  }
+  if (!(net_ioh=bk_ioh_init(B, sock, sock, bk_ioh_stdrdfun, bk_ioh_stdwrfun, NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create ioh network\n");
+    goto error;
+  }
+
+  if (bk_relay_ioh(B, std_ioh, net_ioh, relay_finish, pc, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not relay my iohs\n");
+    goto error;
+  }
+
+  BK_VRETURN(B);
+
+ error:
+  if (std_ioh) bk_ioh_destroy(B, std_ioh);
+  if (net_ioh) bk_ioh_destroy(B, net_ioh);
+  bk_run_set_run_over(B,pc->pc_run);
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Things to do when the relay is over.
+ *	@param B BAKA thread/global state.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static void
+relay_finish(bk_s B, void *args, u_int state)
+{
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  struct program_config *pc;
+
+  if (!(pc=args))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+  
+  /* XXX Report statistics here */
+  bk_run_set_run_over(B,pc->pc_run);
   BK_VRETURN(B);
 }

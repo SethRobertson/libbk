@@ -1,3 +1,38 @@
+2001-11-16  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* test/test_getbyfoo.c (main): Better usage message.
+
+	* src/proto.c (main): Example of how to configure pOpt to print
+	out the meaning of an option argument on the usage (brief) line.
+
+	* src/bttcp.c: Too many chages. *Connecting* relay works.
+
+	* lib/b_netinfo.c (bk_netinfo_from_socket): Initialize inet
+	sockaddr's correctly.
+	(bk_netinfo_from_socket): Don't pass sockaddr when you mean to
+	pass only the contained address.
+	(bk_netinfo_from_socket): Split out INET6 (sigh). There are *just*
+	enough differences from INET to require this.
+	(bk_netinfo_info): Force bni to update and return pretty string.
+
+	* lib/b_addrgroup.c (bk_addrgroup_destroy): Public interface for
+	addrgroup destruction.
+	(net_init_abort): Abort network initiation with correct clean up.
+	(net_init_end): Finish network initiation with correct clean up.
+	(tcp_connect_activity): Make sure that the event is removed and
+	NULL'ed before when activity is detected.
+	(tcp_connect_start): Don't recompute the socket type when you
+	already know it.
+	(do_net_init_af_inet_tcp_listen): Don't recompute the socket type
+	whe you already know it.
+
+	* lib/b_addrgroup.c (everywhere): Convert to new net_init
+	strategy. Lots of smaller functions with specific tasks instead of
+	monstrously large heterogenous ones.
+
+	* lib/b_addrgroup.c (everywhere): replace net_close with
+	net_init_abort(). 
+
 2001-11-16  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_ioh.c (ioht_line_other): Minor break nit
@@ -5,6 +40,9 @@
 	be executed by everyone who needs it.
 
 2001-11-16  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_ioh.c (bk_ioh_init): all handler to be NULL with only a
+	warning. This is but legal (see bk_ioh_relay).
 
 	* lib/b_netinfo.c (bk_netinfo_update_hostent): pass bni *not*
 	bni->bni_addrs (sigh).

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.55 2001/11/15 22:19:47 jtt Exp $
+ * $Id: libbk.h,v 1.56 2001/11/16 22:26:16 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -208,10 +208,12 @@ typedef enum
  */
 typedef enum
 {
-  BK_ADDRGROUP_RESULT_FLAG_OK=0,		///< Connection OK
-  BK_ADDRGROUP_RESULT_FLAG_DESTROYED,		///< We're being nuked */
-  BK_ADDRGROUP_RESULT_FLAG_TIMEOUT,		///< Connection timedout */
-  BK_ADDRGROUP_RESULT_FLAG_IO_ERROR,		///< Connection timedout */
+  BK_ADDRGROUP_RESULT_OK=0,			///< Connection OK.
+  BK_ADDRGROUP_RESULT_DESTROYED,		///< We're being nuked.
+  BK_ADDRGROUP_RESULT_TIMEOUT,			///< Connection timedout.
+  BK_ADDRGROUP_RESULT_WIRE_ERROR,		///< Connection got an error off the wire.
+  BK_ADDRGROUP_RESULT_BAD_ADDRESS,		///< Something's wrong with the addresses in use.
+  BK_ADDRGROUP_RESULT_ABORT,			///< We've aborted for some reason
 } bk_addrgroup_result_t;
 
 
@@ -790,7 +792,8 @@ extern int bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct host
 extern struct bk_netaddr *bk_netinfo_get_addr(bk_s B, struct bk_netinfo *bni);
 extern int bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_t type, struct sockaddr *sa, bk_flags flags);
 #define BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY	0x1 ///< Allow bad address information to indicate ANY addresss.
-extern struct bk_netinfo *bk_netinfo_from_sockaddr(bk_s B, int s, int proto, bk_socket_side_t side);
+extern struct bk_netinfo *bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side);
+extern const char *bk_netinfo_info(bk_s B, struct bk_netinfo *bni);
 
 
 
@@ -831,6 +834,7 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
 extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_t action);
 
 /* b_addrgroup.c */
-extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_t callback, void *args);
+extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_t callback, void *args, int backlog);
+void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
 
 #endif /* _BK_h_ */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.7 2001/11/15 22:19:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.8 2001/11/16 22:26:16 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -58,9 +58,9 @@ main(int argc, char **argv, char **envp)
   const struct poptOption optionsTable[] = 
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
-    {"proto", 'p', POPT_ARG_STRING, &Global.gs_query, 'p', "Query protocols", NULL },
-    {"hosts", 'h', POPT_ARG_STRING, &Global.gs_query, 'h', "Query hosts", NULL },
-    {"serv", 's', POPT_ARG_STRING, &Global.gs_query, 's', "Query services", NULL },
+    {"proto", 'p', POPT_ARG_STRING, &Global.gs_query, 'p', "Query protocols", "protostr" },
+    {"hosts", 'h', POPT_ARG_STRING, &Global.gs_query, 'h', "Query hosts", "hoststr" },
+    {"serv", 's', POPT_ARG_STRING, &Global.gs_query, 's', "Query services", "servstr" },
     {"fdqn", 'f', POPT_ARG_NONE, NULL, 'f', "Get FDQN", NULL },
     {"seatbelts", 'S', POPT_ARG_NONE, NULL, 'S', "Seatbelts off", NULL },
     {"no-copyout", 'n', POPT_ARG_NONE, NULL, 'n', "Do not use copyout arguments", NULL },
