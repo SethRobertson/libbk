@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.11 2001/11/07 21:35:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.12 2001/11/13 21:09:27 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -592,8 +592,8 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int m
 
     if (!hi || !lo)
       wanthi = !lo;
-    else if ((wanthi = hi->ben_time - lo->ben_time) == 0)
-      wanthi = ((int)(hi->ben_seq - lo->ben_seq));
+    else if ((wanthi = lo->ben_time - hi->ben_time) == 0)
+      wanthi = ((int)(lo->ben_seq - hi->ben_seq));
 
     if (wanthi > 0)
     {
@@ -610,7 +610,7 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int m
     {
       if (cur->ben_time < mode->ben_time ||
 	  (cur->ben_time == mode->ben_time && ((int)(cur->ben_seq - mode->ben_seq)) < 0))
-	return;					// We have printed everything up to the mark;
+	continue;					// We yet to reach the mark
     }
 
     // <WARNING>Assumes syslog levels are higher priority->lower numbers</WARNING>

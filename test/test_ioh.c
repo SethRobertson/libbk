@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.3 2001/11/13 16:26:51 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.4 2001/11/13 21:09:28 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -451,6 +451,7 @@ static void relayer(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in,
     newcopy->len = size;
     if (!BK_MALLOC_LEN(newcopy->ptr, newcopy->len))
       goto error;
+    size = 0;
     for (cnt = 0; data[cnt].ptr; cnt++)
     {
       memcpy((char *)newcopy->ptr + size, data[cnt].ptr, data[cnt].len);
@@ -461,6 +462,7 @@ static void relayer(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in,
       bk_error_printf(B, BK_ERR_ERR, "Could not write data to output ioh\n");
       goto error;
     }
+    BK_VRETURN(B);
 
   case BK_IOH_STATUS_IOHREADERROR:
   case BK_IOH_STATUS_IOHREADEOF:

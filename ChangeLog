@@ -1,3 +1,12 @@
+2001-11-13  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_ioh.c (ioht_raw_other): Remove data from queue after freeing it.
+	IOH now working (for some value of working) in RAW mode
+	
+	* test/test_ioh.c (relayer): Bug which caused us to trash memory
+
+	* lib/b_error.c (bk_error_idump): Change order--less recent comes first
+
 2001-11-13  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* test/test_ioh.c (proginit): inet_aton returns zero on error
