@@ -1,5 +1,7 @@
 2003-05-14  Seth Robertson  <seth@startide.sysdetect.com>
 
+	* lib/b_run.c: Implement thread creation for event queues and fds.
+
 	* lib/b_pollio.c (polling_io_ioh_handler): Fix sanity dealing with user close, IOH close, etc
 
 	* lib/b_bnbio.c: Functionality moved to polling_io

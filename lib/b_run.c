@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.44 2003/05/14 06:20:46 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.45 2003/05/15 01:29:50 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -46,6 +46,7 @@ struct br_equeue
   struct timeval	bre_when;		///< Time to run event
   void			(*bre_event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags); ///< Event to run
   void			*bre_opaque;		///< Data for opaque
+  bk_flags		bre_flags;		///< BK_RUN_THREADREADY
 };
 
 
@@ -60,10 +61,26 @@ struct br_equeuecron
   void			(*brec_event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags); ///< Event to run
   void		       *brec_opaque;		///< Data for opaque
   struct br_equeue     *brec_equeue;		///< Queued cron event (ie next instance to fire).
+  bk_flags		brec_flags;		///< Flags are always useful
+//#define BK_RUN_THREADREADY			0x10000 ///< Handler is prepared to run in a thread
 #ifdef BK_USING_PTHREADS
   pthread_t		brec_userid;		///< Identifier of thread currently ``using'' this object
   pthread_cond_t	brec_cond;		///< Pthread condition for other threads to wait on
 #endif /* BK_USING_PTHREADS */
+};
+
+
+
+/**
+ * Data for bk_run_runevent to fire off a thread to run an event-queue job
+ */
+struct br_runevent
+{
+  struct bk_run		       *brre_run;	///< Run environment
+  void (*brre_fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags); ///< Function to call
+  void *brre_opaque;				///< Opaque data for function
+  struct timeval	       *brre_starttime;	///< Timestamp to hopefully save cycles
+  bk_flags		        brre_flags;	///< Flag information for eventq function
 };
 
 
@@ -90,12 +107,29 @@ struct bk_run_fdassoc
   int			brf_fd;			///< Fd we are handling
   bk_fd_handler_t	brf_handler;		///< Function to handle
   void		       *brf_opaque;		///< Opaque information
-  int			brf_flags;		///< Handler flags
+  bk_flags		brf_flags;		///< Handler flags
+//#define BK_RUN_THREADREADY			0x10000 ///< Handler is prepared to run in a thread
 #ifdef BK_USING_PTHREADS
   pthread_t		brf_userid;		///< Identifier of thread currently ``using'' this object
   pthread_cond_t	brf_cond;		///< Pthread condition for other threads to wait on
 #endif /* BK_USING_PTHREADS */
 };
+
+
+
+/**
+ * Data for bk_run_runfd to fire off a thread to run an fd job
+ */
+struct br_runfd
+{
+  struct bk_run		       *brrf_run;	///< Run environment
+  int				brrf_fd;	///< File descriptor
+  u_int				brrf_gottypes;	///< Type of activty
+  bk_fd_handler_t		brrf_fun;	///< Function to call
+  void			       *brrf_opaque;	///< Opaque data
+  struct timeval	       *brrf_starttime;	///< Timestamp to hopefulyl save cycles
+};
+
 
 
 /**
@@ -177,6 +211,10 @@ static struct bk_run_func *brfn_alloc(bk_s B);
 static void brfn_destroy(bk_s B, struct bk_run_func *brf);
 static struct bk_run_ondemand_func *brof_alloc(bk_s B);
 static void brof_destroy(bk_s B, struct bk_run_ondemand_func *brof);
+static void *bk_run_runevent_thread(bk_s B, void *opaque);
+static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, struct timeval *starttime, bk_flags eventflags, bk_flags flags);
+static void bk_run_runfd(bk_s B, struct bk_run *run, int fd, u_int gottypes, bk_fd_handler_t fun, void *opaque, struct timeval *starttime, bk_flags flags);
+static void *bk_run_runfd_thread(bk_s B, void *opaque);
 
 
 
@@ -434,7 +472,7 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 	bk_error_printf(B, BK_ERR_ERR, "Could not delete descriptor %d from fdassoc list: %s\n", cur->brf_fd, fdassoc_error_reason(run->br_fdassoc, NULL));
 	break;					// DLL hopelessly mangled
       }
-      (*cur->brf_handler)(B, run, -1, BK_RUN_DESTROY, cur->brf_opaque, &curtime);
+      bk_run_runfd(B, run, cur->brf_fd, BK_RUN_DESTROY, cur->brf_handler, cur->brf_opaque, &curtime, cur->brf_flags);
       free(cur);
     }
     fdassoc_destroy(run->br_fdassoc);
@@ -447,7 +485,7 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 
     while (cur = pq_extract_head(run->br_equeue))
     {
-      (*cur->bre_event)(B, run, cur->bre_opaque, &curtime, BK_RUN_DESTROY);
+      bk_run_runevent(B, run, cur->bre_event, cur->bre_opaque, &curtime, BK_RUN_DESTROY, cur->bre_flags);
       free(cur);
     }
     pq_destroy(run->br_equeue);
@@ -626,6 +664,7 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
   new->bre_when = when;
   new->bre_event = event;
   new->bre_opaque = opaque;
+  new->bre_flags = flags;
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
@@ -693,7 +732,7 @@ int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t msec, void (*event)(
 
   BK_TV_ADD(&tv,&tv,&diff);
 
-  BK_RETURN(B, bk_run_enqueue(B, run, tv, event, opaque, handle, 0));
+  BK_RETURN(B, bk_run_enqueue(B, run, tv, event, opaque, handle, flags));
 }
 
 
@@ -734,6 +773,7 @@ int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msec, void (*event)(b
   brec->brec_interval = msec;
   brec->brec_event = event;
   brec->brec_opaque = opaque;
+  brec->brec_flags = flags;
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -744,7 +784,7 @@ int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msec, void (*event)(b
   }
 #endif /* BK_USING_PTHREADS */
 
-  ret = bk_run_enqueue_delta(B, run, brec->brec_interval, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), 0);
+  ret = bk_run_enqueue_delta(B, run, brec->brec_interval, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), flags);
 
   if (handle)
     *handle = brec;
@@ -1395,7 +1435,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	  gettimeofday(&timenow, NULL);
 	  curtime = &timenow;
 	}
-	(*curfd->brf_handler)(B, run, x, type, curfd->brf_opaque, curtime);
+	bk_run_runfd(B, run, x, type, curfd->brf_handler, curfd->brf_opaque, curtime, curfd->brf_flags);
 
 #ifdef BK_USING_PTHREADS
 	// Look again, we may have been deleted in the interim
@@ -1711,7 +1751,7 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 
   // Optionally tell user handler that he will never be called again.
   gettimeofday(&curtime, NULL);
-  (*curfda->brf_handler)(B, run, fd, BK_RUN_CLOSE, curfda->brf_opaque, &curtime);
+  bk_run_runfd(B, run, fd, BK_RUN_CLOSE, curfda->brf_handler, curfda->brf_opaque, &curtime, curfda->brf_flags);
 
   free(curfda);
 
@@ -1919,7 +1959,7 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
   BK_TV_ADD(&addtv,&addtv,starttime);
 
   if (BK_FLAG_ISCLEAR(flags,BK_RUN_DESTROY))
-    bk_run_enqueue(B, run, addtv, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), 0);
+    bk_run_enqueue(B, run, addtv, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), brec->brec_flags);
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -1938,7 +1978,7 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
     abort();
 
-  if (BK_GENERAL_FLAG_ISTHREADON(B))
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && !BK_FLAG_ISSET(brec->brec_flags, BK_RUN_THREADREADY))
   {
     if (!brec->brec_userid)
     {
@@ -1962,6 +2002,174 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
 
   BK_VRETURN(B);
 }
+
+
+
+/**
+ * Execute an event queue job, possibly creating a new thread
+ *
+ * THREADS: MT-SAFE
+ *
+ * @param B BAKA Thread/global state
+ * @param run Run environment handle
+ * @param fun Function to call
+ * @param opaque Opaque data for function
+ * @param starttime Start time
+ * @param eventflags DESTROY and other such stuff
+ * @param flags BK_RUN_THREADREADY to fork a new thread
+ */
+static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, struct timeval *starttime, bk_flags eventflags, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!run || !fun)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISSET(flags, BK_RUN_THREADREADY) && BK_GENERAL_FLAG_ISTHREADON(B) && !eventflags)
+  {
+    struct br_runevent *brre;
+
+    if (!BK_MALLOC(brre))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Cannot malloc space for runevent thread: %s\n", strerror(errno));
+      BK_VRETURN(B);
+    }
+
+    brre->brre_run = run;
+    brre->brre_fun = fun;
+    brre->brre_opaque = opaque;
+    brre->brre_starttime = starttime;
+    brre->brre_flags = eventflags;
+
+    if (!bk_general_thread_create(B, "bk_run.eventq", bk_run_runevent_thread, brre, 0))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Cannot fire off thread for runevent\n");
+      free(brre);
+      BK_VRETURN(B);
+    }
+  }
+  else
+#endif /* BK_USING_PTHREADS */
+    (*fun)(B, run, opaque, starttime, eventflags);
+
+  BK_VRETURN(B);
+}
+
+
+
+#ifdef BK_USING_PTHREADS
+/**
+ * Function as thread to call event queue function
+ *
+ * @param B BAKA Thread/global state
+ * @param opaque Opaque data
+ */
+static void *bk_run_runevent_thread(bk_s B, void *opaque)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct br_runevent *brre = opaque;
+
+  if (!brre)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  (*brre->brre_fun)(B, brre->brre_run, brre->brre_opaque, brre->brre_starttime, brre->brre_flags);
+  free(brre);
+
+  BK_RETURN(B, NULL);
+}
+#endif /* BK_USING_PTHREADS */
+
+
+
+/**
+ * Execute an fd job, possibly creating a new thread
+ *
+ * THREADS: MT-SAFE
+ *
+ * @param B BAKA Thread/global state
+ * @param run Run environment handle
+ * @param fd fd to process
+ * @param gottypes Type of activity
+ * @param fun Function to call
+ * @param opaque Opaque data for function
+ * @param starttime Start time
+ * @param flags BK_RUN_THREADREADY to fork a new thread
+ */
+static void bk_run_runfd(bk_s B, struct bk_run *run, int fd, u_int gottypes, bk_fd_handler_t fun, void *opaque, struct timeval *starttime, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!run || !fun)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISSET(flags, BK_RUN_THREADREADY) && BK_GENERAL_FLAG_ISTHREADON(B))
+  {
+    struct br_runfd *brrf;
+
+    if (!BK_MALLOC(brrf))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Cannot malloc space for runfd thread: %s\n", strerror(errno));
+      BK_VRETURN(B);
+    }
+
+    brrf->brrf_run = run;
+    brrf->brrf_fd = fd;
+    brrf->brrf_gottypes = gottypes;
+    brrf->brrf_fun = fun;
+    brrf->brrf_opaque = opaque;
+    brrf->brrf_starttime = starttime;
+
+    if (!bk_general_thread_create(B, "bk_run.fd", bk_run_runfd_thread, brrf, 0))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Cannot fire off thread for runfd\n");
+      free(brrf);
+      BK_VRETURN(B);
+    }
+  }
+  else
+#endif /* BK_USING_PTHREADS */
+    (*fun)(B, run, fd, gottypes, opaque, starttime);
+
+  BK_VRETURN(B);
+}
+
+
+
+#ifdef BK_USING_PTHREADS
+/**
+ * Function as thread to call fd function
+ *
+ * @param B BAKA Thread/global state
+ * @param opaque Opaque data
+ */
+static void *bk_run_runfd_thread(bk_s B, void *opaque)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct br_runfd *brrf = opaque;
+
+  if (!brrf)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  (*brrf->brrf_fun)(B, brrf->brrf_run, brrf->brrf_fd, brrf->brrf_gottypes, brrf->brrf_opaque, brrf->brrf_starttime);
+
+  free(brrf);
+  BK_RETURN(B, NULL);
+}
+#endif /* BK_USING_PTHREADS */
 
 
 
@@ -2026,7 +2234,7 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval *startt
       abort();
 #endif /* BK_USING_PTHREADS */
 
-    (*top->bre_event)(B, run, top->bre_opaque, starttime, 0);
+    bk_run_runevent(B, run, top->bre_event, top->bre_opaque, starttime, 0, top->bre_flags);
     free(top);
     event_cnt++;
 

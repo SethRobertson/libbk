@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.234 2003/05/14 21:05:27 seth Exp $
+ * $Id: libbk.h,v 1.235 2003/05/15 01:29:49 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -289,7 +289,7 @@ struct bk_general
 #define BK_GENERAL_CHILD(B)	((B)?(B)->bt_general->bg_child:(struct bk_child *)bk_nullptr) ///< Access the bk_general debug queue
 #define BK_GENERAL_REINIT(B)	((B)?(B)->bt_general->bg_reinit:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general reinit list
 #define BK_GENERAL_DESTROY(B)	((B)?(B)->bt_general->bg_destroy:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general destruction list
-#define BK_GENERAL_TLIST(B)	((B)?(B)->bt_general->bg_tlist:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general thread list
+#define BK_GENERAL_TLIST(B)	((B)?(B)->bt_general->bg_tlist:(struct bk_threadlist *)bk_nullptr) ///< Access the bk_general thread list
 #define BK_GENERAL_PROCTITLE(B) ((B)?(B)->bt_general->bg_proctitle:(struct bk_proctitle *)bk_nullptr) ///< Access the bk_general process title state
 #define BK_GENERAL_FUNSTATS(B) ((B)?(B)->bt_general->bg_funstats:(struct bk_stat_list *)bk_nullptr) ///< Access the bk_general function statistics state
 #define BK_GENERAL_FUNSTATFILE(B) ((B)?(B)->bt_general->bg_funstatfile:(char *)bk_nullptr) ///< Access the bk_general function statistics output filename
@@ -1454,8 +1454,11 @@ extern int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)
 #define BK_RUN_SIGNAL_INTR			0x02 ///< Interrupt system calls for @a bk_run_signal
 #define BK_RUN_SIGNAL_RESTART			0x04 ///< Restart system calls for @a bk_run_signal
 extern int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+//#define BK_RUN_THREADREADY			0x10000 ///< Handler is prepared to run in a thread
 extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t msecs, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+//#define BK_RUN_THREADREADY			0x10000 ///< Handler is prepared to run in a thread
 extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msecs, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+//#define BK_RUN_THREADREADY			0x10000 ///< Handler is prepared to run in a thread
 extern int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags);
 #define BK_RUN_DEQUEUE_EVENT			0x01 ///< Normal event to dequeue for @a bk_run_dequeue
 #define BK_RUN_DEQUEUE_CRON			0x02 ///< Cron event to dequeue for @a bk_run_dequeue
@@ -1476,6 +1479,7 @@ extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t han
 #define BK_RUN_USERFLAG2			0x2000 ///< Reserved for user use
 #define BK_RUN_USERFLAG3			0x4000 ///< Reserved for user use
 #define BK_RUN_USERFLAG4			0x8000 ///< Reserved for user use
+#define BK_RUN_THREADREADY			0x10000 ///< Handler is prepared to run in a thread
 extern int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wantmask, bk_flags flags);
