@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.28 2002/10/02 19:16:37 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.29 2002/10/09 21:39:26 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1840,6 +1840,16 @@ bk_addrgroup_state_e
 bk_net_init_sys_error(bk_s B, int lerrno)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (lerrno == BK_SECOND_CONNECT_ERRNO)
+  {
+    /* 
+     * This is a separate check (ie not in the switch below) because
+     * BK_SECOND_CONNECT_ERRNO usually is the same value as ECONNREFUSED
+     * and listing it in the case gives a "duplicate case value" error.
+     */
+    BK_RETURN(B, BkAddrGroupStateRemoteError);
+  }
 
   switch (lerrno)
   {
