@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.52 2003/06/07 23:51:13 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.53 2003/06/08 03:53:55 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1502,10 +1502,26 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	islocked = 1;
 
 	// Look again, we may have been deleted in the interim
-	if (BK_GENERAL_FLAG_ISTHREADON(B) && (curfd = fdassoc_search(run->br_fdassoc, &x)))
+	if (BK_GENERAL_FLAG_ISTHREADON(B))
 	{
-	  BK_ZERO(&curfd->brf_userid); // Here's hoping zero is reserved
-	  pthread_cond_signal(&curfd->brf_cond);
+	  struct bk_run_fdassoc *oldfd = curfd;
+
+	  if (curfd = fdassoc_search(run->br_fdassoc, &x))
+	  {
+	    int isme = pthread_equal(curfd->brf_userid, pthread_self());
+
+	    if (!isme)
+	    {
+	      bk_error_printf(B, BK_ERR_WARN, "UserID does not match (%d != %d), fdassoc %p, fd %d\n", (int)curfd, (int)pthread_self(), oldfd, x);
+	    }
+
+	    BK_ZERO(&curfd->brf_userid); // Here's hoping zero is reserved
+	    pthread_cond_signal(&curfd->brf_cond);
+	  }
+	  else
+	  {
+	    bk_debug_printf_and(B, 64, "Could not clear brf_userid, fdassoc %p, fd %d, appears to have disappeared (may be normal)\n", oldfd, x);
+	  }
 	}
 #endif /* BK_USING_PTHREADS */
       }
