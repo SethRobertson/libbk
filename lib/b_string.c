@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.122 2005/03/17 06:58:53 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.123 2005/03/17 19:28:11 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1065,7 +1065,12 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 
     if (INSTATE(S_BRACE))
     {
-      if (strchr(left_braces, *curloc))
+      if (*curloc == '\0')
+      {
+	bk_error_printf(B, BK_ERR_NOTICE, "Unexpected end-of-string inside a brace\n");
+	goto tokenizeme;
+      }
+      else if (strchr(left_braces, *curloc))
       {
 	brace_cnt++;
 	goto addnormal;
@@ -1081,11 +1086,6 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	  }
 	}
 	goto addnormal;
-      }
-      else if (*curloc == 0)
-      {
-	bk_error_printf(B, BK_ERR_NOTICE, "Unexpected end-of-string inside a brace\n");
-	goto tokenizeme;
       }
       else if ((kvht_vardb || variabledb) && *curloc == 044)
       {
