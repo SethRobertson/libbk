@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.50 2004/05/04 14:40:39 brian Exp $
+# $Id: Makefile,v 1.51 2004/05/22 00:11:36 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -43,6 +43,7 @@ BK_LARGE_LIBSRC=				\
 		b_pollio.c			\
 		b_protoinfo.c			\
 		b_rand.c			\
+		b_realloc.c			\
 		b_relay.c			\
 		b_ringbuf.c			\
 		b_ringdir.c			\

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.288 2004/05/04 14:27:23 brian Exp $
+ * $Id: libbk.h,v 1.289 2004/05/22 00:11:37 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -129,17 +129,32 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_BITS_SET(B,b,v)	(B)[BK_BITS_BYTENUM(b)] = (((B)[BK_BITS_BYTENUM(b)] & ~(1 << BK_BITS_BITNUM(b))) | ((v) & 1) << BK_BITS_BITNUM(b)); ///< Set a particular bit in a complex bitmap
 
 #if defined (__INSURE__) || !defined(HAVE_ALLOCA)
-#define bk_alloca(l)		malloc(l)
-#define bk_alloca_free(p)	free(p)
+#define bk_alloca(l)		(malloc(l))
+#define bk_alloca_free(p)	(free(p))
+#define bk_strdupa(s)		(strdup(s))
+#define bk_strndupa(s)		(strndup(s))
 #else
-#define bk_alloca(l)		alloca(l)
-#define bk_alloca_free(p)	(void)(0)
+#define bk_alloca(l)		(alloca(l))
+#define bk_alloca_free(p)	((void)(0))
+#define bk_strdupa(s)		(strdupa(s))
+#define bk_strndupa(s)		(strndupa(s))
 #endif
 
 #define BK_ALLOCA(p) BK_ALLOCA_LEN(p,sizeof(*(p))) ///< Structure allocation calloc with assignment and type cast
 #define BK_ALLOCA_LEN(p,l) ((p) = (typeof(p))bk_alloca(l))	///< Malloc with assignment and type cast
 
 #ifdef __INSURE__
+#ifndef BK_NO_MALLOC_WRAP
+
+#define malloc(s) 	(bk_malloc_wrapper(s))
+#define calloc(n,s)	(bk_calloc_wrapper(n, s))
+#define realloc(b,s)	(bk_realloc_wrapper(b, s))
+#define free(b)		(bk_free_wrapper(b))
+#define strdup(s)	(bk_strdup_wrapper(s))
+#define strndup(s,n)	(bk_strndup_wrapper(s, n))
+
+#else /* BK_NO_MALLOC_WRAP */
+
 /*
  * Insure (at least on linux) doesn't get that realloc(NULL,len) is legal
  * (it complains about freeing NULL), so this macro takes care of that.
@@ -149,6 +164,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
  * </WARNING>
  */
 #define realloc(p,l) ((p)?realloc((p),(l)):malloc(l))
+#endif /* BK_NO_MALLOC_WRAP */
 #endif // __INSURE__
 
 
@@ -2323,6 +2339,18 @@ extern void *bk_ringdir_standard_get_private_data(bk_s B, bk_ringdir_t brdh, bk_
 extern int bk_ringdir_standard_update_private_data_by_standard(bk_s B, void *brsh, void *opaque, bk_flags flags);
 extern void *bk_ringdir_standard_get_private_data_by_standard(bk_s B, void *brsh, bk_flags flags);
 
+/* b_realloc.c */
+#if defined(__INSURE__) && !defined(BK_NO_MALLOC_WRAP)
+extern int bk_malloc_wrap_init(bk_flags flags);
+extern void bk_malloc_wrap_destroy(bk_flags flags);
+extern void bk_malloc_wrap_destroy(bk_flags flags);
+extern void *bk_malloc_wrapper(size_t size);
+extern void *bk_calloc_wrapper(size_t nmemb, size_t size);
+extern void *bk_realloc_wrapper(void *buf, size_t size);
+extern void bk_free_wrapper(void *buf);
+extern char *bk_strdup_wrapper(const char *str);
+extern char *bk_strndup_wrapper(const char *str, size_t n);
 
+#endif /* defined(__INSURE__) && !defined(BK_NO_MALLOC_WRAP) */
 
 #endif /* _BK_h_ */
