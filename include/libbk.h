@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.257 2003/09/02 20:04:53 jtt Exp $
+ * $Id: libbk.h,v 1.258 2003/09/04 16:33:54 salex Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -906,6 +906,8 @@ do {						\
  * (the extra 's' at the end of the field names is for "special")
  */
 #define BK_BTS2F(bt) ((double)(((double)((bt)->bt_secs)) + ((double)((bt)->bt_nsecs))/1000000000.0))
+// And similarly for comparisons
+#define BK_BTS_CMP(a,b) BK_OR((a)->bt_secs-(b)->bt_secs,(a)->bt_nsecs-(b)->bt_nsecs)
 
 
 /** @brief Special symbol which means resolve to "any" address. */
