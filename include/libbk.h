@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.75 2001/12/04 19:51:20 jtt Exp $
+ * $Id: libbk.h,v 1.76 2001/12/05 00:18:21 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -395,8 +395,6 @@ do {						\
 
 
 
-#define BK_SECS_TO_EVENT(x) ((x)*1000)		///< Convert seconds to event granularity
-
 /**
  * @name Basic Timeval Operations
  * Perform basic timeval operations (add, subtract, compare, etc).
@@ -426,33 +424,33 @@ do {						\
 #define BK_TV_RECTIFY(sum)					\
     do								\
     {								\
-      if ((sum)->tv_usec >= BK_TV_SECTOUSEC(1))			\
+      if ((sum)->tv_usec >= BK_SECSTOUSEC(1))			\
       {								\
-	(sum)->tv_sec += (sum)->tv_usec / BK_TV_SECTOUSEC(1);	\
-	(sum)->tv_usec %= BK_TV_SECTOUSEC(1);			\
+	(sum)->tv_sec += (sum)->tv_usec / BK_SECSTOUSEC(1);	\
+	(sum)->tv_usec %= BK_SECSTOUSEC(1);			\
       }								\
 								\
-      if ((sum)->tv_usec <= -BK_TV_SECTOUSEC(1))		\
+      if ((sum)->tv_usec <= -BK_SECSTOUSEC(1))		\
       {								\
-	(sum)->tv_sec += (sum)->tv_usec / BK_TV_SECTOUSEC(1);	\
-	(sum)->tv_usec %= -BK_TV_SECTOUSEC(1);			\
+	(sum)->tv_sec += (sum)->tv_usec / BK_SECSTOUSEC(1);	\
+	(sum)->tv_usec %= -BK_SECSTOUSEC(1);			\
       }								\
 								\
       if ((sum)->tv_usec < 0 && (sum)->tv_sec > 0)		\
       {								\
 	(sum)->tv_sec--;					\
-	(sum)->tv_usec += BK_TV_SECTOUSEC(1);			\
+	(sum)->tv_usec += BK_SECSTOUSEC(1);			\
       }								\
 								\
       if ((sum)->tv_usec > 0 && (sum)->tv_sec < 0)		\
       {								\
 	(sum)->tv_sec++;					\
-	(sum)->tv_usec -= BK_TV_SECTOUSEC(1);			\
+	(sum)->tv_usec -= BK_SECSTOUSEC(1);			\
       }								\
 								\
     } while (0)
-/** @brief Number of microseconds in a particular number of seconds */
-#define BK_TV_SECTOUSEC(s) ((s)*1000000)	
+#define BK_SECS_TO_EVENT(x) ((x)*1000)		///< Convert seconds to event granularity
+#define BK_SECSTOUSEC(x) ((x)*1000000)		///< Convert seconds to microseconds
 // @}
 
 
