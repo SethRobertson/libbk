@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_search.c,v 1.6 2003/06/17 06:07:20 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_search.c,v 1.7 2003/07/07 22:11:18 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -169,7 +169,7 @@ xmlAttrPtr bkxml_attrsearch(bk_s B, xmlNodePtr node, char *findname, bk_flags fl
  *	@paran B BAKA Thread/Global state
  *	@param doc The XML document header for special entities (not required for normal entities)
  *	@param attrnode The XML attribute or node whose data you wish to copy
- *	@param flags BKXML_MISSING_TEXT_ARE_NULL
+ *	@param flags BKXML_MISSING_TEXT_ARE_NULL, BKXML_EXPAND_VARS
  * 	@return <i>NULL</i> on call failure
  *	@return <br><i>allocated string</i> on success
  */
@@ -193,5 +193,21 @@ char *bkxml_attrnode_data(bk_s B, xmlDocPtr doc, xmlNodePtr attrnode, bk_flags f
     BK_RETURN(B, NULL);
   }
 
+  if (BK_FLAG_ISSET(flags, BKXML_EXPAND_VARS))
+  {
+    // passed in string is freed even on failure
+    if (!(str = bk_string_expand(B, str, NULL, (const char**)environ, BK_STRING_EXPAND_FREE)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Environment variable expansion failed.\n");
+      goto error;
+    }
+  }
+
   BK_RETURN(B, str);
+
+ error:
+  if (str)
+    free(str);
+
+  BK_RETURN(B, NULL);
 }

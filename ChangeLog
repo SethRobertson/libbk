@@ -1,3 +1,7 @@
+2003-07-07  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* xml/b_search.c (bkxml_attrnode_data): Added string expansion option.
+
 2003-07-02  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_strconv.c (bk_string_atoflag): don't segfault for NULL names
