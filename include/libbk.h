@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.150 2002/05/28 22:22:52 jtt Exp $
+ * $Id: libbk.h,v 1.151 2002/05/30 23:36:22 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -775,6 +775,17 @@ typedef struct bk_alloc_ptr
 
 
 /**
+ * Vectored string for more efficient appending
+ */
+typedef struct bk_vstr
+{
+  char *ptr;					///< Data
+  u_int32_t cur;				///< Current length (not including NULL)
+  u_int32_t max;				///< Maximum length (not including NULL)
+} bk_vstr;
+
+
+/**
  * A structure for communicating configuration file configuration
  * parameters to the config subsystem during baka general
  * initialization.  Typically, this will be NULL and not used.
@@ -1338,6 +1349,8 @@ extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
 extern int bk_string_intcols(bk_s B, int64_t num, u_int base);
 extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #define BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY	0x1 ///< Take more time to return use as little memory as possible.
+extern int bk_vstr_cat(bk_s B,  bk_flags flags, bk_vstr *dest, const char *src_fmt, ...) __attribute__ ((format (printf, 4, 5)));
+#define BK_VSTR_CAT_FLAG_STINGY_MEMORY		0x1 ///< Take more time; use less memory
 extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags);
 extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags);
 extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags);

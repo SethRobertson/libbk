@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.41 2002/05/14 23:00:20 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.42 2002/05/30 23:36:22 lindauer Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1707,6 +1707,7 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int n, size = 2048;
   char *p = NULL;
+  char *tmpp = NULL;
   va_list ap;
 
   if (!fmt)
@@ -1741,11 +1742,12 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
       size = n+1; /* precisely what is needed */
     else           /* glibc 2.0 */
       size *= 2;  /* twice the old size */
-    if (!(p = realloc (p, size)))
+    if (!(tmpp = realloc (p, size)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not realloc string: %s\n", strerror(errno));
       goto error;
     }
+    p = tmpp;
   }
 
   if (BK_FLAG_ISSET(flags, BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY))
@@ -1770,6 +1772,92 @@ bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ..
   BK_RETURN(B,NULL);  
 }
 
+
+
+/**
+ * Appends the src string to the dest vstr overwriting the '\0' character at the
+ * end of dest, and then adds a terminating '\0' character.  The strings may not
+ * overlap, and the dest vstr needn't have enough space for the result.  Extra 
+ * space will be allocated according the the chunk argument.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags.
+ * 		BK_VSTR_CAT_FLAG_STINGY_MEMORY
+ *	@param fmt The format string to use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_vstr_cat(bk_s B, bk_flags flags, bk_vstr *dest, const char *src_fmt, ...)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int n;
+  char *p;
+  int size;
+  va_list ap;
+
+  if (!dest || !dest->ptr)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid Arguments\n");
+    goto error;
+  }
+
+  // try with available space
+  while (1) 
+  {
+    int available = dest->max - dest->cur;
+
+    /* Try to print in the allocated space. */
+    va_start(ap, src_fmt);
+    n = vsnprintf (dest->ptr + dest->cur, available + 1, src_fmt, ap);
+    va_end(ap);
+
+    /* If that worked, return the string. */
+    if ((n > -1) && (n <= available))
+    {
+      // update length counter in vstr
+      dest->cur += n;
+      break;
+    }
+
+    /* Else try again with more space. */
+    if ((n > -1) && BK_FLAG_ISSET(flags, BK_VSTR_CAT_FLAG_STINGY_MEMORY))    /* glibc 2.1 */
+    {
+      size = n+1; /* precisely what is needed */
+    }
+    else           /* glibc 2.0 */
+    {
+      size = (dest->max + 1) * 2;  /* twice the old size */
+    }
+    if (!(p = realloc (dest->ptr, size)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not realloc string: %s\n", strerror(errno));
+      goto error;
+    }
+    dest->ptr = p;
+    dest->max = size - 1;			// don't include NULL space
+  }
+  
+  if (BK_FLAG_ISSET(flags, BK_VSTR_CAT_FLAG_STINGY_MEMORY))
+  {
+    char *tmp;
+
+    if (!(tmp = strdup(dest->ptr)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy string to minimize memory usage: %s\n", strerror(errno));
+      goto error;
+    }
+    free(dest->ptr);
+    dest->ptr = tmp;
+
+    dest->max = dest->cur;
+  }
+
+  BK_RETURN(B, 0);
+
+ error:
+  BK_RETURN(B, -1);
+}
 
 
 
