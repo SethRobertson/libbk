@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_child.c,v 1.1 2002/09/28 23:25:30 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_child.c,v 1.2 2002/09/29 16:35:38 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -58,7 +58,9 @@ static int childidlist_oo_cmp(struct bk_child_comm *a, struct bk_child_comm *b);
 static int childidlist_ko_cmp(int *a, struct bk_child_comm *b);
 static unsigned int childidlist_obj_hash(struct bk_child_comm *b);
 static unsigned int childidlist_key_hash(int *a);
+#if 0
 static struct ht_args childidlist_args = { 127, 2, (ht_func)childidlist_obj_hash, (ht_func)childidlist_key_hash };
+#endif
 // @}
 
 
@@ -89,7 +91,9 @@ static int childpidlist_oo_cmp(struct bk_child_comm *a, struct bk_child_comm *b)
 static int childpidlist_ko_cmp(int *a, struct bk_child_comm *b);
 static unsigned int childpidlist_obj_hash(struct bk_child_comm *b);
 static unsigned int childpidlist_key_hash(int *a);
+#if 0
 static struct ht_args childpidlist_args = { 127, 2, (ht_func)childpidlist_obj_hash, (ht_func)childpidlist_key_hash };
+#endif
 // @}
 
 
@@ -182,7 +186,6 @@ void bk_child_iclean(bk_s B, struct bk_child *bchild, int specialchild, bk_flags
 void bk_child_idestroy(bk_s B, struct bk_child *bchild, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"PROCONSUL");
-  struct bk_child_comm *bcc;
 
   if (!bchild)
   {
