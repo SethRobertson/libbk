@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.111 2004/07/12 15:56:50 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.112 2004/07/12 15:59:29 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1250,7 +1250,7 @@ bk_memmem(bk_s B, const void *haystack, size_t haystacklen, const void *needle, 
     BK_RETURN(B, NULL);
   }
 
-  BK_RETURN(B, memmem(haystack, hlen, needle, needlelen));
+  BK_RETURN(B, memmem(haystack, haystacklen, needle, needlelen));
 #endif /* !HAVE_MEMMEM */
 }
 
