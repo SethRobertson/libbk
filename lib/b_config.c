@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.21 2001/11/28 14:58:43 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.22 2001/11/30 00:33:08 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -582,8 +582,8 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
 
 
 /**
- * Retrieve a value based on the key.  If @a ovalue is NULL, then get first
- * value, else get successor of @a ovalue.
+ * Retrieve the configuration parameters of the config system.
+ *
  *	@param B BAKA thread/global state.
  *	@param ibc The baka config structure to use. If NULL, the structure
  *	is extracted from @a B.

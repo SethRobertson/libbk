@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.73 2001/11/29 21:12:41 seth Exp $
+ * $Id: libbk.h,v 1.74 2001/11/30 00:33:08 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -175,6 +175,7 @@ typedef struct __bk_thread
  */
 typedef enum
 {
+// XXXX make these enums CamelCase
   BK_SOCKET_SIDE_LOCAL=1,			///< The local side.
   BK_SOCKET_SIDE_REMOTE,			///< The remote side.
 } bk_socket_side_t;
@@ -186,6 +187,7 @@ typedef enum
  */
 typedef enum 
 {
+// XXXX make these enums CamelCase
   BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_ADD=1,
   BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_DELETE,
   BK_FILEUTILS_MODIFY_FD_FLAGS_ACTION_SET,
@@ -198,6 +200,7 @@ typedef enum
  */
 typedef enum 
 { 
+// XXXX make these enums CamelCase
   BK_NETINFO_TYPE_UNKNOWN=0,			///< Special "unset" marker
   BK_NETINFO_TYPE_INET,				///< IPv4 address
   BK_NETINFO_TYPE_INET6,			///< IPv6 address
@@ -214,6 +217,7 @@ typedef enum
  */
 typedef enum
 {
+// XXXX make these enums CamelCase
   BK_ADDRGROUP_STATE_NULL=0,			///< Doesn't match any other state.
   BK_ADDRGROUP_STATE_TIMEOUT,			///< Connection timedout.
   BK_ADDRGROUP_STATE_WIRE_ERROR,		///< Connection got an error off the wire.

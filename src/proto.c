@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.21 2001/11/27 00:58:41 seth Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.22 2001/11/30 00:33:08 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,7 +24,9 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 
 
-#define ERRORQUEUE_DEPTH 32			///< Default depth
+#define ERRORQUEUE_DEPTH 32			///< Default error queue depth
+#define PERSON_DEFAULT  "World"			///< Default person to greet
+#define PERSON_KEY      "Greeter"		///< Name to query in config to greet
 
 
 
@@ -46,13 +48,13 @@ struct program_config
 {
   const char * 		pc_person;		///< The person to greet
   bk_flags 		pc_flags;		///< Flags are fun!
-#define PC_VERBOSE	1			///< Verbose output
+#define PC_VERBOSE	0x001			///< Verbose output
 };
 
 
 
-int proginit(bk_s B, struct program_config *pconfig);
-void progrun(bk_s B, struct program_config *pconfig);
+static int proginit(bk_s B, struct program_config *pconfig);
+static void progrun(bk_s B, struct program_config *pconfig);
 
 
 
@@ -96,44 +98,55 @@ main(int argc, char **argv, char **envp)
   bk_fun_reentry(B);
 
   pconfig = &Pconfig;
-  memset(pconfig,0,sizeof(*pconfig));
+  memset(pconfig, 0, sizeof(*pconfig));
 
   if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not initialize options processing\n");
-    bk_exit(B,254);
+    bk_exit(B, 254);
   }
+  poptSetOtherOptionHelp(optCon, "[NON-FLAG ARGUMENTS]");
 
   while ((c = poptGetNextOpt(optCon)) >= 0)
   {
     switch (c)
     {
-    case 'd':
+    case 'd':					// debug
       bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, 0, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
       bk_general_debug_config(B, stderr, BK_ERR_NONE, 0); 				// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       break;
-    case 'v':
+    case 'v':					// verbose
       BK_FLAG_SET(pconfig->pc_flags, PC_VERBOSE);
       bk_error_config(B, BK_GENERAL_ERROR(B), ERRORQUEUE_DEPTH, stderr, BK_ERR_NONE, BK_ERR_ERR, 0);
       break;
-    case 0x1000:
+    case 0x1000:				// no-seatbelts
       BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
-      break;
-    case 'p':
-      pconfig->pc_person = poptGetOptArg(optCon);
-      break;
-    case 1:
-      printf("You specificed the long-arg-only option\n");
-      break;
-    case 2:
-      printf("You specificed the short only option\n");
       break;
     default:
       getopterr++;
       break;
+
+    case 'p':					// person
+      pconfig->pc_person = poptGetOptArg(optCon);
+      break;
+    case 1:					// long-arg-only
+      printf("You specificed the long-arg-only option\n");
+      break;
+    case 2:					// s
+      printf("You specificed the short only option\n");
+      break;
     }
   }
+
+  /*
+   * Reprocess so that argc and argv contain the remaining command
+   * line arguments (note argv[0] is an argument, not the program
+   * name).  argc remains the number of elements in the argv array.
+   */
+  argv = (char **)poptGetArgs(optCon);
+  for (argc=0; argv[argc]; argc++)
+    ; // Void
 
   if (c < -1 || getopterr)
   {
@@ -142,18 +155,17 @@ main(int argc, char **argv, char **envp)
       fprintf(stderr, "%s\n", poptStrerror(c));
     }
     poptPrintUsage(optCon, stderr, 0);
-    bk_exit(B,254);
+    bk_exit(B, 254);
   }
     
   if (proginit(B, pconfig) < 0)
   {
-    bk_die(B,254,stderr,"Could not perform program initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+    bk_die(B, 254, stderr, "Could not perform program initialization\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 
   progrun(B, pconfig);
-  bk_exit(B,0);
-  abort();
-  return(255);
+  bk_exit(B, 0);
+  return(255);					// Stupid INSIGHT stuff.
 }
 
 
@@ -166,7 +178,7 @@ main(int argc, char **argv, char **envp)
  *	@return <i>0</i> Success
  *	@return <br><i>-1</i> Total terminal failure
  */
-int proginit(bk_s B, struct program_config *pconfig)
+static int proginit(bk_s B, struct program_config *pconfig)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
 
@@ -189,10 +201,10 @@ int proginit(bk_s B, struct program_config *pconfig)
  *	@return <i>0</i> Success--program may terminate normally
  *	@return <br><i>-1</i> Total terminal failure
  */
-void progrun(bk_s B, struct program_config *pconfig)
+static void progrun(bk_s B, struct program_config *pconfig)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
-  const char *person = "World";
+  const char *person;
 
   if (!pconfig)
   {
@@ -200,10 +212,11 @@ void progrun(bk_s B, struct program_config *pconfig)
     BK_VRETURN(B);
   }
 
+  person = BK_GWD(B, PERSON_KEY, PERSON_DEFAULT);
   if (pconfig->pc_person)
     person = pconfig->pc_person;
 
-  printf("Hello %s\n",person);
+  printf("Hello %s\n", person);
 
   BK_VRETURN(B);
 }

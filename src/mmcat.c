@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: mmcat.c,v 1.4 2001/11/18 20:42:44 seth Exp $";
+static char libbk__rcsid[] = "$Id: mmcat.c,v 1.5 2001/11/30 00:33:08 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -74,7 +74,7 @@ main(int argc, char **argv, char **envp)
 {
   bk_s B = NULL;				/* Baka general structure */
   BK_ENTRY(B, __FUNCTION__, __FILE__, "SIMPLE");
-  char c;
+  int c;
   char *buf;
   int getopterr=0;
   extern char *optarg;
@@ -84,10 +84,11 @@ main(int argc, char **argv, char **envp)
   const struct poptOption optionsTable[] = 
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", "debug" },
+    {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
+    {"no-seatbelts", 0, POPT_ARG_NONE, NULL, 0x1000, "Sealtbelts off & speed up", NULL },
     {"decode", 'D', POPT_ARG_NONE, NULL, 'D', "decode mime into raw", "decode" },
     {"encode", 'E', POPT_ARG_NONE, NULL, 'E', "encode input into mime", "encode" },
     {"size", 's', POPT_ARG_INT, NULL, 's', "size of blocks to read", "block size" },
-    {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", "verbose" },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -114,11 +115,22 @@ main(int argc, char **argv, char **envp)
   {
     switch (c)
     {
-    case 'd':
-      bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, BK_ERR_DEBUG, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
-      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);					// Set up debugging, from config file
+    case 'd':					// debug
+      bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, 0, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
+      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0); 				// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       break;
+    case 'v':					// verbose
+      BK_FLAG_SET(pconfig->pc_flags, PC_VERBOSE);
+      bk_error_config(B, BK_GENERAL_ERROR(B), ERRORQUEUE_DEPTH, stderr, BK_ERR_NONE, BK_ERR_ERR, 0);
+      break;
+    case 0x1000:				// no-seatbelts
+      BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
+      break;
+    default:
+      getopterr++;
+      break;
+
     case 'D':
       BK_FLAG_CLEAR(pconfig->pc_flags, PC_ENCODE);
       break;
@@ -127,13 +139,6 @@ main(int argc, char **argv, char **envp)
       break;
     case 's':
       pconfig->pc_size = atoi(poptGetOptArg(optCon));
-      break;
-    case 'v':
-      BK_FLAG_SET(pconfig->pc_flags, PC_VERBOSE);
-      bk_error_config(B, BK_GENERAL_ERROR(B), ERRORQUEUE_DEPTH, stderr, BK_ERR_NONE, BK_ERR_ERR, 0);
-      break;
-    default:
-      getopterr++;
       break;
     }
   }
@@ -144,7 +149,7 @@ main(int argc, char **argv, char **envp)
   argv = (char **)poptGetArgs(optCon);
   if (argv && argv[0])
   {
-    if (!strcmp(argv[0],"-"))
+    if (strcmp(argv[0], "-"))
     {
       if (!(pconfig->pc_input = fopen(argv[0], "r")))
       {
@@ -153,7 +158,7 @@ main(int argc, char **argv, char **envp)
 	getopterr++;
       }
     }
-    if (argv[1] && !strcmp(argv[1],"-"))
+    if (argv[1] && strcmp(argv[1], "-"))
     {
       if (!(pconfig->pc_input = fopen(argv[1], "w")))
       {
@@ -177,13 +182,13 @@ main(int argc, char **argv, char **envp)
       fprintf(stderr, "%s\n", poptStrerror(c));
     }
     poptPrintUsage(optCon, stderr, 0);
-    bk_exit(B,254);
+    bk_exit(B, 254);
   }
     
   if (!BK_MALLOC_LEN(buf, pconfig->pc_size))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer of size %d: %s\n", pconfig->pc_size, strerror(errno));
-    bk_die(B,254,stderr,"Could not allocate memory for input buffer\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+    bk_die(B, 254, stderr,"Could not allocate memory for input buffer\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 
   if (BK_FLAG_ISSET(pconfig->pc_flags, PC_ENCODE))
@@ -198,7 +203,7 @@ main(int argc, char **argv, char **envp)
       tmp.ptr = buf;
 
       if (!(out = bk_encode_base64(B, &tmp, NULL)))
-	bk_die(B,1,stderr,"Could not encode input string\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+	bk_die(B,1,stderr,"Could not encode input string\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 
       fwrite(out, strlen(out), 1, pconfig->pc_output);
       free(out);
@@ -212,7 +217,7 @@ main(int argc, char **argv, char **envp)
     while (fgets(buf, pconfig->pc_size, pconfig->pc_input))
     {
       if (!(tmp = bk_decode_base64(B, buf)))
-	bk_die(B,1,stderr,"Could not decode input string\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+	bk_die(B, 1, stderr,"Could not decode input string\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 
       fwrite(tmp->ptr, tmp->len, 1, pconfig->pc_output);
       free(tmp->ptr);
