@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.97 2003/09/02 20:04:53 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.98 2003/11/22 10:11:12 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,7 +23,6 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
-
 
 
 
@@ -1694,7 +1693,6 @@ void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset)
 
 
 
-
 /**
  * Initialize the string registry.
  *
@@ -1893,14 +1891,14 @@ bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk
     BK_RETURN(B, 0);
   }
 
-  for(cnt = 0; cnt < bsr->bsr_next_index; cnt++)
+  for (cnt = 0; cnt < bsr->bsr_next_index; cnt++)
   {
     bsre = bsr->bsr_registry[cnt];
     if (bsre && BK_STREQ(bsre->bsre_str, str))
-      break;
+      BK_RETURN(B, bsre->bsre_id);
   }
 
-  BK_RETURN(B,bsre?bsre->bsre_id:0);
+  BK_RETURN(B, 0);
 }
 
 
@@ -1941,7 +1939,6 @@ bk_string_registry_delete_str(bk_s B, bk_str_registry_t handle, const char *str,
 
   BK_RETURN(B,bk_string_registry_delete_id(B, handle, cnt, flags));
 }
-
 
 
 
@@ -1987,6 +1984,8 @@ bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, b
     /* Someone is still using this, so we're done */
     BK_RETURN(B,0);
   }
+
+  bk_debug_printf_and(B, 1, "%d !=> %s\n", bsre->bsre_id, bsre->bsre_str);
 
   bsre_destroy(B, bsre);
 
@@ -2097,6 +2096,8 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
       bsre->bsre_id = bsr->bsr_next_index;
       bsr->bsr_registry[bsr->bsr_next_index] = bsre;
       bsr->bsr_next_index++;
+
+      bk_debug_printf_and(B, 1, "%d ==> %s\n", bsre->bsre_id, bsre->bsre_str);
     }
   }
   else if (id >= bsr->bsr_next_index || !(bsre = bsr->bsr_registry[id]))
@@ -2115,7 +2116,6 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
   bsre->bsre_ref++;
 
   BK_SIMPLE_UNLOCK(B, &bsre->bsre_lock);
-
 
   BK_RETURN(B,bsre->bsre_id);
 
@@ -2167,7 +2167,7 @@ bk_string_registry_register_by_id(bk_s B, bk_str_registry_t handle, bk_str_id_t 
   {
     bk_error_printf(B, BK_ERR_ERR, "Registry object %d does not exist or has been deleted\n", id);
     BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
-    BK_RETURN(B,NULL);
+    BK_RETURN(B, NULL);
   }
   
   // Lock the bsre before releasing the bsr which contains it.
@@ -2179,7 +2179,9 @@ bk_string_registry_register_by_id(bk_s B, bk_str_registry_t handle, bk_str_id_t 
 
   BK_SIMPLE_UNLOCK(B, &bsre->bsre_lock);
 
-  BK_RETURN(B,bsre->bsre_str);  
+  bk_debug_printf_and(B, 1, "%d ==> %s\n", id, bsre->bsre_str);
+
+  BK_RETURN(B, bsre->bsre_str);  
 }
 
 

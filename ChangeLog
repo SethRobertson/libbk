@@ -1,3 +1,14 @@
+2003-11-22  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_string.c (bk_string_registry_idbystr): don't return the last id
+	if you can't find the string; return 0, as you're supposed to...
+	My god, we've only implemented the moral equivalent of String.intern()
+	half a dozen times and we *still* can't get it right?!?!]
+
+	* ssl/b_ssl.c, lib/b_*.c, include/libbk.h, include/libbkssl.h:	massive
+	stupid "make worker -v useful" for debugging featuresets commit	- aka
+	"make you regret that you ran make depend" after touching libbk*.h
+
 2003-11-14  James Tanis  <jtt@pearl.sysdetect.com>
 
 	* xml/b_search.c (bkxml_attrnode_valbyname): Convenience function
