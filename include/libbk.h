@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.286 2004/04/27 18:43:58 jtt Exp $
+ * $Id: libbk.h,v 1.287 2004/04/29 22:32:23 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -364,7 +364,7 @@ do {										\
 // @}
 
 // <TODO> Potential porting issue here. We assume that time_t is 4 bytes </TODO>
-#define BK_MAX_TIME_T 	(UINT32_MAX)
+#define BK_MAX_TIME_T 	(LONG_MAX)
 
 
 
