@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.36 2003/04/19 06:50:07 dupuy Exp $
+ * $Id: libbk_internal.h,v 1.37 2003/05/08 01:08:43 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -121,10 +121,17 @@ struct bk_polling_io
 #define POLLING_IOH_FDOUT(bpi)	((bpi)->bpi_ioh->ioh_fdout)
 
 
+#ifdef BK_USING_PTHREADS
+extern pthread_mutex_t BkGlobalSignalLock;
+#endif /* BK_USING_PTHREADS */
+
+
+
 /* FRIENDLY FUNCTIONS */
 
 
 extern void bk_run_signal_ihandler(int signum);
+
 
 
 #endif /* _libbk_internal_h_ */

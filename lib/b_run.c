@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.40 2003/05/01 23:14:02 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.41 2003/05/08 01:08:43 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -49,6 +49,7 @@ struct br_equeue
 };
 
 
+
 /**
  * Opaque data for cron job event queue function.  Data containing information about
  * true user callback which is scheduled to run at certain interval.
@@ -57,9 +58,14 @@ struct br_equeuecron
 {
   time_t		brec_interval;		///< msec Interval timer
   void			(*brec_event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags); ///< Event to run
-  void			*brec_opaque;		///< Data for opaque
-  struct br_equeue	*brec_equeue;		///< Queued cron event (ie next instance to fire).
+  void		       *brec_opaque;		///< Data for opaque
+  struct br_equeue     *brec_equeue;		///< Queued cron event (ie next instance to fire).
+#ifdef BK_USING_PTHREADS
+  pthread_t		brec_userid;		///< Identifier of thread currently ``using'' this object
+  pthread_cond_t	brec_cond;		///< Pthread condition for other threads to wait on
+#endif /* BK_USING_PTHREADS */
 };
+
 
 
 /**
@@ -84,7 +90,11 @@ struct bk_run_fdassoc
   int			brf_fd;			///< Fd we are handling
   bk_fd_handler_t	brf_handler;		///< Function to handle
   void		       *brf_opaque;		///< Opaque information
-  int			brf_flags;		///< Handler flags 
+  int			brf_flags;		///< Handler flags
+#ifdef BK_USING_PTHREADS
+  pthread_t		brf_userid;		///< Identifier of thread currently ``using'' this object
+  pthread_cond_t	brf_cond;		///< Pthread condition for other threads to wait on
+#endif /* BK_USING_PTHREADS */
 };
 
 
@@ -119,6 +129,9 @@ struct bk_run
 #define BK_RUN_FLAG_FD_CANCEL		0x80	///< At least 1 fd on cancel list
 #define BK_RUN_FLAG_FD_CLOSED		0x80	///< At least 1 fd on cancel list is closed
   dict_h		br_canceled;		///< List of canceled descriptors.
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_t	br_lock;		///< Lock on run management
+#endif /* BK_USING_PTHREADS */
 };
 
 
@@ -132,6 +145,10 @@ struct bk_run_func
   void *	brfn_opaque;			///< User args
   bk_flags	brfn_flags;			///< Everyone needs flags
   dict_h	brfn_backptr;			///< Pointer to enclosing dll
+#ifdef BK_USING_PTHREADS
+  pthread_t		brfn_userid;		///< Identifier of thread currently ``using'' this object
+  pthread_cond_t	brfn_cond;		///< Pthread condition for other threads to wait on
+#endif /* BK_USING_PTHREADS */
 };
 
 
@@ -146,6 +163,10 @@ struct bk_run_ondemand_func
   bk_flags		brof_flags;		///< Everyone needs flags
   dict_h		brof_backptr;		///< Pointer to enclosing dll
   volatile int *	brof_demand;		///< Trigger for execution
+#ifdef BK_USING_PTHREADS
+  pthread_t		brof_userid;		///< Identifier of thread currently ``using'' this object
+  pthread_cond_t	brof_cond;		///< Pthread condition for other threads to wait on
+#endif /* BK_USING_PTHREADS */
 };
 
 
@@ -321,7 +342,10 @@ static volatile sig_atomic_t		br_beensignaled;
 
 /**
  * Create and initialize the run environment.
- *	@param B BAKA thread/global state 
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state
  *	@param flags Flags for future expansion--saved through run structure.
  *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
  *	@return <br><i>The</i> initialized baka run structure if successful.
@@ -336,7 +360,11 @@ struct bk_run *bk_run_init(bk_s B, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Cannot create run structure: %s\n",strerror(errno));
     BK_RETURN(B, NULL);
   }
-  memset(run, 0, sizeof(*run));
+  BK_ZERO(run);
+
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_init(&run->br_lock, NULL);
+#endif /* BK_USING_PTHREADS */
 
   run->br_flags = flags;
 
@@ -399,7 +427,11 @@ struct bk_run *bk_run_init(bk_s B, bk_flags flags)
 
 /**
  * Destroy the baka run environment.
- *	@param B BAKA thread/global state 
+ *
+ * THREADS: MT-SAFE (assuming different run)
+ * THREADS: RE-ENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  */
 void bk_run_destroy(bk_s B, struct bk_run *run)
@@ -496,6 +528,11 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 
   br_signums = NULL;
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_destroy(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   free(run);
 
   BK_VRETURN(B);
@@ -508,7 +545,9 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
  *
  * Default is to interrupt system calls
  *
- *	@param B BAKA thread/global state 
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param signum The signal number to install a synchronous signal handler for.
  *	@param handler The function to call during the run event loop if a signal was received.
@@ -550,8 +589,21 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
   act.sa_flags |= BK_FLAG_ISSET(flags, BK_RUN_SIGNAL_RESTART)?0:SA_INTERRUPT;
 #endif /* SA_INTERRUPT */
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   run->br_handlerlist[signum].brs_handler = handler;	// Might be NULL
   run->br_handlerlist[signum].brs_opaque = opaque;	// Might be NULL
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   sigemptyset(&blockset);
   sigaddset(&blockset, signum);
@@ -566,6 +618,12 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
   }
   sigprocmask(SIG_UNBLOCK, &blockset, NULL);
 
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&BkGlobalSignalLock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B, 0);
 }
 
@@ -574,7 +632,9 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
 /**
  * Enqueue an event for future action.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param when The UTC timeval when the event handler should be called.
  *	@param event The handler to fire when the time comes (or we are destroyed).
@@ -605,11 +665,21 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
   new->bre_event = event;
   new->bre_opaque = opaque;
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (pq_insert(run->br_equeue, new) != PQ_OK)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not insert into event queue: %s\n",pq_error_reason(run->br_equeue, NULL));
     goto error;
   }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   // Save structure if requested for later CLC delete
   if (handle)
@@ -618,6 +688,11 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
   BK_RETURN(B, 0);
 
  error:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (new) free(new);
   BK_RETURN(B, -1);
 }
@@ -627,7 +702,9 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
 /**
  * Enqueue an event for a future action
  *
- *	@param B BAKA thread/global state 
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param msec The number of milliseconds until the event should fire
  *	@param event The handler to fire when the time comes (or we are destroyed).
@@ -662,7 +739,9 @@ int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t msec, void (*event)(
 /**
  * Set up a reoccurring event at a periodic interval
  *
- *	@param B BAKA thread/global state 
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param msec The number of milliseconds until the event should fire
  *	@param event The handler to fire when the time comes (or we are destroyed).
@@ -694,6 +773,12 @@ int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msec, void (*event)(b
   brec->brec_event = event;
   brec->brec_opaque = opaque;
 
+#ifdef BK_USING_PTHREADS
+  BK_ZERO(&brec->brec_userid);		// Here's hoping zero is reserved
+  if (pthread_cond_init(&brec->brec_cond, NULL) < 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   ret = bk_run_enqueue_delta(B, run, brec->brec_interval, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), 0);
 
   if (handle)
@@ -707,7 +792,9 @@ int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msec, void (*event)(b
 /**
  * Dequeue a normal event or a full "cron" job.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param handle The handle to dequeue the event in the future
  *	@param flags Flags for the Future.
@@ -729,10 +816,45 @@ int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags)
   if (BK_FLAG_ISSET(flags, BK_RUN_DEQUEUE_CRON))
   {
     bre = brec->brec_equeue;
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+
+  if (brec->brec_userid)
+  {
+    int isme = pthread_equal(brec->brec_userid, pthread_self());
+
+    BK_ZERO(&brec->brec_userid);		// Mark as deleted
+
+    // Wait for the current user to finish
+    if (!isme)
+      pthread_cond_wait(&brec->brec_cond, &run->br_lock);
+
+    BK_RETURN(B, 0);				// Running thread handled everything
+  }
+  else
+  {
     free(brec);
   }
 
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#else /* BK_USING_PTHREADS */
+    free(brec);
+#endif /* BK_USING_PTHREADS */
+  }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   pq_delete(run->br_equeue, bre);
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+
   free(bre);
 
   BK_RETURN(B, 0);
@@ -746,7 +868,7 @@ int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags)
  * The end is defined as one of the standard functions failing, or
  * someone setting the BK_RUN_RUN_OVER flag.
  *
- *	@param B BAKA thread/global state 
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param flags Flags for the Future.
  *	@return <i><0</i> on call failure, or other error.
@@ -763,8 +885,17 @@ int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_RUN_OVER); // Don't inherit previous setting
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
+  // <WARNING>We are assuming that br_flags will either have old or new value....</WARNING>
   while (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_RUN_OVER))
   {
     if ((ret = bk_run_once(B, run, flags)) < 0)
@@ -779,7 +910,9 @@ int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags)
 /**
  * Run through all events once. Don't call from a callback or beware.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (pending race condition vs test for user fun and calling user fun)
+ *
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param flags Flags for the Future.
  *	@return <i><0</i> on call failure, or other error.
@@ -796,7 +929,8 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   const struct timeval *selectarg = NULL;
   int ret;
   int x;
-  int use_deltapoll, check_idle;	
+  int haderror = 0;
+  int use_deltapoll, check_idle;
   u_int event_cnt;
 
   deltapoll.tv_sec = INT32_MAX;
@@ -857,7 +991,18 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
    * current run (therefore will not attempt to process any more "dead"
    * state), returns, and clears the flag on the next entry. Whew -jtt
    */
-  BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE);
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE))
+  {
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+    BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE);
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+  }
 
   bk_debug_printf_and(B,4,"Starting bk_run_once\n");
 
@@ -866,15 +1011,35 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
   BK_RUN_ONCE_ABORT_CHECK();
 
+
+  /*
+   *      O N   D E M A N D   C H E C K
+   */
   if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_CHECK_DEMAND))
   {
     struct bk_run_ondemand_func *brof;
-    for(brof=brfl_minimum(run->br_ondemand_funcs);
-	brof;
-	brof=brfl_successor(run->br_ondemand_funcs,brof))
+    dict_iter iter;
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
+    iter = brfl_iterate(run->br_ondemand_funcs, DICT_FROM_START);
+    while (brof = brfl_nextobj(run->br_ondemand_funcs, iter))
     {
       if (*brof->brof_demand)
       {
+#ifdef BK_USING_PTHREADS
+	if (brof->brof_userid)
+	  continue;				// Someone already calling this function
+
+	brof->brof_userid = pthread_self();	// Who is has a soft-lock on this structure
+
+	if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+	  abort();
+#endif /* BK_USING_PTHREADS */
+
 	if (!curtime && BK_FLAG_ISSET(brof->brof_flags, BK_RUN_HANDLE_TIME))
 	{
 	  gettimeofday(&timenow, NULL);
@@ -884,24 +1049,64 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 			      curtime, 0) < 0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "On demand callback failed\n");
-	  goto error;
+	  haderror = 1;
 	}
+
+#ifdef BK_USING_PTHREADS
+	// Look again, we may have been deleted in the iterm
+	if (brof = brfl_search(run->br_ondemand_funcs, brof))
+	{
+	  BK_ZERO(&brof->brof_userid);		// Here's hoping zero is reserved
+	  pthread_cond_signal(&brof->brof_cond);
+	}
+#endif /* BK_USING_PTHREADS */
+
+	if (haderror)
+	  goto error;
+
+#ifdef BK_USING_PTHREADS
+	if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+	  abort();
+#endif /* BK_USING_PTHREADS */
       }
     }
+    brfl_iterate_done(run->br_ondemand_funcs, iter);
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
   }
 
   BK_RUN_ONCE_ABORT_CHECK();
 
-  // Run polling activities
+
+  /*
+   *      P O L L I N G   C H E C K
+   */
   if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_NEED_POLL))
   {
     struct bk_run_func *brfn;
     struct timeval tmp_deltapoll = deltapoll;
+    dict_iter iter;
 
-    for(brfn=brfl_minimum(run->br_poll_funcs);
-	brfn;
-	brfn=brfl_successor(run->br_poll_funcs,brfn))
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
+    iter = brfl_iterate(run->br_poll_funcs, DICT_FROM_START);
+    while (brfn = brfl_nextobj(run->br_poll_funcs, iter))
     {
+#ifdef BK_USING_PTHREADS
+      if (brfn->brfn_userid)
+	continue;				// Someone already calling this function
+
+      brfn->brfn_userid = pthread_self();	// Who is has a soft-lock on this structure
+
+      if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+	abort();
+#endif /* BK_USING_PTHREADS */
+
       if (!curtime && BK_FLAG_ISSET(brfn->brfn_flags, BK_RUN_HANDLE_TIME))
       {
 	gettimeofday(&timenow, NULL);
@@ -911,7 +1116,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 				   &tmp_deltapoll, 0)) < 0)
       {
 	bk_error_printf(B, BK_ERR_WARN, "Polling callback failed\n");
-	goto error;
+	haderror = 1;
       }
 
       if (ret == 1)
@@ -922,24 +1127,50 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	}
 	use_deltapoll=1;
       }
+
+#ifdef BK_USING_PTHREADS
+      // Look again, we may have been deleted in the iterm
+      if (brfn = brfl_search(run->br_ondemand_funcs, brfn))
+      {
+	BK_ZERO(&brfn->brfn_userid);  // Here's hoping zero is reserved
+	pthread_cond_signal(&brfn->brfn_cond);
+      }
+#endif /* BK_USING_PTHREADS */
+
+      if (haderror)
+	goto error;
+
+#ifdef BK_USING_PTHREADS
+      if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+	abort();
+#endif /* BK_USING_PTHREADS */
     }
+    brfl_iterate_done(run->br_poll_funcs, iter);
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
   }
 
   BK_RUN_ONCE_ABORT_CHECK();
 
-  /* 
+  /*
    * If this is the final run, or if we shouldn't block, then turn select(2)
    * into a poll.  This ensures that should we turn off select in an event
    * (the final event of the run), we don't block forever owing to lack of
    * descriptors in the select set.
    */
-    if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_RUN_OVER | BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE) || 
-	BK_FLAG_ISSET(flags, BK_RUN_ONCE_FLAG_DONT_BLOCK)) 
+    if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_RUN_OVER | BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE) ||
+	BK_FLAG_ISSET(flags, BK_RUN_ONCE_FLAG_DONT_BLOCK))
     {
       selectarg = &tzero;
     }
 
-  // Check for event queue - defer gettimeofday; may not be any events in queue
+
+  /*
+   *      E V E N T   Q U E U E
+   */
   if (!curtime)
     timenow = tzero;
   if ((ret = bk_run_checkeventq(B, run, &timenow, &deltaevent, &event_cnt)) < 0)
@@ -951,7 +1182,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     curtime = &timenow;
 
   // don't block in select if we handled any events; we've run "once"
-  if (event_cnt) 
+  if (event_cnt)
     selectarg = &tzero;
 
   // Figure out the select argument
@@ -972,7 +1203,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
       selectarg = &deltaevent;
   }
 
-  /* 
+  /*
    * If some caller has registered an idle task then check to see *if*
    * we would have blocked in select(2) for at least *some* amount of time.
    * If so, rewrite the timeout to { 0,0 } (poll), but note that idle
@@ -1044,9 +1275,20 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     if (bm) bk_memx_destroy(B,bm,0);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   readset = run->br_readset;
   writeset = run->br_writeset;
   xcptset = run->br_xcptset;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
 
   BK_RUN_ONCE_ABORT_CHECK();
 
@@ -1063,6 +1305,20 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     // use a copy of timeout, since Linux (only) will update time left
     if (selectarg)
       timeout = *selectarg;
+
+    /*
+     * <BUG>Other thread could insert something into select/eventq etc
+     * queues which would cause select to terminate--instead it will
+     * be hanging out...</BUG>
+     *
+     * Note even if we stored away the thread_id and asked other
+     * people modifying the foosets to signal this thread, there is
+     * still a race condition between the time we release the lock and
+     * the time we sufficently enter select for a signal to interrupt
+     * the system call--this all assumes of course that pthread
+     * signals behave the same as normal system signals.
+     */
+
 
     // Wait for I/O or timeout
     if ((ret = select(run->br_selectn, &readset, &writeset, &xcptset,
@@ -1105,15 +1361,34 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   // Are there any I/O events pending?
   if (ret > 0 )
   {
+    int islocked = 0;
+
     for (x=0; ret > 0 && x < run->br_selectn; x++)
     {
       int type = 0;
 
-      if (FD_ISSET(x, &readset))
+#ifdef BK_USING_PTHREADS
+      if (!islocked && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+	abort();
+      islocked = 1;
+#endif /* BK_USING_PTHREADS */
+      if (FD_ISSET(x, &readset)
+#ifdef BK_USING_PTHREADS
+	  && FD_ISSET(x, &run->br_readset)
+#endif /* BK_USING_PTHREADS */
+	  )
 	type |= BK_RUN_READREADY;
-      if (FD_ISSET(x, &writeset))
+      if (FD_ISSET(x, &writeset)
+#ifdef BK_USING_PTHREADS
+	  && FD_ISSET(x, &run->br_writeset)
+#endif /* BK_USING_PTHREADS */
+	  )
 	type |= BK_RUN_WRITEREADY;
-      if (FD_ISSET(x, &xcptset))
+      if (FD_ISSET(x, &xcptset)
+#ifdef BK_USING_PTHREADS
+	  && FD_ISSET(x, &run->br_xcptset)
+#endif /* BK_USING_PTHREADS */
+	  )
 	type |= BK_RUN_XCPTREADY;
 
       bk_debug_printf_and(B,1,"Activity detected on %d: type: %d\n", x, type);
@@ -1129,27 +1404,79 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	  bk_error_printf(B, BK_ERR_WARN, "Could not find fd %d in association, yet type is %x\n",x,type);
 	  continue;
 	}
+#ifdef BK_USING_PTHREADS
+	if (curfd->brf_userid)
+	  continue;				// Someone already calling this function
+
+	curfd->brf_userid = pthread_self();	// Who is has a soft-lock on this structure
+
+	if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+	  abort();
+	islocked = 0;
+#endif /* BK_USING_PTHREADS */
+
 	if (!curtime && BK_FLAG_ISSET(curfd->brf_flags, BK_RUN_HANDLE_TIME))
 	{
 	  gettimeofday(&timenow, NULL);
 	  curtime = &timenow;
 	}
 	(*curfd->brf_handler)(B, run, x, type, curfd->brf_opaque, curtime);
+
+#ifdef BK_USING_PTHREADS
+	// Look again, we may have been deleted in the iterm
+	if (curfd = fdassoc_search(run->br_fdassoc, &x))
+	{
+	  BK_ZERO(&curfd->brf_userid); // Here's hoping zero is reserved
+	  pthread_cond_signal(&curfd->brf_cond);
+	}
+#endif /* BK_USING_PTHREADS */
       }
 
-      BK_RUN_ONCE_ABORT_CHECK();
+#ifdef BK_USING_PTHREADS
+      // XXX - test is from BK_RUN_ONCE_ABORT_CHECK
+      if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE) || br_beensignaled)
+      {
+	if (islocked && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+	  abort();
+	islocked = 0;
+#endif /* BK_USING_PTHREADS */
+	BK_RUN_ONCE_ABORT_CHECK();
+#ifdef BK_USING_PTHREADS
+      }
+#endif /* BK_USING_PTHREADS */
     }
+#ifdef BK_USING_PTHREADS
+    if (islocked && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+      abort();
+    islocked = 0;
+#endif /* BK_USING_PTHREADS */
   }
-  else 
+  else
   {
     // no I/O has occurred; check for idle task, but not if we had any events
     if (check_idle && !event_cnt)
     {
       struct bk_run_func *brfn;
-      for(brfn=brfl_minimum(run->br_idle_funcs);
-	  brfn;
-	  brfn=brfl_successor(run->br_idle_funcs,brfn))
+      dict_iter iter;
+
+#ifdef BK_USING_PTHREADS
+      if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+	abort();
+#endif /* BK_USING_PTHREADS */
+
+      iter = brfl_iterate(run->br_poll_funcs, DICT_FROM_START);
+      while (brfn = brfl_nextobj(run->br_poll_funcs, iter))
       {
+#ifdef BK_USING_PTHREADS
+	if (brfn->brfn_userid)
+	  continue;				// Someone already calling this function
+
+	brfn->brfn_userid = pthread_self();	// Who is has a soft-lock on this structure
+
+	if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+	  abort();
+#endif /* BK_USING_PTHREADS */
+
 	if (!curtime && BK_FLAG_ISSET(brfn->brfn_flags, BK_RUN_HANDLE_TIME))
 	{
 	  gettimeofday(&timenow, NULL);
@@ -1158,9 +1485,31 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	if ((*brfn->brfn_fun)(B, run, brfn->brfn_opaque, curtime, NULL, 0)<0)
 	{
 	  bk_error_printf(B, BK_ERR_WARN, "Idle callback failed\n");
-	  goto error;
+	  haderror = 1;
 	}
+
+#ifdef BK_USING_PTHREADS
+	// Look again, we may have been deleted in the iterm
+	if (brfn = brfl_search(run->br_ondemand_funcs, brfn))
+	{
+	  BK_ZERO(&brfn->brfn_userid); // Here's hoping zero is reserved
+	  pthread_cond_signal(&brfn->brfn_cond);
+	}
+#endif /* BK_USING_PTHREADS */
+
+	if (haderror)
+	  goto error;
+
+#ifdef BK_USING_PTHREADS
+	if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+	  abort();
+#endif /* BK_USING_PTHREADS */
       }
+      brfl_iterate_done(run->br_poll_funcs, iter);
+#ifdef BK_USING_PTHREADS
+      if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+	abort();
+#endif /* BK_USING_PTHREADS */
     }
   }
 
@@ -1185,13 +1534,29 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   }
 
  abort_run_once:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE);
   BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE);
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   BK_RETURN(B, 0);
 
  error:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE);
   BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE);
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   BK_RETURN(B,-1);
 }
 
@@ -1200,7 +1565,9 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 /**
  * Specify the handler to take care of all fd activity.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param fd The file descriptor which should be monitored
  *	@param handler The function to call when activity is monitored on the fd
@@ -1231,6 +1598,18 @@ int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, v
   new->brf_handler = handler;
   new->brf_opaque = opaque;
   new->brf_flags = flags;
+
+#ifdef BK_USING_PTHREADS
+  BK_ZERO(&new->brf_userid);
+
+  if (pthread_cond_init(&new->brf_cond, NULL) < 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (fdassoc_insert(run->br_fdassoc, new) < 0)
   {
@@ -1266,12 +1645,21 @@ int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, v
   }
 
   run->br_selectn = MAX(run->br_selectn,fd+1);
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   bk_debug_printf_and(B,1,"Added fd: %d -- selectn now: %d\n", fd, run->br_selectn);
 
   BK_RETURN(B, 0);
 
  error:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (new)
   {
     free(new);
@@ -1285,7 +1673,9 @@ int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, v
  * Specify that we no longer wish bk_run to take care of file descriptors.
  * We do not close the fd.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param fd The file descriptor which should be monitored
  *	@param flags Flags for the Future.
@@ -1297,6 +1687,7 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_run_fdassoc *curfda;
   struct timeval curtime;
+  int ret = 0;
 
   if (!run)
   {
@@ -1304,25 +1695,51 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+ again:
   if (!(curfda = fdassoc_search(run->br_fdassoc, &fd)))
   {
     bk_debug_printf_and(B,4,"Double close protection kicked in\n");
     bk_error_printf(B, BK_ERR_WARN, "Could not find fd %d in association while attempting to delete\n",fd);
-    BK_RETURN(B, 0);
+    ret = 0;
+    goto unlockexit;
   }
+
+#ifdef BK_USING_PTHREADS
+  // See if someone (other than myself) is currentl using this function
+  if (curfda->brf_userid && !pthread_equal(curfda->brf_userid, pthread_self()))
+  {
+    // Wait for the current user to finish
+    pthread_cond_wait(&curfda->brf_cond, &run->br_lock);
+    goto again;
+  }
+#endif /* BK_USING_PTHREADS */
 
   // Get rid of event in list, which will also prevent double deletion
   if (fdassoc_delete(run->br_fdassoc, curfda) != DICT_OK)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not delete descriptor %d from fdassoc list: %s\n", fd, fdassoc_error_reason(run->br_fdassoc, NULL));
-    BK_RETURN(B,-1);
+    ret = -1;
+    goto unlockexit;
   }
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   // Optionally tell user handler that he will never be called again.
   gettimeofday(&curtime, NULL);
   (*curfda->brf_handler)(B, run, fd, BK_RUN_CLOSE, curfda->brf_opaque, &curtime);
 
   free(curfda);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   FD_CLR(fd, &run->br_readset);
   FD_CLR(fd, &run->br_writeset);
@@ -1339,7 +1756,13 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   }
 
   bk_debug_printf_and(B,1,"Closed fd: %d -- selectn now: %d\n", fd, run->br_selectn);
-  BK_RETURN(B, 0);
+
+ unlockexit:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+  BK_RETURN(B, ret);
 }
 
 
@@ -1347,7 +1770,9 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 /**
  * Find out what read/write/xcpt desires are current for a given fd.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param fd The file descriptor which should be monitored
  *	@param flags Flags for the Future.
@@ -1365,12 +1790,20 @@ u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   if (FD_ISSET(fd, &run->br_readset))
     type |= BK_RUN_WANTREAD;
   if (FD_ISSET(fd, &run->br_writeset))
     type |= BK_RUN_WANTWRITE;
   if (FD_ISSET(fd, &run->br_xcptset))
     type |= BK_RUN_WANTXCPT;
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B, type);
 }
@@ -1380,7 +1813,9 @@ u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 /**
  * Find out what read/write/xcpt desires are current for a given fd.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param fd The file descriptor which should be monitored
  *	@param whattypes What preferences the user wishes to get notification on
@@ -1399,6 +1834,11 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wa
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   // Do we only want to modify one (or two) flags?
   if (wantmask)
@@ -1425,6 +1865,11 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wa
     FD_SET(fd, &run->br_writeset);
   if (BK_FLAG_ISSET(oldtype, BK_RUN_WANTXCPT))
     FD_SET(fd, &run->br_xcptset);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B, 0);
 }
@@ -1470,6 +1915,8 @@ void bk_run_signal_ihandler(int signum)
  * The internal event which implements cron functionality on top of
  * the normal once-only event queue methodology
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA Thread/global state
  *	@param run Run environment handle
  *	@param opaque Event cron structure handle
@@ -1495,7 +1942,37 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
   if (BK_FLAG_ISCLEAR(flags,BK_RUN_DESTROY))
     bk_run_enqueue(B, run, addtv, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), 0);
 
+#ifdef BK_USING_PTHREADS
+  if (brec->brec_userid)
+    BK_VRETURN(B);			// Someone already calling this function
+
+  brec->brec_userid = pthread_self();	// Who is has a soft-lock on this structure
+#endif /* BK_USING_PTHREADS */
+
   (*brec->brec_event)(B, run, brec->brec_opaque, starttime, flags);
+
+#ifdef BK_USING_PTHREADS
+  // Special handling due to partial deletion
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+
+  if (!brec->brec_userid)
+  {
+    // Someone (partially) deleted us...finish up
+    pthread_cond_broadcast(&brec->brec_cond);
+    pq_delete(run->br_equeue, brec->brec_equeue);
+    free(brec->brec_equeue);
+    free(brec);
+  }
+  else
+  {
+    BK_ZERO(&brec->brec_userid);		// Here's hoping zero is reserved
+  }
+
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
 
   BK_VRETURN(B);
 }
@@ -1509,6 +1986,8 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
  * events are still scheduled, and if so, copies out time to next event via
  * delta.  If any events were processed, it updates the starttime to account
  * for any delay that caused.
+ *
+ * THREADS: THREAD-REENTRANT
  *
  *	@param B BAKA Thread/global state
  *	@param run Run environment handle
@@ -1539,6 +2018,10 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval *startt
   if (event_cntp)
     *event_cntp = 0;
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
   while (top = pq_head(run->br_equeue))
   {
     if (!timeset)				// can't defer any longer
@@ -1548,20 +2031,34 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval *startt
     }
 
     if (BK_TV_CMP(&top->bre_when, starttime) > 0)
-      break;  
+      break;
 
     top = pq_extract_head(run->br_equeue);
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
 
     (*top->bre_event)(B, run, top->bre_opaque, starttime, 0);
     free(top);
     event_cnt++;
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
   }
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (event_cntp)
     *event_cntp = event_cnt;
 
   if (!top)
-    BK_RETURN(B,0);    
+    BK_RETURN(B,0);
 
   // iff we handled any events, get (and update) actual time for more accuracy
   if (event_cnt)
@@ -1579,15 +2076,18 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval *startt
 
 
 
-/** 
+/**
  * Add a function for bk_run polling.
- *	@param B BAKA thread/global state 
- * 	@param run bk_run structure pointer
+ *
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
+ *	@param run bk_run structure pointer
  *	@param fun function to call
- * 	@param opaque data for fun call
- * 	@param handle handle to use to remove this fun
- * 	@return <i>-1</i> on failure
- * 	@return <br><i>0</i> on success
+ *	@param opaque data for fun call
+ *	@param handle handle to use to remove this fun
+ *	@return <i>-1</i> on failure
+ *	@return <br><i>0</i> on success
  */
 int
 bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle, int flags)
@@ -1607,12 +2107,17 @@ bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *ru
   if (!(brfn = brfn_alloc(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf: %s\n", strerror(errno));
-    goto error;
+    BK_RETURN(B, -1);
   }
 
   brfn->brfn_fun = fun;
   brfn->brfn_opaque = opaque;
   brfn->brfn_flags = flags;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (brfl_insert(run->br_poll_funcs, brfn) != DICT_OK)
   {
@@ -1623,11 +2128,21 @@ bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *ru
   brfn->brfn_backptr = run->br_poll_funcs;
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_NEED_POLL);
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (handle)
     *handle=brfn->brfn_key;
   BK_RETURN(B,0);
 
  error:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (brfn)
     brfn_destroy(B,brfn);
   BK_RETURN(B,-1);
@@ -1637,10 +2152,14 @@ bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *ru
 
 /**
  * Remove a function from the bk_run poll list
- *	@param B BAKA thread/global state 
+ *
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
  *	@param run bk_run structure
  *	@param handle polling function to remove
- * 	<TODO>document return</TODO>
+ *	@ret <i>-1</i> on call failure<br>
+ *	@ret <i>0</i> if object (possibly already) was removed
  */
 int
 bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle)
@@ -1654,35 +2173,60 @@ bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle)
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+ again:
   if (!(brf=brfl_search(run->br_poll_funcs, handle)))
   {
     bk_error_printf(B, BK_ERR_WARN, "Handle %p not found in delete\n", handle);
-    BK_RETURN(B, 0);
+    goto notfound;
   }
 
-  // XXX - Delete handle and free it here
+#ifdef BK_USING_PTHREADS
+  // See if someone (other than myself) is currentl using this function
+  if (brf->brfn_userid && !pthread_equal(brf->brfn_userid, pthread_self()))
+  {
+    // Wait for the current user to finish
+    pthread_cond_wait(&brf->brfn_cond, &run->br_lock);
+    goto again;
+  }
+#endif /* BK_USING_PTHREADS */
+
+  brfn_destroy(B, brf);
 
   if (!brfl_minimum(run->br_poll_funcs))
   {
     BK_FLAG_CLEAR(run->br_flags,BK_RUN_FLAG_NEED_POLL);
   }
+
+ notfound:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B, 0);
 }
 
 
 
-/** 
+/**
  * Add a function to bk_run idle task.
  *
- *	@param B BAKA thread/global state 
- * 	@param run bk_run structure pointer
- *	@param fun function to call
- * 	@param opaque data for fun call
- * 	@param handle handle to use to remove this fun
- * 	@return <i>-1</i> on failure
- * 	@return <br><i>0</i> on success
+ * THREADS: THREAD-REENTRANT
  *
- * 	<TODO>consolidate with poll_add</TODO>
+ *	@param B BAKA thread/global state
+ *	@param run bk_run structure pointer
+ *	@param fun function to call
+ *	@param opaque data for fun call
+ *	@param handle handle to use to remove this fun
+ *	@return <i>-1</i> on failure
+ *	@return <br><i>0</i> on success
+ *
+ *	<TODO>consolidate with poll_add</TODO>
  */
 int
 bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle, int flags)
@@ -1702,12 +2246,17 @@ bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *ru
   if (!(brfn = brfn_alloc(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf\n");
-    goto error;
+    BK_RETURN(B, -1);
   }
 
   brfn->brfn_fun = fun;
   brfn->brfn_opaque = opaque;
   brfn->brfn_flags = flags;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (brfl_insert(run->br_idle_funcs, brfn) != DICT_OK)
   {
@@ -1718,11 +2267,21 @@ bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *ru
   brfn->brfn_backptr = run->br_idle_funcs;
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_HAVE_IDLE);
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (handle)
     *handle=brfn->brfn_key;
   BK_RETURN(B, 0);
 
  error:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (brfn)
     brfn_destroy(B, brfn);
   BK_RETURN(B, -1);
@@ -1731,8 +2290,11 @@ bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *ru
 
 
 /**
- * Remove a function from the bk_run poll list
- *	@param B BAKA thread/global state 
+ * Remove a function from the bk_run idle list
+ *
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
  *	@param run bk_run structure
  *	@param handle idle function to remove
 XXX - consolidate with poll_add
@@ -1749,16 +2311,41 @@ bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle)
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+ again:
   if (!(brfn=brfl_search(run->br_idle_funcs, handle)))
   {
     bk_error_printf(B, BK_ERR_WARN, "Handle %p not found in delete\n", handle);
-    BK_RETURN(B, 0);
+    goto notfound;
   }
+
+#ifdef BK_USING_PTHREADS
+  // See if someone (other than myself) is currently using this function
+  if (brfn->brfn_userid && !pthread_equal(brfn->brfn_userid, pthread_self()))
+  {
+    // Wait for the current user to finish
+    pthread_cond_wait(&brfn->brfn_cond, &run->br_lock);
+    goto again;
+  }
+#endif /* BK_USING_PTHREADS */
+
+  brfn_destroy(B, brfn);
 
   if (!brfl_minimum(run->br_idle_funcs))
   {
     BK_FLAG_CLEAR(run->br_flags,BK_RUN_FLAG_HAVE_IDLE);
   }
+
+ notfound:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B, 0);
 }
 
@@ -1786,8 +2373,14 @@ brfn_alloc(bk_s B)
 
   brfn->brfn_key=brfn;
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_cond_init(&brfn->brfn_cond, NULL) < 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B,brfn);
 }
+
 
 
 
@@ -1812,23 +2405,31 @@ brfn_destroy(bk_s B, struct bk_run_func *brfn)
   {
     brfl_delete(brfn->brfn_backptr,brfn);
   }
+
+#ifdef BK_USING_PTHREADS
+  pthread_cond_broadcast(&brfn->brfn_cond);
+#endif /* BK_USING_PTHREADS */
+
   free(brfn);
   BK_VRETURN(B);
 }
 
 
 
-/** 
+/**
  * Add a function to bk_run on demand list
- *	@param B BAKA thread/global state 
- * 	@param run bk_run structure pointer
+ *
+ * THREADS: THREAD-REENTRANT
+ *
+ *	@param B BAKA thread/global state
+ *	@param run bk_run structure pointer
  *	@param fun function to call
- * 	@param opaque data for fun call
- * 	@param demand pointer to int which controls whether function will run
- * 	@param handle handle to use to remove this fun
+ *	@param opaque data for fun call
+ *	@param demand pointer to int which controls whether function will run
+ *	@param handle handle to use to remove this fun
  *	@param flags everyone needs flags
- * 	@return <i>-1</i> on failure
- * 	@return <br><i>0</i> on success
+ *	@return <i>-1</i> on failure
+ *	@return <br><i>0</i> on success
  */
 int
 bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *opaque, volatile int *demand, void **handle, int flags)
@@ -1848,7 +2449,7 @@ bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *o
   if (!(brof = brof_alloc(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate brof\n");
-    goto error;
+    BK_RETURN(B, -1);
   }
 
   brof->brof_fun = fun;
@@ -1856,6 +2457,11 @@ bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *o
   brof->brof_demand = demand;
   brof->brof_flags = flags;
   brof->brof_key = brof;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (brfl_insert(run->br_ondemand_funcs, brof) != DICT_OK)
   {
@@ -1866,11 +2472,21 @@ bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *o
   brof->brof_backptr = run->br_ondemand_funcs;
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_CHECK_DEMAND);
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (handle)
     *handle = brof->brof_key;
   BK_RETURN(B, 0);
 
  error:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (brof)
     brof_destroy(B, brof);
   BK_RETURN(B, -1);
@@ -1880,7 +2496,10 @@ bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *o
 
 /**
  * Remove a function from the bk_run poll list
- *	@param B BAKA Thread/global state 
+ *
+ * THREADS: THREAD-REENTRANT (may block if some other thread is executing the function you are removing)
+ *
+ *	@param B BAKA Thread/global state
  *	@param run bk_run structure
  *	@param hand on demand function to remove
  */
@@ -1896,11 +2515,27 @@ bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle)
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+ again:
   if (!(brof=brfl_search(run->br_ondemand_funcs, handle)))
   {
     bk_error_printf(B, BK_ERR_WARN, "Handle %p not found in delete\n", handle);
-    BK_RETURN(B, 0);
+    goto notfound;
   }
+
+#ifdef BK_USING_PTHREADS
+  // See if someone (other than myself) is currentl using this function
+  if (brof->brof_userid && !pthread_equal(brof->brof_userid, pthread_self()))
+  {
+    // Wait for the current user to finish
+    pthread_cond_wait(&brof->brof_cond, &run->br_lock);
+    goto again;
+  }
+#endif /* BK_USING_PTHREADS */
 
   brof_destroy(B, brof);
 
@@ -1908,6 +2543,13 @@ bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle)
   {
     BK_FLAG_CLEAR(run->br_flags,BK_RUN_FLAG_CHECK_DEMAND);
   }
+
+ notfound:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B, 0);
 }
 
@@ -1936,6 +2578,11 @@ brof_alloc(bk_s B)
   }
   BK_ZERO(brof);
 
+#ifdef BK_USING_PTHREADS
+  if (pthread_cond_init(&brof->brof_cond, NULL) < 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B,brof);
 }
 
@@ -1962,17 +2609,24 @@ brof_destroy(bk_s B, struct bk_run_ondemand_func *brof)
   {
     brfl_delete(brof->brof_backptr,brof);
   }
+
+#ifdef BK_USING_PTHREADS
+  pthread_cond_broadcast(&brof->brof_cond);
+#endif /* BK_USING_PTHREADS */
+
   free(brof);
   BK_VRETURN(B);
 }
 
 
 
-/** 
+/**
  * Turn of the run enviornment
-XXX documentation failure
-XXX naming failure _bk_run_run_run_finished
-XXX naming failure _bk_run_lola_run
+ *
+ * @param B Baka thread/global environment
+ * @param run Run Environment
+ * @return <i>-1</i> on call failure
+ * @return <br><i>0</i> on success
  */
 int
 bk_run_set_run_over(bk_s B, struct bk_run *run)
@@ -1985,7 +2639,18 @@ bk_run_set_run_over(bk_s B, struct bk_run *run)
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_RUN_OVER);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_RETURN(B,0);
 }
 
@@ -2002,6 +2667,10 @@ bk_run_set_run_over(bk_s B, struct bk_run *run)
  * BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE if you decide that you set in in error
  * because you cannot know that someone else has not <b>also</b> set it).
  *
+ * The blocking described has nothing to do with threads.
+ *
+ * THREADS: THREAD-REENTRANT
+ *
  *	@param B BAKA thread/global state.
  *	@param run The @a bk_run structure in which to set flag.
  */
@@ -2009,15 +2678,26 @@ void
 bk_run_set_dont_block_run_once(bk_s B, struct bk_run *run)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
   if (!run)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE);
-  BK_VRETURN(B);  
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_VRETURN(B);
 }
 
 
@@ -2048,11 +2728,16 @@ bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   if (!(BK_CALLOC(bfc)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate space to store fd on cancel list: %s\n", strerror(errno));
-    goto error;
+    BK_RETURN(B, -1);
   }
 
   bfc->bfc_fd = fd;
   bfc->bfc_flags = flags;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (fd_cancel_insert(run->br_canceled, bfc) != DICT_OK)
   {
@@ -2060,18 +2745,30 @@ bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd, bk_flags flags)
     goto error;
   }
 
-  BK_RETURN(B,0);  
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B,0);
 
  error:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (bfc)
     bk_run_fd_cancel_unregister(B, run, fd, flags);
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
 
 
 
 /**
  * Unregister a descriptor on the cancel list.
+ *
+ * THREADS: THREAD-REENTRANT
  *
  *	@param B BAKA thread/global state.
  *	@param run The @a bk_run to use.
@@ -2091,16 +2788,21 @@ bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   // It's common not to have the fd registered.
   if (!(bfc = fd_cancel_search(run->br_canceled, &fd)))
-    BK_RETURN(B,0);    
+    goto notfound;
 
   // Clear the flags the user requested
   BK_FLAG_CLEAR(bfc->bfc_flags, flags);
-  
+
   // If any are still set, don't delete this.
   if (BK_FLAG_ISSET(bfc->bfc_flags, BK_FD_ADMIN_FLAG_WANT_ALL))
-    BK_RETURN(B,0);    
+    goto notfound;
 
   if (fd_cancel_delete(run->br_canceled, bfc) != DICT_OK)
   {
@@ -2109,7 +2811,7 @@ bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   }
 
 
-  free(bfc); 
+  free(bfc);
   bfc = NULL;
 
   BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_FD_CANCEL);
@@ -2121,18 +2823,29 @@ bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   {
     if (BK_FLAG_ISSET(bfc->bfc_flags, BK_FD_ADMIN_FLAG_IS_CANCELED))
       BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_FD_CANCEL);
-      
+
     if (BK_FLAG_ISSET(bfc->bfc_flags, BK_FD_ADMIN_FLAG_IS_CLOSED))
       BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_FD_CLOSED);
   }
 
-  BK_RETURN(B,0);  
+ notfound:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B,0);
 
  error:
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   if (bfc)
     free(bfc);
 
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
 
 
@@ -2142,10 +2855,12 @@ bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 /**
  * Cancel a file descriptor.
  *
+ * THREADS: THREAD-REENTRANT
+ *
  *	@param B BAKA thread/global state.
  *	@param run The run structure to use.
  *	@param fd The file desc. to cancel.
- *	@param flags Flags for future use.
+ *	@param flags MUST BE either BK_FD_ADMIN_FLAG_CANCEL or _CLOSE
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
@@ -2161,19 +2876,27 @@ bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   if (!(bfc = fd_cancel_search(run->br_canceled, &fd)))
   {
     bk_error_printf(B, BK_ERR_ERR, "could not locate fd: %d to cancel\n", fd);
     goto error;
   }
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
 
   if (BK_FLAG_ISCLEAR(bfc->bfc_flags, flags))
   {
     // <TODO> What's the best behavior here? jtt thinks warn and ignore </TOOO>
-    bk_error_printf(B, BK_ERR_ERR,
-		    "Ignoring cancel request for unregistered fd %d\n", fd);
-    BK_RETURN(B,0);    
+    bk_error_printf(B, BK_ERR_ERR, "Ignoring cancel request for unregistered fd %d\n", fd);
+    BK_RETURN(B,0);
   }
 
   if (BK_FLAG_ISSET(flags, BK_FD_ADMIN_FLAG_CANCEL))
@@ -2190,16 +2913,23 @@ bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags)
     BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_FD_CLOSED);
   }
 
-  BK_RETURN(B,0);  
+  BK_RETURN(B,0);
 
  error:
-  BK_RETURN(B,1);  
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B,1);
 }
 
 
 
 /**
  * Check if the given desciptor has been canceled.
+ *
+ * THREADS: THREAD-REENTRANT
  *
  *	@param B BAKA thread/global state.
  *	@param run The @a bk_run structure to use.
@@ -2213,12 +2943,18 @@ bk_run_fd_is_canceled(bk_s B, struct bk_run *run, int fd)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_fd_cancel *bfc = NULL;
+  int ret = 1;
 
   if (!run)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   /*
    * The BK_RUN_FLAG_FD_CANCEL flag is set only when there are one or
@@ -2227,13 +2963,17 @@ bk_run_fd_is_canceled(bk_s B, struct bk_run *run, int fd)
    * checked *many* times, this flag prevents us from doing the somewhat
    * expensive and unnecessary fd_cancel_search() operation.
    */
-  if (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_FD_CANCEL) || 
+  if (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_FD_CANCEL) ||
       !(bfc = fd_cancel_search(run->br_canceled, &fd)) ||
       BK_FLAG_ISCLEAR(bfc->bfc_flags, BK_FD_ADMIN_FLAG_IS_CANCELED))
-    BK_RETURN(B,0); 
+    ret = 0;
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
-  BK_RETURN(B,1);
+  BK_RETURN(B, ret);
 }
 
 
@@ -2253,6 +2993,7 @@ bk_run_fd_is_closed(bk_s B, struct bk_run *run, int fd)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_fd_cancel *bfc = NULL;
+  int ret = 1;
 
   if (!run)
   {
@@ -2260,8 +3001,13 @@ bk_run_fd_is_closed(bk_s B, struct bk_run *run, int fd)
     BK_RETURN(B, -1);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   /*
-   * The BK_RUN_FLAG_FD_CANCEL flag is set only when there are one or
+   * The BK_RUN_FLAG_FD_CLOSED flag is set only when there are one or
    * more descriptors on the list. Since the overwhelming majority of the
    * time the list will be empty, but, if it's checked at all, will be
    * checked *many* times, this flag prevents us from doing the somewhat
@@ -2270,8 +3016,12 @@ bk_run_fd_is_closed(bk_s B, struct bk_run *run, int fd)
   if (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_FD_CLOSED) ||
       !(bfc = fd_cancel_search(run->br_canceled, &fd)) ||
       BK_FLAG_ISCLEAR(bfc->bfc_flags, BK_FD_ADMIN_FLAG_IS_CLOSED))
-    BK_RETURN(B,0); 
+    ret = 0;
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B,1);
 }

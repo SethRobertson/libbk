@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_signal.c,v 1.9 2003/05/02 03:29:59 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_signal.c,v 1.10 2003/05/08 01:08:43 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -47,7 +47,9 @@ struct bk_signal_saved
 
 
 
+#ifdef BK_USING_PTHREADS
 pthread_mutex_t BkGlobalSignalLock = PTHREAD_MUTEX_INITIALIZER;		///< Prevent threads from trashing during signal management (note that signals and threads don't mix well anyhow)
+#endif /* BK_USING_PTHREADS */
 
 
 
