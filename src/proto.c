@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.6 2001/11/05 21:06:10 jtt Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.7 2001/11/05 21:07:21 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -81,7 +81,11 @@ main(int argc, char **argv, char **envp)
   pconfig = &Pconfig;
   memset(pconfig,0,sizeof(*pconfig));
 
-  optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0);
+  if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not initialize options processing\n");
+    bk_exit(B,254);
+  }
 
   while ((c = poptGetNextOpt(optCon)) >= 0)
   {
