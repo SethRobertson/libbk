@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.13 2002/11/20 18:35:16 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.14 2002/12/20 22:49:48 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -108,24 +108,31 @@ bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_
 
 
 /**
- * Lock a resource in a safe way. This is in fileutils since it uses file
+ * Lock a resource in a safe way.  This is in fileutils since it uses file
  * locking. but the resource it locks may be arbitrary -- as long as you
- * can provide a unique name for the resource, we can lock it.
+ * can provide a unique name for the resource, which is a valid file path for
+ * which all directories exist, we can lock it.
  *
- * <WARNING>
- * These routines are not a secure as we'd like yet. we use mkstemp(3)
- * which is prett good on local unix FS, but not across NFS (eg). We really
- * need to create a unique file name (with some sort of md5 thing
- * presumably) and create that instead. This is not technically safer, but
- * is less likely to clash
- * </WARNING>
+ * <BUG bugid="878>Do not use these routines, as they fail to handle lock
+ * contention properly</BUG>
+ *
+ * <WARNING>These routines are not yet as secure as we'd like.  We use
+ * mkstemp(3) which is pretty good on local unix FS, but not across NFS.  We
+ * really need to create a unique file name (with some sort of md5 thing
+ * presumably) and create that instead.  This is not technically safer, but is
+ * less likely to clash.</WARNING>
  * 
+ * <WARNING>Using the template name returned by mkstemp (as these routines do)
+ * may be insecure on a system where a daemon cleans out /tmp and/or /var/tmp
+ * periodically; since this daemon may remove the file while the application is
+ * SIGSTOP'ed or SIGTSTP'ed and later references to the file by name can get a
+ * malicious link instead.  Yet another reason not to use this code.</WARNING>
  *
  *	@param B BAKA thread/global state.
  *	@param resource The resource to lock.
- *	@param type Lcck type.
+ *	@param type Lock type.
  *	@param admin_ext Optional extension to admin file.
- *	@param lock_ext Option extension to lock file.
+ *	@param lock_ext Optional extension to lock file.
  *	@param flags Flags for the future.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
@@ -431,7 +438,7 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
   *lock = '\0';
   *tmpname = '\0';
 
-  snprintf(path,sizeof(path), "%s", ipath);
+  strncpy(path, ipath, sizeof(path) - 1)[sizeof(path) - 1] = '\0';
 
   // <TODO> Isn't there a libc function which does this </TODO>
   // Convert all periods to hyphens to allow us to create an extension.
@@ -485,7 +492,7 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
   
   if ((fd = mkstemp(tmpname)) < 0 )
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create unique lock file name correcly\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not create unique lock file name correctly\n");
     goto error;
   }
   
