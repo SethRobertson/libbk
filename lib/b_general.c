@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.4 2001/07/04 19:16:39 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.5 2001/07/05 15:19:11 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -31,34 +31,37 @@ static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_fl
 /*
  * Grand creation of libbk state structure
  */
-extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, bk_flags flags)
+extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, int syslogthreshhold, bk_flags flags)
 {
   bk_s B;
 
   if (!(B = bk_general_thread_init(NULL, "*MAIN*")))
     goto error;
 
-  if (!(B->bt_general = (struct bk_general *)malloc(sizeof(*B->bt_general))))
+  if (!(BK_BT_GENERAL(B) = (struct bk_general *)malloc(sizeof(*BK_BT_GENERAL(B)))))
     goto error;
-  memset(B->bt_general, 0, sizeof(*B->bt_general));
+  memset(BK_BT_GENERAL(B), 0, sizeof(*BK_BT_GENERAL(B)));
 
-  if (!(B->bt_general->bg_error = bk_error_init(B, error_queue_length, NULL, log_facility, 0)))
-    goto error;
-
-  if (!(B->bt_general->bg_debug = bk_debug_init(B)))
+  if (!(BK_GENERAL_ERROR(B) = bk_error_init(B, error_queue_length, NULL, log_facility, 0)))
     goto error;
 
-  if (!(B->bt_general->bg_destroy = bk_funlist_init(B)))
+  if (!(BK_GENERAL_DEBUG(B) = bk_debug_init(B)))
     goto error;
 
-  if (!(B->bt_general->bg_reinit = bk_funlist_init(B)))
+  if (!(BK_GENERAL_DESTROY(B) = bk_funlist_init(B)))
     goto error;
 
-  if (!(B->bt_general->bg_config = bk_config_init(B, configfile, 0)))
+  if (!(BK_GENERAL_REINIT(B) = bk_funlist_init(B)))
     goto error;
 
-  if (!(B->bt_general->bg_proctitle = bk_general_proctitle_init(B, argc, argv, envp, &B->bt_general->bg_program, 0)))
+  if (!(BK_GENERAL_CONFIG(B) = bk_config_init(B, configfile, 0)))
     goto error;
+
+  if (!(BK_GENERAL_PROCTITLE(B) = bk_general_proctitle_init(B, argc, argv, envp, &BK_GENERAL_PROGRAM(B), 0)))
+    goto error;
+
+  if (log_facility && BK_GENERAL_PROGRAM(B))
+    openlog(BK_GENERAL_PROGRAM(B), LOG_NDELAY|LOG_PID, log_facility);
 
   return(B);
 
@@ -76,30 +79,30 @@ void bk_general_destroy(bk_s B)
 {
   if (B)
   {
-    if (B->bt_general)
+    if (BK_BT_GENERAL(B))
     {
-      if (B->bt_general->bg_destroy)
+      if (BK_GENERAL_DESTROY(B))
       {
-	bk_funlist_call(B,B->bt_general->bg_destroy, 0);
-	bk_funlist_destroy(B,B->bt_general->bg_destroy);
+	bk_funlist_call(B,BK_GENERAL_DESTROY(B), 0);
+	bk_funlist_destroy(B,BK_GENERAL_DESTROY(B));
       }
 
-      if (B->bt_general->bg_proctitle)
-	bk_general_proctitle_destroy(B,B->bt_general->bg_proctitle, 0);
+      if (BK_GENERAL_PROCTITLE(B))
+	bk_general_proctitle_destroy(B,BK_GENERAL_PROCTITLE(B), 0);
 
-      if (B->bt_general->bg_config)
-	bk_config_destroy(B, B->bt_general->bg_config);
+      if (BK_GENERAL_CONFIG(B))
+	bk_config_destroy(B, BK_GENERAL_CONFIG(B));
 
-      if (B->bt_general->bg_reinit)
-	bk_funlist_destroy(B,B->bt_general->bg_reinit);
+      if (BK_GENERAL_REINIT(B))
+	bk_funlist_destroy(B,BK_GENERAL_REINIT(B));
 
-      if (B->bt_general->bg_error)
-	bk_error_destroy(B,B->bt_general->bg_error);
+      if (BK_GENERAL_ERROR(B))
+	bk_error_destroy(B,BK_GENERAL_ERROR(B));
 
-      if (B->bt_general->bg_debug)
-	bk_debug_destroy(B,B->bt_general->bg_debug);
+      if (BK_GENERAL_DEBUG(B))
+	bk_debug_destroy(B,BK_GENERAL_DEBUG(B));
 
-      free(B->bt_general);
+      free(BK_BT_GENERAL(B));
     }
     bk_general_thread_destroy(B);
   }
@@ -116,8 +119,8 @@ void bk_general_reinit(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
-  if (B->bt_general->bg_reinit)
-    bk_funlist_call(B, B->bt_general->bg_reinit, 0);
+  if (BK_GENERAL_REINIT(B))
+    bk_funlist_call(B, BK_GENERAL_REINIT(B), 0);
 
   BK_VRETURN(B);
 }
@@ -130,7 +133,7 @@ void bk_general_reinit(bk_s B)
 int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, bk_funlist_insert(B, B->bt_general->bg_reinit, bf_fun, args));
+  BK_RETURN(B, bk_funlist_insert(B, BK_GENERAL_REINIT(B), bf_fun, args));
 }
 
 
@@ -141,7 +144,7 @@ int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *
 int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, bk_funlist_delete(B, B->bt_general->bg_reinit, bf_fun, args));
+  BK_RETURN(B, bk_funlist_delete(B, BK_GENERAL_REINIT(B), bf_fun, args));
 }
 
 
@@ -152,7 +155,7 @@ int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *
 int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, bk_funlist_insert(B, B->bt_general->bg_reinit, bf_fun, args));
+  BK_RETURN(B, bk_funlist_insert(B, BK_GENERAL_REINIT(B), bf_fun, args));
 }
 
 
@@ -163,7 +166,7 @@ int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void 
 int bk_general_destroy_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, bk_funlist_delete(B, B->bt_general->bg_reinit, bf_fun, args));
+  BK_RETURN(B, bk_funlist_delete(B, BK_GENERAL_REINIT(B), bf_fun, args));
 }
 
 
@@ -178,26 +181,26 @@ bk_s bk_general_thread_init(bk_s B, char *name)
   if (!name)
   {
     if (B)
-      bk_error_printf(B, "Invalid argument\n");
+      bk_error_printf(B, BK_ERR_WARNING, "Invalid argument\n");
     return(NULL);
   }
 
   if (!(B1 = (bk_s)malloc(sizeof(*B1))))
   {
     if (B)
-      bk_error_printf(B, "Could not allocate new bk_thread information\n");
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate new bk_thread information\n");
     return(NULL);
   }
   memset(B1,0,sizeof(*B1));
 
-  if (!(B1->bt_funstack = bk_fun_init()))
+  if (!(BK_BT_FUNSTACK(B1) = bk_fun_init()))
     goto error;
 
-  if (!(B1->bt_threadname = strdup(name)))
+  if (!(BK_BT_THREADNAME(B1) = strdup(name)))
     goto error;
 
   if (B)
-    B1->bt_general = B->bt_general;
+    BK_BT_GENERAL(B1) = BK_BT_GENERAL(B);
 
   return(B1);
 
@@ -215,10 +218,10 @@ void bk_general_thread_destroy(bk_s B)
 {
   if (B)
   {
-    if (B->bt_funstack)
-      bk_fun_destroy(B->bt_funstack);
-    if (B->bt_threadname)
-      free((char *)B->bt_threadname);
+    if (BK_BT_FUNSTACK(B))
+      bk_fun_destroy(BK_BT_FUNSTACK(B));
+    if (BK_BT_THREADNAME(B))
+      free((char *)BK_BT_THREADNAME(B));
 
     /* Specifically do not muck with bt_general which is shared */
 
@@ -238,15 +241,15 @@ void bk_general_proctitle_set(bk_s B, char *title)
 
   if (!title)
   {
-    bk_error_printf(B,"Invalid arguments\n");
+    bk_error_printf(B,BK_ERR_ERR,"Invalid arguments\n");
     BK_VRETURN(B);
   }
 
-  len = MIN(strlen(title),B->bt_general->bg_proctitle->bp_title.len-1);
-  rest = B->bt_general->bg_proctitle->bp_title.len - len;
+  len = MIN(strlen(title),BK_GENERAL_PROCTITLE(B)->bp_title.len-1);
+  rest = BK_GENERAL_PROCTITLE(B)->bp_title.len - len;
 
-  memcpy(B->bt_general->bg_proctitle->bp_title.ptr, title, len);
-  memset((char *)B->bt_general->bg_proctitle->bp_title.ptr + len, 0, rest);
+  memcpy(BK_GENERAL_PROCTITLE(B)->bp_title.ptr, title, len);
+  memset((char *)BK_GENERAL_PROCTITLE(B)->bp_title.ptr + len, 0, rest);
 
   BK_VRETURN(B);
 }
@@ -262,7 +265,7 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
 
   if (!(PT = (struct bk_proctitle *)malloc(sizeof(*PT))))
   {
-    bk_error_printf(B, "Could not allocate proctitle buffer: %s\n",strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate proctitle buffer: %s\n",strerror(errno));
     BK_RETURN(B, NULL);
   }
 
@@ -290,7 +293,7 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
       \
       if (!((new) = (char **)malloc(((size)+1)*sizeof(char *)))) \
       { \
-	bk_error_printf(B, "Could not allocate duplicate array: %s\n",strerror(errno)); \
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate duplicate array: %s\n",strerror(errno)); \
 	goto error; \
       } \
       \
@@ -298,7 +301,7 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
       { \
 	if (!((new)[tmp] = (char *)malloc(strlen((orig)[tmp])+1))) \
 	{ \
-	  bk_error_printf(B, "Could not allocate duplicate array entry %d: %s\n",tmp,strerror(errno)); \
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate duplicate array entry %d: %s\n",tmp,strerror(errno)); \
 	  goto error; \
 	} \
       } \
@@ -366,7 +369,7 @@ static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *PT, bk_fla
 
   if (!PT)
   {
-    bk_error_printf(B, "Invalid argument\n");
+    bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
     BK_VRETURN(B);
   }
 
