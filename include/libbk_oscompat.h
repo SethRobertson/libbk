@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.47 2004/07/12 18:07:43 lindauer Exp $
+ * $Id: libbk_oscompat.h,v 1.48 2004/12/24 00:28:00 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -385,12 +385,24 @@ __attribute__ ((__packed__))
 #define isinf(d) ((fpclass(d) == FP_NINF)?-1:((fpclass(d) == FP_PINF)?1:0))
 #endif /* HAVE_ISINF */
 
+/*
+ * gmtime() and localtime() are not reentrant, but if you don't have *time_r(),
+ * you probably don't have threads or care one whit about that.
+ */
 #ifndef HAVE_GMTIME_R
 // <WARNING>Having to use this is unsafe under certain cirumstances</WARNING>
-#define gmtime_r(c,t) gmtime(c)
+#define gmtime_r(c,t) (((*t) = *(gmtime(c))),(t))
 #else
 // Just in case there's no prototype, we declare the standard one
 extern struct tm *gmtime_r(const time_t *timenow, struct tm *buffer);
+#endif
+
+#ifndef HAVE_LOCALTIME_R
+// <WARNING>Having to use this is unsafe under certain cirumstances</WARNING>
+#define localtime_r(c,t) (((*t) = *(localtime(c))),(t))
+#else
+// Just in case there's no prototype, we declare the standard one
+extern struct tm *localtime_r(const time_t *timenow, struct tm *buffer);
 #endif
 
 #ifndef HAVE_GETHOSTBYNAME2

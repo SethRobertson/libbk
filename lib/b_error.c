@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_error.c,v 1.45 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_error.c,v 1.46 2004/12/24 00:28:00 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1092,7 +1092,7 @@ static void be_error_time(struct bk_error_node *node, char *timestr, size_t max)
 
   if (node)
   {
-    localtime_r(&node->ben_time, &tm);
+    (void) localtime_r(&node->ben_time, &tm);
 
     switch (max)
     {

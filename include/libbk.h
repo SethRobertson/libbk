@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.314 2004/12/23 21:16:04 jtt Exp $
+ * $Id: libbk.h,v 1.315 2004/12/24 00:28:00 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2028,15 +2028,6 @@ extern time_t bk_timegm(bk_s B, struct tm *timeptr, bk_flags flags);
 #define BK_TIMEGM_FLAG_NORMALIZE	0x1	///< Normalize struct tm fields
 extern int bk_time_duration_parse(bk_s B, const char *string, time_t *duration, bk_flags flags);
 
-/*
- * gmtime() is not reentrant, but if you don't have gmtime_r(), you probably
- * don't have threads or care about care one whit about that.
- */
-#ifdef HAVE_gmtime_r
-#define bk_gmtime_r(t,tm) gmtime_r((t),(tm))
-#else
-#define bk_gmtime_r(t,tm) ((tm) ? gmtime(t) : 0)
-#endif
 size_t bk_time_ntp_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_flags flags);
 extern int bk_time_ntp_parse(bk_s B, const char *src, struct timespec *dst, bk_flags flags);
 

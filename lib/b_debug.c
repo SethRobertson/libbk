@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.30 2004/12/23 23:59:33 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.31 2004/12/24 00:28:00 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -554,11 +554,12 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, const char *buf)
     char fullprefix[60];
     struct timeval tv;
     struct tm tm;
+    time_t tt;
     struct bk_debugnode *node;
 
     gettimeofday(&tv, NULL);
-    localtime_r(&tv.tv_sec, &tm); // <TODO>Does this need to be autoconf'd</TODO>
-
+    tt = tv.tv_sec;
+    (void) localtime_r(&tt, &tm);
 
     /* <WARNING>this check should really be done with assert</WARNING> */
     if ((tmp = strftime(timeprefix, sizeof(timeprefix), "%m/%d %H:%M:%S", &tm)) != 14)

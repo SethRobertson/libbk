@@ -1,3 +1,12 @@
+2004-12-23  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_error.c (be_error_time): avoid gcc errs on call to localtime_r
+
+	* lib/b_debug.c (bk_debug_iprint): tv.tv_sec isn't necessarily a time_t
+	avoid gcc errs on calls to localtime_r where return ignored
+
+	* include/libbk_oscompat.h (gmtime_r, localtime_r): exact[ish] compat
+
 2004-12-23  James Tanis  <jtt@hawking.sysdetect.com>
 
 	* lib/b_time.c (bk_time_iso_parse): Allow for silent failure if
