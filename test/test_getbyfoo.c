@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.9 2001/11/28 14:58:45 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.10 2001/11/29 17:29:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -374,7 +374,7 @@ host_callback(bk_s B, struct bk_run *run, struct hostent **hp, struct bk_netinfo
       if (!run_once)
       {
 	printf("Addrtype: %d\n", bk_netaddr_nat2af(B, bna->bna_type));
-	printf("Length: %d\n", bna->bna_len);
+	printf("Length: %u\n", bna->bna_len);
 	printf("Address: ");
 	bk_netinfo_set_primary_address(B, bni, bna);
 	run_once++;

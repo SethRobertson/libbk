@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.11 2001/11/28 18:26:23 seth Exp $";
+static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.12 2001/11/29 17:29:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -424,8 +424,6 @@ static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int f
 
 static void donecb(bk_s B, void *opaque, u_int state)
 {
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"IOHTEST");
-
   bk_exit(B,0);
 }
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_errorstuff.c,v 1.3 2001/11/06 22:15:50 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_errorstuff.c,v 1.4 2001/11/29 17:29:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -57,7 +57,6 @@ main(int argc, char **argv, char **envp)
 {
   bk_s B = NULL;				/* Baka general structure */
   BK_ENTRY(B, __FUNCTION__, __FILE__, "SIMPLE");
-  int tmpvar;
   int getopterr = 0;
   extern char *optarg;
   extern int optind;
@@ -73,30 +72,6 @@ main(int argc, char **argv, char **envp)
 
   pconfig = &Pconfig;
   memset(pconfig,0,sizeof(*pconfig));
-
-#if 0 /* getopt not part of cygwin; use popt (better) instead for all o/s */
-  while ((tmpvar = getopt(argc, argv, "desv")) != -1)
-    switch (tmpvar)
-    {
-    case 'd':
-      bk_debug_printf(B, "Debugging off\n");
-      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);
-      bk_debug_printf(B, "Debugging on\n");
-      bk_debug_printf_and(B, 1, "Debugging enabled\n");
-      break;
-    case 'e':
-      BK_FLAG_SET(pconfig->pc_flags, PC_STDERR);
-      break;
-    case 's':
-      BK_FLAG_SET(pconfig->pc_flags, PC_SYSLOG);
-      break;
-    case 'v':
-      BK_FLAG_SET(pconfig->pc_flags, PC_VERBOSE);
-      break;
-    default:
-      getopterr++;
-    }
-#endif /* 0 */
 
   if (getopterr)
   {

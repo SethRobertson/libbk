@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.15 2001/11/27 00:58:41 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.16 2001/11/29 17:29:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -582,6 +582,9 @@ void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
 void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int minimumlevel, int sysloglevel, bk_flags flags)
 {
   struct bk_error_node *hi, *lo, *cur, *marknode;
+
+  if (!beinfo)
+    return;
 
   marknode = NULL;
 

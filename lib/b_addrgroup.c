@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.14 2001/11/28 18:24:09 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.15 2001/11/29 17:29:23 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -236,7 +236,6 @@ static void
 as_destroy(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_addrgroup *bag;
 
   if (!as)
   {
@@ -1201,7 +1200,6 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
   struct sockaddr sa;
   int len = sizeof(sa);
   int newfd;
-  int oldfd;
 
   if (!run || !(as = args))
   {
