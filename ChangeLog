@@ -1,8 +1,14 @@
 2002-03-14  Alexander Dupuy  <dupuy@sysdetect.com>
 
+	* lib/b_exec.c (bk_exec): use execvp where possible
+	(bk_search_path): the most broken code I have seen in a long time
+	- it didn't even come close to working [but was surely faster to write
+	than something using g_spawn_async_with_pipes :-]
+
 	* lib/b_url.c (bk_url_unescape): define in terms of bk_url_unescape_len
 	(bk_url_unescape_len): this is the more fundamental variant
-	(bk_url_getparam): allow alternate delimiters, case-independent tokens
+	(bk_url_getparam): allow alternate delimiters, case-independent tokens,
+	whitespace in parameters
 
 2002-03-14  James Tanis  <jtt@saint.sysdetect.com>
 

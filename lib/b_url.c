@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.20 2002/03/14 21:55:30 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.21 2002/03/15 04:21:03 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -673,8 +673,8 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
   }
 
   /* save the start of the token, and skip the rest of the token */
-  for (param = p;
-       *++p && *p != delim && *p != '=' && *p != ' ' && *p != '\t';);
+  for (param = p; *++p && *p != delim && *p != '=';)
+    /* empty */;
 
   if (*p) 
   {
@@ -687,14 +687,14 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
     {
       *p = '\0';
       for (*valuep = ++p;
-	   *p && *p != delim && *p != ' ' && *p != '\t'; ++p);
+	   *p && *p != delim; ++p);
       if (*p) 
 	*p++ = '\0';
     } 
     else
       *p++ = '\0';
-    /* Skip any whitespace or delimiters after this token. */
-    for (; *p && (*p == delim || *p == ' ' || *p == '\t'); ++p)
+    /* Skip any delimiters after this token. */
+    for (; *p && *p == delim; ++p)
       /* empty */;
   }
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_exec.c,v 1.3 2002/03/08 11:34:44 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_exec.c,v 1.4 2002/03/15 04:21:03 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -186,8 +186,8 @@ int
 bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int (*execptr)(const char *, char *const *) = execv;
   char *exec = NULL;
-  int need_free = 0;
 
   if (!proc)
   {
@@ -197,18 +197,15 @@ bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags 
 
   if (BK_FLAG_ISSET(flags, BK_EXEC_FLAG_SEARCH_PATH))
   {
-    exec = bk_search_path(B, proc, NULL, X_OK, 0);
-    need_free = 1;
-  }
-  else
-  {
-    exec = (char *)proc;
-    need_free = 0;
+    if (env)
+      proc = exec = bk_search_path(B, proc, NULL, X_OK, 0);
+    else
+      execptr = execvp;
   }
   
   if (env)
   {
-    if (execve(exec, args, env) < 0)
+    if (execve(proc, args, env) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "exec failed: %s\n", strerror(errno));
       goto error;
@@ -216,7 +213,7 @@ bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags 
   }
   else
   {
-    if (execv(exec,args) < 0)
+    if ((*execptr)(proc, args) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "exec failed: %s\n", strerror(errno));
       goto error;
@@ -228,7 +225,7 @@ bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags 
 
  error:
 
-  if (need_free && exec)
+  if (exec)
     free(exec);
   BK_RETURN(B,-1);  
 }
@@ -553,12 +550,11 @@ bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags fl
     goto error;
   }
     
-  // <TODO> autoconf the path separator maybe </TODO>
   q = tmp_path;
-  while(p = strchr(q, ':'))
+  while(p = strchr(q, BK_PATH_SEPARATOR[0]))
   {
-    *p = '\0';
-    len = strlen(p) + proc_len +2;
+    *p++ = '\0';
+    len = strlen(q) + proc_len + 2;
     if (ret) 
       free(ret);
     if (!(ret = malloc(len)))
@@ -566,13 +562,14 @@ bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags fl
       bk_error_printf(B, BK_ERR_ERR, "Could not malloc space for return path: %s\n", strerror(errno));
       goto error;
     }
-    // Autoconf this separator.
-    snprintf(ret, len, "%s/%s", path, proc);
+    // <TODO> autoconf the directory separator maybe (Windows allows /) </TODO>
+    snprintf(ret, len, "%s/%s", q, proc);
     if (access(ret, mode) == 0)
     {
       free(tmp_path);
       BK_RETURN(B,ret);      
     }
+    q = p;
   }
 
   // Deliberate fall through
