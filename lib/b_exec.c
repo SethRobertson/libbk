@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_exec.c,v 1.1 2002/01/15 20:21:20 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_exec.c,v 1.2 2002/02/08 01:05:37 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -124,13 +124,14 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
 	  bk_error_printf(B, BK_ERR_ERR, "dup failed: %s\n", strerror(errno));
 	  goto error;
 	}
+	close(c2p[0]);
       }
     }
 
     if (fdoutp)
     {
-      // Parent --> child. Close parent side read. Return paretn side write.
-      close(c2p[0]);
+      // Parent --> child. Close parent side read. Return parent side write.
+      close(p2c[0]);
       if (fdoutp && *fdoutp == -1)
       {
 	*fdoutp = p2c[1];
@@ -142,6 +143,7 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
 	  bk_error_printf(B, BK_ERR_ERR, "dup failed: %s\n", strerror(errno));
 	  goto error;
 	}
+	close(p2c[1]);
       }
     }
     break;
