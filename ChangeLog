@@ -1,3 +1,7 @@
+2002-02-07  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_string.c (bk_string_intcols): Count the columms an integer requires.
+
 2002-01-31  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/Makefile (BK_LARGE_LIB): use ${LIBEXT} for libtool build

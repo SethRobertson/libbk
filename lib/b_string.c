@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.23 2002/01/11 10:06:05 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.24 2002/02/07 22:31:09 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,6 +23,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+#include <math.h>
 
 /**
  * @file
@@ -1529,4 +1530,37 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
     free(xml);
 
   BK_RETURN(B,NULL);  
+}
+
+
+
+
+/**
+ * Comput the nubmer of textual columns it will take to print an integer
+ *
+ *	@param B BAKA thread/global state.
+ *	@param num The number who's colums you should count
+ *	@param base The number base to use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_string_intcols(bk_s B, int64_t num, u_int base)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int val = 0; 
+  
+  if (num < 0)
+  {
+    val++;
+    num *= -1;
+  }
+  else if (num == 0)
+  {
+    // Can't take the log of 0
+    BK_RETURN(B,1);    
+  }
+    
+  val += (int)(log((double)val)/log((double)base));
+  BK_RETURN(B,val);  
 }
