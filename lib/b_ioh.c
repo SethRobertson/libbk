@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.94 2003/06/25 21:37:54 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.95 2003/06/26 21:14:07 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -225,7 +225,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk
  * to hide CLC choice.
  */
 // @{
-#define biq_create(o,k,f,a)		bk_dll_create()
+#define biq_create(o,k,f,a)		bk_dll_create((o),(k),(f))
 #define biq_destroy(h)			bk_dll_destroy(h)
 #define biq_insert(h,o)			bk_dll_insert(h,o)
 #define biq_insert_uniq(h,n,o)		bk_dll_insert_uniq(h,n,o)
