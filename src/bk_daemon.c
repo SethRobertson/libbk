@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.1 2003/06/27 23:12:24 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.2 2003/07/04 21:08:05 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,12 +19,12 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  *
- * This daemonizes a program to disassociate the calling user
- * with the executing program in all ways possible.
+ * This daemonizes a program to disassociate the calling user with the
+ * executing program in all ways possible.
  *
- * I wrote this program over 10 years ago, and it really needs
- * a refresh to be in my current programming style, but who has the
- * time?
+ * Seth wrote this program over 10 years ago, and it really needs a refresh to
+ * use the current baka programming style, but who has the time?  Answer -
+ * the poor saps who get to port this to more modern OS's.
  *
  * -c		close all files > 2
  * -C		close all files
@@ -35,12 +35,17 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * -ppriority	change the priority to priority (default 15)
  *
  * NOTE: default is to redirect stdio files to /dev/null if they are attached
- * to a tty (and you can't stop that.  This is specifically designed to
- * eliminate of a program screwing up a pty.  And it bloody well better do it!)
+ * to a tty (and you can't stop that.  This is specifically designed to prevent
+ * a program from screwing up a pty.  And it bloody well better do it!)
+ */
+
+/*
+ * <TODO>This needs to be autoconf'd and should use the daemon() function
+ * where available.</TODO>
  */
 
 #include <libbk.h>
-#include        <sys/ioctl.h>
+#include <sys/ioctl.h>
 
 
 #ifdef hpux			/* From carson@cs.columbia.edu */
@@ -137,6 +142,8 @@ main(int argc, char **argv, char **envp)
 
   nice(priority);		/* Change priority to priority, if possible */
 
+  // <TODO>daemon() function performs fork, add it here (not in child())</TODO>
+
 #ifdef TEST
   switch (pid = 0)
 #else
@@ -174,14 +181,14 @@ static int child(int argc, char **argv, int optint)
   register int fd;
   char *tty = NULL;
   int tablesize;
-#if defined(__svr4__)
+#ifdef RLIMIT_NOFILE
   struct rlimit lim;
 
   getrlimit(RLIMIT_NOFILE,&lim);
   tablesize = lim.rlim_cur;
 #else
   tablesize = getdtablesize();
-#endif /* SVR4 */
+#endif /* RLIMIT_NOFILE */
 
   errno = 0;
 
@@ -229,21 +236,19 @@ static int child(int argc, char **argv, int optint)
     exit(2);
   }
 
-  /* detach from process group */
-#if defined(__sun__)
-  if (setpgrp (0, (pid = getpid ())) == -1)
+#if defined(HAVE_SETPGID) && !defined(HAVE_SETSID)
+  if (setpgid (0, (pid = getpid ())) == -1)
   {
-    perror("setpgrp");
+    perror("setpgid");
     fprintf(stderr,"%s: Error: setpgrp: %d\n", argv[0], pid);
     exit(2);
   }
 #else
-  setpgrp();
+  // should always succeed in child process
+  setsid();
 #endif
 
-#if defined(__svr4__)
-  setsid();			/* Not quite the same things as TIOCNOTTY (sigh) */
-#else
+#ifdef TIOCNOTTY
   /* bail on a controlling tty */
   if ((fd = open ("/dev/tty", O_RDWR)) >= 0)
   {
@@ -260,7 +265,7 @@ static int child(int argc, char **argv, int optint)
       exit(2);
     }
   }
-#endif /*SVR4*/
+#endif /* TIOCNOTTY */
 
   if (cfiles)
   {
