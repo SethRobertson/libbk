@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.8 2005/02/05 03:16:38 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.9 2005/03/07 23:15:25 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -83,6 +83,13 @@ struct program_config
 #define PC_KEEPALIVE			0x00010	///< Set keepalive preference
 #define PC_SERVER			0x00020	///< Server mode
 #define PC_ACTIVEACTIVE			0x00040	///< Active connections started
+#define PC_WAIT_DATA_A			0x00080 ///< Wait for one junk byte from A before further
+#define PC_MULTISERVER			0x00100	///< Multiple attach server mode
+#define PC_ANNOUNCE_ON_RELAY		0x00200 ///< Defer announcements until relay is set up
+  const char *		pc_password_a;		///< Password to expect from a
+  const char *		pc_password_b;		///< Password to expect from b
+  const char *		pc_announce_a;		///< Data to announce to side a
+  const char *		pc_announce_b;		///< Data to announce to side b
   char *		pc_proto_a;		///< What protocol to use
   char *		pc_proto_b;		///< What protocol to use
   char *		pc_remoteurl_a;		///< Remote "url".
@@ -166,6 +173,12 @@ main(int argc, char **argv, char **envp)
     {"transmit_b", 0, POPT_ARG_STRING, NULL, 0x103, "Transmit to host on side B", "proto://ip:port" },
     {"local-name_a", 0, POPT_ARG_STRING, NULL, 0x104, "Local address to bind on side A", "proto://ip:port" },
     {"local-name_b", 0, POPT_ARG_STRING, NULL, 0x105, "Local address to bind on side B", "proto://ip:port" },
+    {"wait-data_a", 0, POPT_ARG_NONE, NULL, 0x106, "Wait for data from A before attempting side B", NULL },
+    {"announce_a", 0, POPT_ARG_STRING, NULL, 0x107, "Send the listed string to a on attach", "announcement" },
+    {"announce_b", 0, POPT_ARG_STRING, NULL, 0x108, "Send the listed string to b on attach", "announcement" },
+    {"password_a", 0, POPT_ARG_STRING, NULL, 0x109, "Use the listed string as password from a on attach", "password" },
+    {"password_b", 0, POPT_ARG_STRING, NULL, 0x10a, "Use the listed string as password from b on attach", "password" },
+    {"announce_on_complete", 0, POPT_ARG_NONE, NULL, 0x10b, "Send announcements when all connected", NULL },
     {"buffersize", 0, POPT_ARG_STRING, NULL, 8, "Size of I/O queues", "buffer size" },
     {"length", 'L', POPT_ARG_STRING, NULL, 9, "Default I/O chunk size", "default length" },
     {"close-after-one", 'c', POPT_ARG_NONE, NULL, 10, "Shut down relay after only one side closes", NULL },
@@ -177,6 +190,7 @@ main(int argc, char **argv, char **envp)
     {"logfile", 0, POPT_ARG_STRING, NULL, 18, "Log file", "filename" },
 #endif /* NOTYET */
     {"server", 0, POPT_ARG_NONE, NULL, 21, "Set server (multiple connection) mode", NULL },
+    {"multiserver", 0, POPT_ARG_NONE, NULL, 22, "Set multiple server mode", NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -278,6 +292,30 @@ main(int argc, char **argv, char **envp)
       pc->pc_localurl_b=(char *)poptGetOptArg(optCon);
       break;
 
+    case 0x106:
+      BK_FLAG_SET(pc->pc_flags, PC_WAIT_DATA_A);
+      break;
+
+    case 0x107:
+      pc->pc_announce_a = poptGetOptArg(optCon);
+      break;
+
+    case 0x108:
+      pc->pc_announce_b = poptGetOptArg(optCon);
+      break;
+
+    case 0x109:
+      pc->pc_password_a = poptGetOptArg(optCon);
+      break;
+
+    case 0x10a:
+      pc->pc_password_b = poptGetOptArg(optCon);
+      break;
+
+    case 0x10b:
+      BK_FLAG_SET(pc->pc_flags, PC_ANNOUNCE_ON_RELAY);
+      break;
+
     case 'T':					// Timeout
       pc->pc_timeout=BK_SECS_TO_EVENT(atoi(poptGetOptArg(optCon)));
       break;
@@ -324,6 +362,10 @@ main(int argc, char **argv, char **envp)
     case 21:
       BK_FLAG_SET(pc->pc_flags, PC_SERVER);
       break;
+
+    case 22:
+      BK_FLAG_SET(pc->pc_flags, PC_MULTISERVER);
+      break;
     }
   }
 
@@ -369,18 +411,21 @@ main(int argc, char **argv, char **envp)
           break;
 	default:					// Parent
 	  waitpid(retcode, &retcode, 0);
+	  sleep(1);
 	  // <TODO>Sleep or something to prevent spinning</TODO>
 	  continue;
 	case 0:					// Child
+	  BK_FLAG_CLEAR(pc->pc_flags, PC_SERVER);
 	  break;				// Continue processing
 	}
       }
-      BK_FLAG_SET(pc->pc_flags, PC_ACTIVEACTIVE);
+      if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_WAIT_DATA_A))
+	BK_FLAG_SET(pc->pc_flags, PC_ACTIVEACTIVE);
 
       if (pc->pc_remoteurl_a && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_a, NULL, DEFAULT_PORT_STR, pc->pc_localurl_a, NULL, NULL, pc->pc_proto_a, pc->pc_timeout, connect_complete, &sidea, 0) < 0)
 	bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 
-      if (pc->pc_remoteurl_b && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_b, NULL, DEFAULT_PORT_STR, pc->pc_localurl_b, NULL, NULL, pc->pc_proto_b, pc->pc_timeout, connect_complete, &sideb, 0) < 0)
+      if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_WAIT_DATA_A) && pc->pc_remoteurl_b && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_b, NULL, DEFAULT_PORT_STR, pc->pc_localurl_b, NULL, NULL, pc->pc_proto_b, pc->pc_timeout, connect_complete, &sideb, 0) < 0)
 	bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
       break;
     } while (BK_FLAG_ISSET(pc->pc_flags, PC_SERVER));
@@ -420,6 +465,10 @@ proginit(bk_s B, struct program_config *pc)
   // SIGPIPE is just annoying
   bk_signal(B, SIGPIPE, SIG_IGN, BK_RUN_SIGNAL_RESTART);
 
+  // We use alarm for interrupt timing (running bk_reaper is kinda stupid)
+  bk_signal(B, SIGALRM, bk_reaper, BK_RUN_SIGNAL_INTR);
+  bk_signal(B, SIGCHLD, bk_reaper, BK_RUN_SIGNAL_RESTART);
+
   if (!pc->pc_af_a)
     pc->pc_af_a = AF_INET;
 
@@ -446,9 +495,10 @@ proginit(bk_s B, struct program_config *pc)
 
   if (pc->pc_role_b == BttcpRoleReceive)
   {
-    if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl_b, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto_b, NULL, connect_complete, &sideb, 0, 0))
-      bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     pc->pc_desiredpassive++;
+
+    if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_MULTISERVER) && bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl_b, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto_b, NULL, connect_complete, &sideb, 0, 0))
+      bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
   else
     pc->pc_desiredactive++;
@@ -501,19 +551,19 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   switch (state)
   {
   case BkAddrGroupStateSysError:
-    fprintf(stderr,"A system error occured\n");
+    fprintf(stderr,"%s%s: A system error occured\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
     goto error;
     break;
   case BkAddrGroupStateRemoteError:
-    fprintf(stderr,"A remote network error occured (connection refused?)\n");
+    fprintf(stderr,"%s%s: A remote network error occured (connection refused?)\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
     goto error;
     break;
   case BkAddrGroupStateLocalError:
-    fprintf(stderr,"A local network error occured (address already in use?)\n");
+    fprintf(stderr,"%s%s: A local network error occured (address already in use?)\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
     goto error;
     break;
   case BkAddrGroupStateTimeout:
-    fprintf(stderr,"The connection timed out with no more addresses to try\n");
+    fprintf(stderr,"%s%s: The connection timed out with no more addresses to try\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
     goto error;
     break;
   case BkAddrGroupStateReady:
@@ -521,15 +571,30 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
       pc->pc_server_a = server_handle;
     else
       pc->pc_server_b = server_handle;
-    if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-      fprintf(stderr,"%s%s: Ready and listening\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
+
+      if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+      {
+	struct sockaddr_in mysin;
+	int sinlen = sizeof(mysin);
+
+	getsockname(sock, (struct sockaddr *)&mysin, &sinlen);
+
+	fprintf(stderr,"%s%s: Ready and listening on port %d\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)", htons(mysin.sin_port));
+      }
     goto done;
     break;
   case BkAddrGroupStateConnected:
     if (side_a && pc->pc_server_a)
     {
       if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-	fprintf(stderr,"%s%s: Accepted connection\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
+      {
+	struct sockaddr_in mysin;
+	int sinlen = sizeof(mysin);
+
+	getpeername(sock, (struct sockaddr *)&mysin, &sinlen);
+
+	fprintf(stderr,"%s%s: Accepted connection from %s\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)", inet_ntoa(mysin.sin_addr));
+      }
       pc->pc_actualpassive++;
     }
     if (side_a && !pc->pc_server_a)
@@ -541,7 +606,14 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     if (!side_a && pc->pc_server_b)
     {
       if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-	fprintf(stderr,"%s%s: Accepted connection\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
+      {
+	struct sockaddr_in mysin;
+	int sinlen = sizeof(mysin);
+
+	getpeername(sock, (struct sockaddr *)&mysin, &sinlen);
+
+	fprintf(stderr,"%s%s: Accepted connection from %s\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)", inet_ntoa(mysin.sin_addr));
+      }
       pc->pc_actualpassive++;
     }
     if (!side_a && !pc->pc_server_b)
@@ -552,6 +624,65 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     }
     if (side_a)
     {
+      if (pc->pc_announce_a && BK_FLAG_ISCLEAR(pc->pc_flags, PC_ANNOUNCE_ON_RELAY))
+	write(sock, pc->pc_announce_a, strlen(pc->pc_announce_a)+1);
+
+      if (pc->pc_password_a)
+      {
+	char *buf;
+	int len = strlen(pc->pc_password_a)+1;
+
+	if (!BK_MALLOC_LEN(buf, len))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Malloc(%d): %s\n", len, strerror(errno));
+	  bk_die(B, 1, stderr, "Password a allocation failure.  Assuming worst and going away.\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+	}
+
+	bk_fileutils_modify_fd_flags(B, sock, O_NONBLOCK, BkFileutilsModifyFdFlagsActionDelete);
+	alarm(2);
+	if ((len = read(sock, buf, len)) != len)
+	{
+	  alarm(0);
+	  bk_error_printf(B, BK_ERR_ERR, "Password read a (aborting connection): %d: %s\n", len, strerror(errno));
+	  if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+	    fprintf(stderr,"%s%s: Password read error.  Aborting connection\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
+	  close(sock);
+	  if (pc->pc_server_a)
+	    pc->pc_actualpassive--;
+	  else
+	    pc->pc_actualactive--;
+	  goto done;
+	}
+	alarm(0);
+	if (strcmp(buf,pc->pc_password_a))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Password a compare failure (aborting connection): %d: %s\n", len, strerror(errno));
+	  if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+	    fprintf(stderr,"%s%s: Password mismatch.  Aborting connection\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
+	  close(sock);
+	  if (pc->pc_server_a)
+	    pc->pc_actualpassive--;
+	  else
+	    pc->pc_actualactive--;
+	  goto done;
+	}
+	free(buf);
+      }
+
+      if (BK_FLAG_ISSET(pc->pc_flags, PC_WAIT_DATA_A))
+      {
+	char x;
+	int len;
+
+	bk_fileutils_modify_fd_flags(B, sock, O_NONBLOCK, BkFileutilsModifyFdFlagsActionDelete);
+	if ((len = read(sock, &x, 1)) != 1)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Read: %d: %s\n", len, strerror(errno));
+	  bk_die(B, 1, stderr, "Read byte failure.  Assuming worst and going away\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+	}
+      }
+
+
       pc->pc_fd_a = sock;
       if (pc->pc_server_a)
       {
@@ -564,6 +695,51 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     }
     else
     {
+      if (pc->pc_announce_b && BK_FLAG_ISCLEAR(pc->pc_flags, PC_ANNOUNCE_ON_RELAY))
+	write(sock, pc->pc_announce_b, strlen(pc->pc_announce_b)+1);
+
+      if (pc->pc_password_b)
+      {
+	char *buf;
+	int len = strlen(pc->pc_password_b)+1;
+
+	if (!BK_MALLOC_LEN(buf, len))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Malloc(%d): %s\n", len, strerror(errno));
+	  bk_die(B, 1, stderr, "Password allocation failure.  Assuming worst and going away.\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+	}
+
+	bk_fileutils_modify_fd_flags(B, sock, O_NONBLOCK, BkFileutilsModifyFdFlagsActionDelete);
+	alarm(2);
+	if ((len = read(sock, buf, len)) != len)
+	{
+	  alarm(0);
+	  bk_error_printf(B, BK_ERR_ERR, "Password read b (aborting connection): %d: %s\n", len, strerror(errno));
+	  if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+	    fprintf(stderr,"%s%s: Password read error.  Aborting connection\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
+	  close(sock);
+	  if (pc->pc_server_b)
+	    pc->pc_actualpassive--;
+	  else
+	    pc->pc_actualactive--;
+	  goto done;
+	}
+	alarm(0);
+	if (strcmp(buf,pc->pc_password_b))
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Password b compare failure (aborting connection): %d: %s\n", len, strerror(errno));
+	  if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+	    fprintf(stderr,"%s%s: Password mismatch.  Aborting connection\n", BK_GENERAL_PROGRAM(B), side_a?"(a)":"(b)");
+	  close(sock);
+	  if (pc->pc_server_b)
+	    pc->pc_actualpassive--;
+	  else
+	    pc->pc_actualactive--;
+	  goto done;
+	}
+	free(buf);
+      }
+
       pc->pc_fd_b = sock;
       if (pc->pc_server_b)
       {
@@ -574,6 +750,15 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 	}
       }
     }
+
+    if (pc->pc_fd_a >= 0 && pc->pc_fd_b >= 0 && BK_FLAG_ISSET(pc->pc_flags, PC_ANNOUNCE_ON_RELAY))
+    {
+      if (pc->pc_announce_a)
+	write(pc->pc_fd_a, pc->pc_announce_a, strlen(pc->pc_announce_a)+1);
+      if (pc->pc_announce_b)
+	write(pc->pc_fd_b, pc->pc_announce_b, strlen(pc->pc_announce_b)+1);
+    }
+
     break;
   case BkAddrGroupStateClosing:
     if (BK_FLAG_ISSET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER))
@@ -634,7 +819,9 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     break;
   }
 
-  if (pc->pc_actualpassive >= pc->pc_desiredpassive && BK_FLAG_ISSET(pc->pc_flags, PC_SERVER))
+  // XXX - this test is not well thought out and planned.
+  if ((pc->pc_actualpassive && (pc->pc_actualpassive >= pc->pc_desiredpassive) && BK_FLAG_ISSET(pc->pc_flags, PC_SERVER) && BK_FLAG_ISCLEAR(pc->pc_flags, PC_MULTISERVER)) ||
+      (pc->pc_actualpassive >= pc->pc_desiredpassive && pc->pc_actualactive >= pc->pc_desiredactive && BK_FLAG_ISSET(pc->pc_flags, PC_MULTISERVER)))
   {
     switch (fork())
     {
@@ -643,10 +830,15 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
       bk_die(B, 1, stderr, "Fork failure--assuming worst case and going away\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
       break;
     default:					// Parent
+      if (pc->pc_desiredactive == 0)
+	exit(0);
+
       if (pc->pc_fd_a >= 0)
 	close(pc->pc_fd_a);
+      pc->pc_fd_a = -1;
       if (pc->pc_fd_b >= 0)
 	close(pc->pc_fd_b);
+      pc->pc_fd_b = -1;
       pc->pc_actualactive = 0;
       pc->pc_actualpassive = 0;
       if (pc->pc_server_a && bk_addressgroup_suspend(B, pc->pc_run, pc->pc_server_a, BK_ADDRESSGROUP_RESUME) < 0)
@@ -718,11 +910,49 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
       fprintf(stderr,"%s: Connecting...\n", BK_GENERAL_PROGRAM(B));
 
-    if (pc->pc_remoteurl_a && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_a, NULL, DEFAULT_PORT_STR, pc->pc_localurl_a, NULL, NULL, pc->pc_proto_a, pc->pc_timeout, connect_complete, &sidea, 0) < 0)
+    if (pc->pc_fd_a < 0 && pc->pc_remoteurl_a && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_a, NULL, DEFAULT_PORT_STR, pc->pc_localurl_a, NULL, NULL, pc->pc_proto_a, pc->pc_timeout, connect_complete, &sidea, 0) < 0)
       bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 
-    if (pc->pc_remoteurl_b && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_b, NULL, DEFAULT_PORT_STR, pc->pc_localurl_b, NULL, NULL, pc->pc_proto_b, pc->pc_timeout, connect_complete, &sideb, 0) < 0)
+    if (pc->pc_fd_b < 0 && pc->pc_remoteurl_b && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_b, NULL, DEFAULT_PORT_STR, pc->pc_localurl_b, NULL, NULL, pc->pc_proto_b, pc->pc_timeout, connect_complete, &sideb, 0) < 0)
       bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+  }
+  else if (pc->pc_actualpassive < pc->pc_desiredpassive && BK_FLAG_ISSET(pc->pc_flags, PC_MULTISERVER))
+  {
+    switch (fork())
+    {
+    case -1:
+      bk_error_printf(B, BK_ERR_ERR, "Could not create child process to handle accepted fd: %s\n", strerror(errno));
+      bk_die(B, 1, stderr, "Fork failure--assuming worst case and going away\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+      break;
+    case 0:					// Child
+	break;
+    default:					// Parent
+      if (pc->pc_actualactive)
+	exit(0);
+
+      if (pc->pc_fd_a >= 0)
+	close(pc->pc_fd_a);
+      pc->pc_fd_a = -1;
+      if (pc->pc_fd_b >= 0)
+	close(pc->pc_fd_b);
+      pc->pc_fd_b = -1;
+      pc->pc_actualactive = 0;
+      pc->pc_actualpassive = 0;
+      if (pc->pc_server_a && bk_addressgroup_suspend(B, pc->pc_run, pc->pc_server_a, BK_ADDRESSGROUP_RESUME) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Failed to resume server socket a\n");
+	goto error;
+      }
+      if (pc->pc_server_b && bk_addressgroup_suspend(B, pc->pc_run, pc->pc_server_b, BK_ADDRESSGROUP_RESUME) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Failed to resume server socket b\n");
+	goto error;
+      }
+      goto done;
+    }
+
+    if (pc->pc_role_b == BttcpRoleReceive && bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl_b, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto_b, NULL, connect_complete, &sideb, 0, 0))
+      bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 
  done:
