@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.63 2002/09/17 16:23:52 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.64 2002/09/28 23:25:30 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3422,7 +3422,7 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
  * @param ioh IOH for output
  * @param str String to output
  * @return <i>0</i> on success<br>
- * @return <i>negative</i> on failure
+ * @return <i>negative</i> on failure (including queue too full)
  */
 extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str)
 {
@@ -3483,7 +3483,7 @@ extern int bk_ioh_print(bk_s B, struct bk_ioh *ioh, const char *str)
  * @param format The format string to interpret in printf style
  * @param ... printf style arguments
  * @return <i>0</i> on success<br>
- * @return <i>negative</i> on failure
+ * @return <i>negative</i> on failure (including queue too full)
  */
 extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, const char *format, ...)
 {

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.178 2002/09/27 19:43:15 lindauer Exp $
+ * $Id: libbk.h,v 1.179 2002/09/28 23:25:29 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -205,6 +205,7 @@ struct bk_iohh_bnbio
 // @}
 
 
+
 /**
  * @name Debugging function common interface
  * Virtualize the general bk_debug routines which work on a specific debug queues
@@ -260,6 +261,7 @@ struct bk_general
   struct bk_funlist	*bg_destroy;		///< Destruction list
   struct bk_proctitle	*bg_proctitle;		///< Process title info
   struct bk_config	*bg_config;		///< Configuration info
+  struct bk_child	*bg_child;		///< Tracked child info 
   char			*bg_program;		///< Name of program
   bk_flags		bg_flags;		///< Flags
 #define BK_BGFLAGS_FUNON	0x1		///< Is function tracing on?
@@ -268,6 +270,7 @@ struct bk_general
 };
 #define BK_GENERAL_ERROR(B)	((B)?(B)->bt_general->bg_error:(struct bk_error *)bk_nullptr) ///< Access the bk_general error queue
 #define BK_GENERAL_DEBUG(B)	((B)?(B)->bt_general->bg_debug:(struct bk_debug *)bk_nullptr) ///< Access the bk_general debug queue
+#define BK_GENERAL_CHILD(B)	((B)?(B)->bt_general->bg_child:(struct bk_child *)bk_nullptr) ///< Access the bk_general debug queue
 #define BK_GENERAL_REINIT(B)	((B)?(B)->bt_general->bg_reinit:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general reinit list
 #define BK_GENERAL_DESTROY(B)	((B)?(B)->bt_general->bg_destroy:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general destruction list
 #define BK_GENERAL_PROCTITLE(B) ((B)?(B)->bt_general->bg_proctitle:(struct bk_proctitle *)bk_nullptr) ///< Access the bk_general process title state
@@ -370,6 +373,50 @@ typedef enum
   BkGetHostByFooStateErr,			///< You cannot trust the info
   BkGetHostByFooStateNetinfoErr,		///< You cannot trust bni (but the @a hostent is OK.
 } bk_gethostbyfoo_state_e;
+
+
+
+
+
+
+/**
+ * Information about child states
+ */
+typedef enum
+{
+  BkChildStateDead,				///< Child status dead
+  BkChildStateStop,				///< Child status stopped
+} bk_childstate_e;
+
+
+
+/**
+ * Information about all tracked children
+ */
+struct bk_child
+{
+  dict_h	bc_childidlist;			///< List of children by childid
+  dict_h	bc_childpidlist;		///< List of children by childpid
+  int		bc_nextchild;			///< Tracking of child ids
+};
+
+
+
+/**
+ * Information about known/tracked children
+ */
+struct bk_child_comm
+{
+  int	cc_id;					///< Identification of child
+  pid_t cc_childpid;				///< Process ID of child
+  int cc_childcomm[3];				///< FDs to child (maybe)
+  void (*cc_callback)(bk_s B, void *opaque, int childid, bk_childstate_e state, u_int status); ///< Callback for child state management
+  void *cc_opaque;				///< Opaque data for callback
+  u_int cc_statuscode;				///< Last wait status
+  bk_flags cc_flags;			        ///< State
+#define CC_WANT_NOTIFYSTOP	0x002		///< Want stop notification
+#define CC_DEAD			0x004		///< Child is dead
+};
 
 
 
@@ -1685,16 +1732,28 @@ extern struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *m
 #define BK_LISTNUM_PRUNE_EMPTY 	0x01		///< Prune empty list nodes and search again instead of returning
 
 
-/* b_md5.h */
+/* b_md5.c */
 extern void bk_MD5Init (bk_s B, bk_MD5_CTX *mdContext);
 extern void bk_MD5Update (bk_s B, bk_MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen);
 extern void bk_MD5Final (bk_s B, bk_MD5_CTX *mdContext);
 extern int bk_MD5_extract_printable(bk_s B, char *str, bk_MD5_CTX *ctx, bk_flags flags);
 
-/* b_stdsock.h */
+/* b_stdsock.c */
 extern int bk_stdsock_multicast(bk_s B, int fd, u_char ttl, struct bk_netaddr *maddrgroup, bk_flags flags);
 #define BK_MULTICAST_WANTLOOP		0x01	///< Want multicasts to loop to local machine
 #define BK_MULTICAST_NOJOIN		0x02	///< Do not wish to join multicast group
 extern int bk_stdsock_broadcast(bk_s B, int fd, bk_flags flags);
+
+/* b_child.c */
+extern struct bk_child *bk_child_icreate(bk_s B, bk_flags flags);
+extern void bk_child_iclean(bk_s B, struct bk_child *bchild, int specialchild, bk_flags flags);
+extern void bk_child_idestroy(bk_s B, struct bk_child *bchild, bk_flags flags);
+extern int bk_child_istart(bk_s B, struct bk_child *bchild, void (*cc_callback)(bk_s B, void *opaque, int childid, bk_childstate_e state, u_int status), void *cc_opaque, int *fds[], bk_flags flags);
+#define BK_CHILD_WANTRPIPE	0x01		///< Want a read pipe
+#define BK_CHILD_WANTWPIPE	0x02		///< Want a write pipe
+#define BK_CHILD_WANTEPIPE	0x04		///< Want a write error pipe
+#define BK_CHILD_WANTEASW	0x08		///< Want error pipe on stdout
+#define BK_CHILD_NOTIFYSTOP	0x10		///< Want stop notification
+extern void bk_child_isigfun(bk_s B, struct bk_run *run, int signum, void *opaque);
 
 #endif /* _BK_h_ */
