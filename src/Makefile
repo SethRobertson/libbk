@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.28 2004/04/24 01:44:29 seth Exp $
+# $Id: Makefile,v 1.29 2004/06/03 21:30:56 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -32,6 +32,7 @@ BK_SIMPLE_PROGS=			\
 	bttcp				\
 	genrand				\
 	mmcat				\
+	runsize				\
 	timeout				\
 	$(BK_TMP_PROG)			\
 #line fodder eater. Do not remove.
