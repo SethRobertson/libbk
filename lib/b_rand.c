@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.11 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.12 2004/12/10 21:10:56 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -429,7 +429,8 @@ static void bk_truerand_generate(bk_s B, bk_MD5_CTX *ctx, int rounds)
   // Seth specifically wants this variable uninitialized for entropy....
   if (USE_MEM_ENTROPY)
     // Stupid uninitialized variable warnings...
-    memcpy((void *)&thisc, (void *)&thisc, 0);
+    // (void) cast to get rid of accurate, but unwanted 'statement with no effect' warning
+    (void) memcpy((void *)&thisc, (void *)&thisc, 0);
   else
     thisc = 0;					// avoid Insure/Valgrind errors
 
