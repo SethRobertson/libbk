@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.31 2002/10/15 22:22:19 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.32 2002/10/29 17:13:27 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -911,6 +911,8 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
   
  error:
   net_close(B, as);
+  as->as_state = bk_net_init_sys_error(B,errno);
+  tcp_connect_start(B,as);
   BK_RETURN(B,-1);
 }
 

@@ -1,3 +1,9 @@
+2002-10-11  James Tanis  <jtt@hawking.sysdetect.com>
+
+	* lib/b_addrgroup.c (tcp_connect_start): Don't just return error
+	on error. Try tcp_connect_start() again. This should have happened
+	a long time ago.
+
 2002-10-21  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk_net.h (struct baka_udphdr): get the baka order right!
