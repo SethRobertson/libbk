@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.3 2001/12/19 20:21:02 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.4 2001/12/31 21:49:03 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -364,7 +364,8 @@ bk_polling_io_data_destroy(bk_s B, bk_vptr *data)
   /*
    * Free up all the data.
    */
-  free(data->ptr);
+  if (data->ptr)
+    free(data->ptr);
   free(data);
 
   BK_VRETURN(B);

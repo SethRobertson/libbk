@@ -1,3 +1,8 @@
+2001-12-31  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_pollio.c (bk_polling_io_data_destroy): make sure that ptr
+	exists before freeing.
+
 2001-12-27  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk_include.h: <netinet/if_ether.h> if no <net/ethernet.h>
