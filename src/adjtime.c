@@ -13,7 +13,7 @@ int main(int argc, char *argv[], char *envp[])
 
   if (argc != 3)
   {
-    fprintf(stderr, "Usage: %s <seconds offset> <ms offset>\n", argv[0]);
+    fprintf(stderr, "Usage: %s <seconds offset> <microseconds offset>\n", argv[0]);
     exit(1);
   }
 
