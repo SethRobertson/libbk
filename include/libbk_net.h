@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.1 2002/04/18 13:42:59 seth Exp $
+ * $Id: libbk_net.h,v 1.2 2002/10/14 23:19:22 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -94,7 +94,9 @@ struct baka_tcphdr
 #define BAKA_TCPHDR_FLAGPUSH 0x08               ///< PUSH flag
 #define BAKA_TCPHDR_FLAGACK  0x10               ///< ACK flag
 #define BAKA_TCPHDR_FLAGURG  0x20               ///< Urgent flag
-#define BAKA_TCPHDR_FLAGMASK    0x0fff          ///< Header bits
+#define BAKA_TCPHDR_FLAGMASK    0x3f		///< Header bits (no reserved bits considered)
+  // <TODO> Do we really need the following </TODO>
+#define BAKA_TCPHDR_LENIENT_FLAGMASK    0x0fff	///< Header bits (includes some reserved)
 #define BAKA_TCPHDR_HLENSHIFT   12              ///< Header bits
   u_int16_t pkt_tcp_window_size;                ///< Window size
   u_int16_t pkt_tcp_checksum;                   ///< Header+payload checksum

@@ -1,3 +1,8 @@
+2002-10-14  James Tanis  <jtt@hawking.sysdetect.com>
+
+	* include/libbk_net.h (BAKA_TCPHDR_LENIENT_FLAGMASK): Define this
+	more strictly
+
 2002-10-09  James Tanis  <jtt@hawking.sysdetect.com>
 
 	* lib/b_addrgroup.c (tcp_connect_activity): Also check errno
