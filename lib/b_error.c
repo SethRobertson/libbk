@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.31 2002/10/18 20:03:30 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.32 2002/11/06 00:07:47 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001,2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -310,6 +310,8 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
   if (beinfo->be_last.ben_msg && BK_STREQ(msg, beinfo->be_last.ben_msg))
   {
     beinfo->be_last.ben_repeat++;
+    free(msg);
+    msg = NULL;
   }
   else
   {
