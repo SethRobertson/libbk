@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.12 2004/07/12 17:23:36 jtt Exp $
+ * $Id: libbk_net.h,v 1.13 2004/12/21 01:05:45 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -192,6 +192,12 @@ struct baka_icmphdr
 
 /**
  * OS independent version of ARP header (thanks linux)
+ *
+ * Note dynamically sized arrays are:
+ * sender_mac (hard_size)
+ * sender_ip (proto_size)
+ * target_mac (hard_size)
+ * target_ip (proto_size)
  */
 struct baka_arphdr
 {
