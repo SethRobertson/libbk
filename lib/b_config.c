@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_config.c,v 1.28 2002/09/05 19:20:54 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_config.c,v 1.29 2003/03/26 17:59:38 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -111,6 +111,31 @@ static struct bk_config_value *bcv_create(bk_s B, const char *value, u_int linen
 static void bcv_destroy(bk_s B, struct bk_config_value *bcv);
 static int config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, const char *ovalue, u_int lineno);
 static int check_for_double_include(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *cur_bcf, struct bk_config_fileinfo *new_bcf);
+
+
+
+/**
+ * <KLUDGE>The baka program template uses a big structure to hold all global
+ * "Information of international importance to everyone which cannot be passed
+ * around."  Some Hawkeye plugins reference this variable (which is only
+ * defined in programs, not in libraries) and when these plugins are in
+ * LD_PRELOAD, it causes runtime linkage problems for innocent programs that
+ * don't define a Global variable, like bash, which is started by gdb (for some
+ * annoying reason) to run the program being debugged.
+ *
+ * Amazingly enough, even though the size of the Global variable structure will
+ * vary from program to program, we don't seem to get any errors if we provide
+ * a (different size) version here in this library, at least if it is an
+ * uninitialized (common, or bss) symbol.
+ *
+ * On systems where we do get complaints about this, we could try to use a weak
+ * symbol instead, with the GCC extension __attribute__((weak)); but common
+ * (bss) symbols can't be weak, and I'm not sure if a weak initialized symbol
+ * would take precedence over (or conflict with) a common declaration.</KLUDGE>
+ */
+struct global_structure
+{
+} Global; // __attribute__((weak));
 
 
 
