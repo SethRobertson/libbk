@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.20 2002/05/14 20:27:05 lindauer Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.21 2002/05/16 16:37:23 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -839,7 +839,6 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
 {
   char timeprefix[40];
   char fullprefix[40];
-  struct tm *tm = localtime(&node->ben_time);
 
   be_error_time(node, timeprefix, 40);
 
