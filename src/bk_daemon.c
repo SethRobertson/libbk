@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.3 2003/09/24 20:56:54 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.4 2004/04/26 19:20:36 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -71,6 +71,7 @@ static char *newenviron[] = { "PATH=/bin:/usr/bin:/usr/sbin:/sbin:.", NULL };
 static char *outstream = NULL;
 static int append = 0;
 static int quiet = 0;
+static int want_dev_null_stdio = 0;
 
 
 
@@ -91,9 +92,10 @@ main(int argc, char **argv, char **envp)
   int priority = 15;		/* default priority to set */
   int error = 0;		/* Error on getopt? */
   int c;			/* getopt option */
+  
 
   /* Lets process arguments! */
-  while ((c=getopt(argc, argv, "+cCdDeup:s:aq")) != EOF)
+  while ((c=getopt(argc, argv, "+NcCdDeup:s:aq")) != EOF)
     switch (c)
     {
     case 'a':
@@ -137,6 +139,11 @@ main(int argc, char **argv, char **envp)
     case 's':
       outstream = optarg;
       break;
+
+    case 'N':
+      want_dev_null_stdio = 1;
+      break;
+
     case '?':
       error = 1;
       break;
@@ -308,6 +315,53 @@ static int child(int argc, char **argv, int optint)
 
   if (b_umask)			/* no inherited umask */
     umask(0);
+
+  /*
+   * *Explictly* Open stdin, stdout, and stderr on /dev/null
+   */
+  if (want_dev_null_stdio)
+  {
+    int dev_null_fd;
+
+    if ((dev_null_fd = open(_PATH_DEVNULL, O_RDONLY)) < 0)
+    {
+      fprintf(stderr, "Could not open %s: %s\n", _PATH_DEVNULL, strerror(errno));
+      exit(2);
+    }
+    
+    fd = fileno(stdin);
+
+    if (dup2(dev_null_fd, fd) < 0)
+    {
+      perror("dup2 of stdin");
+      exit(2);
+    }
+    
+    close(dev_null_fd);
+
+    if ((dev_null_fd = open(_PATH_DEVNULL, O_WRONLY)) < 0)
+    {
+      fprintf(stderr, "Could not open %s: %s\n", _PATH_DEVNULL, strerror(errno));
+      exit(2);
+    }
+    
+    fd = fileno(stdout);
+
+    if (dup2(dev_null_fd, fd) < 0)
+    {
+      perror("dup2 of stdout");
+      exit(2);
+    }
+    
+    fd = fileno(stderr);
+
+    if (dup2(dev_null_fd, fd) < 0)
+    {
+      perror("dup2 of stderr");
+      exit(2);
+    }
+    close(fd);
+  }
 
 
   for (fd = 0; fd < tablesize; fd++)
