@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.27 2002/05/06 17:41:54 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.28 2002/06/19 21:39:23 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -71,6 +71,7 @@ unsigned bk_zerouint = 0;
  *	@param configfile Location of configuration file to gather defaults from
  *	@param bcup Structure containing configuration file parameters (e.g. seperator character).  Typically NULL
  *	@param error_queue_length Number of messages to store in both high and low priority error queues
+ *	@param log_facility Syslog type (LOG_CRON, LOG_DAEMON, LOG_LOCAL0-7) etc.
  *	@param flags Fun for the future
  *	@return <i>NULL</i> on allocation or other failure
  *	@return <br><i>baka structure</i> on success
@@ -83,9 +84,8 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
   if (!(B = bk_general_thread_init(NULL, "*MAIN*")))
     goto error;
 
-  if (!BK_MALLOC(BK_BT_GENERAL(B)))
+  if (!BK_CALLOC(BK_BT_GENERAL(B)))
     goto error;
-  BK_ZERO(BK_BT_GENERAL(B));
 
   BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
 
@@ -98,7 +98,7 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
   if (!(B->bt_general->bg_destroy = bk_funlist_init(B, 0)))
     goto error;
 
-  if (!(B->bt_general->bg_reinit = bk_funlist_init(B,0)))
+  if (!(B->bt_general->bg_reinit = bk_funlist_init(B, 0)))
     goto error;
 
   // Config files should not be required, generally
@@ -139,31 +139,29 @@ void bk_general_destroy(bk_s B)
     {
       if (BK_GENERAL_DESTROY(B))
       {
-	bk_funlist_call(B,BK_GENERAL_DESTROY(B), 0, 0);
-	bk_funlist_destroy(B,BK_GENERAL_DESTROY(B));
+	bk_funlist_call(B, BK_GENERAL_DESTROY(B), 0, 0);
+	bk_funlist_destroy(B, BK_GENERAL_DESTROY(B));
       }
 
       if (BK_GENERAL_PROCTITLE(B))
-	bk_general_proctitle_destroy(B,BK_GENERAL_PROCTITLE(B), 0);
+	bk_general_proctitle_destroy(B, BK_GENERAL_PROCTITLE(B), 0);
 
       if (BK_GENERAL_CONFIG(B))
 	bk_config_destroy(B, BK_GENERAL_CONFIG(B));
 
       if (BK_GENERAL_REINIT(B))
-	bk_funlist_destroy(B,BK_GENERAL_REINIT(B));
+	bk_funlist_destroy(B, BK_GENERAL_REINIT(B));
 
       if (BK_GENERAL_ERROR(B))
-	bk_error_destroy(B,BK_GENERAL_ERROR(B));
+	bk_error_destroy(B, BK_GENERAL_ERROR(B));
 
       if (BK_GENERAL_DEBUG(B))
-	bk_debug_destroy(B,BK_GENERAL_DEBUG(B));
+	bk_debug_destroy(B, BK_GENERAL_DEBUG(B));
 
       free(BK_BT_GENERAL(B));
     }
     bk_general_thread_destroy(B);
   }
-
-  return;
 }
 
 
@@ -333,11 +331,11 @@ void bk_general_proctitle_set(bk_s B, char *title)
 
   if (!title || !B)
   {
-    bk_error_printf(B,BK_ERR_ERR,"Invalid arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_VRETURN(B);
   }
 
-  len = MIN(strlen(title),BK_GENERAL_PROCTITLE(B)->bp_title.len-1);
+  len = MIN(strlen(title), BK_GENERAL_PROCTITLE(B)->bp_title.len-1);
   rest = BK_GENERAL_PROCTITLE(B)->bp_title.len - len;
 
   memcpy(BK_GENERAL_PROCTITLE(B)->bp_title.ptr, title, len);
@@ -367,8 +365,6 @@ void bk_general_syslog(bk_s B, int level, bk_flags flags, char *format, ...)
   va_start(args, format);
   bk_general_vsyslog(B, level, flags, format, args);
   va_end(args);
-
-  return;
 }
 
 
@@ -387,8 +383,8 @@ void bk_general_syslog(bk_s B, int level, bk_flags flags, char *format, ...)
 void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list args)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char *buffer;
   const char *parentname, *errorstr;
+  char buffer[BK_SYSLOG_MAXLEN];
 
   if (!BK_GENERAL_FLAG_ISSYSLOGON(B))
     BK_VRETURN(B);
@@ -399,24 +395,15 @@ void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list
   if (BK_FLAG_ISSET(flags, BK_SYSLOG_FLAG_NOFUN) || !(parentname = bk_fun_funname(B, 1, 0)))
     parentname = "";
 
-  if (!(buffer = (char *)alloca((u_int)BK_SYSLOG_MAXLEN)))
-  {
-    /*
-     * Potentially recursive
-     *
-     * bk_error_printf(B, BK_ERR_ERR, "Could not allocate storage for buffer to syslog\n");
-     */
-    BK_VRETURN(B);
-  }
-  vsnprintf(buffer,BK_SYSLOG_MAXLEN, format, args);
+  vsnprintf(buffer, BK_SYSLOG_MAXLEN, format, args);
 
 #if !defined(_WIN32) || defined(__CYGWIN32__)
   if (*errorstr == 0 && *parentname == 0)
-    syslog(level, "%s",buffer);
+    syslog(level, "%s", buffer);
   else if (*errorstr == 0)
-    syslog(level, "%s: %s",parentname,buffer);
+    syslog(level, "%s: %s", parentname, buffer);
   else
-    syslog(level, "%s[%s]: %s",parentname,errorstr,buffer);
+    syslog(level, "%s/%s: %s", parentname, errorstr, buffer);
 #endif /* !_WIN32 || __CYGWIN32__ */
 
   BK_VRETURN(B);
@@ -440,13 +427,13 @@ const char *bk_general_errorstr(bk_s B, int level)
 
   switch(level)
   {
-  case BK_ERR_CRIT:	answer = "Critical"; break;
-  case BK_ERR_ERR:	answer = "Error"; break;
-  case BK_ERR_WARN:	answer = "Warning"; break;
-  case BK_ERR_NOTICE:	answer = "Notice"; break;
-  case BK_ERR_DEBUG:	answer = "Debug"; break;
-  case BK_ERR_NONE:	answer = ""; break;
-  default:		answer = "Unknown"; break;
+  case BK_ERR_CRIT:	answer = _("FATAL"); break;
+  case BK_ERR_ERR:	answer = _("ERROR"); break;
+  case BK_ERR_WARN:	answer = _("WARN"); break;
+  case BK_ERR_NOTICE:	answer = _("INFO"); break;
+  case BK_ERR_DEBUG:	answer = _("DEBUG"); break;
+  case BK_ERR_NONE:	answer = _("NONE"); break;
+  default:		answer = _("Unknown"); break;
   }
 
   BK_RETURN(B, answer);
@@ -484,7 +471,7 @@ int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags)
     bk_fun_reset_debug(B, flags);
   }
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 }
 
 
@@ -512,7 +499,7 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
 
   if (!BK_MALLOC(PT))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate proctitle buffer: %s\n",strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate proctitle buffer: %s\n", strerror(errno));
     BK_RETURN(B, (struct bk_proctitle *)NULL);
   }
   BK_ZERO(PT);
@@ -543,7 +530,7 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
 															\
       if (!((new) = (char **)malloc(((size)+1)*sizeof(char *))))							\
       {															\
-	bk_error_printf(B, BK_ERR_ERR, "Could not allocate duplicate array: %s\n",strerror(errno));			\
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocate duplicate array: %s\n", strerror(errno));			\
 	goto error;													\
       }															\
 															\
@@ -551,7 +538,7 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
       {															\
 	if (!((new)[tmp] = strdup((orig)[tmp])))									\
 	{														\
-	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate duplicate array entry %d: %s\n",tmp,strerror(errno));	\
+	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate duplicate array entry %d: %s\n", tmp, strerror(errno));	\
 	  goto error;													\
 	}														\
       }															\
@@ -559,14 +546,14 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
     } while (0)
 
     /* Create duplicate argv */
-    ARRAY_DUPLICATE(PT->bp_argv,*argv,argc);
+    ARRAY_DUPLICATE(PT->bp_argv, *argv, argc);
 
     /* Spin through envp array looking for last element */
     for(envc = 0; (*envp)[envc]; envc++)
       ; // Void
 
     /* Create duplicate envp */
-    ARRAY_DUPLICATE(PT->bp_envp,*envp,envc);
+    ARRAY_DUPLICATE(PT->bp_envp, *envp, envc);
     environ = PT->bp_envp;
 
     /* Figure out the usable vector for overwriting */
@@ -588,7 +575,7 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
 
     if (PT->bp_argv)				/* Do we have info to find program name? */
     {
-      if (tmp = strrchr(*PT->bp_argv,'/'))
+      if ((tmp = strrchr(*PT->bp_argv, BK_DIR_SEPCHAR)))
 	tmp++;
       else
 	tmp = *PT->bp_argv;
@@ -650,20 +637,4 @@ static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *PT, bk_fla
   free(PT);
 
   BK_VRETURN(B);
-}
-
-
-
-
-/**
- * sigh.. A function to do nothing but satisfy gcc's hard nosed syntax checker.
- *
- *	@param B BAKA thread/global state.
- *	@param p The pointer which is <em>not</em> to be freed (ie was allocated with alloca(e))
- */
-void
-bk_no_free(void *p)
-{
-  // Purposefully no BK_ENTRY.
-  return;
 }

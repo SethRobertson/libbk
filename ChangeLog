@@ -1,7 +1,26 @@
+2002-06-19  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h (bk_alloca_free): just a no-op
+	(BK_ERROR_FLAG_SYSLOG_FULL, BRIEF, NO_FUN): error verbosity flags
+
+	* lib/b_error.c (bk_error_init): set error flags in beinfo
+	(bk_error_config): maybe set error flags in beinfo
+	(bk_error_iprint): use level name instead of number, support BRIEF
+	(bk_error_idump): pass through error flags
+	(bk_error_istrdump): pass through error flags, avoid strdup
+	(be_error_output): when syslogging, don't duplicate fun/level output,
+	support BRIEF, NO_FUN
+	(be_error_append): support BRIEF, NO_FUN
+
+	* lib/b_general.c (bk_general_vsyslog): don't call alloca with constant
+	[use array auto variable instead]; level format consistent w/bk_error_*
+	(bk_general_errorstr): level names consistent with log4j
+	(bk_no_free): No BK, no free; no woman, no cry
+
 2002-06-14  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_ioh.c (ioh_queue): Don't allow a buffer which fails to
-	contain either data (with len > 0) or a cmd.
+	contain either data [with len > 0] or a cmd.
 
 2002-05-30  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.151 2002/05/30 23:36:22 lindauer Exp $
+ * $Id: libbk.h,v 1.152 2002/06/19 21:39:22 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -119,7 +119,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define bk_alloca_free(p)	free(p)
 #else
 #define bk_alloca(l)		alloca(l)
-#define bk_alloca_free(p)	bk_no_free(p);
+#define bk_alloca_free(p)	(void)(0)
 #endif
 
 #define BK_ALLOCA(p) BK_ALLOCA_LEN(p,sizeof(*(p))) ///< Structure allocation calloc with assignment and type cast
@@ -1067,7 +1067,6 @@ extern void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, 
 #define BK_SYSLOG_FLAG_NOLEVEL 2		///< Don't want error level included during bk_general_*syslog
 extern const char *bk_general_errorstr(bk_s B, int level);
 extern int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags);
-extern void bk_no_free(void *p);
 extern void *bk_nullptr;			/* NULL pointer junk */
 extern int bk_zeroint;				/* Zero integer junk */
 extern unsigned bk_zerouint;			/* Zero unsigned junk */
@@ -1118,12 +1117,16 @@ extern void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, char *format, va_
 
 /* b_error.c */
 extern struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogthreshold, bk_flags flags);
+#define BK_ERROR_FLAG_SYSLOG_FULL		0x100 ///< Duplicate timestamp and program id in syslog errors
+#define BK_ERROR_FLAG_BRIEF			0x200 ///< Omit timestamp and program id from non-syslog errors
+#define BK_ERROR_FLAG_NO_FUN			0x400 ///< Only display original error message string
 extern void bk_error_destroy(bk_s B, struct bk_error *beinfo);
 extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, int syslogthreshold, int hilo_pivot, bk_flags flags);
 #define BK_ERROR_CONFIG_FH			0x1 ///< File handle is being set
 #define BK_ERROR_CONFIG_HILO_PIVOT		0x2 ///< Hilo_pivot is being set
 #define BK_ERROR_CONFIG_SYSLOGTHRESHOLD		0x4 ///< Syslog threshold is being set
 #define BK_ERROR_CONFIG_QUEUELEN		0x8 ///< Queue length is being set
+#define BK_ERROR_CONFIG_FLAGS			0x10 ///< BK_ERROR_INIT flags are being set
 extern void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 extern void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 extern void bk_error_imark(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
