@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.13 2002/01/09 06:26:38 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.14 2002/01/14 18:54:07 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -282,7 +282,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
   STORE_URL_ELEMENT(B, mode, bu->bu_fragment, fragment, fragment_end);
 
 
-  if (BK_FLAG_ISCLEAR(flags, BK_URL_STRICT_PARSE))
+  if (BK_FLAG_ISCLEAR(flags, BK_URL_FLAG_STRICT_PARSE))
   {
     // Do BAKA fuzzy URL logic (basically update relative paths).
 

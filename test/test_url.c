@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_url.c,v 1.9 2002/01/09 06:26:38 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: test_url.c,v 1.10 2002/01/14 18:54:07 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -220,7 +220,7 @@ void progrun(bk_s B, struct program_config *pconfig)
     
     memset(scratch,0,sizeof(scratch));
     nextstart = 0;
-    if (!(bu=bk_url_parse(B, inputline, pconfig->pc_parse_mode, BK_URL_STRICT_PARSE)))
+    if (!(bu=bk_url_parse(B, inputline, pconfig->pc_parse_mode, BK_URL_FLAG_STRICT_PARSE)))
     {
       fprintf(stderr,"Could not convert url: %s\n", inputline);
       continue;

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.102 2002/01/11 17:49:32 dupuy Exp $
+ * $Id: libbk.h,v 1.103 2002/01/14 18:54:07 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1194,7 +1194,7 @@ extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
 
 /* b_url.c */
 struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_url_parse_mode_e mode, bk_flags flags);
-#define BK_URL_STRICT_PARSE	0x1	///< Don't do BAKA fuzzy logic.
+#define BK_URL_FLAG_STRICT_PARSE	0x1	///< Don't do BAKA fuzzy logic.
 struct bk_url *bk_url_create(bk_s B);
 void bk_url_destroy(bk_s B, struct bk_url *bu);
 char *bk_url_unescape(bk_s B, const char *urlcomponent);
