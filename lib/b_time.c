@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_time.c,v 1.22 2005/02/15 22:03:11 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_time.c,v 1.23 2005/02/15 23:08:01 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -150,7 +150,7 @@ bk_time_iso_format(bk_s B, char *str, size_t max, const struct timespec *timep, 
 
   if (!(tp = gmtime_r(&ts.tv_sec, &t)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not convert timespec to UTC\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert timespec to UTC: %s\n", strerror(errno));
     BK_RETURN(B, 0);    
   }
 
