@@ -1,3 +1,9 @@
+2003-05-14  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_bnbio.c: Functionality moved to polling_io
+
+	* lib/b_pollio.c: Add bnbio functionality
+
 2003-05-13  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (BK_BTS2F): deal with struct bk_timespec too...

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.43 2003/05/09 03:25:03 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.44 2003/05/14 06:20:46 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -114,7 +114,6 @@ struct bk_run
   dict_h		br_poll_funcs;		///< Poll functions
   dict_h		br_ondemand_funcs;	///< On demands functions
   dict_h		br_idle_funcs;		///< Idle tasks (nothing else to do)
-  dict_h		br_bnbios;		///< Blocked bnbios
   pq_h			*br_equeue;		///< Event queue
   volatile sig_atomic_t	br_signums[NSIG];	///< Number of signal events we have received
   struct br_sighandler	br_handlerlist[NSIG];	///< Handlers for signals
@@ -297,34 +296,6 @@ static int brofl_ko_cmp(void *a, struct bk_run_ondemand_func *b);
 
 
 /**
- * @name Defines: bnbiol_clc
- * bnbio list CLC definitions
- * to hide CLC choice.
- */
-// @{
-#define bnbiol_create(o,k,f)		dll_create((o),(k),(f))
-#define bnbiol_destroy(h)		dll_destroy(h)
-#define bnbiol_insert(h,o)		dll_insert((h),(o))
-#define bnbiol_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
-#define bnbiol_append(h,o)		dll_append((h),(o))
-#define bnbiol_append_uniq(h,n,o)	dll_append_uniq((h),(n),(o))
-#define bnbiol_search(h,k)		dll_search((h),(k))
-#define bnbiol_delete(h,o)		dll_delete((h),(o))
-#define bnbiol_minimum(h)		dll_minimum(h)
-#define bnbiol_maximum(h)		dll_maximum(h)
-#define bnbiol_successor(h,o)		dll_successor((h),(o))
-#define bnbiol_predecessor(h,o)		dll_predecessor((h),(o))
-#define bnbiol_iterate(h,d)		dll_iterate((h),(d))
-#define bnbiol_nextobj(h,i)		dll_nextobj(h,i)
-#define bnbiol_iterate_done(h,i)	dll_iterate_done(h,i)
-#define bnbiol_error_reason(h,i)	dll_error_reason((h),(i))
-static int bnbiol_oo_cmp(struct bk_iohh_bnbio *a, struct bk_iohh_bnbio *b);
-static int bnbiol_ko_cmp(void *a, struct bk_iohh_bnbio *b);
-// @}
-
-
-
-/**
  * @name Signal static variables
  *
  * Data which signal handlers running on the signal stack can modify.
@@ -401,15 +372,9 @@ struct bk_run *bk_run_init(bk_s B, bk_flags flags)
     goto error;
   }
 
-  if (!(run->br_bnbios = bnbiol_create((dict_function)bnbiol_oo_cmp, (dict_function)bnbiol_ko_cmp, DICT_UNORDERED)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create bnbio list\n");
-    goto error;
-  }
-
   if (!(run->br_canceled = fd_cancel_create((dict_function)fd_cancel_oo_cmp, (dict_function)fd_cancel_ko_cmp, DICT_UNORDERED)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create bnbio list: %s\n", fd_cancel_error_reason(NULL, NULL));
+    bk_error_printf(B, BK_ERR_ERR, "Could not create cancel list: %s\n", fd_cancel_error_reason(NULL, NULL));
     goto error;
   }
 
@@ -522,9 +487,6 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
     bk_run_fd_cancel_unregister(B, run, bfc->bfc_fd, BK_FD_ADMIN_FLAG_WANT_ALL);
   }
   fd_cancel_destroy(run->br_canceled);
-
-  // bnbios are destroyed elsewhere
-  bnbiol_destroy(run->br_bnbios);
 
   br_signums = NULL;
 
@@ -3107,19 +3069,6 @@ static int brofl_ko_cmp(void *a, struct bk_run_ondemand_func *b)
 {
   return ((char *)a)-((char *)b->brof_key);
 }
-
-/*
- * baka bnbio list CLC routines
- */
-static int bnbiol_oo_cmp(struct bk_iohh_bnbio *a, struct bk_iohh_bnbio *b)
-{
-  return (a - b);
-}
-static int bnbiol_ko_cmp(void *a, struct bk_iohh_bnbio *b)
-{
-  return (((struct bk_iohh_bnbio*) a) - b);
-}
-
 
 /*
  * Cancel list routines.

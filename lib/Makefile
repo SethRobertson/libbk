@@ -1,25 +1,24 @@
 ######################################################################
-# $Id: Makefile,v 1.41 2003/04/16 19:04:43 dupuy Exp $
+# $Id: Makefile,v 1.42 2003/05/14 06:20:46 seth Exp $
 #
 # ++Copyright LIBBK++
-# 
+#
 # Copyright (c) 2001-2003 The Authors. All rights reserved.
-# 
+#
 # This source code is licensed to you under the terms of the file
 # LICENSE.TXT in this release for further details.
-# 
+#
 # Mail <projectbaka@baka.org> for further information
-# 
+#
 # --Copyright LIBBK--
 #
 # libbk Makefile
 #
 BK_LARGE_LIB=libbk$(LIBEXT)
 
-BK_LARGE_LIBSRC=		       		\
+BK_LARGE_LIBSRC=				\
 		b_addrgroup.c			\
 		b_bits.c			\
-		b_bnbio.c			\
 		b_child.c			\
 		b_cksum.c			\
 		b_config.c			\
@@ -28,7 +27,7 @@ BK_LARGE_LIBSRC=		       		\
 		b_error.c			\
 		b_exec.c			\
 		b_fileutils.c			\
-		b_fun.c 			\
+		b_fun.c				\
 		b_funlist.c			\
 		b_general.c			\
 		b_getbyfoo.c			\

@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.23 2003/04/16 23:39:54 seth Exp $
+# $Id: Makefile,v 1.24 2003/05/14 06:20:46 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -21,7 +21,6 @@ BK_SIMPLE_INTERNALPROGS=		\
 		../test/test_fun	\
 		diskspeed		\
 		mutex			\
-		test_bio		\
 		test_clc		\
 		test_config		\
 		test_errorstuff		\

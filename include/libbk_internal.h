@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.39 2003/05/09 19:02:18 seth Exp $
+ * $Id: libbk_internal.h,v 1.40 2003/05/14 06:20:46 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -100,35 +100,6 @@ struct bk_ioh
 #endif /* BK_USING_PTHREADS */
 };
 
-
-
-
-/**
- * All the state which the on demand I/O subsytem requires.
- */
-struct bk_polling_io
-{
-  bk_flags		bpi_flags;		///< Everyone needs flags.
-#define BPI_FLAG_CLOSING		0x1	///< We are closing down bpi.
-#define BPI_FLAG_READ_DEAD		0x2	///< Read side is finished.
-#define BPI_FLAG_WRITE_DEAD		0x4	///< Write side is finished.
-#define BPI_FLAG_SAW_EOF		0x8	///< We have seen EOF.
-#define BPI_FLAG_DONT_DESTROY		0x10	///< Tell io hander not destroy bpi.
-#define BPI_FLAG_IOH_DEAD		0x20	///< Bpi not destroyed, ioh was
-#define BPI_FLAG_THREADED		0x40	///< Don't worry about recursively calling bk_run
-  u_int			bpi_size;		///< Amount of data I'm buffering.
-  dict_h		bpi_data;		///< Queue of data vptrs.
-  struct bk_ioh *	bpi_ioh;		///< Ioh structure.
-  u_int			bpi_throttle_cnt;	///< Count the number of people who want to throttle me.
-  int64_t		bpi_tell;		///< Where we are in the stream.
-#ifdef BK_USING_PTHREADS
-  pthread_mutex_t	bpi_lock;		///< Lock on bpi management
-#endif /* BK_USING_PTHREADS */
-};
-
-
-#define POLLING_IOH_RUN(bpi)	((bpi)->bpi_ioh->ioh_run)
-#define POLLING_IOH_FDOUT(bpi)	((bpi)->bpi_ioh->ioh_fdout)
 
 
 #ifdef BK_USING_PTHREADS
