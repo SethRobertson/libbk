@@ -1,3 +1,8 @@
+2003-12-29  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* src/bttcp.c (relay_finish): new gcc allows inline declaration of
+	newfd variable, a la C++, but old gcc [or ANSI C] does not
+
 2003-12-29  Seth Robertson  <seth@buscemi.sysdetect.com>
 
 	* lib/b_relay.c (bk_relay_iohhandler): Allow user callback to

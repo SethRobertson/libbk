@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.42 2003/12/29 19:53:40 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.43 2003/12/30 00:29:19 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -794,12 +794,14 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
     // <TRICKY>Assumption about data read and callback order</TRICKY>
     if (pc->pc_stats.side[0].birs_readbytes >= pc->pc_translimit)
     {						// Implement artificial EOF
-      // This is a stupid hack to get an EOF in there...switch the FD from underneath the IOH
+      int newfd;
+      // stupid hack to get an EOF...switch the FD from underneath the IOH
       close(pc->pc_fdin);
-      int newfd = open(_PATH_DEVNULL, O_RDONLY, 0666);
+      newfd = open(_PATH_DEVNULL, O_RDONLY, 0666);
       if (newfd < 0)
       {
-	bk_error_printf(B, BK_ERR_ERR, "Good grief!  %s is missing or bad: %s\n", _PATH_DEVNULL, strerror(errno));
+	bk_error_printf(B, BK_ERR_ERR, "Good grief! Cannot open %s: %s\n",
+			_PATH_DEVNULL, strerror(errno));
 	BK_VRETURN(B);
       }
       if (newfd != pc->pc_fdin)
