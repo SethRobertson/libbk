@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.21 2003/05/14 21:44:21 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.22 2003/05/14 21:59:54 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -241,6 +241,8 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
   // Nuke everything from the cached read list
   while (pid = pidlist_minimum(bpi->bpi_data))
   {
+    if (pidlist_delete(bpi->bpi_data, pid) != DICT_OK)
+      break;
     pid_destroy(B, pid);
   }
 
