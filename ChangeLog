@@ -1,3 +1,7 @@
+2004-07-14  Seth Robertson  <seth@cheviot.sysdetect.com>
+
+	* lib/b_ioh.c (check_follow): Don't follow if we are canceled.
+
 2004-07-12  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_strconv.c (bk_string_atou64_int): Allow caller to force base.

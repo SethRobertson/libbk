@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.107 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.108 2004/07/15 03:06:36 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -56,7 +56,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #define IOH_COMPRESS_BLOCK_SIZE	32768	///< Basic block size to use in compression.
 
-/* 
+/*
  * Shutdown only woks on full duplex (eg. network) descriptors. Others have to be closed.
  */
 #define BK_IOH_SHUTDOWN(i,h)			\
@@ -4776,6 +4776,7 @@ check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct stat st;
+  int iscancelled;
 
   if (!ioh)
   {
@@ -4799,10 +4800,11 @@ check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     ioh->ioh_size = st.st_size;
   }
 
-  if (ioh->ioh_size == ioh->ioh_tell)
+  iscancelled = bk_ioh_is_canceled(B, ioh, 0) || bk_run_fd_is_closed(B, ioh->ioh_run, ioh->ioh_fdin);
+  if (ioh->ioh_size == ioh->ioh_tell && !iscancelled)
   {
     // Wtihdraw from read set
-    bk_debug_printf_and(B,1,"Checking if read allowed for follow...NO\n");
+    bk_debug_printf_and(B,1,"Checking if read allowed for follow...NO (cancelled %d/%p)\n", iscancelled, ioh);
 
     if (bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0) < 0)
     {
@@ -4820,7 +4822,7 @@ check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   else
   {
     // Allow reads again.
-    bk_debug_printf_and(B,1,"Checking if read allowed for follow...YES\n");
+    bk_debug_printf_and(B,1,"Checking if read allowed for follow...YES (cacnelled %d)\n", iscancelled);
 
     if (bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 1, BK_RUN_WANTREAD, 0) < 0)
     {
