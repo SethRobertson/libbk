@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.1 2001/11/15 22:19:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.2 2001/11/15 22:52:06 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -50,6 +50,7 @@ static int net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_net
 static void net_init_finish(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, struct timeval startime);
 static int addrgroup_apply(bk_s B, struct addrgroup_state *as, bk_addrgroup_result_t result);
 static void connect_timeout(bk_s B, struct bk_run *run, void *args, struct timeval starttime, bk_flags flags);
+static int do_net_init_af_inet(bk_s B, struct addrgroup_state *as);
 
 
 
@@ -189,7 +190,7 @@ as_destroy(bk_s B, struct addrgroup_state *as)
  *	@param callback Function to call when whatever job @a bk_net_init needs to do is done.
  *	@param args User args returned to @a callback.
  *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
+ *	@return new socket on success.
  */
 int
 bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_t callback, void *args)
@@ -197,6 +198,7 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_addrgroup *bag=NULL;		/* address group state */
   struct addrgroup_state *as=NULL;		/* my local state */
+  int ret;
 
   if (!(local || remote) || !run)
   {
@@ -216,7 +218,6 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
   as->as_args=args;
   as->as_timeout=timeout;
   as->as_run=run;
-
   
   /* This function also sets some of bag's fields */
   if (net_init_check_sanity(B, local, remote, bag) < 0)
@@ -225,14 +226,31 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
     goto error;
   }
 
+  switch(bag->bag_type)
+  {
+  case BK_NETINFO_TYPE_INET:
+  case BK_NETINFO_TYPE_INET6:
+    ret=do_net_init_af_inet(B, as);
+    break;
+  case BK_NETINFO_TYPE_LOCAL:
+    ret=do_net_init_af_local(B, as);
+    break;
+  case BK_NETINFO_TYPE_ETHER:
+    bk_error_printf(B, BK_ERR_ERR, "Ether type not supported\n");
+    goto error;
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown netinfo type: %d\n", bag->bag_type);
+    goto error;
+  }
+#if 0
   if (remote) bk_netinfo_reset_primary_address(B,remote);
   if (addrgroup_apply(B,as, BK_ADDRGROUP_RESULT_FLAG_OK)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not perform required network operations\n");
     goto error;
   }
-
-  BK_RETURN(B,0);
+#endif
+  BK_RETURN(B,ret);
 
  error:
   /* 
@@ -242,6 +260,82 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
    */
   if (as) as_destroy(B,as);
   BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Initialize the network in the AF_INET/AF_INET6 way.
+ *	@param B BAKA thread/global state.
+ *	@param as @a addrgroup_state.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return new socket on success.
+ */
+static int
+do_net_init_af_inet(bk_s B, struct addrgroup_state *as)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_addrgroup *bag;
+  int ret;
+
+  if (!as)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  bag=&as->as_bag;
+
+  switch (bag->bag_proto)
+  {
+  case IPPROTO_TCP:
+    ret=do_net_init_af_inet_tcp(B, as);
+    break;
+  case IPPROTO_UDP:
+    /*ret=do_net_init_af_inet_udp(B, as);*/
+    break;
+  }
+
+  BK_RETURN(B,ret);
+
+ error:
+  BK_RETURN(B,-1);
+  
+}
+
+
+
+/**
+ * Initialize TCP (connect or listen).
+ *	@param B BAKA thread/global state.
+ *	@param as @a addrgroup_state information.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return new socket on success.
+ */
+static int
+do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_addrgroup *bag;
+  
+  if (!as)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  bag=as->as_bag;
+
+  if (bag->bag_remote)
+  {
+    ret=do_net_init_af_inet_tcp_connect(B,as);
+  }
+  else
+  {
+    ret=do_net_init_af_inet_tcp_listen(B,as);
+  }
+
+  BK_RETURN(B,ret);
 }
 
 
