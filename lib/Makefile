@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.36 2002/11/11 22:53:58 jtt Exp $
+# $Id: Makefile,v 1.37 2003/02/01 04:23:11 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -56,6 +56,7 @@ BK_LARGE_LIBSRC=		       		\
 		b_thread.c			\
 		b_time.c			\
 		b_url.c				\
+		b_vault.c			\
 # Line eater fodder -- leave
 
 GROUPTOP=..

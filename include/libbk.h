@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.203 2003/01/31 17:35:45 jtt Exp $
+ * $Id: libbk.h,v 1.204 2003/02/01 04:23:10 seth Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1238,6 +1238,29 @@ struct bk_str_id
    
 // @}
 
+
+
+/**
+ * @name BAKA vault (string indexed data storage)
+ */
+// @{
+/**
+ * @name bk_vault_node
+ * This is what the user allocates and destroys for storage of data
+ */
+struct bk_vault_node
+{
+  const char    * const key;			///< Key index of data (const pointer to const data)
+  void          * const value;			///< Value of data being stored (const pointer to variable data)
+};
+
+
+typedef dict_h bk_vault_t;			///< Abbreviation for some vague notion of abstraction...
+// @}
+
+
+
+
 #define bsr_create(o,k,f)	dll_create((o),(k),(f))
 #define bsr_destroy(h)		dll_destroy(h)
 #define bsr_insert(h,o)		dll_insert((h),(o))
@@ -1829,6 +1852,26 @@ extern void bk_child_isigfun(bk_s B, struct bk_run *run, int signum, void *opaqu
 extern int bk_atomic_addition(bk_s B, struct bk_atomic_cntr *bac, int delta, int *result, bk_flags flags);
 extern int bk_atomic_add_init(bk_s B, struct bk_atomic_cntr *bac, int start, bk_flags flags);
 #endif /* BK_USING_PTHREADS */
+
+
+/* b_vault.c */
+extern bk_vault_t bk_vault_create(bk_s B, int table_entries, int bucket_entries, bk_flags flags);
+#define bk_vault_destroy(h)		ht_destroy(h)
+#define bk_vault_insert(h,o)		ht_insert((h),(o))
+#define bk_vault_insert_uniq(h,n,o)	ht_insert_uniq((h),(n),(o))
+#define bk_vault_append(h,o)		ht_append((h),(o))
+#define bk_vault_append_uniq(h,n,o)	ht_append_uniq((h),(n),(o))
+#define bk_vault_search(h,k)		ht_search((h),(k))
+#define bk_vault_delete(h,o)		ht_delete((h),(o))
+#define bk_vault_minimum(h)		ht_minimum(h)
+#define bk_vault_maximum(h)		ht_maximum(h)
+#define bk_vault_successor(h,o)		ht_successor((h),(o))
+#define bk_vault_predecessor(h,o)	ht_predecessor((h),(o))
+#define bk_vault_iterate(h,d)		ht_iterate((h),(d))
+#define bk_vault_nextobj(h,i)		ht_nextobj((h),(i))
+#define bk_vault_iterate_done(h,i)	ht_iterate_done((h),(i))
+#define bk_vault_error_reason(h,i)	ht_error_reason((h),(i))
+
 
 
 #endif /* _BK_h_ */

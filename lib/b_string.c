@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.75 2003/01/31 17:35:46 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.76 2003/02/01 04:23:11 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -61,6 +61,8 @@ static void bsre_destroy(bk_s B, struct bk_str_registry_element *bsre);
  * Not covered under the LGPL
  *
  * No 'B' passed in so that this can be used in CLC comparison functions.
+ * (Huh?  That doesn't make sense.  The API is different.  SJR admits that
+ * that it doesn't need it, but the argument made here is just *wrong*)
  *	
  * THREADS: MT-SAFE
  *	
