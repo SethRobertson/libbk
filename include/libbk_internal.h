@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.33 2003/02/08 01:57:17 dupuy Exp $
+ * $Id: libbk_internal.h,v 1.34 2003/03/07 20:29:41 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -75,6 +75,10 @@ struct bk_ioh
   void		       *ioh_readallowedevent;	///< Event to schedule user queue drain after readallowed
   int			ioh_compress_level;	///< The level to use for compression
   int			ioh_errno;		///< Last errno for this ioh
+  off_t			ioh_size;		///< The size of the resource (for "follow" mode).
+  off_t			ioh_tell;		///< My current position in the stream.
+  int			ioh_follow_pause;	///< Time to wait between fstat(2)'s in follow mode.
+  void *		ioh_recheck_event;	///< Event handle for recheck event.
   bk_flags		ioh_extflags;		///< Flags--see libbk.h
   bk_flags		ioh_intflags;		///< Flags
 #define IOH_FLAGS_SHUTDOWN_INPUT	0x01	///< Input shut down
@@ -105,9 +109,9 @@ struct bk_polling_io
 #define BPI_FLAG_SAW_EOF		0x8	///< We have seen EOF.
 #define BPI_FLAG_DONT_DESTROY		0x10	///< Tell io hander not destroy bpi.
 #define BPI_FLAG_IOH_DEAD		0x20	///< Bpi not destroyed, ioh was
+  u_int			bpi_size;		///< Amount of data I'm buffering.
   dict_h		bpi_data;		///< Queue of data vptrs.
   struct bk_ioh *	bpi_ioh;		///< Ioh structure.
-  u_int			bpi_size;		///< Amount of data I'm buffering.
   u_int			bpi_throttle_cnt;	///< Count the number of people who want to throttle me.
   int64_t		bpi_tell;		///< Where we are in the stream.
 };

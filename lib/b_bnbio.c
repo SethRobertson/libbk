@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.17 2003/02/08 01:57:17 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.18 2003/03/07 20:29:42 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -161,7 +161,9 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t ti
   if (timeout)
     bnbio_set_timeout(B, bib, 0, 0);
 
-  if (bk_iohh_bnbio_is_timedout(B, bib) || is_canceled)
+  // Check for timeout unless we miraculously found some data
+  // <WARNING> The check for data was a late change. It might not be correct in all cases </WARNING>
+  if (!*datap && (bk_iohh_bnbio_is_timedout(B, bib) || is_canceled))
   {
     if (is_canceled)
       bk_error_printf(B, BK_ERR_WARN, "Blocking NBIO read was canceled\n");

@@ -1,3 +1,20 @@
+2003-03-07  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_run.c (bk_run_event_comparator): Priority queues want
+	*BOOLEAN* *NOT* tri-state comparators.
+
+	* lib/b_ioh.c (bk_ioh_init): Initialization for follow mode.
+	(ioh_runhandler): Check if we run out of data in follow mode.
+	(check_follow): Function to determine (when in follow mode)
+	whether we need to wait for new data or to proceed if new data
+	have arrived.
+
+2003-03-07  James Tanis  <jtt@hawking.sysdetect.com>
+
+	* lib/b_bnbio.c (bk_iohh_bnbio_read): If we've timed out but
+	miraculously found some data at the last instant, do not count the
+	round as a timeout.
+
 2003-02-28  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_strcode.c (bk_string_str2xml): Allocate enough memory to

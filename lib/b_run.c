@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.35 2003/02/08 01:57:17 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.36 2003/03/07 20:29:43 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1383,7 +1383,9 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wa
  */
 static int bk_run_event_comparator(struct br_equeue *a, struct br_equeue *b)
 {
-  return(BK_TV_CMP(&a->bre_when,&b->bre_when));
+  if (BK_TV_CMP(&a->bre_when,&b->bre_when) <= 0)
+    return(1);
+  return(0);
 }
 
 

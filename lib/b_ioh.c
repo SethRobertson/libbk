@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.68 2002/11/18 19:17:03 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.69 2003/03/07 20:29:43 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -143,6 +143,8 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
 static struct ioh_data_cmd *idc_create(bk_s B);
 static void idc_destroy(bk_s B, struct ioh_data_cmd *idc);
 static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
+static void check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+static void recheck_follow(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
 
 
 
@@ -248,6 +250,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
   int tmp;
   bk_iorfunc_f readfun = bk_ioh_stdrdfun;
   bk_iowfunc_f writefun = bk_ioh_stdwrfun;
+  struct stat st;
 
   if ((fdin < 0 && fdout < 0) || !run)
   {
@@ -289,6 +292,13 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
     bk_error_printf(B, BK_ERR_ERR, "Must have exactly one input type in flags (STREAM)\n");
     BK_RETURN(B, NULL);
   }
+
+  if (BK_FLAG_ISSET(flags, BK_IOH_FOLLOW) && (fdin < 0))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Follow mode may only be used when reading\n");
+    BK_FLAG_CLEAR(flags, BK_IOH_FOLLOW);
+  }
+    
 
   if (!BK_CALLOC(curioh))
   {
@@ -357,6 +367,31 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
   else
   {
     BK_FLAG_SET(curioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT);
+  }
+
+  if (bk_string_atou(B, BK_GWD(B, "bk_follow_pause", "1"), &curioh->ioh_follow_pause, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert follow pause interval\n");
+    goto error;
+  }
+
+  // Sigh we'ree going to stat in check_follow() too, but how often ib bk_ioh_init() called really?
+  if (BK_FLAG_ISSET(flags, BK_IOH_FOLLOW))
+  {
+    if (fstat(fdin, &st) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not stat input descriptor: %s\n", strerror(errno));
+      goto error;
+    }
+
+    if (!S_ISREG(st.st_mode))
+    {
+      bk_error_printf(B, BK_ERR_WARN, "We can only follow a regular file. Rejecting follow mode\n");
+      BK_FLAG_CLEAR(flags, BK_IOH_FOLLOW);
+
+    }
+    else
+      check_follow(B, curioh, 0);
   }
 
   bk_debug_printf_and(B, 1, "Created IOH %p for fds %d %d\n",curioh,fdin, fdout);
@@ -985,6 +1020,13 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
   }
   BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_DESTROYING);
 
+  if (ioh->ioh_recheck_event &&
+      (bk_run_dequeue(B, ioh->ioh_run, ioh->ioh_recheck_event, 0) < 0))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Could not remove follow mode recheck event from event queue\n");
+    // Forge on
+  }
+
   // Remove from RUN level
   if (ioh->ioh_fdin >= 0)
     bk_run_close(B, ioh->ioh_run, ioh->ioh_fdin, 0);
@@ -1240,9 +1282,13 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Unknown message format type %x\n",ioh->ioh_extflags);
 	}
+	
+	if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_FOLLOW))
+	  check_follow(B, ioh, 0);
       }
     }
   }
+
 
   if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_CLOSE_PENDING))
   {
@@ -2799,11 +2845,13 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
     BK_RETURN(B,-1);
   }
 
-  bk_debug_printf_and(B, 1, "Internal read IOH %p of %d bytes\n", ioh, len);
+  bk_debug_printf_and(B, 1, "Internal read IOH %p (filedes: %d) of %d bytes\n", ioh, fd, len);
 
-  // Worry about non-stream protocols--somehow
   ret = (*ioh->ioh_readfun)(B, ioh, ioh->ioh_iofunopaque, fd, data, len, flags);
   ioh->ioh_errno = errno;
+  
+  if (ret > 0)
+    ioh->ioh_tell += ret;
 
   BK_RETURN(B,ret);
 }
@@ -3074,7 +3122,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
 /**
  * Standard read() functionality in IOH API
  *
- *	@param B BAKA Thread/global state
+ *	@param B BAKA Thread/global stateid
  *	@param ioh The ioh to use (may be NULL for those not including libbk_internal.h)
  *	@param opaque Common opaque data for read and write funs
  *	@param fd File descriptor
@@ -3838,4 +3886,111 @@ bk_ioh_last_error(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   }
 
   BK_RETURN(B, ioh->ioh_errno);
+}
+
+
+
+
+/**
+ * Check if an ioh in follow mode is at the end of the line. If so, remove
+ * it from the read set, and enqueue an event to check again after a short
+ * pause. If it's not at the end of the line insert it in the read set
+ * (yikes!) and update the ioh stat info.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ioh The ioh to check.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static void
+check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct stat st;
+
+  if (!ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  // <WARNING> make sure the follow flag is set for this ioh before calling check_follow()</WARNING>
+  /*
+   * If the former size of the file is equal to the our location int the
+   * stream look for file growth.
+   */
+  if (ioh->ioh_size == ioh->ioh_tell)
+  {
+    if (fstat(ioh->ioh_fdin, &st) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not stat input file descriptor: %s\n", strerror(errno));
+      goto error;
+    }
+    
+    ioh->ioh_size = st.st_size;
+  }
+
+  if (ioh->ioh_size == ioh->ioh_tell)
+  {
+    // Wtihdraw from read set
+    bk_debug_printf_and(B,1,"Checking if read allowed for follow...NO\n");
+    
+    if (bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not withdraw fdin from read set\n");
+      goto error;
+    }
+
+    // Enqueue event to recheck after a short delay.
+    if (bk_run_enqueue_delta(B, ioh->ioh_run, BK_SECS_TO_EVENT(ioh->ioh_follow_pause), recheck_follow, ioh, &ioh->ioh_recheck_event, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not enqueue event to recheck the file size in follow mode\n");
+      goto error;
+    }
+  }
+  else
+  {
+    // Allow reads again.
+    bk_debug_printf_and(B,1,"Checking if read allowed for follow...YES\n");
+    
+    if (bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 1, BK_RUN_WANTREAD, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not insert fdin into read set\n");
+      goto error;
+    }
+  }
+
+ error:
+  BK_VRETURN(B);  
+}
+
+
+
+
+
+/**
+ * Event handler to recheck the size of the follow in follow mode.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static void
+recheck_follow(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ioh *ioh = (struct bk_ioh *)opaque;
+
+  if (!run || !ioh)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  ioh->ioh_recheck_event = NULL;
+  
+  check_follow(B, ioh, 0);
+  BK_VRETURN(B);  
 }
