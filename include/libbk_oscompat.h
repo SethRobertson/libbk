@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.38 2003/04/16 14:43:26 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.39 2003/04/18 11:31:38 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -21,6 +21,10 @@
 /* #undef HAVE_CONSTRUCTOR_ATTRIBUTE */
 #undef HAVE_INIT_PRAGMA
 #endif
+
+#ifndef HAVE_SOCKLEN_T
+typedef unsigned int socklen_t;
+#endif /* HAVE_SOCKLEN_T */
 
 
 // Parentheses prevent string concatenation which __func__ may not support

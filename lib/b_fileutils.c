@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.17 2003/04/16 23:39:53 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.18 2003/04/18 11:31:38 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -805,7 +805,7 @@ bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags)
 #if (defined makedev && defined NODEV)
   int i = 8 * sizeof(long long);
   unsigned long long major = (unsigned long long) -1;
-  unsigned long long minor_mask;
+  long long minor_mask;
 #endif // defined mkdev && defined NODEV
 
   if (fstat(fd, &st) < 0)
