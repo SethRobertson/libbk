@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.71 2003/01/20 23:37:22 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.72 2003/01/23 19:58:32 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -33,13 +33,12 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #define S_SQUOTE		0x1		///< In single quote 
 #define S_DQUOTE		0x2		///< In double quote 
-#define S_VARIABLE		0x4		///< In variable 
+#define S_VARIABLE		0x4		///< In $variable (saw at least $)
 #define S_BSLASH		0x8		///< Backslash found 
 #define S_BSLASH_OCT		0x10		///< Backslash octal 
 #define S_SPLIT			0x20		///< In split character 
 #define S_BASE			0x40		///< Base state 
-#define S_VARIABLE		0x80		///< In $variable (saw at least $)
-#define S_VARIABLEDELIM		0x100		///< In ${variable} (saw at least ${)
+#define S_VARIABLEDELIM		0x80		///< In ${variable} (saw at least ${)
 #define INSTATE(x)		(state & (x))	///< Are we in this state 
 #define GOSTATE(x)		state = x	///< Become this state  
 #define ADDSTATE(x)		state |= x	///< Superstate (typically variable in dquote) 
@@ -1984,3 +1983,58 @@ static ht_val bsr_oo_cmp(struct bk_str_registry_element *a, struct bk_str_regist
 {
   return(a->bsre_id - b->bsre_id);
 }
+
+
+
+/**
+ * Return string with variables expanded, optionally freed.  Allows backslash quoting ala
+ * BK_STRING_TOKENIZE_BACKSLASH.
+ *
+ * @param B Baka Thread/global environment
+ * @param src Source string
+ * @param kvht_vardb Key Value hash table for variables
+ * @param envdb environ(5) style environment
+ * @param flags BK_STRING_EXPAND_FREE to free source string (whether successful or not!!!)
+ * @return <b>NULL</b> on call failure, allocation failure
+ * @return <br><b>expanded string</b> on success
+ */
+char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **envdb, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *ret = NULL;
+  char **tokens = NULL;
+
+  if (!src || (!kvht_vardb && !envdb))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    goto error;
+  }
+
+  if (!(tokens = bk_string_tokenize_split(B, src, 1, NULL, kvht_vardb, envdb, BK_STRING_TOKENIZE_BACKSLASH)) ||
+      !(ret = tokens[0]))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Tokenization couldn't perform actual expansion\n");
+    goto error;
+  }
+  tokens[0] = NULL;				// <TRICKY>Preserve contents across destroy</TRICKY>
+  bk_string_tokenize_destroy(B, tokens);
+
+  if (BK_FLAG_ISSET(flags, BK_STRING_EXPAND_FREE))
+    free(src);
+
+  BK_RETURN(B, ret);
+
+ error:
+  if (BK_FLAG_ISSET(flags, BK_STRING_EXPAND_FREE))
+    free(src);
+
+  if (tokens)
+    bk_string_tokenize_destroy(B, tokens);
+
+  if (ret)
+    free(ret);
+
+  BK_RETURN(B, NULL);
+}
+
+ 
