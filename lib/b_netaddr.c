@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.8 2002/01/11 10:06:05 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.9 2002/01/11 10:14:30 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -359,7 +359,7 @@ update_bna_pretty(bk_s B, struct bk_netaddr *bna)
   switch (bna->bna_type)
   {
   case BkNetinfoTypeInet:
-    snprintf(scratch, SCRATCHLEN, "<AF_INET,%%u.%u.%u.%u>",
+    snprintf(scratch, SCRATCHLEN, "<AF_INET,%u.%u.%u.%u>",
 	     ((unsigned char *)&bna->bna_inet)[0],
 	     ((unsigned char *)&bna->bna_inet)[1],
 	     ((unsigned char *)&bna->bna_inet)[2],
