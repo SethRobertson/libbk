@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.17 2003/12/29 06:42:17 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.18 2004/01/05 19:26:38 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1013,7 +1013,7 @@ char *bk_string_magnitude(bk_s B, double number, u_int precision, char *units, c
     powerstr[0] = 0;
   powerstr[1] = 0;
 
-  snprintf(buffer, buflen, "%.*f %s%s", precision, comparison, powerstr, units);
+  snprintf(buffer, buflen, "%.*f %s%s", (int)precision, comparison, powerstr, units);
 
   BK_RETURN(B, buffer);
 
@@ -1050,14 +1050,22 @@ double bk_string_demagnify(bk_s B, const char *number, bk_flags flags)
   if (!number)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+#ifdef FP_NAN
     BK_RETURN(B, FP_NAN);
+#else /* FP_NAN */
+    BK_RETURN(B, sqrt(-1));
+#endif /* FP_NAN */
   }
 
   ret = strtod(number, &endptr);
   if (endptr == number)
   {
     bk_error_printf(B, BK_ERR_ERR, "No number foun d in %s\n", number);
+#ifdef FP_NAN
     BK_RETURN(B, FP_NAN);
+#else /* FP_NAN */
+    BK_RETURN(B, sqrt(-1));
+#endif /* FP_NAN */
   }
 
   // Allow one space between number and scale
@@ -1083,5 +1091,9 @@ double bk_string_demagnify(bk_s B, const char *number, bk_flags flags)
   }
 
   bk_error_printf(B, BK_ERR_ERR, "No valid magnitude found in %s (%c)\n", number, *endptr);
+#ifdef FP_NAN
   BK_RETURN(B, FP_NAN);
+#else /* FP_NAN */
+  BK_RETURN(B, sqrt(-1));
+#endif /* FP_NAN */
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.18 2003/06/18 03:57:31 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.19 2004/01/05 19:26:38 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -592,7 +592,7 @@ static void *bk_thread_continue(void *opaque)
 
 #ifdef HAVE_PTHREAD_SET_NAME_NP
   // what the hell, might as well...
-  pthread_set_name_np(pthread_self(), BK_BT_THREADNAME(B));
+  pthread_set_name_np(pthread_self(), (char *)BK_BT_THREADNAME(B));
 #endif
 
   pthread_cleanup_push(bk_thread_cleanup, B);

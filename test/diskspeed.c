@@ -478,15 +478,15 @@ void print_timer(int style, unsigned long long bytes, struct timer_info *diffT)
     {
       fputs("\n\n",stderr);
 
-      fprintf(stderr,"%s: %9lg bytes %s\n", prog, (double)bytes, fio[style & WRITE] );
-      fprintf(stderr,"%9.3lf  CPU sec  = %9lg KB/ cpu sec,  %9lg Kbits/ cpu sec\n",
+      fprintf(stderr,"%s: %9g bytes %s\n", prog, (double)bytes, fio[style & WRITE] );
+      fprintf(stderr,"%9.3f  CPU sec  = %9g KB/ cpu sec,  %9g Kbits/ cpu sec\n",
 	       ss, bpss / 1024.0, bpss * 8.0 / 1024.0);
-      fprintf(stderr,"%9.3lf real sec  = %9lg KB/real sec,  %9lg Kbits/real sec\n",
+      fprintf(stderr,"%9.3f real sec  = %9g KB/real sec,  %9g Kbits/real sec\n",
 	       rs, bprs / 1024.0, bprs * 8.0 / 1024.0);
     }
   else
     {
-      fprintf(stderr,"%s %s: %9.0lf bytes in %9.3lf seconds: %9.2lf KB/sec\n",
+      fprintf(stderr,"%s %s: %9.0f bytes in %9.3f seconds: %9.2f KB/sec\n",
 	      prog,io[style & WRITE], (double)bytes, rs, bprs / 1024.0);
     }
 }

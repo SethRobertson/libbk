@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_fun.c,v 1.8 2003/06/17 06:07:19 seth Exp $";
+static const char libbk__rcsid[] = "$Id: test_fun.c,v 1.9 2004/01/05 19:26:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -68,7 +68,7 @@ main(int argc, char **argv, char **envp)
   const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
-    {"syslog-level", 's', POPT_ARG_INT|POPT_ARGFLAG_OPTIONAL, NULL, 's', "Syslog level (default 0=debug)", NULL },
+    {"syslog-level", 's', POPT_ARG_INT, NULL, 's', "Syslog level (default 0=debug)", NULL },
     {"no-seatbelts", 'n', POPT_ARG_NONE, NULL, 'n', "Sealtbelts off & speed up", NULL },
     POPT_AUTOHELP
     POPT_TABLEEND

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.18 2003/12/30 05:27:21 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.19 2004/01/05 19:26:38 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,7 +23,14 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+// Declaration of openpty
+#ifdef HAVE_PTY_H
 #include <pty.h>
+#endif /* HAVE_PTY_H */
+#ifdef HAVE_UTIL_H
+#include <util.h>
+#endif /* HAVE_UTIL_H */
 
 
 #ifdef BK_USING_PTHREADS

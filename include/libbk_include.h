@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.36 2003/12/25 06:27:16 seth Exp $
+ * $Id: libbk_include.h,v 1.37 2004/01/05 19:26:37 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -147,6 +147,15 @@
 #include <dmalloc.h>
 #endif /* USING_DMALLOC */
 
+
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif /* !HAVE_SYS_IOCTL_H */
+#ifdef HAVE_SYS_FILIO_H
+# include <sys/filio.h>
+#endif/* !HAVE_SYS_FILIO_H */
+
+
 #ifdef REALLY_NEEDED
 /*
  * all of this isn't being used (yet) and it is unclear if it will ever be
@@ -154,16 +163,6 @@
 
 #include <arpa/nameser.h>
 #include <resolv.h>
-
-/* add autoconf entries for these headers if they are really needed */
-#ifdef HAVE_SYS_IOCTL_H
-# include <sys/ioctl.h>
-#else  /* !HAVE_SYS_IOCTL_H */
-# ifdef HAVE_SYS_FILIO_H
-#  include <sys/filio.h>
-# endif/* !HAVE_SYS_FILIO_H */
-#endif /* !HAVE_SYS_IOCTL_H */
-
 #endif /* REALLY NEEDED */
 
 #ifdef BK_USING_PTHREADS

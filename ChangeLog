@@ -1,3 +1,17 @@
+2004-01-05  Seth Robertson  <seth@not.baka.org>
+
+	* lib/b_thread.c (bk_thread_continue): Const incorrect.
+
+	* lib/b_strconv.c (bk_string_demagnify): Not everyone has FP_NAN
+	defined.  If not, then return sqrt(-1) (i.e. NaN).
+
+	* include/libbk_include.h: Include sys/ioctl.h and sys/filio.h when
+	appropriate.
+
+	* lib/b_ioh.c (bk_ioh_fdctl): Signed/unsigned error.  Cast.
+
+	* lib/b_exec.c: Make finding declaration of openpty portable
+
 2003-12-29  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* src/bttcp.c (relay_finish): new gcc allows inline declaration of

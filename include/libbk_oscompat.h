@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.43 2003/06/17 06:07:16 seth Exp $
+ * $Id: libbk_oscompat.h,v 1.44 2004/01/05 19:26:37 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -222,6 +222,11 @@ struct timespec
 #ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>
 #else  /* no struct ether_addr */
+#ifdef HAVE_NETINET_IF_ETHER_H
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <netinet/if_ether.h>
+#else /* HAVE_NETINET_IF_ETHER_H */
 struct ether_addr
 {
   u_int8_t ether_addr_octet[6];
@@ -230,6 +235,7 @@ struct ether_addr
 __attribute__ ((__packed__))
 #endif /* __GNUC__ */
 ;
+#endif /* HAVE_NETINET_IF_ETHER_H */
 #endif /* HAVE_NETINET_ETHER_H */
 #endif /* HAVE_NET_ETHERNET_H */
 
@@ -379,5 +385,10 @@ extern char **environ;
 # define BK_SETENV(B, variable, value, overwrite)	(bk_setenv_with_putenv(B, variable, value, overwrite))
 # define BK_UNSETENV(B, variable)			(putenv(variable))
 #endif /* HAVE_SETENV */
+
+// Old versions of popt.  Sigh.
+#ifndef POPT_TABLEEND
+#define POPT_TABLEEND { NULL, '\0', 0, 0, 0, NULL, NULL }
+#endif /* POPT_TABLEEND */
 
 #endif /* _libbk_oscompat_h_ */

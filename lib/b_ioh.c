@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.103 2003/12/09 23:11:12 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.104 2004/01/05 19:26:38 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1780,7 +1780,7 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
        * we turn it off, so we have to stash this into savestate.  To make it
        * fit in the upper 16 bits of savestate, we bound it to 2^16-1.
        */
-      linger = MIN(sling.l_linger, USHRT_MAX);
+      linger = MIN((int)sling.l_linger, (int)USHRT_MAX);
       sling.l_onoff = 0;
       *savestate |= (linger << 16) | IOH_NUKED_LINGER;
     }
