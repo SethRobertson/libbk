@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.28 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.29 2004/12/22 22:46:39 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -551,10 +551,14 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, const char *buf)
   if (bdinfo->bd_fh)
   {
     char timeprefix[40];
-    char fullprefix[40];
-    time_t curtime = time(NULL);
+    char fullprefix[60];
+    struct timeval tv;
     struct tm tm;
-    localtime_r(&curtime, &tm);			// <TODO>Does this need to be autoconf'd</TODO>
+    struct bk_debugnode *node;
+
+    gettimeofday(&tv, NULL);
+    localtime_r(&tv.tv_sec, &tm); // <TODO>Does this need to be autoconf'd</TODO>
+
 
     /* <WARNING>this check should really be done with assert</WARNING> */
     if ((tmp = strftime(timeprefix, sizeof(timeprefix), "%m/%d %H:%M:%S", &tm)) != 14)
@@ -563,6 +567,10 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, const char *buf)
 		      BK_FUNCNAME, tmp);
       return;
     }
+
+    // If this function has debugging turned on, move to subsecond timestamps
+    if (node = debug_search(bdinfo->bd_leveldb, (char *)__FUNCTION__))
+      snprintf(timeprefix+strlen(timeprefix), sizeof(timeprefix)-strlen(timeprefix), ".%06ld", tv.tv_usec);
 
     if (BK_GENERAL_PROGRAM(B))
       snprintf(fullprefix, sizeof(fullprefix), "%s %s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), (int)getpid());

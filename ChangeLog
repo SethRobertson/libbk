@@ -1,3 +1,8 @@
+2004-12-22  Seth Robertson  <seth@blue.sysdetect.com>
+
+	* lib/b_debug.c (bk_debug_iprint): If you enable bk_debug_iprint
+	debugging, you will get microsecond debug message accuracy
+
 2004-12-22  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* src/Makefile (LDLIBS): reduce unnecessary library dependencies
