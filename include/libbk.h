@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.107 2002/01/16 15:56:12 jtt Exp $
+ * $Id: libbk.h,v 1.108 2002/01/19 12:42:34 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -582,7 +582,7 @@ do {						\
 	(sum)->tv_usec %= BK_SECSTOUSEC(1);			\
       }								\
 								\
-      if ((sum)->tv_usec <= -BK_SECSTOUSEC(1))		\
+      if ((sum)->tv_usec <= -BK_SECSTOUSEC(1))			\
       {								\
 	(sum)->tv_sec += (sum)->tv_usec / BK_SECSTOUSEC(1);	\
 	(sum)->tv_usec %= -BK_SECSTOUSEC(1);			\
@@ -1198,6 +1198,21 @@ extern int bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, cha
 extern int bk_addrgroup_get_server_socket(bk_s B, void *server_handle);
 extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
 extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
+
+/* b_time.c */
+size_t bk_time_iso_format(bk_s B, char *str, size_t max, struct timeval *timep, bk_flags flags);
+int bk_time_iso_parse(bk_s B, const char *src, struct timeval *dst, bk_flags flags);
+time_t bk_timegm(bk_s B, struct tm *timeptr, bk_flags flags);
+#define BK_TIMEGM_FLAG_NORMALIZE	0x1	///< Normalize struct tm fields
+/*
+ * gmtime() is not reentrant, but if you don't have gmtime_r(), you probably
+ * don't have threads or care about care one whit about that.
+ */
+#ifdef HAVE_gmtime_r
+#define bk_gmtime_r(t,tm) gmtime_r((t),(tm))
+#else
+#define bk_gmtime_r(t,tm) ((tm) ? gmtime(t) : 0)
+#endif  
 
 /* b_url.c */
 extern struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_url_parse_mode_e mode, bk_flags flags);

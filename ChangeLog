@@ -1,3 +1,11 @@
+2002-01-19  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h: declare bk_time_iso_{parse,format}, bk_timegm
+
+	* lib/b_time.c: implement iso 8601 date/time format & parse, timegm
+
+	* lib/Makefile (BK_LARGE_LIBSRC): add b_time.c
+
 2002-01-17  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_pollio.c (polling_io_ioh_handler): Patch up a memory leak

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.8 2002/01/11 10:06:05 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.9 2002/01/19 12:42:34 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -74,7 +74,7 @@ typedef char *caddr_t;
 #	define BK_GET_SOCKADDR_LEN(B,s,l) do { (l)=((struct sockaddr *)(s))->sa_len; }while(0)
 #endif 
 
-#if defined(AF_INET6) && defined(HAVE_inet_pton)
+#if defined(AF_INET6) && defined(HAVE_INET_PTON)
 #define HAVE_INET6
 #endif
 
