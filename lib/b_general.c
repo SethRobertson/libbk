@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.14 2001/09/17 23:14:36 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.15 2001/09/25 08:25:50 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -71,11 +71,13 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
 
   BK_GENERAL_PROGRAM(B) = program;
 
+#if !defined(_WIN32) || defined(__CYGWIN32__)
   if (log_facility && BK_GENERAL_PROGRAM(B))
   {
     openlog(BK_GENERAL_PROGRAM(B), LOG_NDELAY|LOG_PID, log_facility);
     BK_FLAG_SET(BK_GENERAL_FLAGS(B),BK_BGFLAGS_SYSLOGON);
   }
+#endif /* !_WIN32 || __CYGWIN32__ */
 
   return(B);
 
@@ -324,12 +326,14 @@ void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list
   }
   vsnprintf(buffer,BK_SYSLOG_MAXLEN, format, args);
 
+#if !defined(_WIN32) || defined(__CYGWIN32__)
   if (*errorstr == 0 && *parentname == 0)
     syslog(level, "%s",buffer);
   else if (*errorstr == 0)
     syslog(level, "%s: %s",parentname,buffer);
   else
     syslog(level, "%s[%s]: %s",parentname,errorstr,buffer);
+#endif /* !_WIN32 || __CYGWIN32__ */
 
   BK_VRETURN(B);
 }

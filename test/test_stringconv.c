@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.2 2001/09/07 16:24:45 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.3 2001/09/25 08:25:50 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -147,8 +147,8 @@ void progrun(bk_s B, struct program_config *pconfig)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   char line[MAXLINE];
-  u_int32_t uint32;
-  int32_t int32;
+  u_int32_t ui32;
+  int32_t i32;
   int ret;
   int state=0;
 
@@ -164,24 +164,24 @@ void progrun(bk_s B, struct program_config *pconfig)
       switch(state)
       {
       case 0:
-	uint32 = ~0;
-	ret = bk_string_atou(B, line, &uint32, 0);
+	ui32 = ~0;
+	ret = bk_string_atou(B, line, &ui32, 0);
 	if (ret < 0)
-	  printf("bk_string_atou failed with %d -- converted to 0x%x or %u or 0%o\n",ret,uint32,uint32,uint32);
+	  printf("bk_string_atou failed with %d -- converted to 0x%x or %u or 0%o\n",ret,ui32,ui32,ui32);
 	else
-	  printf("Converted to 0x%x or %u or 0%o\n",uint32,uint32,uint32);
+	  printf("Converted to 0x%x or %u or 0%o\n",ui32,ui32,ui32);
 	break;
       case 1:
-	int32 = ~0;
-	ret = bk_string_atoi(B, line, &int32, 0);
+	i32 = ~0;
+	ret = bk_string_atoi(B, line, &i32, 0);
 	if (ret < 0)
-	  printf("bk_string_atoi failed with %d -- converted to 0x%x or %d or 0%o\n",ret,int32,int32,int32);
+	  printf("bk_string_atoi failed with %d -- converted to 0x%x or %d or 0%o\n",ret,i32,i32,i32);
 	else
-	  printf("Converted to 0x%x or %d or 0%o\n",int32,int32,int32);
+	  printf("Converted to 0x%x or %d or 0%o\n",i32,i32,i32);
 	break;
       case 2:
-	uint32 = bk_strhash(line, BK_STRHASH_NOMODULUS);
-	printf("Hashed to 0x%x\n",uint32);
+	ui32 = bk_strhash(line, BK_STRHASH_NOMODULUS);
+	printf("Hashed to 0x%x\n",ui32);
 	break;
       case 3:
 	{
@@ -222,10 +222,10 @@ void progrun(bk_s B, struct program_config *pconfig)
 	    printf("Could not tokenize string\n");
 	    break;
 	  }
-	  int32 = 0;
+	  i32 = 0;
 	  for(cur=tokens;*cur;cur++)
 	  {
-	    printf("  Token %d: ``%s''\n",int32++,*cur);
+	    printf("  Token %d: ``%s''\n",i32++,*cur);
 	  }
 	  break;
 	}

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.4 2001/09/07 16:24:46 dupuy Exp $
+ * $Id: libbk_include.h,v 1.5 2001/09/25 08:25:50 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -25,9 +25,16 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
-#include <syslog.h>
 #include <fcntl.h>
 #include <memory.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <limits.h>
+#if defined(_WIN32) && !defined(__CYGWIN32__)
+#include <winsock.h>		/* for fd_set, etc. */
+#include <process.h>		/* for getpid, etc. */
+#else  /* !_WIN32 || __CYGWIN32__ */
+#include <syslog.h>
 #include <termios.h>
 #include <pwd.h>
 #include <grp.h>
@@ -36,12 +43,9 @@
 #include <sys/file.h>
 #include <sys/wait.h>
 #include <sys/un.h>
-#include <sys/time.h>
-#include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/param.h>
 #include <sys/resource.h>
-#include <limits.h>
 #include <sys/mman.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -49,6 +53,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#endif /* !_WIN32 || __CYGWIN32__ */
 
 #ifdef REALLY_NEEDED
 #include <arpa/nameser.h>
