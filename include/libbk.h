@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.191 2002/11/20 19:38:05 dupuy Exp $
+ * $Id: libbk.h,v 1.192 2002/12/30 20:13:47 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1539,6 +1539,7 @@ extern char *bk_encode_base64(bk_s B, const bk_vptr *str, const char *eolseq);
 extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
 extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
 #define BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT	0x1 ///< Allow non printiable chars (like newlines) in your "xml. string.
+#define BK_STRING_STR2XML_FLAG_EXCLUDE_WHITESPACE 0x2 ///< Allow whitespace to be considered non-printable
 
 /* b_strconv.c */
 extern int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags);

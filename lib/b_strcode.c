@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.7 2002/12/30 19:11:30 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.8 2002/12/30 20:13:47 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -341,14 +341,11 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
   while((c = *str))
   {
     /*
-     * <BUG bugid="963">Allowing space characters to be considered "printable"
-     * prevents the need for sysd_jobstep_status_update to pass in the
-     * long-winded and deadly BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT flag.
-     * This ameliorates, but does not solve, the problem, since libxml will
-     * reject files containing not only a naked ^A, but even an encoded &#x1;.
-     * (The Java dom4j parser is more tolerant of the latter).</BUG>
+     * <BUG bugid="963">Allow the caller to permit all non-printable
+     * characters or just whitespace and needed.</BUG>
      */
-    if (!isprint(c) && !isspace(c) &&
+    if (!isprint(c) && !(isspace(c) && 
+			 BK_FLAG_ISCLEAR(flags, BK_STRING_STR2XML_FLAG_EXCLUDE_WHITESPACE)) &&
 	BK_FLAG_ISCLEAR(flags, BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT))
     {
       char scratch[8];
