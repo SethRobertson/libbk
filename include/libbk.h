@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.51 2001/11/13 06:04:25 seth Exp $
+ * $Id: libbk.h,v 1.52 2001/11/14 01:10:18 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -595,7 +595,6 @@ extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u
 #define BK_RUN_WANTREAD				0x01	///< Specify to bk_run_setpref that we want read notification for this fd
 #define BK_RUN_WANTWRITE			0x02	///< Specify to bk_run_setpref that we want write notification for this fd
 #define BK_RUN_WANTXCPT				0x04	///< Specify to bk_run_setpref that we want exceptional notification for this fd
-
 extern int bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
 extern int bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
@@ -603,6 +602,7 @@ extern int bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime, bk_flags flags), void *opaque, volatile int *demand, void **handle);
 extern int bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
+
 
 /* b_ioh.c */
 typedef int (*bk_iorfunc)(int, caddr_t, __SIZE_TYPE__, bk_flags); ///< read style I/O function for bk_ioh (flags for specialized datagram handling, like peek)
@@ -638,15 +638,13 @@ extern void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 extern void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
 extern int bk_ioh_stdrdfun(int fd, caddr_t buf, __SIZE_TYPE__ size, bk_flags flags);		///< read() when implemented in ioh style
 extern int bk_ioh_stdwrfun(int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags);	///< write() when implemented in ioh style
-
-
+extern int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *outqueue, bk_flags flags);
 
 /* b_stdfun.c */
 extern void bk_die(bk_s B, u_char retcode, FILE *output, char *reason, bk_flags flags);
 extern void bk_warn(bk_s B, FILE *output, char *reason, bk_flags flags);
 #define BK_WARNDIE_WANTDETAILS		1	///< Verbose output of error logs during bk_die/bk_warn
 extern void bk_exit(bk_s B, u_char retcode);
-
 
 
 /* b_string.c */
@@ -693,6 +691,7 @@ extern void bk_servent_destroy(bk_s B, struct servent *s);
 extern int bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args, bk_flags user_flags);
 extern void bk_destroy_hostent(bk_s B, struct hostent *h);
 
+
 /* b_netinfo.c */
 extern struct bk_netinfo *bk_netinfo_create(bk_s B);
 extern void bk_netinfo_destroy(bk_s B, struct bk_netinfo *bni);
@@ -704,6 +703,7 @@ extern int bk_netinfo_update_servent(bk_s B, struct bk_netinfo *bni, struct serv
 extern int bk_netinfo_update_protoent(bk_s B, struct bk_netinfo *bni, struct protoent *p);
 extern int bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h);
 
+
 /* b_netaddr.c */
 extern void bk_netaddr_destroy(bk_s B, struct bk_netaddr *bna);
 extern struct bk_netaddr *bk_netaddr_user(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags flags);
@@ -711,7 +711,6 @@ extern struct bk_netaddr *bk_netaddr_addrdup (bk_s B, int type, void *addr, bk_f
 extern struct bk_netaddr *bk_netaddr_clone (bk_s B, struct bk_netaddr *obna);
 extern int bk_netaddr_af2nat(bk_s B, int af);
 extern int bk_netaddr_nat2af(bk_s B, int type);
-
 
 
 /* b_servinfo.c */
@@ -724,5 +723,13 @@ extern struct bk_protoinfo *bk_protoinfo_user(bk_s B, char *protoname, int proto
 extern void bk_protoinfo_destroy (bk_s B,struct bk_protoinfo *bsi);
 extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obsi);
 
+
+/* b_signal.c */
+typedef void (*bk_sighandler)(int);
+extern bk_sighandler bk_signal(bk_s B, int signo, bk_sighandler handler, bk_flags flags);
+
+
+/* b_relay.c */
+int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb)(bk_s B, void *opaque, u_int state), void *opaque, bk_flags flags);
 
 #endif /* _BK_h_ */

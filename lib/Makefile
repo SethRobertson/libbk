@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.17 2001/11/12 19:15:45 jtt Exp $
+# $Id: Makefile,v 1.18 2001/11/14 01:10:18 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -31,8 +31,10 @@ BK_LARGE_LIBSRC=		       		\
 		b_netaddr.c			\
 		b_netinfo.c			\
 		b_protoinfo.c			\
+		b_relay.c			\
 		b_run.c				\
 		b_servinfo.c			\
+		b_signal.c			\
 		b_stdfun.c			\
 		b_string.c			\
 # Line eater fodder -- leave

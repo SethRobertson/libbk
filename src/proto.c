@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.12 2001/11/13 03:49:28 seth Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.13 2001/11/14 01:10:19 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -108,7 +108,6 @@ main(int argc, char **argv, char **envp)
     switch (c)
     {
     case 'd':
-      bk_debug_setconfig(B, BK_GENERAL_DEBUG(B), BK_GENERAL_CONFIG(B), BK_GENERAL_PROGRAM(B));
       bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);
       bk_debug_printf(B, "Debugging on\n");
       break;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.4 2001/11/13 21:09:28 seth Exp $";
+static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.5 2001/11/14 01:10:19 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,6 +26,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 #define ERRORQUEUE_DEPTH 32			///< Default depth
 #define PORT 4999				///< Port to use for network I/O
+#define CONFFILE	"./test_ioh.conf"	///< Default config file
 
 
 
@@ -35,6 +36,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  */
 struct global_structure
 {
+  u_int		gs_shutdown_cnt;		///< Number of read EOFs we have received
 } Global;
 
 
@@ -63,10 +65,11 @@ struct program_config
 
 
 int proginit(bk_s B, struct program_config *pconfig);
-static void relayer(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in, u_int state_flags);
+static void nullhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in, u_int state_flags);
 static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int fd1out, int fd2in, int fd2out, bk_flags flags);
 static void rmt_acceptor(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime);
 static void address_resolved(bk_s B, struct program_config *pconfig, struct in_addr *himaddr);
+static void donecb(bk_s B, void *opaque, u_int state);
 
 
 
@@ -109,7 +112,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, BK_ERR_ERR, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", CONFFILE), NULL, ERRORQUEUE_DEPTH, BK_ERR_ERR, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -132,7 +135,6 @@ main(int argc, char **argv, char **envp)
     switch (c)
     {
     case 'd':
-      bk_debug_setconfig(B, BK_GENERAL_DEBUG(B), BK_GENERAL_CONFIG(B), BK_GENERAL_PROGRAM(B));
       bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);
       bk_debug_printf(B, "Debugging on\n");
       break;
@@ -219,6 +221,9 @@ int proginit(bk_s B, struct program_config *pconfig)
     bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
     BK_RETURN(B, -1);
   }
+
+  // Nuke those nasty pipes
+  bk_signal(B, SIGPIPE, SIG_IGN, BK_RUN_SIGNAL_RESTART);
 
   // Create run environment
   if (!(pconfig->pc_run = bk_run_init(B, 0)))
@@ -397,110 +402,38 @@ static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int f
     break;
   }
 
-  // Create IOH for network -- note opaque data must be reset
-  if (!(ioh1 = bk_ioh_init(B, fd1in, fd1out, bk_ioh_stdrdfun, bk_ioh_stdwrfun, relayer, ioh2, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, mode)))
+  // Create IOH for network
+  if (!(ioh1 = bk_ioh_init(B, fd1in, fd1out, bk_ioh_stdrdfun, bk_ioh_stdwrfun, nullhandler, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, mode)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid network ioh creation\n");
     bk_die(B,254,stderr,"Could not perform ioh initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 
   // Create IOH for stdio
-  if (!(ioh2 = bk_ioh_init(B, fd2in, fd2out, bk_ioh_stdrdfun, bk_ioh_stdwrfun, relayer, ioh1, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, mode)))
+  if (!(ioh2 = bk_ioh_init(B, fd2in, fd2out, bk_ioh_stdrdfun, bk_ioh_stdwrfun, nullhandler, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, mode)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid network ioh creation\n");
     bk_die(B,254,stderr,"Could not perform ioh initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
-  
-  // Update IOH1 opaque data now that we know it
-  if (bk_ioh_update(B, ioh1, bk_ioh_stdrdfun, bk_ioh_stdwrfun, relayer, ioh2, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, mode) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid network ioh update\n");
-    bk_die(B,254,stderr,"Could not perform mandatory ioh update\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-  }
+
+  bk_relay_ioh(B, ioh1, ioh2, donecb, NULL, 0);
 
   BK_RETURN(B, 0);
 }
 
 
-
-static void relayer(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in, u_int state_flags)
+static void donecb(bk_s B, void *opaque, u_int state)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"IOHTEST");
-  struct bk_ioh *ioh_out = opaque;
-  int cnt = 0;
-  int size = 0;
-  bk_vptr *newcopy = NULL;
 
-  if (!ioh_in || !ioh_out)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
-    BK_VRETURN(B);
-  }
-
-  switch (state_flags)
-  {
-  case BK_IOH_STATUS_INCOMPLETEREAD:
-  case BK_IOH_STATUS_READCOMPLETE:
-    // Coalesce into one buffer for output
-    for (cnt = 0; data[cnt].ptr; cnt++)
-    {
-      size += data[cnt].len;
-    }
-    if (!BK_MALLOC(newcopy))
-      goto error;
-    newcopy->len = size;
-    if (!BK_MALLOC_LEN(newcopy->ptr, newcopy->len))
-      goto error;
-    size = 0;
-    for (cnt = 0; data[cnt].ptr; cnt++)
-    {
-      memcpy((char *)newcopy->ptr + size, data[cnt].ptr, data[cnt].len);
-      size += data[cnt].len;
-    }
-    if (bk_ioh_write(B, ioh_out, newcopy, 0) != 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not write data to output ioh\n");
-      goto error;
-    }
-    BK_VRETURN(B);
-
-  case BK_IOH_STATUS_IOHREADERROR:
-  case BK_IOH_STATUS_IOHREADEOF:
-    // Propagate shutdown to write side of peer
-    bk_ioh_shutdown(B, ioh_out, SHUT_WR, 0);
-    BK_VRETURN(B);
-
-  case BK_IOH_STATUS_IOHWRITEERROR:
-    // Propagate shutdown to read side of peer
-    bk_ioh_shutdown(B, ioh_out, SHUT_RD, 0);
-    BK_VRETURN(B);
-
-  case BK_IOH_STATUS_WRITECOMPLETE:
-  case BK_IOH_STATUS_WRITEABORTED:
-    free(data[cnt].ptr);
-    free(data);
-    BK_VRETURN(B);
-
-  case BK_IOH_STATUS_IOHCLOSING:
-  case BK_IOH_STATUS_IOHABORT:
-  case BK_IOH_STATUS_USERERROR:
-    // Don't care about this
-    BK_VRETURN(B);
-  }
-
-  bk_error_printf(B, BK_ERR_ERR, "Unknown state %d\n",state_flags);
-  BK_VRETURN(B);
-
- error:
-  if (newcopy)
-  {
-    if (newcopy->ptr)
-      free(newcopy->ptr);
-    free(newcopy);
-  }
-  BK_VRETURN(B);
+  bk_exit(B,0);
 }
 
+
+static void nullhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh_in, u_int state_flags)
+{
+  abort();
+}
 
 
 static void address_resolved(bk_s B, struct program_config *pconfig, struct in_addr *himaddr)
@@ -546,5 +479,5 @@ static void address_resolved(bk_s B, struct program_config *pconfig, struct in_a
 
   BK_VRETURN(B);
 }
-
-
+ 
+ 

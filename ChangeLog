@@ -1,5 +1,12 @@
 2001-11-13  Seth Robertson  <seth@startide.sysdetect.com>
 
+	* src/proto.c (main): You must use bk_general_debug_config *in place of*
+	bk_debug_setconfig, not in addition to.
+
+	* lib/b_signal.c (bk_signal): Common interface to async signal handlers
+
+	* lib/b_relay.c: IOH relay code
+
 	* lib/b_ioh.c (ioht_raw_other): Remove data from queue after freeing it.
 	IOH now working (for some value of working) in RAW mode
 	
