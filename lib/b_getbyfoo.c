@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.22 2003/03/19 00:10:35 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.23 2003/04/07 18:43:06 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -674,6 +674,12 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
 	goto error;
       }
     }
+  }
+
+  if (!h)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Hostname lookup failed: %s.\n", hstrerror(h_errno));
+    goto error;
   }
 
   if (copy_hostent(B,&tmp_h,h) < 0)

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.18 2003/03/07 20:29:42 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.19 2003/04/07 18:43:06 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -553,7 +553,7 @@ bk_iohh_bnbio_is_timedout(bk_s B, struct bk_iohh_bnbio *bib)
  *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to use.
- *	@param flags Flags for future use.
+ *	@param flags Flags passed through.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
@@ -567,7 +567,7 @@ bk_iohh_bnbio_cancel_register(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B, bk_polling_io_cancel_register(B, bib->bib_bpi, 0));  
+  BK_RETURN(B, bk_polling_io_cancel_register(B, bib->bib_bpi, flags));  
 }
 
 
@@ -577,7 +577,7 @@ bk_iohh_bnbio_cancel_register(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
  *
  *	@param B BAKA thread/global state.
  *	@param bib The @a bk_iohh_bnbio to unregister.
- *	@param flags Flags for future use.
+ *	@param flags Flags passed through
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
@@ -591,7 +591,7 @@ bk_iohh_bnbio_cancel_unregister(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flag
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B, bk_polling_io_cancel_unregister(B, bib->bib_bpi, 0));  
+  BK_RETURN(B, bk_polling_io_cancel_unregister(B, bib->bib_bpi, flags));  
 }
 
 

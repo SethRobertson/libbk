@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.38 2003/03/29 14:48:26 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.39 2003/04/07 18:43:06 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -32,7 +32,8 @@ struct bk_fd_cancel
 {
   int		bfc_fd;				///< The file descriptor in question.
   bk_flags	bfc_flags;			///< Everyone needs flags.
-#define BK_FD_CANCEL_FLAG_IS_CANCELED	0x1	///< This file descriptor has been canceled.
+#define BK_FD_ADMIN_FLAG_IS_CANCELED		0x4 ///< This file descriptor has been canceled.
+#define BK_FD_ADMIN_FLAG_IS_CLOSED		0x8 ///< This file descriptor has been closed.
 };
 
 
@@ -116,6 +117,7 @@ struct bk_run
 #define BK_RUN_FLAG_ABORT_RUN_ONCE	0x20	///< Return now from run_once
 #define BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE	0x40	///< Don't block on current run once
 #define BK_RUN_FLAG_FD_CANCEL		0x80	///< At least 1 fd on cancel list
+#define BK_RUN_FLAG_FD_CLOSED		0x80	///< At least 1 fd on cancel list is closed
   dict_h		br_canceled;		///< List of canceled descriptors.
 };
 
@@ -485,7 +487,7 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 
   while(bfc = fd_cancel_minimum(run->br_canceled))
   {
-    bk_run_fd_cancel_unregister(B, run, bfc->bfc_fd);
+    bk_run_fd_cancel_unregister(B, run, bfc->bfc_fd, BK_FD_ADMIN_FLAG_WANT_ALL);
   }
   fd_cancel_destroy(run->br_canceled);
 
@@ -2027,11 +2029,12 @@ bk_run_set_dont_block_run_once(bk_s B, struct bk_run *run)
  *	@param B BAKA thread/global state.
  *	@param run The @a bk_run structure to use.
  *	@param fd The descriptor to add.
+ *	@param flags indicating callers choice of cancel options
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd)
+bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_fd_cancel *bfc = NULL;
@@ -2049,6 +2052,7 @@ bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd)
   }
 
   bfc->bfc_fd = fd;
+  bfc->bfc_flags = flags;
 
   if (fd_cancel_insert(run->br_canceled, bfc) != DICT_OK)
   {
@@ -2060,7 +2064,7 @@ bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd)
 
  error:
   if (bfc)
-    bk_run_fd_cancel_unregister(B, run, fd);
+    bk_run_fd_cancel_unregister(B, run, fd, flags);
   BK_RETURN(B,-1);  
 }
 
@@ -2076,12 +2080,10 @@ bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd)
  *	@return <i>0</i> on success.
  */
 int
-bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd)
+bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_fd_cancel *bfc = NULL;
-  int at_least_one_is_canceled = 0;
-
 
   if (!run)
   {
@@ -2093,25 +2095,36 @@ bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd)
   if (!(bfc = fd_cancel_search(run->br_canceled, &fd)))
     BK_RETURN(B,0);    
 
+  // Clear the flags the user requested
+  BK_FLAG_CLEAR(bfc->bfc_flags, flags);
+  
+  // If any are still set, don't delete this.
+  if (BK_FLAG_ISSET(bfc->bfc_flags,BK_FD_ADMIN_FLAG_WANT_ALL))
+    BK_RETURN(B,0);    
+
   if (fd_cancel_delete(run->br_canceled, bfc) != DICT_OK)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not delete descriptor from cancel list: %s\n", fd_cancel_error_reason(run->br_canceled, NULL));
     goto error;
   }
 
+
   free(bfc); 
   bfc = NULL;
+
+  BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_FD_CANCEL);
+  BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_FD_CLOSED);
 
   for(bfc = fd_cancel_minimum(run->br_canceled);
       bfc;
       bfc = fd_cancel_successor(run->br_canceled, bfc))
   {
-    if (BK_FLAG_ISSET(bfc->bfc_flags, BK_FD_CANCEL_FLAG_IS_CANCELED))
-      at_least_one_is_canceled = 1;
+    if (BK_FLAG_ISSET(bfc->bfc_flags, BK_FD_ADMIN_FLAG_IS_CANCELED))
+      BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_FD_CANCEL);
+      
+    if (BK_FLAG_ISSET(bfc->bfc_flags, BK_FD_ADMIN_FLAG_IS_CLOSED))
+      BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_FD_CLOSED);
   }
-
-  if (!at_least_one_is_canceled)
-    BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_FD_CANCEL);
 
   BK_RETURN(B,0);  
 
@@ -2155,8 +2168,26 @@ bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags)
     goto error;
   }
 
-  BK_FLAG_SET(bfc->bfc_flags, BK_FD_CANCEL_FLAG_IS_CANCELED);
-  BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_FD_CANCEL);
+  if (BK_FLAG_ISCLEAR(bfc->bfc_flags, flags))
+  {
+    // <TOOD> What's the best behavior here? jtt thinks warn and ignore </TOOO>
+    bk_error_printf(B, BK_ERR_WARN, "Cancel request for fd: %d ignored. Not registered for cancel\n", fd);
+    BK_RETURN(B,0);    
+  }
+
+  if (BK_FLAG_ISSET(flags, BK_FD_ADMIN_FLAG_CANCEL))
+  {
+    bk_debug_printf_and(B,1,"FD: %d canceled\n", fd);
+    BK_FLAG_SET(bfc->bfc_flags, BK_FD_ADMIN_FLAG_IS_CANCELED);
+    BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_FD_CANCEL);
+  }
+
+  if (BK_FLAG_ISSET(flags, BK_FD_ADMIN_FLAG_CLOSE))
+  {
+    bk_debug_printf_and(B,1,"FD: %d closed\n", fd);
+    BK_FLAG_SET(bfc->bfc_flags, BK_FD_ADMIN_FLAG_IS_CLOSED);
+    BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_FD_CLOSED);
+  }
 
   BK_RETURN(B,0);  
 
@@ -2197,7 +2228,47 @@ bk_run_fd_is_canceled(bk_s B, struct bk_run *run, int fd)
    */
   if (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_FD_CANCEL) || 
       !(bfc = fd_cancel_search(run->br_canceled, &fd)) ||
-      BK_FLAG_ISCLEAR(bfc->bfc_flags, BK_FD_CANCEL_FLAG_IS_CANCELED))
+      BK_FLAG_ISCLEAR(bfc->bfc_flags, BK_FD_ADMIN_FLAG_IS_CANCELED))
+    BK_RETURN(B,0); 
+
+
+  BK_RETURN(B,1);
+}
+
+
+
+/**
+ * Check if the given desciptor has been adminstratively closed
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The @a bk_run structure to use.
+ *	@param fd The descriptor to search for.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success and @a fd is not on the list.
+ *	@return <i>1</i> on success and @a fd is on the list.
+ */
+int
+bk_run_fd_is_closed(bk_s B, struct bk_run *run, int fd)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_fd_cancel *bfc = NULL;
+
+  if (!run)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  /*
+   * The BK_RUN_FLAG_FD_CANCEL flag is set only when there are one or
+   * more descriptors on the list. Since the overwhelming majority of the
+   * time the list will be empty, but, if it's checked at all, will be
+   * checked *many* times, this flag prevents us from doing the somewhat
+   * expensive and unnecessary fd_cancel_search() operation.
+   */
+  if (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_FD_CLOSED) ||
+      !(bfc = fd_cancel_search(run->br_canceled, &fd)) ||
+      BK_FLAG_ISCLEAR(bfc->bfc_flags, BK_FD_ADMIN_FLAG_IS_CLOSED))
     BK_RETURN(B,0); 
 
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.70 2003/03/19 00:10:35 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.71 2003/04/07 18:43:06 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2847,6 +2847,12 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
 
   bk_debug_printf_and(B, 1, "Internal read IOH %p (filedes: %d) of %d bytes\n", ioh, fd, len);
 
+  if (bk_run_fd_is_closed(B, ioh->ioh_run, ioh->ioh_fdin))
+  {
+    bk_debug_printf_and(B,1,"IOH is adminstratively closed\n");
+    BK_RETURN(B,0);    
+  }
+
   ret = (*ioh->ioh_readfun)(B, ioh, ioh->ioh_iofunopaque, fd, data, len, flags);
   ioh->ioh_errno = errno;
   
@@ -3768,7 +3774,7 @@ bk_ioh_stdio_init(bk_s B, struct bk_ioh *ioh, int compression_level, int auth_al
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The ioh to register.
- *	@param flags Flags for future use.
+ *	@param flags Flags passed though.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
@@ -3782,7 +3788,7 @@ bk_ioh_cancel_register(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,bk_run_fd_cancel_register(B, ioh->ioh_run, ioh->ioh_fdin));  
+  BK_RETURN(B,bk_run_fd_cancel_register(B, ioh->ioh_run, ioh->ioh_fdin, flags));  
 }
 
 
@@ -3793,7 +3799,7 @@ bk_ioh_cancel_register(bk_s B, struct bk_ioh *ioh, bk_flags flags)
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The ioh to unregister.
- *	@param flags Flags for future use.
+ *	@param flags Flags passed through.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
@@ -3807,7 +3813,7 @@ bk_ioh_cancel_unregister(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,bk_run_fd_cancel_unregister(B, ioh->ioh_run, ioh->ioh_fdin));  
+  BK_RETURN(B,bk_run_fd_cancel_unregister(B, ioh->ioh_run, ioh->ioh_fdin, flags));  
 }
 
 
@@ -3853,12 +3859,12 @@ int
 bk_ioh_cancel(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-
   if (!ioh)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
+
   BK_RETURN(B,bk_run_fd_cancel(B, ioh->ioh_run, ioh->ioh_fdin, flags));  
 }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.223 2003/03/29 14:48:26 dupuy Exp $
+ * $Id: libbk.h,v 1.224 2003/04/07 18:43:06 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1486,9 +1486,18 @@ extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f f
 extern int bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
 extern void bk_run_set_dont_block_run_once(bk_s B, struct bk_run *run);
-extern int bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd);
-extern int bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd);
+extern int bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd, bk_flags flags);
+#define BK_FD_ADMIN_FLAG_WANT_CANCEL		0x1 ///< This fd wants cancel
+#define BK_FD_ADMIN_FLAG_WANT_ADMIN_CLOSE	0x2 ///< This fd want admin close
+#define BK_FD_ADMIN_FLAG_WANT_ALL (BK_FD_ADMIN_FLAG_WANT_CANCEL | BK_FD_ADMIN_FLAG_WANT_ADMIN_CLOSE)
+#define BK_FD_ADMIN_FLAG_RESERVED1		0x4 ///< This flag is used internally
+#define BK_FD_ADMIN_FLAG_RESERVED2		0x8 ///< This file is used internally
+
+#define BK_FD_ADMIN_FLAG_CANCEL			0x1 ///< Perform cancel operation
+#define BK_FD_ADMIN_FLAG_CLOSE			0x2 ///< Perform close operation
+extern int bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern int bk_run_fd_is_canceled(bk_s B, struct bk_run *run, int fd);
+extern int bk_run_fd_is_closed(bk_s B, struct bk_run *run, int fd);
 extern int bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 
 

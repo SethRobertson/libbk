@@ -2,6 +2,29 @@
 
 	* src/proto.c (main): Move poptFree to avoid freeing data in use.
 
+2003-04-04  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_getbyfoo.c (bk_gethostbyfoo): Check for NULL hostent
+	before continuing.
+
+2003-04-04  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_run.c (bk_run_fd_cancel): Set state for administrative closes.
+	(bk_run_fd_is_closed): Return TRUE if the fd in question has been
+	adminstratively closed.
+
+	* lib/b_ioh.c (ioh_internal_read): Return EOF if the file
+	descriptor has been administratively closed.
+
+2003-04-03  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_ioh.c (bk_ioh_cancel): set adminstrative close flag (ie
+	not in b_run.c).
+	(ioh_internal_read): If the ioh is administratively closed, return EOF.
+
+	* lib/b_run.c (bk_run_fd_cancel_register): Allow two kinds of
+	cancel. Old style and administrative close.
+
 2003-03-29  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_run.c (bk_run_checkeventq): gettimeofday at most twice
