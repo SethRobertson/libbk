@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.26 2002/07/23 16:18:22 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.27 2002/08/27 23:13:38 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -24,7 +24,11 @@
 
 // Parentheses prevent string concatenation which __func__ may not support
 #ifdef HAVE__FUNC__
-# define BK_FUNCNAME (__func__)
+# ifndef __INSURE__
+#  define BK_FUNCNAME (__func__)
+# else // __INSURE__ doesn't know __func__; thinks it is of type int
+#  define BK_FUNCNAME (__FUNCTION__)
+# endif
 #elif defined(HAVE__PRETTY_FUNCTION__)
 # define BK_FUNCNAME (__PRETTY_FUNCTION__)
 #elif defined(HAVE__FUNCTION__)
