@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.23 2003/04/16 23:39:53 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.24 2003/04/17 23:29:00 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -432,7 +432,7 @@ int bk_debug_setconfig_i(bk_s B, struct bk_debug *bdinfo, struct bk_config *conf
       ret++;
       continue;
     }
-    if (!tokenized[0] || !tokenized[1] || !tokenized[2])
+    if (!tokenized[0] || !tokenized[1] || !tokenized[2] || tokenized[3])
     {
       bk_error_printf(B, BK_ERR_WARN, "%s: Invalid number of tokens while parsing `%s'\n",
 		      BK_FUNCNAME, value);
