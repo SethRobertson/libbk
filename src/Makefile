@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.31 2004/06/09 02:02:30 seth Exp $
+# $Id: Makefile,v 1.32 2004/12/22 20:15:46 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -69,7 +69,6 @@ endif # BK_USING_SSL
 
 ifneq ($(BK_WANT_LIBTOOL),false)
 
-
 # If we are using libtool, we can rely on libraries to specify their own
 # dependencies, and therefore should specify only the minimal and absolutely
 # required libraries on the program link line (bkmk/Make.productions ignores
@@ -85,22 +84,16 @@ ifneq ($(BK_WANT_LIBTOOL),false)
 # differently for different targets.  Note that this won't necessarily do what
 # we want if there are previous := assignments using the variable we're trying
 # to override, but it works until somebody breaks it by getting fancy.</TRICKY>
-#
-# Guess what?  It is already broken.
-#
-PKG_LIBS:=
-LOCAL_LIBS:=
-THIRD_PARTY_LIBS:=
+
+# basic dependencies for typical baka programs
+LDLIBS=$(filter-out -lbkssl -lssl -lcrypto -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
+
+# these are not really baka programs, despite their names
+bk_daemon bk_funi timeout: LDLIBS=
 
 ifneq ($(strip $(BK_USING_SSL)),false)
-bttcp: BK_LIBS := -lbkssl $(BK_LIBS)
+bttcp: LDLIBS=$(filter-out -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
 endif
-
-# No, this doesn't fucking work either.  Fullrelease kills it
-#bk_daemon timeout: BK_LIBS :=
-#bk_daemon timeout: PTHREAD_LIBS :=
-#bk_daemon timeout: PTHREAD_CFLAGS :=
-#bk_daemon timeout: PTHREAD_CC := $(CC_CONFIG)
 
 endif # BK_WANT_LIBTOOL
 

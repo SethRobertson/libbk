@@ -1,9 +1,28 @@
+2004-12-22  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* src/Makefile (LDLIBS): reduce unnecessary library dependencies
+
+2004-12-22  Seth Robertson  <seth@stevedore.StevesRUs.sysdetect.com>
+
+	* include/libbk_net.h: Add OPCODES to ARP define
+
+2004-12-21  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_ringdir.c: don't make ring files executable
+
+2004-12-21  Seth Robertson  <seth@stevedore.StevesRUs.sysdetect.com>
+
+	* include/libbk_net.h: Clarify what the dynamically sized arp header
+	looks like so that you don't have to go to the reference manuals in
+	order the use the structure.
+
 2004-12-16  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_addrgroup.c (bk_net_init): Fix documentation: timeouts are
 	actually in ms, not secs or usecs.
 
-	* lib/b_netutils.c: Fix documentation: timeouts are actually in ms, not secs or usecs.
+	* lib/b_netutils.c: Fix documentation: timeouts are actually in
+	ms, not secs or usecs.
 
 2004-12-15  Seth Robertson  <seth@startide.sysdetect.com>
 
