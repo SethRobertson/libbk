@@ -1,3 +1,7 @@
+2002-09-26  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_run.c (bk_run_enqueue_delta): Fixed small arithmetic error.
+
 2002-09-23  James Tanis  <jtt@hawking.sysdetect.com>
 
 	* lib/b_bnbio.c (bk_iohh_bnbio_read): Only set timeout if one is

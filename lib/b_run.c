@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.29 2002/09/17 16:23:52 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.30 2002/09/26 22:04:38 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -642,7 +642,7 @@ int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t msec, void (*event)(
   }
 
   diff.tv_sec = msec/1000;
-  diff.tv_usec = msec%1000;
+  diff.tv_usec = (msec%1000)*1000;
   gettimeofday(&tv, NULL);
 
   BK_TV_ADD(&tv,&tv,&diff);
