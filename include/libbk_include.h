@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.12 2001/12/27 17:51:41 dupuy Exp $
+ * $Id: libbk_include.h,v 1.13 2001/12/27 22:31:09 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -59,6 +59,13 @@
 #include <netinet/ip_icmp.h>
 #ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>
+#else
+#ifdef HAVE_NETINET_IF_ETHER_H
+#include <net/if.h>
+#include <netinet/if_ether.h>
+#else  /* no struct ether_addr */
+#warning "Must include file which defines struct ether_addr"
+#endif /* HAVE_NETINET_IF_ETHER_H */
 #endif /* HAVE_NET_ETHERNET_H */
 #endif /* !BK_MINGW */
 

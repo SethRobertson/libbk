@@ -1,3 +1,7 @@
+2001-12-27  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk_include.h: <netinet/if_ether.h> if no <net/ethernet.h>
+
 2001-12-27  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_url.c (bk_url_parse): missed a few critical search
