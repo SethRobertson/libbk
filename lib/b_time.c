@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.8 2002/09/05 23:31:06 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_time.c,v 1.9 2002/09/12 19:57:02 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -45,8 +45,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * of size @max.
  *
  * Passing the BK_TIME_FORMAT_FLAG_NO_TZ flag will leave off the 'T' and 'Z'
- * in the ISO format leaving something of the form 
- * '2002-06-22 18:46:12.012345'.
+ * in the ISO format leaving Oracle compatible "ANSI format" timestamps like
+ * "2002-06-22 18:46:12.012345".  Note that although no 'Z' timezone designator
+ * is present, this timestamp uses GMT/UTC.
  *
  * Note that on some systems, use of gmtime() can make this unsafe to call
  * from signal handlers, so don't do that unless HAVE_GMTIME_R is defined.
@@ -64,10 +65,10 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   // the size of the array is that of base output "YYYY-mm-ddTHH:MM:SSZ\0"
-  static const char format_with_T[21] = "%Y-%m-%dT%H:%M:%S";
-  static const char format_no_T[21] = "%Y-%m-%d %H:%M:%S";
-  const char *format = BK_FLAG_ISCLEAR(flags, BK_TIME_FORMAT_FLAG_NO_TZ) ? format_with_T : format_no_T;
-  const char *Z = BK_FLAG_ISCLEAR(flags, BK_TIME_FORMAT_FLAG_NO_TZ) ? "Z" : "";
+  static const char FORMAT_WITH_T[21] = "%Y-%m-%dT%H:%M:%S";
+  static const char FORMAT_NO_T[21] = "%Y-%m-%d %H:%M:%S";
+  const char *format;
+  const char *Z;
   int precision;
   unsigned fraction = 0;
   struct tm *tp;
@@ -79,6 +80,17 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, 0);
+  }
+
+  if (BK_FLAG_ISCLEAR(flags, BK_TIME_FORMAT_FLAG_NO_TZ))
+  {
+    format = FORMAT_WITH_T;
+    Z = "Z";
+  }
+  else
+  {
+    format = FORMAT_NO_T;
+    Z = "";
   }
 
   /*
@@ -118,7 +130,7 @@ bk_time_iso_format(bk_s B, char *str, size_t max, struct timespec *timep, bk_fla
     }
   }
 
-  if (sizeof(format_with_T) + precision > max)		// check space in advance
+  if (sizeof(FORMAT_WITH_T) + precision > max)	// check space in advance
     BK_RETURN(B, 0);
 
   tp = gmtime_r(&timep->tv_sec, &t);
@@ -282,8 +294,8 @@ extern char *strptime (const char *s, const char *fmt, struct tm *tp);
  * 
  * e.g: "yyyy-mm-ddThh:mm:ss[.SSS][Z]" with optional fractional secs and/or Z
  *
- * Use BK_TIME_FORMAT_FLAG_NO_TZ to parse a string that uses a space instead
- * of a 'T'.
+ * Use BK_TIME_FORMAT_FLAG_NO_TZ to force GMT/UTC interpretation if no timezone
+ * designator is present.
  *
  * <TODO>Add support for timezone +/- offsets from GMT. Also support any ISO
  * variants that strptime can handle, using a similar approach to the Java
@@ -306,13 +318,12 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct tm t;
-  const char *format_with_T = "%4u-%2u-%2uT%2u:%2u:%2u%n";
-  const char *format_no_T = "%4u-%2u-%2u %2u:%2u:%2u%n";
-  const char *format = BK_FLAG_ISCLEAR(flags, BK_TIME_FORMAT_FLAG_NO_TZ) ? format_with_T : format_no_T;
+  const char *format = "%4u-%2u-%2u%c%2u:%2u:%2u%n";
   const char *fraction = NULL;
   size_t precision = 0;
   unsigned long decimal = 0;
-  int utc = 0;
+  char sep;
+  int utc = BK_FLAG_ISSET(flags, BK_TIME_FORMAT_FLAG_NO_TZ);
 
   if (!string || !date)
   {
@@ -322,16 +333,20 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
 
   memset(&t, 0, sizeof(t));
 #ifdef USE_STRPTIME
-  // this is not the default since it offers no additional functionality
+  /*
+   * This is not the default since it offers no additional functionality, and
+   * actually makes it difficult to handle the 'T' vs. ' ' option.
+   */
   if (!(fraction = strptime(string, "%Y-%m-%dT%H:%M:%S", &t)))
     BK_RETURN(B, -1);
 #else
   {
     int len = 0;
 
-    if (sscanf(string, format, (u_int *) &t.tm_year,
-	       (u_int *) &t.tm_mon, (u_int *) &t.tm_mday, (u_int *) &t.tm_hour,
-	       (u_int *) &t.tm_min, (u_int *) &t.tm_sec, &len) < 6)
+    if (sscanf(string, format, (u_int *) &t.tm_year, (u_int *) &t.tm_mon,
+	       (u_int *) &t.tm_mday, &sep, (u_int *) &t.tm_hour,
+	       (u_int *) &t.tm_min, (u_int *) &t.tm_sec, &len) < 7
+	|| (sep != 'T' && sep != ' '))
       BK_RETURN(B, -1);
 
     t.tm_year -= 1900;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.2 2002/09/06 20:36:06 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.3 2002/09/12 19:57:02 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -340,11 +340,10 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
   p = xml;
   while((c = *str))
   {
-    /* <TODO> 
-     * Perhaps we should all the caller to be more selective as to *which*
-     * non-printables he wishes to permit. NEWLINEs and TABs for instance
-     * make sense, but CTL-A perhas does not.
-     * </TODOO>
+    /*
+     * <TODO>Perhaps we should allow callers to be more selective as to *which*
+     * non-printables they wish to permit. NEWLINEs and TABs for instance make
+     * sense, but Ctrl-A perhaps does not.</TODO>
      */
     if (!isprint(c) && BK_FLAG_ISCLEAR(flags, BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT))
     {
