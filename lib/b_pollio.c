@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.49 2004/05/28 21:00:28 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.50 2004/06/23 19:11:07 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1008,9 +1008,9 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
 	ts.tv_sec = tv.tv_sec + timeout / 1000;
 	ts.tv_nsec = tv.tv_usec * 1000 + (timeout % 1000) * 1000000;
 	bk_debug_printf_and(B, 64, "Entering write timed condition wait %d.%09d, pid %d\n", (int)ts.tv_sec, (int)ts.tv_nsec, getpid());
-	if (((tret = pthread_cond_timedwait(&bpi->bpi_wrcond, &bpi->bpi_lock, &ts)) < 0) && (tret == ETIMEDOUT))
+	if ((tret = pthread_cond_timedwait(&bpi->bpi_wrcond, &bpi->bpi_lock, &ts)) == ETIMEDOUT)
 	  timedout++;
-	bk_debug_printf_and(B, 64, "Exiting write timed condition wait\n");
+	bk_debug_printf_and(B, 64, "Exiting write timed condition wait with ret %d and timeout %d\n", tret, timedout);
       }
     }
     else
@@ -1026,6 +1026,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
 	ret = -1;
 	goto exit;
       }
+      bk_debug_printf_and(B, 32, "Ran once\n");
 #ifdef BK_USING_PTHREADS
       if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
 	abort();
@@ -1051,7 +1052,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
 
 
   // Handle requests to wait until data has hit OS
-  if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_SYNC))
+  if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_SYNC) && !timedout)
   {
 #ifdef BK_USING_PTHREADS
     if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_THREADED) && BK_GENERAL_FLAG_ISTHREADON(B))
@@ -1099,6 +1100,10 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
 
   goto exit;					// Stupid gcc
  exit:
+  if (timedout && ret == 0)
+    ret = 1;
+
+  bk_debug_printf_and(B, 1, "Returning %d out of bk_polling_io_write with timedout %d\n", ret, timedout);
   BK_RETURN(B, ret);
 }
 
@@ -1622,6 +1627,8 @@ bpi_wrtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *st
    */
 
   bpi->bpi_wrtimeoutevent = NULL;
+
+  bk_debug_printf_and(B, 1, "Write timeout on bpi %p\n", bpi);
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)

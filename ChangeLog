@@ -1,3 +1,9 @@
+2004-06-21  Seth Robertson  <seth@cheviot.sysdetect.com>
+
+	* lib/b_pollio.c (bk_polling_io_write): Time is a timeout, even on
+	sync requests [though we are still not handling timeouts for
+	post-initial sync].
+
 2004-06-21  Seth Robertson  <seth@not.baka.org>
 
 	* lib/b_relay.c (bk_relay_iohhandler): Because we overfill the
