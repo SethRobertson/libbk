@@ -1,3 +1,8 @@
+2003-07-15  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_ioh.c (CALL_BACK): Handler can sometimes be NULL, so don't
+	go dereferencing it...
+
 2003-07-15  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_time.c (bk_time_iso_format): make struct timespec arg const

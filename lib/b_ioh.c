@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.96 2003/06/30 23:41:51 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.97 2003/07/16 00:11:27 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -69,7 +69,8 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
        abort();											\
    }												\
    bk_debug_printf_and(B, 2, "Calling user callback for ioh %p with state %d\n",(ioh),(state));	\
-   ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state)));			\
+   if ((ioh)->ioh_handler)                                                                      \
+     ((*((ioh)->ioh_handler))((B),(data), (ioh)->ioh_opaque, (ioh), (state)));			\
    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)                \
      abort();                                                                                   \
    ioh->ioh_incallback--;                                                                       \
