@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.7 2003/08/27 16:36:07 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.8 2003/08/28 20:07:42 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1290,6 +1290,14 @@ ssl_shutdown_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, void *op
     goto done;
  
   ssl_err = SSL_get_error(bs->bs_ssl, ret);
+
+  /* <TODO>SSL has this stupid shutdown handshake.  This means that close is now blocking.
+   * The IOH system can't really deal with this without major modifications, so we give 
+   * SSL one shot to do its little shutdown dance.  If that's not enough, just close the
+   * socket anyway to avoid leaking memory.  At some point IOH could be overhauled to 
+   * better support this, but it doesn't really seem worthwhile at the moment.</TODO>
+   */
+  goto done;
 
   if (ssl_err == SSL_ERROR_WANT_WRITE)
   {
