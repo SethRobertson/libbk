@@ -1,6 +1,7 @@
 2001-07-13  James Tanis  <jtt@outpost.tanis.org>
 
 	* lib/b_config.c: More config stuff.
+	(bc_config_delete_key): Even More config stuff
 
 2001-07-09  James Tanis  <jtt@outpost.tanis.org>
 

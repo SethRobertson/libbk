@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.18 2001/07/13 04:15:07 jtt Exp $
+ * $Id: libbk.h,v 1.19 2001/07/13 16:21:44 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -223,9 +223,9 @@ extern int bk_config_reinit(bk_s B, struct bk_config *config);
 extern void bk_config_destroy(bk_s B, struct bk_config *config);
 extern void bk_config_write(bk_s B, struct bk_config *config, char *outfile);
 extern int bk_config_insert(bk_s B, struct bk_config *config, char *key, char *value);
-extern char *bk_config_first(bk_s B, struct bk_config *config, char *key);
-extern char *bk_config_getnext(bk_s B, struct bk_config *config, char *key);
-extern char *bk_config_delete(bk_s B, struct bk_config *config, char *key);
+extern char *bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ovalue);
+extern int bk_config_delete_key(bk_s B, struct bk_config *ibc, const char *key);
+extern int bk_config_delete_value(bk_s B, struct bk_config *ibc, const char *key, const char *value);
 
 
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.4 2001/07/13 04:15:07 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.5 2001/07/13 16:21:44 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -320,6 +320,101 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
 
   BK_RETURN(B, ret);
 
+}
+
+
+
+/*
+ * Retrieve a value based on the key.
+ * If ovalue is NULL, then get first value, else get successor of ovalue
+ */
+char *
+bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ovalue)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_config *bc;
+  struct bk_config_key *bck;
+  struct bk_config_value *bcv=NULL;
+  
+  if (!key)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  SET_CONFIG(bc, B, ibc);
+
+  if (!(bck=config_kv_search(bc->bc_kv, (char *)key)))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Could not locate key: %s\n", key);
+    goto done;
+  }
+
+  if (!ovalue)
+  {
+    if (!(bcv=config_values_minimum(bck->bck_values)))
+    {
+      /* 
+       * An empty key (which can (only) happen if all its values have been
+       * deleted since we do not delete the key structure) should be 
+       * portrayed as an non-existent key.
+       */
+      bk_error_printf(B, BK_ERR_WARN, "Could not locate key: %s\n", key);
+      goto done;
+    }
+  }
+  else
+  {
+    if (!(bcv=config_values_search(bck->bck_values,(char *)ovalue)))
+    {
+      bk_error_printf(B, BK_ERR_WARN, "Could not locate %s as a value of %s in order to get its successor\n", ovalue, key);
+      goto done;
+    }
+    else
+    {
+      if (!(bcv=config_values_successor(bck->bck_values,bcv)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not locate successor of %s in key %s\n", ovalue, key);
+      }
+    }
+  }
+ done:
+  if (bcv) BK_RETURN(B, bcv->bcv_value);
+  BK_RETURN(B, NULL);
+}
+
+
+
+/*
+ * Delete an entire key
+ */
+int 
+bc_config_delete_key(bk_s B, struct bk_config *ibc, const char *key)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_config *bc;
+  struct bk_config_key *bck;
+  int ret=0;
+
+  if (!key)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  SET_CONFIG(bc, B, ibc);
+
+  if (!(bck=config_kv_search(bc->bc_kv, (char *)key)))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Attempt do delete nonexistent key: %s\n", key);
+    goto done;
+  }
+
+  config_kv_delete(bc->bc_kv, bck);
+  bck_destroy(B, bck);
+
+ done: 
+  BK_RETURN(B, ret);
 }
 
 
