@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.78 2005/02/05 03:16:38 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.79 2005/02/09 01:32:25 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -617,14 +617,14 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
 
   sigemptyset(&blockset);
 
-  if (!handler || (ptr2uint_t)handler == (ptr2uint_t)SIG_IGN || (ptr2uint_t)handler == (ptr2uint_t)SIG_DFL)
+  if (!handler || (void *)handler == (void *)SIG_IGN || (void *)handler == (void *)SIG_DFL)
   {							// Disabling signal
 #ifdef __INSURE__
-    if ((ptr2uint_t)handler == (ptr2uint_t)SIG_IGN)
+    if ((void *)handler == (void *)SIG_IGN)
       act.sa_handler = SIG_IGN;
     else
       act.sa_handler = (void *)handler;
-#else /* __INSURE__ */    
+#else /* __INSURE__ */
     act.sa_handler = (void *)handler;
 #endif /* __INSURE__ */
     sigemptyset(&act.sa_mask);
@@ -1456,7 +1456,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     if (!br_beensignaled)
     {
       struct timeval *tp = selectarg ? &timeout : NULL;
-      if ((run->br_selectn == 0) && !tp && 
+      if ((run->br_selectn == 0) && !tp &&
 	  BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_ALLOW_DEAD_SELECT))
       {
 	if (bk_run_set_run_over(B, run) < 0)
@@ -1802,12 +1802,12 @@ brf_create(bk_s B, bk_flags flags)
     goto error;
   }
 
-  BK_RETURN(B, brf);  
+  BK_RETURN(B, brf);
 
  error:
   if (brf)
     brf_destroy(B, brf);
-  BK_RETURN(B, NULL);  
+  BK_RETURN(B, NULL);
 }
 
 
@@ -1838,7 +1838,7 @@ brf_destroy(bk_s B, struct bk_run_fdassoc *brf)
 
   free(brf);
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 

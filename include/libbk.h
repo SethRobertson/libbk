@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.316 2005/01/18 20:29:28 jtt Exp $
+ * $Id: libbk.h,v 1.317 2005/02/09 01:32:25 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -74,6 +74,7 @@ extern struct global_structure Global;
  * native size of a pointer, in order to cast these "WILD" situations to a
  * type that will not alarm Insure.
  */
+#if 0
 #if SIZEOF_VOID_P == 2
 // Yeah, like we're *ever* going to see 16 bit again...
 typedef u_int16_t ptr2uint_t;
@@ -83,6 +84,7 @@ typedef u_int32_t ptr2uint_t;
 typedef u_int64_t ptr2uint_t;
 #else
 #error UNKNOWN SIZE OF POINTER
+#endif
 #endif
 
 

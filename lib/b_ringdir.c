@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.20 2005/02/07 20:23:01 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.21 2005/02/09 01:32:25 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -59,7 +59,7 @@ struct bk_ring_directory
 
 
 /**
- * Private state for the "standard" ring directory implementation. 
+ * Private state for the "standard" ring directory implementation.
  */
 struct bk_ringdir_standard
 {
@@ -101,7 +101,7 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (!BK_CALLOC(brd))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate state for bk ring directory: %s\n", strerror(errno));
@@ -119,15 +119,15 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
     goto error;
   }
 
-  if (rotate_size == BK_RINGDIR_GET_SIZE_ERROR)
+  if (rotate_size == (off_t)BK_RINGDIR_GET_SIZE_ERROR)
   {
     bk_error_printf(B, BK_ERR_WARN, "rotate_size is too large. Lowering limit slightly\n");
     rotate_size = BK_RINGDIR_GET_SIZE_MAX;
   }
 
-  if (!brd->brd_brc.brc_get_size || 
-      !brd->brd_brc.brc_open || 
-      !brd->brd_brc.brc_close || 
+  if (!brd->brd_brc.brc_get_size ||
+      !brd->brd_brc.brc_open ||
+      !brd->brd_brc.brc_close ||
       !brd->brd_brc.brc_unlink)
   {
     bk_error_printf(B, BK_ERR_ERR, "Callback list is missing at least one required callback.\n");
@@ -139,10 +139,10 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
   {
     if (BK_FLAG_ISCLEAR(brd->brd_flags, BK_RINGDIR_FLAG_NO_CHECKPOINT))
       bk_error_printf(B, BK_ERR_WARN, "No check callback specified. Turning off checkpointing\n");
-      
+
     BK_FLAG_SET(brd->brd_flags, BK_RINGDIR_FLAG_NO_CHECKPOINT);
   }
-  
+
   if (!(brd->brd_directory = strdup(directory)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not copy directory name: %s\n", strerror(errno));
@@ -170,8 +170,8 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
     bk_error_printf(B, BK_ERR_ERR, "Could not create valid filename. Is the pattern OK: %s\n", brd->brd_pattern);
     goto error;
   }
-  
-  // Now convert *back* and make sure we still have TEST_FILE_NUM. 
+
+  // Now convert *back* and make sure we still have TEST_FILE_NUM.
   if (!sscanf(tmp_filename, brd->brd_path, &tmp_num) || (tmp_num != TEST_FILE_NUM))
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to properly create valid filename. Is the pattern OK: %s\n", brd->brd_pattern);
@@ -182,16 +182,16 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
   tmp_filename = NULL;
 
 
-  BK_RETURN(B,brd);  
+  BK_RETURN(B,brd);
 
  error:
   if (brd)
     brd_destroy(B, brd);
-  
+
   if (tmp_filename)
     free(tmp_filename);
 
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }
 
 
@@ -215,19 +215,19 @@ brd_destroy(bk_s B, struct bk_ring_directory *brd)
 
   if (brd->brd_directory)
     free((char *)brd->brd_directory);
-  
+
   if (brd->brd_pattern)
     free((char *)brd->brd_pattern);
-  
+
   if (brd->brd_path)
     free((char *)brd->brd_path);
-  
+
   if (brd->brd_cur_filename)
     free((char *)brd->brd_cur_filename);
 
   free(brd);
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -292,13 +292,13 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
   {
     int ret;
     bk_flags ringdir_open_flags = 0;
-    
+
     switch(ret = (*brd->brd_brc.brc_chkpnt)(B, brd->brd_opaque, BkRingDirChkpntActionRecover, brd->brd_directory, brd->brd_pattern, &brd->brd_cur_file_num, BkRingDirCallbackSourceInit, 0))
     {
     case -1:  // Error
       bk_error_printf(B, BK_ERR_ERR, "Failed to recover checkpoint value\n");
       goto error;
-      
+
     case 0:  // Checkpoint found. Open for append
       if (BK_FLAG_ISCLEAR(flags, BK_RINGDIR_FLAG_CANT_APPEND))
       {
@@ -311,7 +311,7 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
 	INCREMENT_FILE_NUM(brd);
       }
       break;
-      
+
     case 1: // Checkpoint not found. Do normal truncate open.
       break;
 
@@ -325,7 +325,7 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
       bk_error_printf(B, BK_ERR_ERR, "Could not create filename from pattern\n");
       goto error;
     }
-      
+
     if ((*brd->brd_brc.brc_open)(B, brd->brd_opaque, brd->brd_cur_filename, BkRingDirCallbackSourceInit, ringdir_open_flags))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open %s\n", brd->brd_cur_filename);
@@ -349,14 +349,14 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
       }
     }
   }
-    
-  BK_RETURN(B,(bk_ringdir_t)brd);  
+
+  BK_RETURN(B,(bk_ringdir_t)brd);
 
  error:
   if (brd)
     brd_destroy(B, brd);
-  
-  BK_RETURN(B,NULL);  
+
+  BK_RETURN(B,NULL);
 }
 
 
@@ -406,7 +406,7 @@ bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     free((char *)brd->brd_cur_filename);
     brd->brd_cur_filename = NULL;
   }
-  
+
   if ((BK_FLAG_ISCLEAR(flags, BK_RINGDIR_FLAG_NO_NUKE) &&
        BK_FLAG_ISSET(brd->brd_flags, BK_RINGDIR_FLAG_NUKE_DIR_ON_DESTROY)) ||
       BK_FLAG_ISSET(flags, BK_RINGDIR_FLAG_NUKE_DIR_ON_DESTROY))
@@ -424,27 +424,27 @@ bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not unlink %s\n", filename);
       }
-      
+
       free((char *)filename);
       filename = NULL;
     }
-    
+
     if (brd->brd_brc.brc_chkpnt)
       (*brd->brd_brc.brc_chkpnt)(B, brd->brd_opaque, BkRingDirChkpntActionDelete, brd->brd_directory, brd->brd_pattern, NULL, BkRingDirCallbackSourceDestroy, 0);
   }
 
   if (brd->brd_brc.brc_destroy)
     (*brd->brd_brc.brc_destroy)(B, brd->brd_opaque, brd->brd_directory, destroy_callback_flags);
-  
+
   brd_destroy(B, brd);
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 
  error:
   if (filename)
     free((char *)filename);
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -475,7 +475,7 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
   }
 
   BK_FLAG_CLEAR(brd->brd_flags, BK_RINGDIR_FLAG_ROTATION_OCCURED);
-  
+
   if (BK_FLAG_ISSET(flags, BK_RINGDIR_FLAG_FORCE_ROTATE))
   {
     need_rotate = 1;
@@ -483,17 +483,17 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
   else
   {
     off_t size;
-    
-    if ((size = (*brd->brd_brc.brc_get_size)(B, brd->brd_opaque, brd->brd_cur_filename, 0)) == BK_RINGDIR_GET_SIZE_ERROR)
+
+    if ((size = (*brd->brd_brc.brc_get_size)(B, brd->brd_opaque, brd->brd_cur_filename, 0)) == (off_t)BK_RINGDIR_GET_SIZE_ERROR)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not obtain size of %s\n", brd->brd_cur_filename);
       goto error;
     }
-    
+
     if (size >= brd->brd_rotate_size)
       need_rotate = 1;
   }
-      
+
   if (need_rotate)
   {
     if ((*brd->brd_brc.brc_close)(B, brd->brd_opaque, brd->brd_cur_filename, BkRingDirCallbackSourceRotate, 0) < 0)
@@ -542,11 +542,11 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
 
     BK_FLAG_SET(brd->brd_flags, BK_RINGDIR_FLAG_ROTATION_OCCURED);
   }
-  
-  BK_RETURN(B,0);  
+
+  BK_RETURN(B,0);
 
  error:
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
 
 
@@ -572,7 +572,7 @@ bk_ringdir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     BK_RETURN(B, NULL);
   }
 
-  BK_RETURN(B,brd->brd_opaque);  
+  BK_RETURN(B,brd->brd_opaque);
 }
 
 
@@ -596,19 +596,19 @@ create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (!(filename = bk_string_alloc_sprintf(B, 0, 0, pattern, cnt)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create file name\n");
     goto error;
   }
 
-  BK_RETURN(B,filename);  
+  BK_RETURN(B,filename);
 
  error:
   if (filename)
     free(filename);
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }
 
 
@@ -645,7 +645,7 @@ bk_ringdir_standard_init(bk_s B, const char *directory, off_t rotate_size, u_int
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = NULL;
-  struct stat st; 
+  struct stat st;
   int does_not_exist = 0;
   int created_directory = 1;
   bk_flags destroy_flags = 0;
@@ -661,7 +661,7 @@ bk_ringdir_standard_init(bk_s B, const char *directory, off_t rotate_size, u_int
     bk_error_printf(B, BK_ERR_ERR, "Unix directory name must end in '/'. Sorry...\n");
     goto error;
   }
-  
+
   if (!BK_CALLOC(brs))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate standard ringdir state: %s\n", strerror(errno));
@@ -710,7 +710,7 @@ bk_ringdir_standard_init(bk_s B, const char *directory, off_t rotate_size, u_int
     }
   }
 
-  BK_RETURN(B,brs);  
+  BK_RETURN(B,brs);
 
  error:
   if (brs)
@@ -725,8 +725,8 @@ bk_ringdir_standard_init(bk_s B, const char *directory, off_t rotate_size, u_int
     }
     bk_ringdir_standard_destroy(B, brs, directory, destroy_flags);
   }
-  
-  BK_RETURN(B,NULL);  
+
+  BK_RETURN(B,NULL);
 }
 
 
@@ -767,7 +767,7 @@ bk_ringdir_standard_destroy(bk_s B, void *opaque, const char *directory, bk_flag
 
   free(brs);
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -778,7 +778,7 @@ bk_ringdir_standard_destroy(bk_s B, void *opaque, const char *directory, bk_flag
  * this function be greater than or equal to that of @a rotate_size (from
  * the init function) when you desire rotation to occur. The macro
  * BK_RINGDIR_GET_SIZE_MAX is provided as a convenience value for the
- * largest legal return value from this function. 
+ * largest legal return value from this function.
  *
  *	@param B BAKA thread/global state.
  *	@param opaque Your private data.
@@ -799,7 +799,7 @@ bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flag
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     goto error;
   }
-  
+
   if (fstat(brs->brs_fd, &st) < 0)
   {
     if (errno == EBADF)
@@ -817,8 +817,8 @@ bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flag
       goto error;
     }
   }
-  
-  BK_RETURN(B,st.st_size);  
+
+  BK_RETURN(B,st.st_size);
 
  error:
   BK_RETURN(B,BK_RINGDIR_GET_SIZE_ERROR);
@@ -854,12 +854,12 @@ bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, enum bk_rin
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (BK_FLAG_ISSET(flags, BK_RINGDIR_FLAG_OPEN_APPEND))
     open_flags |= O_APPEND;
   else
     open_flags |= O_CREAT | O_TRUNC;
-  
+
 
   if ((brs->brs_fd = open(filename, open_flags, 0666)) < 0)
   {
@@ -873,11 +873,11 @@ bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, enum bk_rin
     goto error;
   }
 
-  BK_RETURN(B,0);  
+  BK_RETURN(B,0);
 
  error:
   bk_ringdir_standard_close(B, brs, filename, source, 0);
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
 
 
@@ -904,7 +904,7 @@ bk_ringdir_standard_close(bk_s B, void *opaque, const char *filename, enum bk_ri
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (brs->brs_cur_filename && brs->brs_fd != -1)
   {
     if (!BK_STREQ(brs->brs_cur_filename, filename))
@@ -919,7 +919,7 @@ bk_ringdir_standard_close(bk_s B, void *opaque, const char *filename, enum bk_ri
     free((char *)brs->brs_cur_filename);
   brs->brs_cur_filename = NULL;
 
-  BK_RETURN(B,0);  
+  BK_RETURN(B,0);
 }
 
 
@@ -946,26 +946,26 @@ bk_ringdir_standard_unlink(bk_s B, void *opaque, const char *filename, enum bk_r
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if ((unlink(filename) < 0) && errno != ENOENT )
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not unlink %s: %s\n", filename, strerror(errno));
     goto error;
   }
-  
-  BK_RETURN(B,0);  
+
+  BK_RETURN(B,0);
 
  error:
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
 
 
 
 /**
- * Do checkpointing managment. You will be called with one of the actions: 
- *	BkRingDirChkpntActionChkpnt: 	Save value to checkpoint state "file"
- *	BkRingDirChkpntActionRecover: 	Recover checkpoint value from state "file"
- *	BkRingDirChkpntActionDelete: 	Delete the checkpoint state "file"
+ * Do checkpointing managment. You will be called with one of the actions:
+ *	BkRingDirChkpntActionChkpnt:	Save value to checkpoint state "file"
+ *	BkRingDirChkpntActionRecover:	Recover checkpoint value from state "file"
+ *	BkRingDirChkpntActionDelete:	Delete the checkpoint state "file"
  *
  * The ring directory name and the file name pattern are supplied to you
  * for your convience as your checkpoint key will almost certainly need
@@ -1015,7 +1015,7 @@ bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions 
     }
 
     len = sizeof(value);
-    do 
+    do
     {
       if ((ret = write(fd, ((char *)&value)+sizeof(value)-len, len)) < 0)
       {
@@ -1031,12 +1031,12 @@ bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions 
     break;
 
   case  BkRingDirChkpntActionRecover:
-    // Check for file existence. 
+    // Check for file existence.
     if (access(brs->brs_chkpnt_filename, F_OK) < 0)
     {
       if (errno == ENOENT) // Not found is OK, but returns 1.
-	BK_RETURN(B,1);      
-	
+	BK_RETURN(B,1);
+
       bk_error_printf(B, BK_ERR_ERR, "Could not access %s: %s\n", brs->brs_chkpnt_filename, strerror(errno));
       goto error;
     }
@@ -1046,16 +1046,16 @@ bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions 
       bk_error_printf(B, BK_ERR_ERR, "Could not open %s for reading: %s\n", brs->brs_chkpnt_filename, strerror(errno));
       goto error;
     }
-    
+
     len = sizeof(*valuep);
-    do 
+    do
     {
       if ((ret = read(fd, valuep+sizeof(*valuep)-len, len)) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Failed to read out check value: %s\n", strerror(errno));
 	goto error;
       }
-      
+
       len -= ret;
     } while (len);
 
@@ -1074,13 +1074,13 @@ bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions 
     break;
   }
 
-  BK_RETURN(B,0);  
+  BK_RETURN(B,0);
 
  error:
   if (fd != -1)
     close(fd);
 
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -1109,7 +1109,7 @@ bk_ringdir_standard_update_private_data(bk_s B, bk_ringdir_t brdh, void *opaque,
 
   brs->brs_opaque = opaque;
 
-  BK_RETURN(B, 0);  
+  BK_RETURN(B, 0);
 }
 
 
@@ -1135,7 +1135,7 @@ bk_ringdir_standard_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     BK_RETURN(B, NULL);
   }
 
-  BK_RETURN(B,brs->brs_opaque);  
+  BK_RETURN(B,brs->brs_opaque);
 }
 
 
@@ -1162,7 +1162,7 @@ bk_ringdir_standard_get_fd(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  BK_RETURN(B,brs->brs_fd);  
+  BK_RETURN(B,brs->brs_fd);
 }
 
 
@@ -1217,10 +1217,10 @@ bk_ringdir_standard_update_private_data_by_standard(bk_s B, void *brsh, void *op
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   brs->brs_opaque = opaque;
 
-  BK_RETURN(B,0);  
+  BK_RETURN(B,0);
 }
 
 
@@ -1244,9 +1244,9 @@ bk_ringdir_standard_get_private_data_by_standard(bk_s B, void *brsh, bk_flags fl
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
-  BK_RETURN(B,brs->brs_opaque);  
-  
+
+  BK_RETURN(B,brs->brs_opaque);
+
 }
 
 
@@ -1272,8 +1272,8 @@ bk_ringdir_did_rotate_occur(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
-  BK_RETURN(B, BK_FLAG_ISSET(brd->brd_flags, BK_RINGDIR_FLAG_ROTATION_OCCURED));  
+
+  BK_RETURN(B, BK_FLAG_ISSET(brd->brd_flags, BK_RINGDIR_FLAG_ROTATION_OCCURED));
 }
 
 
@@ -1302,22 +1302,22 @@ bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   oldest_num = NEXT_FILE_NUM(brd, brd->brd_cur_file_num);
-  
+
   if (!(filename = create_file_name(B, brd->brd_path, oldest_num, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;
   }
 
-  BK_RETURN(B, filename);  
+  BK_RETURN(B, filename);
 
  error:
   if (filename)
     free(filename);
 
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }
 
 
@@ -1346,7 +1346,7 @@ bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, b
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (!sscanf(filename, brd->brd_path, &file_num))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not extract file number from %s\n", filename);
@@ -1360,18 +1360,18 @@ bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, b
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;
   }
-  
-  // Do this *last*. 
+
+  // Do this *last*.
   if (BK_FLAG_ISSET(flags, BK_RINGDIR_FILENAME_ITERATE_FLAG_FREE))
     free((char *)filename);
 
-  BK_RETURN(B, next_filename);  
+  BK_RETURN(B, next_filename);
 
  error:
   if (next_filename)
     free(next_filename);
 
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }
 
 
@@ -1399,7 +1399,7 @@ bk_ringdir_filename_current(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     BK_RETURN(B, NULL);
   }
 
-  BK_RETURN(B,strdup(brd->brd_cur_filename));  
+  BK_RETURN(B,strdup(brd->brd_cur_filename));
 }
 
 
@@ -1428,7 +1428,7 @@ bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename,
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (!sscanf(filename, brd->brd_path, &file_num))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not extract file number from %s with pattern %s\n", filename, brd->brd_path);
@@ -1443,17 +1443,17 @@ bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename,
     goto error;
   }
 
-  // Do this *last*. 
+  // Do this *last*.
   if (BK_FLAG_ISSET(flags, BK_RINGDIR_FILENAME_ITERATE_FLAG_FREE))
     free((char *)filename);
 
-  BK_RETURN(B, previous_filename);  
+  BK_RETURN(B, previous_filename);
 
  error:
   if (previous_filename)
     free(previous_filename);
 
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }
 
 
@@ -1567,7 +1567,7 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
  * Get oldest and max file number for this ring buffer.
  *
  * The caller should note that the status may change
- * (the writer may advance) between calling this 
+ * (the writer may advance) between calling this
  * function and actually acting on the results.
  *
  * @param B BAKA Thread/global state
@@ -1612,16 +1612,16 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
 
   free(max_filename);
   max_filename = NULL;
-    
+
   len = sizeof(*max);
-  do 
+  do
   {
     if ((ret = read(fd, max+sizeof(*max)-len, len)) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Failed to read out check value: %s\n", strerror(errno));
       goto error;
     }
-      
+
     len -= ret;
   } while (len);
 
@@ -1647,14 +1647,14 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
   else
   {
     len = sizeof(*current);
-    do 
+    do
     {
       if ((ret = read(fd, current+sizeof(*current)-len, len)) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Failed to read out check value: %s\n", strerror(errno));
 	goto error;
       }
-      
+
       len -= ret;
     } while (len);
 
@@ -1756,7 +1756,7 @@ write_settings(bk_s B, struct bk_ring_directory *brd, const char *directory, con
   }
 
   len = sizeof(value);
-  do 
+  do
   {
     if ((ret = write(fd, ((char *)&value)+sizeof(value)-len, len)) < 0)
     {
