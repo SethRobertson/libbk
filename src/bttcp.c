@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.15 2001/11/28 14:58:44 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.16 2001/11/29 17:39:56 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -239,7 +239,7 @@ proginit(bk_s B, struct program_config *pc)
     break;
 
   case BTTCP_ROLE_TRANSMIT:
-    if (bk_netutils_make_conn(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, DEFAULT_PROTO_STR, NULL, pc->pc_timeout, connect_complete, pc, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP)<0)
+    if (bk_netutils_make_conn(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, DEFAULT_PROTO_STR, pc->pc_timeout, connect_complete, pc, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP)<0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not start connection\n");
       goto error;
@@ -375,12 +375,12 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 
   fflush(stdin);
   fflush(stdout);
-  if (!(std_ioh=bk_ioh_init(B, fileno(stdin), fileno(stdout), bk_ioh_stdrdfun, bk_ioh_stdwrfun, NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+  if (!(std_ioh=bk_ioh_init(B, fileno(stdin), fileno(stdout), NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on stdin/stdout\n");
     goto error;
   }
-  if (!(net_ioh=bk_ioh_init(B, sock, sock, bk_ioh_stdrdfun, bk_ioh_stdwrfun, NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+  if (!(net_ioh=bk_ioh_init(B, sock, sock, NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh network\n");
     goto error;
