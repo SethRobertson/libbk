@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.48 2002/03/28 23:04:54 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.49 2002/04/26 22:21:55 lindauer Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1764,7 +1764,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	{
 	  ioh_dequeue_byte(B, ioh, &ioh->ioh_writeq, (u_int32_t)cnt, 0);
 
-	  if (ioh->ioh_writeq.biq_queuelen < 1)
+	  if (ioh->ioh_writeq.biq_queuelen < 1 && !biq_minimum(ioh->ioh_writeq.biq_queue))
 	  {
 	    ioh->ioh_writeq.biq_queuelen = 0;
 	    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
@@ -1859,6 +1859,8 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 
 /**
  * Blocked--fixed length messages--IOH Type routines to perform I/O maintenance and activity
+ * <TODO>Test not only that there is no more data in the pipeline, but also that there are 
+ * no more commands to be processed, as in raw_other and vector_other</TODO>
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -2207,7 +2209,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	  // Figure out what buffers have been fully written
 	  ioh_dequeue_byte(B, ioh, &ioh->ioh_writeq, (u_int32_t)cnt, 0);
 
-	  if (ioh->ioh_writeq.biq_queuelen < 1)
+	  if (ioh->ioh_writeq.biq_queuelen < 1 && !biq_minimum(ioh->ioh_writeq.biq_queue))
 	  {					// Nothing more to do
 	    ioh->ioh_writeq.biq_queuelen = 0;
 	    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0);
