@@ -207,15 +207,15 @@
 	* lib/b_error.c (bk_error_irepeater_flush): #2033: eliminate possible
 	recursion into non-reentrant error code
 
-2003-08-14  Seth Robertson  <seth@stevedore.sysdetect.com>
+2003-08-14  Seth Robertson  <seth@sysdetect.com>
 
 	* src/timeout.c: Grrr.  How many years has this lurked?
 
-2003-07-25  James Tanis  <jtt@stevedore.sysdetect.com>
+2003-07-25  James Tanis  <jtt@sysdetect.com>
 
 	* lib/b_pollio.c, lib/b_ioh.c: error verbosity and valgrind integration
 
-2003-07-16  Brian Larkins  <brian@stevedore.sysdetect.com>
+2003-07-16  Brian Larkins  <brian@sysdetect.com>
 
 	* include/libbk_inline.h: arguments to _ko_compare() are [key, obj],
 	not [obj, key] otherwise it'd be called _ok_compare(). thanks to
