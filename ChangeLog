@@ -4,6 +4,82 @@
 	* src/proto.c: Internationalized
 	* include/libbk_i18n.h: Starting formal internalization support
 
+2001-12-04  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* src/bttcp.c (connect_complete): Check for bag's existence as per
+	the API
+
+	* lib/b_netinfo.c (bk_netinfo_from_socket): make sure len is
+	initialized (jtt must have dropped this somewhere today).
+
+	* src/bttcp.c (proginit): Patch up old service staring names to
+	new. 
+
+	* lib/b_netutils.c (bk_parse_endpt_no_defaults): Convenience
+	function for parsing a url with no default values (as in a default
+	url).
+	(bk_netutils_start_service): Short version of start_servce (old
+	version renamed to BLAH_verbose).
+	(bk_netutils_make_conn): Short version of make_conn (old version
+	renmaed to BLAH_verbose).
+
+	* lib/b_addrgroup.c (net_init_end): Don't bypass callback on error
+	(DOH!).
+
+	* src/bttcp.c: Convert to using new event granularity (ie: fix
+	timeouts).
+
+2001-12-03  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_netutils.c: Convert to new bk_addrgroup_state_e values.
+	(bk_netutils_make_conn): Make sure that values handed over to sss
+	are not freed. Make sure that sss is not freed once callback has
+	been called (it was freed in the callback).
+	(bk_netutils_make_conn): make sure that all temporary values are
+	freed. 
+
+	* lib/b_netinfo.c (bk_netinfo_advance_primary_address): Function
+	to iterate thru address list, setting each to primary in turn.
+
+	* lib/b_addrgroup.c: Converted state info over to new mode.
+	(tcp_connect_start): Use advence_primary_address() interface
+	(bk_net_init_sys_error): Convert errno's to error state.
+
+	* lib/b_run.c: Debugging code
+	(bk_run_close): Check fdassoc_delete return code.
+
+	* lib/b_ioh.c (bk_ioh_update): Fix sanity checking for new API.
+
+	* lib/b_addrgroup.c (net_init_end): Move bag allocation
+	here. Allocate/free everytime.
+	(tcp_connect_activity): Check gottype flags.
+	(tcp_listen_activity): Check gottype flags.
+	(net_init_end): Alter interface since bag allocation done here.
+
+	* lib/b_servinfo.c (bk_servinfo_serventdup): Host/network order SNAFU.
+	(bk_servinfo_serventdup): protocol info no longer required.
+
+	* lib/b_getbyfoo.c (bk_getservbyfoo): Host/network order SNAFU.
+
+2001-11-30  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_servinfo.c: protostr nuked from servinfo.
+
+	* lib/b_netutils.c (bk_netutils_start_service): Conform to new
+	interface. 
+	(sss_serv_gethost_complete): Best effort callback.
+	(bk_netutils_make_conn): Get proto and serv info in one shot
+	(bk_netutils_make_conn): Best effort callback.
+
+	* lib/b_getbyfoo.c (bk_getprotobyfoo): ip ==> iproto
+	(bk_getprotofoo): Force lookup if copyout is set
+	(bk_getservbyfoo): protostr now out of bk_servinfo.
+	(bk_getservbyfoo): Assume "tcp" if protocol can't be determined.
+	(bk_getservbyfoo): Force lookup if copyout is set
+	(bk_gethostbyfoo): No copy out.
+	(bk_gethostbyfoo): Make callback on errors if at all possible.
+	(bk_gethostbyfoo_abort): Renamed to better name.
+
 2001-11-29  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_relay.c lib/b_ioh.c: Code review day 4

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.7 2001/11/28 18:24:09 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.8 2001/12/04 19:51:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -28,8 +28,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-#define BK_ENDPT_SPEC_PROTO_SEPARATOR	"://"	///< XXX
-#define BK_ENDPT_SPEC_SERVICE_SEPARATOR	":"	///< XXX
+#define BK_ENDPT_SPEC_PROTO_SEPARATOR	"://"	///< URL protocol separator
+#define BK_ENDPT_SPEC_SERVICE_SEPARATOR	":"	///< URL service separator
 
 
 
@@ -54,9 +54,9 @@ struct start_service_state
 
 static struct start_service_state *sss_create(bk_s B);
 static void sss_destroy(bk_s B, struct start_service_state *sss);
-static void sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent **h, struct bk_netinfo *bni, void *args);
-static void sss_connect_rgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args);
-static void sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args);
+static void sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state);
+static void sss_connect_rgethost_complete(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state);
+static void sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state);
 
 
 
@@ -81,10 +81,9 @@ bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa)
     BK_RETURN(B, -1);
   }
 
-  // XXX -- do this correctly
-#ifdef SA_LEN
-  return sa->salen
-#endif /* SA_LEN */
+#ifdef HAVE_SA_LEN
+  BK_RETURN(B,sa->sa_len);
+#else /* SA_LEN */
 
   switch (sa->sa_family)
   {
@@ -107,6 +106,7 @@ bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa)
   }
 
   BK_RETURN(B, len);
+#endif /* SA_LEN */
 
  error:
   BK_RETURN(B,-1);
@@ -128,7 +128,6 @@ bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa)
  *
  *	@param B BAKA thread/global state.
  *	@param url Host specifier ("url" is shorter :-))
-// XXX - supply alternate default url???
  *	@param hoststr Copy out host string.
  *	@param defhoststr Default host string.
  *	@param serivcestr Copy out service string.
@@ -244,18 +243,58 @@ bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char
 
 
 
+
 /**
- * Make a service with a user friendly string based interface. 
+ * Parse a "default" url. This is nothing more than a convience wrapper
+ * around @a bk_parse_endpt_spec which parses out a url with no defaults
+ * (an example would be the default url itself)
  *
-// XXX Create _short version "url" and "defaulturl" w/o securenets
- *
- *	@param B BAKA thread/global state.
-// XXX documentation
+ *	@param url Host specifier ("url" is shorter :-))
+ *	@param hoststr Copy out host string.
+ *	@param serivcestr Copy out service string.
+ *	@param protostr Copy out protocol string.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags)
+bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, char **servistr, char **protostr)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!urlstr || !hostname || !servistr || !protostr)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_RETURN(B,bk_parse_endpt_spec(B, urlstr, hostname, NULL, servistr, NULL, protostr, NULL));
+}
+
+
+
+/**
+ * Make a service with a user friendly string based interface (verbose
+ * format). The def* arguments will replace unfound elements of the url and
+ * so should be defined when possible or you risk having an incompletely
+ * specified local side.
+ *
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The @a bk_run structure.
+ *	@param url The local endpoint specification (may be NULL).
+ *	@param defhostsstr Host string to use if host part of url is not found. (may be NULL).
+ *	@param defservstr Service string to use if service part of url is not found. (may be NULL).
+ *	@param protostr Protocol string to use if protocol part of url is not found. (may be NULL).
+ *	@param sercurenets Address based security specification.
+ *	@param callback Function to call when start is complete.
+ *	@param args User args for @a callback.
+ *	@param backlog Server @a listen(2) backlog
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *hoststr = NULL;
@@ -265,16 +304,17 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhostst
   struct start_service_state *sss = NULL;
   void *ghbf_info;
 
-  if (!run || !url || !callback)
+  if (!run || !callback)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
+  /* Conver NULL to a real empty url */
+  if (!url)
+    url="";
 
-// XXX - default any host, TCP service, ANY port (or use the bk_parse_local_endpt_spec)
-
-  if (bk_parse_endpt_spec(B, url, &hoststr, defhoststr?defhoststr:BK_ADDR_ANY, &servstr, defservstr, &protostr, defprotostr?defprotostr:"tcp")<0)
+  if (bk_parse_endpt_spec(B, url, &hoststr, defhoststr?defhoststr:BK_ADDR_ANY, &servstr, defservstr?defservstr:"0", &protostr, defprotostr?defprotostr:"tcp")<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not convert endpoint specifier\n");
     goto error;
@@ -297,14 +337,7 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhostst
     goto error;
   }
 
-  // XXX - in theory, getservbyfoo should be the only necessary--this is redundant
-  if (bk_getprotobyfoo(B,protostr, NULL, bni, 0)<0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not set the protocol information\n");
-    goto error;
-  }
-
-  if (bk_getservbyfoo(B, servstr, bni->bni_bpi->bpi_protostr, NULL, bni, 0)<0)
+  if (bk_getservbyfoo(B, servstr, protostr, NULL, bni, 0)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not set the service information\n");
     goto error;
@@ -323,9 +356,11 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhostst
   sss->sss_securenets = securenets;
   sss->sss_backlog = backlog;
 
-  if (!(ghbf_info = bk_gethostbyfoo(B, hoststr, 0, NULL, bni, run, sss_serv_gethost_complete, sss, 0)))
+  if (!(ghbf_info = bk_gethostbyfoo(B, hoststr, 0, bni, run, sss_serv_gethost_complete, sss, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not begin the hostname lookup process\n");
+    /* All callbacks have occured */
+    sss->sss_callback=NULL;
     goto error;
   }
 
@@ -349,21 +384,90 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhostst
 
 
 /**
- * Continue trying to set up a service following hostname determination.
+ * Start service in short format.
  *	@param B BAKA thread/global state.
-XXX - documentation failure
+ *	@param url The local endpoint specification (may be NULL).
+ *	@param defurl The <em>default</em> local endpoint specification (may be NULL).
+ *	@param callback Function to call when start is complete.
+ *	@param args User args for @a callback.
+ *	@param backlog Server @a listen(2) backlog
+ *	@param flags Flags for future use.
+ *	@param run The @a bk_run structure.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
  */
-static void
-sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent **h, struct bk_netinfo *bni, void *args)
+int
+bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defurl, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct start_service_state *sss;
+  char *defhoststr = NULL;
+  char *defservstr = NULL;
+  char *defprotostr = NULL;
+  int ret;
+  
+  if (!run || !(url || defurl))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
 
-  /* h is supposed to be NULL */
-  if (!run || h || !bni || !(sss = args))
+  if (!url)
+    url="";
+
+  if (!defurl)
+    defurl="";
+
+  if (((ret=bk_parse_endpt_no_defaults(B, defurl, &defhoststr, &defservstr, &defprotostr)) < 0) ||
+      ((ret=bk_netutils_start_service_verbose(B, run, url, defhoststr, defservstr, defprotostr, NULL, callback, args, backlog, flags)) < 0))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not start service\n");
+  }
+  
+  if (defhoststr) free(defhoststr);
+  if (defservstr) free(defservstr);
+  if (defprotostr) free(defprotostr);
+  
+  BK_RETURN(B,ret);
+}
+
+
+
+/**
+ * Continue trying to set up a service following hostname determination.
+ *	@param B BAKA thread/global state.
+ *	@param run The @a bk_run structure.
+ *	@param h filled out @a hostent
+ *	@param bni Caller's @a bk_netinfo
+ *	@param args @a my state.
+ *	@param state State of the @a bk_gethostbyfoo call
+ */
+static void
+sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct start_service_state *sss=args;
+
+  if (!run || !h || !bni || !sss)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
+  }
+
+  switch (state)
+  {
+  case BkGetHostByFooStateOk:
+    break;
+  case BkGetHostByFooStateErr:
+    bk_error_printf(B, BK_ERR_ERR, "System error detected while determining server hostname\n");
+    goto error;
+    break;
+  case BkGetHostByFooStateNetinfoErr:
+    bk_error_printf(B, BK_ERR_ERR, "Error in updating (required) bni while determining server hostname\n");
+    goto error;
+    break;
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown bk_gethostbyfoo state\n");
+    break;
   }
 
   // XXX - pass securenets here
@@ -377,7 +481,16 @@ sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent **h, struc
   BK_VRETURN(B);
 
  error:  
-  sss_destroy(B, sss);
+  if (sss)
+  {
+    /* This *really* sucks, we have to call back the user */
+    if (sss->sss_callback)
+    {
+      (*(sss->sss_callback))(B, sss->sss_args, -1, NULL, NULL,bk_net_init_sys_error(B,errno));
+      sss->sss_callback=NULL;
+    }
+    sss_destroy(B,sss);
+  }
   BK_VRETURN(B);
 }
 
@@ -386,7 +499,6 @@ sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent **h, struc
 /**
  * Create a start_service_state structure.
  *	@param B BAKA thread/global state.
-XXX - documentation failure
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new sss on success.
  */
@@ -426,6 +538,7 @@ sss_destroy(bk_s B, struct start_service_state *sss)
     BK_VRETURN(B);
   }
   
+  if (sss->sss_host) free(sss->sss_host);
   if (sss->sss_lbni) bk_netinfo_destroy(B,sss->sss_lbni);
   if (sss->sss_rbni) bk_netinfo_destroy(B,sss->sss_rbni);
   free(sss);
@@ -437,20 +550,32 @@ sss_destroy(bk_s B, struct start_service_state *sss)
 
 
 /**
- * Start up a connectino with a user friendly interface.
+ * Start up a connection with a user friendly interface.
  *
-// XXX Create a _short version "rurl" and "defaultrurl" and no "lurl" and friends
  *
  *	@param B BAKA thread/global state.
-// XXX Document this.
+ *	@param run The @a bk_run structure.
+ *	@param rurl The remoe endpoint specification (may be NULL).
+ *	@param rdefhostsstr Remote host string to use if host part of url is not found. (may be NULL).
+ *	@param rdefservstr Remote service string to use if service part of url is not found. (may be NULL).
+ *	@param rprotostr Remote protocol string to use if protocol part of url is not found. (may be NULL).
+ *	@param lurl The local endpoint specification (may be NULL).
+ *	@param ldefhostsstr Local host string to use if host part of url is not found. (may be NULL).
+ *	@param ldefservstr Local service string to use if service part of url is not found. (may be NULL).
+ *	@param lprotostr Local protocol string to use if protocol part of url is not found. (may be NULL).
+ *	@param sercurenets Address based security specification.
+ *	@param timeout Abort connection after @a timeout seconds.
+ *	@param callback Function to call when start is complete.
+ *	@param args User args for @a callback.
+ *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_netutils_make_conn(bk_s B, struct bk_run *run,
-		      char *rurl, char *defrhost, char *defrserv,
-		      char *lurl, char *deflhost, char *deflserv,
-		      char *defproto, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags )
+bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
+			      char *rurl, char *defrhost, char *defrserv,
+			      char *lurl, char *deflhost, char *deflserv,
+			      char *defproto, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags )
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *rhoststr = NULL;
@@ -468,7 +593,7 @@ bk_netutils_make_conn(bk_s B, struct bk_run *run,
   if (!run || !rurl || !callback)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_RETURN(B, -1);
+    goto error;
   }
 
   /* Parse out the remote "URL" */
@@ -524,19 +649,17 @@ bk_netutils_make_conn(bk_s B, struct bk_run *run,
     goto error;
   }
 
-  // XXX - should be part of getserv
-  /* Set remote protocol info */
-  if (bk_getprotobyfoo(B, rprotostr, NULL, rbni, 0) < 0)
+  /* Set remote service information */
+  if (bk_getservbyfoo(B, rservstr, rprotostr, NULL, rbni, 0) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not set the remote protocol information\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not set the remote service information\n");
     goto error;
   }
 
-  // XXX - should be part of getserv
-  /* Set local protocol info */
-  if (bk_getprotobyfoo(B, lprotostr, NULL, lbni, 0) < 0)
+  /* Set local service information */
+  if (lservstr && bk_getservbyfoo(B, lservstr, lprotostr, NULL, lbni, 0) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not set the local protocol information\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not set the local service information\n");
     goto error;
   }
 
@@ -547,46 +670,57 @@ bk_netutils_make_conn(bk_s B, struct bk_run *run,
     goto error;
   }
 
-  /* Set remote service information */
-  if (bk_getservbyfoo(B, rservstr, rbni->bni_bpi->bpi_protostr, NULL, rbni, 0) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not set the remote service information\n");
-    goto error;
-  }
-
-  /* Set local service information */
-  if (lservstr && bk_getservbyfoo(B, lservstr, lbni->bni_bpi->bpi_protostr, NULL, lbni, 0) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not set the local service information\n");
-    goto error;
-  }
-
   if (!(sss = sss_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate sss: %s\n", strerror(errno));
     goto error;
   }
 
+  /* 
+   * In the following "pass off" means that the sss struct and the
+   * callbacks for which it saves state are assuming control of these
+   * puppies and will free them if required,
+   */
   sss->sss_flags = flags;
-  sss->sss_rbni = rbni;
-  sss->sss_lbni = lbni;
-  sss->sss_callback = callback;
+  sss->sss_rbni = rbni;				/* Pass off rbni */
+  rbni=NULL;
+  sss->sss_lbni = lbni;				/* Pass off lbni */
+  lbni=NULL;
+  sss->sss_callback = callback;			/* Pass off callback */
+  /* 
+   * From here on we do *not* want to manually call callback on error since
+   * it will have already been called.
+   */
+  callback=NULL;
   sss->sss_args = args;
-  sss->sss_host = lhoststr;
+  sss->sss_host = lhoststr;			/* Pass off lhoststr */
+  lhoststr=NULL;
   sss->sss_timeout = timeout;
 
-  if (!(ghbf_info = bk_gethostbyfoo(B, rhoststr, 0, NULL, rbni, run, sss_connect_rgethost_complete, sss, 0)))
+  if (!(ghbf_info = bk_gethostbyfoo(B, rhoststr, 0, sss->sss_rbni, run, sss_connect_rgethost_complete, sss, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not start search for remote hostname\n");
+    /* All callbacks have occured */
+    sss=NULL;
     goto error;
   }
 
   // <TODO>ghbf_info needs to be returned, though some other structure (other than sss) to user at some point, so that make_conn_preconn_cancel can do something, when it is written</TODO>
     
+ done:
+  if (rhoststr) free(rhoststr);
+  if (rservstr) free(rservstr);
+  if (rprotostr) free(rprotostr);
+  if (lhoststr) free(lhoststr);
+  if (lservstr) free(lservstr);
+  if (lprotostr) free(lprotostr);
   BK_RETURN(B,0);
   
  error:
-  /* XXXXX Need to call back user */
+  if (callback)
+  {
+    (*(callback))(B, args, -1, NULL, NULL, bk_net_init_sys_error(B,errno));
+  }
   if (rhoststr) free(rhoststr);
   if (rservstr) free(rservstr);
   if (rprotostr) free(rprotostr);
@@ -597,7 +731,55 @@ bk_netutils_make_conn(bk_s B, struct bk_run *run,
   if (rbni) bk_netinfo_destroy(B, rbni);
   if (sss) sss_destroy(B,sss);
   BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Start service in short format.
+ *	@param B BAKA thread/global state.
+ *	@param url The local endpoint specification (may be NULL).
+ *	@param defurl The <em>default</em> local endpoint specification (may be NULL).
+ *	@param timeout Abort connection after @a timeout seconds.
+ *	@param callback Function to call when start is complete.
+ *	@param args User args for @a callback.
+ *	@param flags Flags for future use.
+ *	@param run The @a bk_run structure.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *defurl, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *defhoststr = NULL;
+  char *defservstr = NULL;
+  char *defprotostr = NULL;
+  int ret;
   
+  if (!run || !(url || defurl))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!url)
+    url="";
+
+  if (!defurl)
+    defurl="";
+
+  if (((ret=bk_parse_endpt_no_defaults(B, defurl, &defhoststr, &defservstr, &defprotostr)) < 0) ||
+      ((ret=bk_netutils_make_conn_verbose(B, run, url, defhoststr, defservstr, defprotostr, NULL, NULL, NULL, timeout, callback, args, flags)) < 0))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not start connection\n");
+  }
+  
+  if (defhoststr) free(defhoststr);
+  if (defservstr) free(defservstr);
+  if (defprotostr) free(defprotostr);
+  
+  BK_RETURN(B,ret);
 }
 
 
@@ -606,41 +788,64 @@ bk_netutils_make_conn(bk_s B, struct bk_run *run,
  * Finish up the first the hostname search
  *
  *	@param B BAKA thread/global state.
-XXX - document this
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
+ *	@param run The @a bk_run structure.
+ *	@param h filled out @a hostent
+ *	@param bni Caller's @a bk_netinfo
+ *	@param args @a my state.
+ *	@param state State of the @a bk_gethostbyfoo call
+ *	@param B BAKA thread/global state.
  */
 static void
-sss_connect_rgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args)
+sss_connect_rgethost_complete(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct start_service_state *sss = args;
 
-  /* h is supposed to be NULL */
-  if (!run || h || !bni || !sss)
+  if (!run || !h || !bni || !sss)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     goto error;
   }
 
-  if (!bk_gethostbyfoo(B, sss->sss_host, 0, NULL, sss->sss_lbni, run, sss_connect_lgethost_complete, sss, 0))
+  switch (state)
   {
-    // XXX - some reason?
-    // Intentionally not goto error;
-    if (sss) sss_destroy(B,sss);
-    BK_VRETURN(B);
+  case BkGetHostByFooStateOk:
+    break;
+  case BkGetHostByFooStateErr:
+    bk_error_printf(B, BK_ERR_ERR, "System error detected while determining remote hostname\n");
+    goto error;
+    break;
+  case BkGetHostByFooStateNetinfoErr:
+    bk_error_printf(B, BK_ERR_ERR, "Error in updating (required) bni while determining remote hostname\n");
+    goto error;
+    break;
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown bk_gethostbyfoo state\n");
+    break;
+  }
+
+  if (!bk_gethostbyfoo(B, sss->sss_host, 0, sss->sss_lbni, run, sss_connect_lgethost_complete, sss, 0))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "gethostbyfoo failed\n");
+    /* All callbacks have occured */
+    sss->sss_callback=NULL;
+    goto error;
   }
 
   BK_VRETURN(B);
   
  error:
-  /* This *really* sucks, we have to call back the user */
-  if (sss->sss_callback)
+  if (sss)
   {
-    (*(sss->sss_callback))(B, sss->sss_args, -1, NULL, NULL, BK_ADDRGROUP_STATE_WIRE_ERROR);
-    sss->sss_callback=NULL;
+    /* This *really* sucks, we have to call back the user */
+    if (sss->sss_callback)
+    {
+      (*(sss->sss_callback))(B, sss->sss_args, -1, NULL, NULL, bk_net_init_sys_error(B,errno));
+      sss->sss_callback=NULL;
+    }
+
+   sss_destroy(B,sss);
   }
-  if (sss) sss_destroy(B,sss);
   BK_VRETURN(B);
 }
 
@@ -651,21 +856,40 @@ sss_connect_rgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, st
  * Finish up the second the hostname search
  *
  *	@param B BAKA thread/global state.
- * XXX - documentation
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
+ *	@param run The @a bk_run structure.
+ *	@param h filled out @a hostent
+ *	@param bni Caller's @a bk_netinfo
+ *	@param args @a my state.
+ *	@param state State of the @a bk_gethostbyfoo call
+ *	@param B BAKA thread/global state.
  */
 static void
-sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args)
+sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct start_service_state *sss = args;
 
-  /* h is supposed to be NULL */
-  if (!run || h || !bni || !sss)
+  if (!run || !h || !bni || !sss)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     goto error;
+  }
+
+  switch (state)
+  {
+  case BkGetHostByFooStateOk:
+    break;
+  case BkGetHostByFooStateErr:
+    bk_error_printf(B, BK_ERR_ERR, "System error detected while determining local hostname\n");
+    goto error;
+    break;
+  case BkGetHostByFooStateNetinfoErr:
+    bk_error_printf(B, BK_ERR_ERR, "Error in updating (required) bni while determining local hostname\n");
+    goto error;
+    break;
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown bk_gethostbyfoo state\n");
+    break;
   }
 
   if (bk_net_init(B, run, sss->sss_lbni, sss->sss_rbni, sss->sss_timeout, sss->sss_flags, sss->sss_callback, sss->sss_args, 0) < 0)
@@ -680,7 +904,18 @@ sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent **h, st
   BK_VRETURN(B);
 
  error:  
-  // XXX - call user callback
-  if (sss) sss_destroy(B,sss);
+  if (sss)
+  {
+    /* This *really* sucks, we have to call back the user */
+    if (sss->sss_callback)
+    {
+      (*(sss->sss_callback))(B, sss->sss_args, -1, NULL, NULL, bk_net_init_sys_error(B,errno));
+      sss->sss_callback=NULL;
+    }
+    sss_destroy(B,sss);
+  }
   BK_VRETURN(B);
 }
+
+
+

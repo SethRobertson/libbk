@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.3 2001/11/28 18:24:09 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.4 2001/12/04 19:51:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -128,7 +128,7 @@ bk_protoinfo_protoentdup(bk_s B, struct protoent *p)
   {
     char buf[MAXINTSIZE];
 
-    snprintf(buf, MAXINTSIZE, "%d", p->p_proto);
+    snprintf(buf, sizeof(buf), "%d", p->p_proto);
     if (!(bpi->bpi_protostr = strdup(buf)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate prootstr: %s\n", strerror(errno));

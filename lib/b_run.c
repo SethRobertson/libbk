@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.14 2001/11/29 02:49:42 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.15 2001/12/04 19:51:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -702,6 +702,8 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   zero.tv_sec = 0;
   zero.tv_usec = 0;
 
+  bk_debug_printf_and(B,4,"Starting bk_run_once\n");
+
   gettimeofday(&curtime, NULL);
 
   check_idle=0;
@@ -816,6 +818,46 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     selectarg = &zero; 
   }
 
+  if (bk_debug_and(B,4))
+  {
+    int f;
+    int s=getdtablesize();
+    char *p;
+    int offset;
+    struct bk_memx *bm=bk_memx_create(B, 1, 128, 128, 0);
+    char scratch[1024];
+
+    if (!bm)
+      goto out;
+
+    snprintf(scratch,1024, "Readset: ");
+    if (!(p=bk_memx_get(B, bm, strlen(scratch), NULL, BK_MEMX_GETNEW)))
+    {
+      goto out;
+    }
+    memcpy(p,scratch,strlen(scratch));
+    for(f=0;f<s;f++)
+    {
+      if (FD_ISSET(f, &run->br_readset))
+      {
+	snprintf(scratch,1024, "%d ", f);
+	if (!(p=bk_memx_get(B, bm, strlen(scratch), NULL, BK_MEMX_GETNEW)))
+	{
+	  goto out;
+	}
+	memcpy(p,scratch,strlen(scratch));
+      }
+    }
+    if (!(p=bk_memx_get(B, bm, 2, NULL, BK_MEMX_GETNEW)))
+    {
+      goto out;
+    }
+    memcpy(p,"\n",2);
+    bk_debug_printf(B,"%s", (char *)bk_memx_get(B,bm,0,NULL,0));
+  out:
+    if (bm) bk_memx_destroy(B,bm,0);
+  }
+
   readset = run->br_readset;
   writeset = run->br_writeset;
   xcptset = run->br_xcptset;
@@ -851,6 +893,8 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	type |= BK_RUN_WRITEREADY;
       if (FD_ISSET(x, &xcptset))
 	type |= BK_RUN_XCPTREADY;
+
+      bk_debug_printf_and(B,1,"Activity detected on %d: type: %d\n", x, type);
 
       if (type)
       {
@@ -979,6 +1023,8 @@ int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, v
 
   run->br_selectn = MAX(run->br_selectn,fd+1);
 
+  bk_debug_printf_and(B,1,"Added fd: %d -- selectn now: %d\n", fd, run->br_selectn);
+
   BK_RETURN(B, 0);
 
  error:
@@ -1016,12 +1062,17 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 
   if (!(curfda = fdassoc_search(run->br_fdassoc, &fd)))
   {
+    bk_debug_printf_and(B,4,"Double close protection kicked in\n");
     bk_error_printf(B, BK_ERR_WARN, "Could not find fd %d in association while attempting to delete\n",fd);
     BK_RETURN(B, 0);
   }
 
   // Get rid of event in list, which will also prevent double deletion
-  fdassoc_delete(run->br_fdassoc, curfda);
+  if (fdassoc_delete(run->br_fdassoc, curfda) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not delete descriptor %d from fdassoc list: %s\n", fd, fdassoc_error_reason(run->br_fdassoc, NULL));
+    BK_RETURN(B,-1);
+  }
 
   // Optionally tell user handler that he will never be called again.
   gettimeofday(&curtime, NULL);
@@ -1043,6 +1094,7 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
     }
   }
 
+  bk_debug_printf_and(B,1,"Closed fd: %d -- selectn now: %d\n", fd, run->br_selectn);
   BK_RETURN(B, 0);
 }
 

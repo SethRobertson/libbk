@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_servinfo.c,v 1.3 2001/11/28 18:24:09 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_servinfo.c,v 1.4 2001/12/04 19:51:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -83,8 +83,6 @@ bsi_destroy (bk_s B,struct bk_servinfo *bsi)
   }
   
   if (bsi->bsi_servstr) free (bsi->bsi_servstr);
-  // XXX - nuke
-  if (bsi->bsi_protostr) free (bsi->bsi_protostr);
   free(bsi);
 
   BK_VRETURN(B);
@@ -97,12 +95,11 @@ bsi_destroy (bk_s B,struct bk_servinfo *bsi)
  *
  *	@param B BAKA thread/global state.
  *	@param s @a servent to copy.
- *	@param bpi @a bk_protoinfo to add (may be NULL).
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a servinfo on success.
  */
 struct bk_servinfo *
-bk_servinfo_serventdup (bk_s B, struct servent *s, struct bk_protoinfo *bpi)
+bk_servinfo_serventdup (bk_s B, struct servent *s)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_servinfo *bsi;
@@ -131,8 +128,8 @@ bk_servinfo_serventdup (bk_s B, struct servent *s, struct bk_protoinfo *bpi)
   {
     char buf[MAXINTSIZE];
 
-    snprintf(buf, MAXINTSIZE, "%d", s->s_port);
-    if (!(bpi->bpi_protostr = strdup(buf)))
+    snprintf(buf, MAXINTSIZE, "%d", ntohs(s->s_port));
+    if (!(bsi->bsi_servstr = strdup(buf)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate servstr: %s\n", strerror(errno));
       goto error;
@@ -141,13 +138,6 @@ bk_servinfo_serventdup (bk_s B, struct servent *s, struct bk_protoinfo *bpi)
 
   bsi->bsi_flags = 0;
   bsi->bsi_port = s->s_port;
-
-  // XXX - nuke
-  if (s->s_proto && !(bsi->bsi_protostr = strdup(s->s_proto)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup protoname in servinfo: %s\n", strerror(errno));
-    goto error;
-  }
 
   BK_RETURN(B,bsi);
 
@@ -205,12 +195,6 @@ bk_servinfo_user(bk_s B, char *servstr, u_short port, char *protostr)
 
   bsi->bsi_flags = 0;
   bsi->bsi_port = htons(port);
-  if (protostr && !(bsi->bsi_protostr = strdup(protostr)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup protostr in servinfo: %s\n", strerror(errno));
-    goto error;
-  }
-    
   BK_RETURN(B,bsi);
 
  error:
@@ -248,7 +232,7 @@ bk_servinfo_destroy (bk_s B,struct bk_servinfo *bsi)
 /**
  * Clone a @a servinfo. Allocates memory.
  *	@param B BAKA thread/global state.
- * XXX document
+ *	@param obsi The old @a bk_servinfo from which to clone.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a servinfo on success.
  */
@@ -278,13 +262,6 @@ bk_servinfo_clone (bk_s B, struct bk_servinfo *obsi)
 
   nbsi->bsi_port = obsi->bsi_port;
   nbsi->bsi_flags = obsi->bsi_flags;
-
-  // XXX - nuke
-  if (obsi->bsi_protostr && !(nbsi->bsi_protostr = strdup(obsi->bsi_protostr)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not strdup protostr in servinfo: %s\n", strerror(errno));
-    goto error;
-  }
 
   BK_RETURN(B,nbsi);
 

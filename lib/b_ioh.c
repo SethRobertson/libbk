@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.27 2001/11/29 21:12:41 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.28 2001/12/04 19:51:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -382,7 +382,7 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc readfun, bk_iowfunc wri
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
  
-  if (!ioh || (ioh->ioh_readfun && !readfun) || (ioh->ioh_writefun && !writefun) || !handler)
+  if (!ioh)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);

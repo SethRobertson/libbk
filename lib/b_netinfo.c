@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.9 2001/11/28 18:24:09 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.10 2001/12/04 19:51:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -477,7 +477,7 @@ bk_netinfo_update_servent(bk_s B, struct bk_netinfo *bni, struct servent *s)
   if (bni->bni_bsi)
     bk_servinfo_destroy(B, bni->bni_bsi);
 
-  if (!(bni->bni_bsi = bk_servinfo_serventdup(B, s, bni->bni_bpi)))
+  if (!(bni->bni_bsi = bk_servinfo_serventdup(B, s)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not copy servent\n");
     goto error;
@@ -920,14 +920,16 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side)
   struct sockaddr_in *sin4 = NULL;
   struct sockaddr_in6 *sin6 = NULL;
   struct sockaddr_un *sun = NULL;
-  int len;
+  socklen_t len;
   struct sockaddr sa;
+
+  memset(&sa,0,sizeof(sa));
 
   switch (side)
   {
   case BK_SOCKET_SIDE_LOCAL:
     len = sizeof(sa);
-    if (getsockname(s, &sa, &len))
+    if (getsockname(s, &sa, &len) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not get local sockname: %s\n", strerror(errno));
       goto error;
@@ -935,7 +937,8 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side)
     break;
 
   case BK_SOCKET_SIDE_REMOTE:
-    if (getpeername(s, &sa, &len))
+    len = sizeof(sa);
+    if (getpeername(s, &sa, &len) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not get local sockname: %s\n", strerror(errno));
       goto error;
@@ -1118,6 +1121,61 @@ bk_netinfo_info(bk_s B, struct bk_netinfo *bni)
   
   update_bni_pretty(B,bni);
   BK_RETURN(B,bni->bni_pretty);
+}
+
+
+
+/**
+ * Set the primary address to the next address on the list. If the primary
+ * address is currently unset, then set it to the first entry in the list
+ * (assuming there is one).
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bni The @a bk_netinfo on which to work
+ *	@return <i>NULL</i> on failure <em>or</em> no more entries in list.<br>
+ *	@return @a bk_netinfo on success with more entries.
+ */
+struct bk_netaddr *
+bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_netaddr *bna;
+
+  if (!bni)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+  
+  if (!bni->bni_addr)
+  {
+    if (bk_netinfo_set_primary_address(B,bni,NULL)<0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set primary address on bni\n");
+      goto error;
+    }
+  }
+  else
+  {
+    if ((bna=netinfo_addrs_successor(bni->bni_addrs,bni->bni_addr)))
+    {
+      if (bk_netinfo_set_primary_address(B, bni, bna)<0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not set primary address on bni\n");
+	goto error;
+      }
+    }
+    else
+    {
+      /* Nobody left in list */
+      bni->bni_addr=NULL;
+      update_bni_pretty(B,bni);
+    }
+  }
+  BK_RETURN(B,bni->bni_addr);
+
+ error:
+  BK_RETURN(B,NULL);
 }
 
 

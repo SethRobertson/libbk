@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.74 2001/11/30 00:33:08 seth Exp $
+ * $Id: libbk.h,v 1.75 2001/12/04 19:51:20 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -27,8 +27,10 @@
 
 /* Forward references */
 struct bk_ioh;
+struct bk_run;
 struct bk_addrgroup;
 struct bk_server_info;
+struct bk_netinfo;
 
 
 
@@ -171,6 +173,30 @@ typedef struct __bk_thread
 
 
 /**
+ * Possible states of gethostbyfoo callback
+ */
+typedef enum
+{
+  BkGetHostByFooStateOk=1,			///< You can trust the info
+  BkGetHostByFooStateErr,			///< You cannot trust the info
+  BkGetHostByFooStateNetinfoErr,		///< You cannot trust bni (but the @a hostent is OK.
+} bk_gethostbyfoo_state_e;
+
+
+
+/**
+ * gethostbyfoo callback
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The BAKA run structure.
+ *	@param h The @a hostent structure
+ *	@param bni @a bk_netinfo which was passed in (may be NULL).
+ *	@param args User arguments
+ */
+typedef void (*bk_gethostbyfoo_callback_f)(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state);
+
+
+/**
  * The possible "sides" of a socket
  */
 typedef enum
@@ -217,18 +243,14 @@ typedef enum
  */
 typedef enum
 {
-// XXXX make these enums CamelCase
-  BK_ADDRGROUP_STATE_NULL=0,			///< Doesn't match any other state.
-  BK_ADDRGROUP_STATE_TIMEOUT,			///< Connection timedout.
-  BK_ADDRGROUP_STATE_WIRE_ERROR,		///< Connection got an error off the wire.
-  BK_ADDRGROUP_STATE_BAD_ADDRESS,		///< Something's wrong with the addresses in use.
-  BK_ADDRGROUP_STATE_ABORT,			///< We've aborted for some reason.
-  BK_ADDRGROUP_STATE_NEWCONNECTION,		///< Here's a new connection.
-  BK_ADDRGROUP_STATE_CONNECTING,		///< We are connecting.
-  BK_ADDRGROUP_STATE_ACCEPTING,			///< We are accepting.
-  BK_ADDRGROUP_STATE_READY,			///< Server ready.
-  BK_ADDRGROUP_STATE_CLOSING,			///< We're closing.
-} bk_addrgroup_state_t;
+  BkAddrGroupStateSysError=1,			///< An system error
+  BkAddrGroupStateRemoteError,			///< A "remote" network error
+  BkAddrGroupStateLocalError,			///< An "local" network error
+  BkAddrGroupStateTimeout,			///< A timeout has occured
+  BkAddrGroupStateReady,			///< TCP listener or unconnected UDP ready
+  BkAddrGroupStateConnected,			///< TCP/UDP/AF_LOCAL connected
+  BkAddrGroupStateClosing,			///< State is closing
+} bk_addrgroup_state_e;
 
 
 
@@ -256,15 +278,20 @@ typedef void (*bk_fd_handler_t)(bk_s B, struct bk_run *run, int fd, u_int gottyp
  * the handle (and any local cleanup associated with this). Please be aware
  * too that if you call bk_addrgroup_server_close(), you will still get the
  * closing notification.
+ *
+ * Checking the @a bag is required by the API. In the BkAddrGroupClosing
+ * state, it is <em>guarenteed</em> to be NULL, but the API allows for it
+ * to be NULL in any state (though currently this cannot happen)
+ *
  *	@param B BAKA thread/global state.
  *	@param args User args
  *	@param sock The new socket.
  *	@param bag The address group pair (if you requested it).
  *	@param server_handle The handle for referencing the server (accepting connections only). 
- *	@param state State as described by @a bk_addrgroup_state_t.
+ *	@param state State as described by @a bk_addrgroup_state_e.
  *
  */
-typedef void (*bk_bag_callback_t)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_t state);
+typedef void (*bk_bag_callback_t)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state);
 
 /**
  * Structure which describes a network "association". This name is slightly
@@ -367,6 +394,8 @@ do {						\
 // @}
 
 
+
+#define BK_SECS_TO_EVENT(x) ((x)*1000)		///< Convert seconds to event granularity
 
 /**
  * @name Basic Timeval Operations
@@ -480,17 +509,21 @@ struct bk_funinfo
 
 
 /**
- * @a bk_servinfo struct. Pretty much the same thing as a @a servent, but
- * wth a few @a BAKAisms. For instance since the the protocol is often
- * implied by the current conext, you may expect the @a bsi_protostr to be
- * NULL in many cases.
+ * @a bk_servinfo struct. 
+ *
+ * Pretty much the same thing as a @a servent, but wth a few @a
+ * BAKAisms.
  */
 struct bk_servinfo
 {
   bk_flags		bsi_flags;		///< Everyone needs flags
   u_int			bsi_port;		///< Port (network order)
   char *		bsi_servstr;		///< Service string
-  char *		bsi_protostr;		///< Proto str (NULL OK)
+  /* 
+   * XXX Protostr removed 'cause Seth&Alex said too. Jtt thinks it belongs
+   * as this is not no lonter a stand-alone structure, but I suppose you
+   * can always use a real servent if you need to.
+   */
 };
 
 
@@ -712,6 +745,7 @@ extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t han
 #define BK_RUN_XCPTREADY			0x04	///< user handler is notified by bk_run that exception data is ready
 #define BK_RUN_CLOSE				0x08	///< user handler is notified by bk_run that bk_run is in process of closing this fd
 #define BK_RUN_DESTROY				0x10	///< user handler is notified by bk_run that bk_run is in process of destroying
+#define BK_RUN_BAD_FD				0x20	///< Select(2) returned EBADFD for this fd.
 extern int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wantmask, bk_flags flags);
@@ -825,10 +859,10 @@ extern void bk_protoent_destroy(bk_s B, struct protoent *p);
 extern int bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni, bk_flags flags);
 #define BK_GETSERVBYFOO_FORCE_LOOKUP	0x1	///< Do lookup even if argumnet suggests otherwise.
 extern void bk_servent_destroy(bk_s B, struct servent *s);
-extern void *bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_netinfo *bni, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bni, void *args), void *args, bk_flags user_flags);
+void *bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct bk_run *br, bk_gethostbyfoo_callback_f callback, void *args, bk_flags user_flags);
 #define BK_GETHOSTBYFOO_FLAG_FQDN	0x1	///< Get the FQDN
 extern void bk_destroy_hostent(bk_s B, struct hostent *h);
-extern void bk_gethostbyfoo_info_destroy(bk_s B, void *opaque);
+extern void bk_gethostbyfoo_abort(bk_s B, void *opaque);
 
 
 /* b_netinfo.c */
@@ -847,9 +881,7 @@ extern int bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_neta
 #define BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY	0x1 ///< Allow bad address information to indicate ANY addresss.
 extern struct bk_netinfo *bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_t side);
 extern const char *bk_netinfo_info(bk_s B, struct bk_netinfo *bni);
-
-
-
+extern struct bk_netaddr * bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni);
 
 /* b_netaddr.c */
 extern struct bk_netaddr *bk_netaddr_create(bk_s B);
@@ -862,7 +894,7 @@ extern int bk_netaddr_nat2af(bk_s B, int type);
 
 
 /* b_servinfo.c */
-extern struct bk_servinfo *bk_servinfo_serventdup (bk_s B, struct servent *s, struct bk_protoinfo *bpi);
+extern struct bk_servinfo *bk_servinfo_serventdup (bk_s B, struct servent *s);
 extern struct bk_servinfo *bk_servinfo_user(bk_s B, char *servstr, u_short port, char *protostr);
 extern void bk_servinfo_destroy (bk_s B,struct bk_servinfo *bsi);
 extern struct bk_servinfo *bk_servinfo_clone (bk_s B, struct bk_servinfo *obsi);
@@ -874,9 +906,11 @@ extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obs
 /* b_netutils.c */
 extern int bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa);
 extern int bk_parse_endpt_spec(bk_s B, char *urlstr, char **hoststr, char *defhoststr, char **servicestr,  char *defservicestr, char **protostr, char *defprotostr);
-extern int bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags);
-extern int bk_netutils_make_conn(bk_s B, struct bk_run *run, char *rurl, char *defrhost, char *defrserv, char *lurl, char *deflhost, char *deflserv, char *defproto, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags );
-
+extern int bk_netutils_start_service(bk_s B, struct bk_run *run, char *url, char *defurl, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags);
+extern int bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *defhoststr, char *defservstr, char *defprotostr, char *securenets, bk_bag_callback_t callback, void *args, int backlog, bk_flags flags);
+extern int bk_netutils_make_conn(bk_s B, struct bk_run *run, char *url, char *defurl, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags);
+extern int bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, char *rurl, char *defrhost, char *defrserv, char *lurl, char *deflhost, char *deflserv, char *defproto, u_long timeout, bk_bag_callback_t callback, void *args, bk_flags flags );
+extern int bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, char **servistr, char **protostr);
 
 
 /* b_signal.c */
@@ -894,7 +928,8 @@ extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils
 extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_t callback, void *args, int backlog);
 void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
 extern int bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securenets, bk_bag_callback_t callback, void *args, bk_flags flags);
-int bk_addrgroup_get_server_socket(bk_s B, void *server_handle);
-int bk_addrgroup_server_close(bk_s B, void *server_handle);
+extern int bk_addrgroup_get_server_socket(bk_s B, void *server_handle);
+extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
+extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
 
 #endif /* _BK_h_ */

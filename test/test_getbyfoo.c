@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.10 2001/11/29 17:29:23 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.11 2001/12/04 19:51:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -41,7 +41,7 @@ struct global_structure
 
 int proginit(bk_s B);
 void progrun(bk_s B);
-static void host_callback(bk_s B, struct bk_run *run, struct hostent **hp, struct bk_netinfo *bni, void *args);
+static void host_callback(bk_s B, struct bk_run *run, struct hostent *hp, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state);
 
 
 
@@ -265,8 +265,7 @@ void progrun(bk_s B)
     }
 
     if (!(bk_gethostbyfoo(B, Global.gs_query, 0, 
-			BK_FLAG_ISCLEAR(Global.gs_flags, TESTGETBYFOO_FLAG_NO_COPYOUT)?h:NULL, 
-			bni, run, host_callback, NULL,
+			  bni, run, host_callback, NULL,
 			  ((BK_FLAG_ISSET(Global.gs_flags,TESTGETBYFOO_FLAG_FQDN))?BK_GETHOSTBYFOO_FLAG_FQDN:0))))
     {
       fprintf(stderr,"Could not \"initiate\" gethostbyfoo call\n");
@@ -293,64 +292,65 @@ void progrun(bk_s B)
 
 
 static void
-host_callback(bk_s B, struct bk_run *run, struct hostent **hp, struct bk_netinfo *bni, void *args)
+host_callback(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
-  struct hostent *h;
   char **s;
   struct bk_netaddr *bna;
 
-  if ((!hp && !bni) || !run || args) /* no args are expected */
+  if ((!h && !bni) || !run || args) /* no args are expected */
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
 
+  if (state == BkGetHostByFooStateErr)
+  {
+    fprintf(stderr,"Error in getting hostname detected\n");
+    BK_VRETURN(B);
+  }
+
   if (BK_FLAG_ISCLEAR(Global.gs_flags, TESTGETBYFOO_FLAG_NO_COPYOUT))
   {
-    if (!(h=*hp))
-    {
-      printf("It appears that we had an error\n");
-    }
-    else
-    {
-      printf("Name: %s\n", h->h_name);
+    printf("Name: %s\n", h->h_name);
     
-      if (h->h_aliases)
+    if (h->h_aliases)
+    {
+      printf ("Aliases: ");
+      for(s=h->h_aliases; *s; s++)
       {
-	printf ("Aliases: ");
-	for(s=h->h_aliases; *s; s++)
-	{
-	  printf("%s ", *s);
-	}
-	printf("\n");
-      }
-      printf("Addrtype: %d\nLength: %d\n", h->h_addrtype, h->h_length);
-    
-      printf("Addresses: ");
-      if (h->h_addrtype == AF_INET)
-      {
-	struct in_addr **ia;
-
-	for(ia=(struct in_addr **)(h->h_addr_list); *ia; ia++)
-	{
-	  char s1[100];
-	  printf("%s ", inet_ntop(h->h_addrtype, *ia, s1, 100));
-	}
-      }
-      else if (h->h_addrtype == AF_INET6)
-      {
-	struct in6_addr **ia;
-
-	printf("Addresses: ");
-	for(ia=(struct in6_addr **)(h->h_addr_list); *ia; ia++)
-	{
-	  char s1[100];
-	  printf("%s ", inet_ntop(h->h_addrtype, *ia, s1, 100));
-	}
+	printf("%s ", *s);
       }
       printf("\n");
+    }
+    printf("Addrtype: %d\nLength: %d\n", h->h_addrtype, h->h_length);
+    
+    printf("Addresses: ");
+    if (h->h_addrtype == AF_INET)
+    {
+      struct in_addr **ia;
 
+      for(ia=(struct in_addr **)(h->h_addr_list); *ia; ia++)
+      {
+	char s1[100];
+	printf("%s ", inet_ntop(h->h_addrtype, *ia, s1, 100));
+      }
+    }
+    else if (h->h_addrtype == AF_INET6)
+    {
+      struct in6_addr **ia;
+
+      printf("Addresses: ");
+      for(ia=(struct in6_addr **)(h->h_addr_list); *ia; ia++)
+      {
+	char s1[100];
+	printf("%s ", inet_ntop(h->h_addrtype, *ia, s1, 100));
+      }
+    }
+    printf("\n");
+
+    if (state != BkGetHostByFooStateNetinfoErr)
+    {
       if (!(bna=netinfo_addrs_minimum(bni->bni_addrs)))
       {
 	fprintf(stderr, "No address was located in bni");
@@ -360,28 +360,38 @@ host_callback(bk_s B, struct bk_run *run, struct hostent **hp, struct bk_netinfo
 	bk_netinfo_set_primary_address(B, bni, bna);
 	printf("Callback bni is: %s\n", bni->bni_pretty);
       }
-      bk_destroy_hostent(B, h);
+    }
+    else
+    {
+      fprintf(stderr,"We had an error filling out the bni\n");
     }
   }
   else
   {
     int run_once=0;
 
-    for(bna=netinfo_addrs_minimum(bni->bni_addrs);
-	bna;
-	bna=netinfo_addrs_successor(bni->bni_addrs,bna))
-    {
-      if (!run_once)
+      if (state != BkGetHostByFooStateNetinfoErr)
       {
-	printf("Addrtype: %d\n", bk_netaddr_nat2af(B, bna->bna_type));
-	printf("Length: %u\n", bna->bna_len);
-	printf("Address: ");
-	bk_netinfo_set_primary_address(B, bni, bna);
-	run_once++;
+	for(bna=netinfo_addrs_minimum(bni->bni_addrs);
+	    bna;
+	    bna=netinfo_addrs_successor(bni->bni_addrs,bna))
+	{
+	  if (!run_once)
+	  {
+	    printf("Addrtype: %d\n", bk_netaddr_nat2af(B, bna->bna_type));
+	    printf("Length: %u\n", bna->bna_len);
+	    printf("Address: ");
+	    bk_netinfo_set_primary_address(B, bni, bna);
+	    run_once++;
+	  }
+	  printf("%s ", bna->bna_pretty);
+	}
+	printf("\n");
       }
-      printf("%s ", bna->bna_pretty);
-    }
-    printf("\n");
+      else
+      {
+	fprintf(stderr,"We had an error filling out the bni\n");
+      }
   }
   
   bk_run_set_run_over(B, run);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.18 2001/11/30 00:33:08 seth Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.19 2001/12/04 19:51:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,7 +27,7 @@ XXX - doc failure
 
 
 
-#define ERRORQUEUE_DEPTH 32			///< Default depth
+#define ERRORQUEUE_DEPTH 	32		///< Default depth
 #define DEFAULT_PROTO_STR	"tcp"		///< Default protocol
 #define DEFAULT_PORT_STR	"5001"		///< Default port
 #define ANY_PORT		"0"		///< Any port is OK
@@ -49,10 +49,9 @@ struct global_structure
  */
 typedef enum
 {
-  // XXX - Make this CamelCase
-  BTTCP_ROLE_TRANSMIT=1,			///< We are transmitter (connect)
-  BTTCP_ROLE_RECEIVE				///< We are receiver (accept)
-} bttcp_role_t;
+  BttcpRoleTransmit=1,				///< We are trans. (connect)
+  BttcpRoleReceive,				///< We are receiver (accept)
+} bttcp_role_e;
 
 
 
@@ -62,7 +61,7 @@ typedef enum
  */
 struct program_config
 {
-  bttcp_role_t		pc_role;		///< What role do I play?
+  bttcp_role_e		pc_role;		///< What role do I play?
   bk_flags		pc_flags;		///< Everyone needs flags.
 #define PC_VERBOSE	0x02			///< Verbose output
 #define BTTCP_FLAG_SHUTTING_DOWN_SERVER	0x01	///< We're shutting down a server
@@ -79,7 +78,7 @@ struct program_config
 
 
 static int proginit(bk_s B, struct program_config *pconfig);
-static void connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_flags flags);
+static void connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state);
 static void relay_finish(bk_s B, void *args, u_int state);
 static void cleanup(bk_s B, struct program_config *pc);
 
@@ -129,7 +128,7 @@ main(int argc, char **argv, char **envp)
   pc = &Pconfig;
   memset(pc,0,sizeof(*pc));
 
-  pc->pc_timeout=BK_TV_SECTOUSEC(30);
+  pc->pc_timeout=BK_SECS_TO_EVENT(30);
 
   if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0)))
   {
@@ -163,7 +162,7 @@ main(int argc, char **argv, char **envp)
 	fprintf(stderr,"Cannot be both transmitter and receiver\n");
 	exit(1);
       }
-      pc->pc_role=BTTCP_ROLE_RECEIVE;
+      pc->pc_role=BttcpRoleReceive;
       if (!pc->pc_localurl)
       {
 	pc->pc_localurl=BK_ADDR_ANY;
@@ -176,7 +175,7 @@ main(int argc, char **argv, char **envp)
 	fprintf(stderr,"Cannot be both transmitter and receiver\n");
 	exit(1);
       }
-      pc->pc_role=BTTCP_ROLE_TRANSMIT;
+      pc->pc_role=BttcpRoleTransmit;
       pc->pc_remoteurl=(char *)poptGetOptArg(optCon);
       break;
 
@@ -185,7 +184,7 @@ main(int argc, char **argv, char **envp)
       break;
 
     case 'T':					// Timeout
-      pc->pc_timeout=BK_TV_SECTOUSEC(atoi(poptGetOptArg(optCon)));
+      pc->pc_timeout=BK_SECS_TO_EVENT(atoi(poptGetOptArg(optCon)));
       break;
 
     case 1:					// address-family
@@ -251,13 +250,13 @@ proginit(bk_s B, struct program_config *pc)
 
   switch (pc->pc_role)
   {
-  case BTTCP_ROLE_RECEIVE:
-    if (bk_netutils_start_service(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, DEFAULT_PROTO_STR, NULL, connect_complete, pc, 0, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP))
+  case BttcpRoleReceive:
+    if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, DEFAULT_PROTO_STR, NULL, connect_complete, pc, 0, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP))
       bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     break;
 
-  case BTTCP_ROLE_TRANSMIT:
-    if (bk_netutils_make_conn(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, DEFAULT_PROTO_STR, pc->pc_timeout, connect_complete, pc, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP) < 0)
+  case BttcpRoleTransmit:
+    if (bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, DEFAULT_PROTO_STR, pc->pc_timeout, connect_complete, pc, BK_ADDRGROUP_FLAG_WANT_ADDRGROUP) < 0)
       bk_die(B, 1, stderr, "Could not start transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     break;
 
@@ -284,13 +283,13 @@ proginit(bk_s B, struct program_config *pc)
  *	@return <i>0</i> on success.
  */
 static void 
-connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_t state)
+connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
-  struct program_config *pc;
+  struct program_config *pc=args;
   struct bk_ioh *std_ioh = NULL, *net_ioh = NULL;
 
-  if (!(pc = args))
+  if (!pc)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
@@ -298,30 +297,36 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 
   switch (state)
   {
-    // XXX - Make this CamelCase
-  case BK_ADDRGROUP_STATE_READY:
+  case BkAddrGroupStateSysError:
+    fprintf(stderr,"A system error occured\n");
+    goto error;
+    break;
+  case BkAddrGroupStateRemoteError:
+    fprintf(stderr,"A remote network error occured (connection refused?)\n");
+    goto error;
+    break;
+  case BkAddrGroupStateLocalError:
+    fprintf(stderr,"A local network error occured (address already in use?)\n");
+    goto error;
+    break;
+  case BkAddrGroupStateTimeout:
+    fprintf(stderr,"The connection timed out with no more addresses to try\n");
+    goto error;
+    break;
+  case BkAddrGroupStateReady:
     pc->pc_server = server_handle;
     if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
       fprintf(stderr,"Ready and waiting\n");
     goto done;
     break;
-
-  case BK_ADDRGROUP_STATE_NEWCONNECTION:
+  case BkAddrGroupStateConnected:
     if (pc->pc_server /* && ! serving_conintuously */)
     {
       BK_FLAG_SET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
-      bk_addrgroup_server_close(B, pc->pc_server);
+      bk_addrgroup_server_close(B, server_handle);
     }
     break;
-
-  case BK_ADDRGROUP_STATE_ABORT:
-    fprintf(stderr,"Software abort\n");
-    /* XXX - switch to
-    bk_die(B, 1, stderr, "System failure during connection attempt\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-    */
-    break;
-
-  case BK_ADDRGROUP_STATE_CLOSING:
+  case BkAddrGroupStateClosing:
     if (BK_FLAG_ISSET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER) &&
 	pc->pc_server == server_handle)
     {
@@ -332,53 +337,21 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
       goto done;
     }
     fprintf(stderr,"Software shutdown during connection setup\n");
-    /* XXX - switch to
-    bk_die(B, 1, stderr, "James will explain how this occurs\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-    */
-    break;
-
-  case BK_ADDRGROUP_STATE_TIMEOUT:
-    fprintf(stderr,"Connection timedout\n");
-    break;
-
-  case BK_ADDRGROUP_STATE_WIRE_ERROR:
-    fprintf(stderr,"I/O Error\n");
-    break;
-
-  case BK_ADDRGROUP_STATE_BAD_ADDRESS:
-    fprintf(stderr,"Bad address\n");
-    break;
-
-  case BK_ADDRGROUP_STATE_NULL:
-    break;
-
-  case BK_ADDRGROUP_STATE_CONNECTING:
-    fprintf(stderr,"How did we get an connecting state?!\n");
-    exit(1);
-    break;
-
-  case BK_ADDRGROUP_STATE_ACCEPTING:
-    fprintf(stderr,"How did we get an accepting state?!\n");
-    exit(1);
-    break;
-
-  default:
-    fprintf(stderr, "Unknown as state: %d\n", state);
-    exit(1);
-    break;
-  }
-
-  if (state != BK_ADDRGROUP_STATE_NEWCONNECTION)
-  {
     goto error;
+    break;
+  default:
+    bk_error_printf(B, BK_ERR_ERR,"Unknown state: %d\n", state);
+    goto error;
+    break;
   }
 
-  fprintf(stderr, "%s ==> %s\n", bk_netinfo_info(B,bag->bag_local), bk_netinfo_info(B,bag->bag_remote));
+  if (bag)
+  {
+    fprintf(stderr, "%s ==> %s\n", bk_netinfo_info(B,bag->bag_local), bk_netinfo_info(B,bag->bag_remote));
+  }
 
-  /* XXX If we need to hold on to bag save it here but for now */
+  /* If we need to hold on to bag save it here */
 
-  fflush(stdin);
-  fflush(stdout);
   // XXX Add options to set inbufhints, max, and outbufmax
   if (!(std_ioh = bk_ioh_init(B, fileno(stdin), fileno(stdout), NULL, NULL, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
@@ -399,11 +372,9 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   }
 
  done:
-  if (bag) bk_addrgroup_destroy(B, bag);
   BK_VRETURN(B);
 
  error:
-  if (bag) bk_addrgroup_destroy(B, bag);
   if (std_ioh) bk_ioh_destroy(B, std_ioh);
   if (net_ioh) bk_ioh_destroy(B, net_ioh);
   bk_run_set_run_over(B,pc->pc_run);

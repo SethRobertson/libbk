@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.5 2001/11/28 18:24:09 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.6 2001/12/04 19:51:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -18,8 +18,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 /**
  * @file
- * All of the baka run public and private functions.
- XXXX -- this is not bk_run.
+ * All the voodoo to make @a bk_netaddrs work.
  */
 
 #include <libbk.h>

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.22 2001/11/30 00:33:08 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.23 2001/12/04 19:51:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -891,12 +891,8 @@ bck_destroy(bk_s B, struct bk_config_key *bck)
   /* This CLC header can be NULL if there was an error during bck creation */
   if (bck->bck_values)
   {
-    // XXX - DICT_NUKE_CONTENTS
-    while((bcv=config_values_minimum(bck->bck_values)))
-    {
-      config_values_delete(bck->bck_values, bcv);
-      bcv_destroy(B, bcv);
-    }
+
+    DICT_NUKE_CONTENTS(bck->bck_values, config_values, bcv, bk_error_printf(B, BK_ERR_ERR, "Could not nuke a value from a key: %s\n", config_values_error_reason(bck->bck_values, NULL));, bcv_destroy(B, bcv));
     config_values_destroy(bck->bck_values);
   }
 
@@ -1020,14 +1016,15 @@ bk_config_print(bk_s B, struct bk_config *ibc, FILE *fp)
  * Check the current fileinfo for possible "double inclusion". We do it by
  * fstat(2) so we should be fairly certain that the double inclusion is
  * real as well as being reasonably safe from race conditions. Note this a
- * recursive function
+ * recursive function.
  *
  *	@param B BAKA thread/global state 
- *	@param B BAKA thread/global state 
- *	@param B BAKA thread/global state 
- *	@param B BAKA thread/global state 
- *	@param B BAKA thread/global state 
-// XXX-seth
+ *	@param bc @a bk_config structure.
+ *	@param cur_bcf File info of file against which we are checking.
+ *	@param new_cvs File info for file we propose to include.
+ *	@return <i>1</i> on no match.
+ *	@return <i>0</i> on match.
+ *	@return <br><i>-1</i> on severe failure.
  */
 static int
 check_for_double_include(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *cur_bcf, struct bk_config_fileinfo *new_bcf)
