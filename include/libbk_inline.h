@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_inline.h,v 1.13 2003/07/10 20:43:31 jtt Exp $
+ * $Id: libbk_inline.h,v 1.14 2003/07/16 18:19:14 brian Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -526,7 +526,7 @@ bk_dll_search(dict_h handle, dict_key key)
   struct bk_generic_dll_element *gde;
 
   for(gde = gdh->gdh_head; gde; gde = gde->gde_next)
-    if (!(*gdh->gdh_ko_cmp)((dict_obj)gde, key))
+    if (!(*gdh->gdh_ko_cmp)(key,(dict_obj)gde)
       break;
   return((dict_obj)gde);
 }
