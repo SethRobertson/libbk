@@ -31,7 +31,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-int getuidbyargv(char *argv, int *error);
+int getuidbyargv(char *argv, int *error, int *gid);
 int getgidbyargv(char *argv, int *error);
 
 
@@ -47,9 +47,10 @@ int main(int argc, char **argv, char **envp)
   int c;
   char *dir = NULL;
   char *shell;
+  int gidset = 0;
 
-  if ((uid = getuidbyargv("nobody",&err)) == -1)
-    if ((uid = getuidbyargv("noone",&err)) == -1)
+  if ((uid = getuidbyargv("nobody",&err,NULL)) == -1)
+    if ((uid = getuidbyargv("noone",&err,NULL)) == -1)
       uid = 65534;
 
   if ((gid = getgidbyargv("nobody",&err)) == -1)
@@ -68,11 +69,11 @@ int main(int argc, char **argv, char **envp)
 	break;
 
       case 'u':
-	uid = getuidbyargv(optarg,NULL);
+	uid = getuidbyargv(optarg,NULL,NULL);
 	break;
 
       case 'U':			/* fall through case */
-	uid = getuidbyargv(optarg,NULL);
+	uid = getuidbyargv(optarg,NULL,&gid);
 
       case 'G':
 	resetXtraGroups = 1;
@@ -82,6 +83,7 @@ int main(int argc, char **argv, char **envp)
 
       case 'g':
 	gid = getgidbyargv(optarg,NULL);
+	gidset = 1;
 	break;
 
       case 'c':
@@ -172,7 +174,7 @@ int getgidbyargv(char *argv, int *error)
 /*
 ** Find of the uid if the argument is a number or a user name
 */
-int getuidbyargv(char *argv, int *error)
+int getuidbyargv(char *argv, int *error, int *gid)
 {
   int uid;
 
@@ -200,6 +202,7 @@ int getuidbyargv(char *argv, int *error)
 	    }
 	}
       uid = pwd->pw_uid;
+      if (gid) *gid = pwd->pw_gid;
     }
 
   return(uid);
