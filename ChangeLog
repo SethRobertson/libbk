@@ -1,3 +1,10 @@
+2001-11-07  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* b_run.c: Add function to turn off run. If the run is over make
+	sure that select(2) doesn't block.
+
+	* Added bk_gethostbyfoo and support.
+
 2001-11-07  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_general.c: Convert BK_MALLOC to new semantic

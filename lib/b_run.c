@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.8 2001/11/07 21:35:49 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.9 2001/11/07 22:23:57 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -786,8 +786,19 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_HAVE_IDLE) &&
       (!selectarg || selectarg->tv_sec != 0 || selectarg->tv_usec != 0))
   {
-    selectarg->tv_sec = selectarg->tv_usec = 0;
+    selectarg = &zero;
     check_idle=1;
+  }
+
+  /* 
+   * If this is the final run then turn select(2) into a poll.  This
+   * ensures that should we turn of select in an envent (the final event of
+   * the run), we don't block forever owing to lack of descriptors in the
+   * select set.
+   */
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_RUN_OVER))
+  {
+    selectarg = &zero; 
   }
 
   readset = run->br_readset;
@@ -1600,6 +1611,25 @@ brof_destroy(bk_s B, struct bk_run_ondemand_func *brof)
 
 
 
+/** 
+ * Turn of the run enviornment
+ */
+int
+bk_run_set_run_over(bk_s B, struct bk_run *run)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!run)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_RUN_OVER);
+  BK_RETURN(B,0);
+}
+
+
 /*
  * fd association CLC routines
  */
@@ -1633,8 +1663,6 @@ static int brfl_ko_cmp(void *a, struct bk_run_func *b)
 {
   return ((char *)a)-((char *)b->brfn_key);
 }
-
-
 
 /*
  * baka run on-demand function list CLC routines

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.2 2001/11/07 00:28:18 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.3 2001/11/07 22:24:12 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -39,6 +39,7 @@ struct global_structure
 
 int proginit(bk_s B);
 void progrun(bk_s B);
+static void host_callback(bk_s B, struct bk_run *run, struct hostent **hp, void *args);
 
 
 
@@ -143,6 +144,7 @@ void progrun(bk_s B)
   struct protoent *p=NULL;
   struct servent *s=NULL;
   char **s1;
+  struct bk_run *run;
 
   if (BK_FLAG_ISSET(Global.gs_flags, TESTGETBYFOO_FLAG_QUERY_PROTO))
   {
@@ -197,9 +199,106 @@ void progrun(bk_s B)
     
     bk_servent_destroy(B,s);
   }
+  else if (BK_FLAG_ISSET(Global.gs_flags, TESTGETBYFOO_FLAG_QUERY_HOST))
+  {
+    struct hostent **h;
+    struct hostent *dummy=NULL;
 
+    if (!(run=bk_run_init(B,0)))
+    {
+      fprintf(stderr,"Could not initialize bk_run\n");
+      exit(1);
+    }
+    if(!(h=malloc(sizeof(*h))))
+    {
+      fprintf(stderr,"Could not allocate h: %s\n", strerror(errno));
+      exit(1);
+    }
+    *h=dummy;
+    if (*h)
+    {
+      printf("h is now %p\n", h);
+    }
+
+    if (bk_gethostbyfoo(B, Global.gs_query, 0, h, run, host_callback, NULL)< 0)
+    {
+      fprintf(stderr,"Could not \"initiate\" gethostbyfoo call");
+      exit(1);
+    }
+    if (!*h)
+    {
+      printf("h is properly NULL\n");
+    }
+    else
+    {
+      printf("Regretteby h is %p\n", p);
+    }
+    bk_run_run(B,run,0);
+  }
     
   BK_VRETURN(B);
 }
 
 
+static void
+host_callback(bk_s B, struct bk_run *run, struct hostent **hp, void *args)
+{
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+  struct hostent *h;
+  char **s;
+
+  if (!hp || !run || args) /* no args are expected */
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  if (!(h=*hp))
+  {
+    printf("It appears that we had an error\n");
+  }
+  else
+  {
+    printf("Name: %s\n", h->h_name);
+    
+    if (h->h_aliases)
+    {
+      printf ("Aliases: ");
+      for(s=h->h_aliases; *s; s++)
+      {
+	printf("%s ", *s);
+      }
+      printf("\n");
+    }
+    printf("Addrtype: %d\nLength: %d\n", h->h_addrtype, h->h_length);
+    
+    printf("Addresses: ");
+    if (h->h_addrtype == AF_INET)
+    {
+      struct in_addr **ia;
+
+      for(ia=(struct in_addr **)(h->h_addr_list); *ia; ia++)
+      {
+	char s1[100];
+	printf("%s ", inet_ntop(h->h_addrtype, *ia, s1, 100));
+      }
+    }
+    else if (h->h_addrtype == AF_INET6)
+    {
+      struct in6_addr **ia;
+
+      printf("Addresses: ");
+      for(ia=(struct in6_addr **)(h->h_addr_list); *ia; ia++)
+      {
+	char s1[100];
+	printf("%s ", inet_ntop(h->h_addrtype, *ia, s1, 100));
+      }
+    }
+    printf("\n");
+
+    bk_destroy_hostent(B, h);
+    bk_run_set_run_over(B, run);
+  }
+  
+  BK_VRETURN(B);
+}

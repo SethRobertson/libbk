@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.40 2001/11/07 21:35:32 seth Exp $
+ * $Id: libbk.h,v 1.41 2001/11/07 22:24:10 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -491,7 +491,7 @@ extern int bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct
 extern int bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime, bk_flags flags), void *opaque, volatile int *demand, void **handle);
 extern int bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle);
-
+extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
 
 /* b_ioh.c */
 typedef int (*bk_iofunc)(int, caddr_t, __SIZE_TYPE__); ///< read/write style I/O function for bk_ioh
@@ -572,6 +572,8 @@ extern int bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip);
 extern void bk_protoent_destroy(bk_s B, struct protoent *p);
 extern int bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is);
 extern void bk_servent_destroy(bk_s B, struct servent *s);
+extern int bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, void *args), void *args);
+extern void bk_destroy_hostent(bk_s B, struct hostent *h);
 
 
 #endif /* _BK_h_ */

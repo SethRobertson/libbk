@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.2 2001/11/07 00:28:18 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.3 2001/11/07 22:24:11 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,6 +25,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  */
 
 
+static int copy_hostent(bk_s B, struct hostent **ih, struct hostent *h);
+static void gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval starttime, bk_flags flags);
 
 /** 
  * Get a protocol number no matter which type string you have. 
@@ -70,6 +72,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip)
   {
     if (!(p=getprotobynumber(num)))
     {
+      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to protocol: %s\n", protostr, strerror(errno));
       goto error;
     }
@@ -78,6 +81,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip)
   {
     if (!(p=getprotobyname(protostr)))
     {
+      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to protocol: %s\n", protostr, strerror(errno));    
       goto error;
     }
@@ -87,6 +91,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip)
   {
     if (!(n->p_name=strdup(p->p_name)))
     {
+      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not dup protocol name: %s\n", strerror(errno));
       goto error;
     }
@@ -98,6 +103,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip)
     
       if (!(n->p_aliases=calloc((alias_count+1),sizeof(n->p_aliases))))
       {
+	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate proto alias buffer: %s\n", strerror(errno));
 	goto error;
       }
@@ -106,6 +112,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip)
       {
 	if (!(n->p_aliases[count]=strdup(p->p_aliases[count])))
 	{
+	  /* MUTEX_UNLOCK */
 	  bk_error_printf(B, BK_ERR_ERR, "Could not duplicate a protocol aliase: %s\n", strerror(errno));
 	  goto error;
 	}
@@ -135,6 +142,7 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip)
 /**
  * Completely free up a protoent copied by the above function
  *	@param B BAKA thread/global state.
+ *	@param p The <i>protoent</i> structure to destroy.
  */
 void
 bk_protoent_destroy(bk_s B, struct protoent *p)
@@ -208,6 +216,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
   {
     if (!(s=getservbyport(num, proto)))
     {
+      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to service: %s\n", servstr, strerror(errno));
       goto error;
     }
@@ -216,6 +225,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
   {
     if (!(s=getservbyname(servstr, proto)))
     {
+      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to service: %s\n", servstr, strerror(errno));    
       goto error;
     }
@@ -225,6 +235,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
   {
     if (!(n->s_name=strdup(s->s_name)))
     {
+      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not dup service name: %s\n", strerror(errno));
       goto error;
     }
@@ -236,12 +247,14 @@ bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
     
       if (!(n->s_aliases=calloc((alias_count+1),sizeof(n->s_aliases))))
       {
+	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate service alias buffer: %s\n", strerror(errno));
 	goto error;
       }
 
       for(count=0; count<alias_count; count++)
       {
+	/* MUTEX_UNLOCK */
 	if (!(n->s_aliases[count]=strdup(s->s_aliases[count])))
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not duplicate a service aliase: %s\n", strerror(errno));
@@ -252,6 +265,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
 
     if (!(n->s_proto=strdup(s->s_proto)))
     {
+      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not duplicate proto name: %s\n", strerror(errno));
       goto error;
     }
@@ -260,7 +274,6 @@ bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
   
   /* Sigh have to save this to automatic so we can unlock before return */
   ret=s->s_port;
-
 
   /* MUTEX_UNLOCK */
   
@@ -281,6 +294,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is)
 /**
  * Completely free up a servent copied by the above function
  *	@param B BAKA thread/global state.
+ *	@param s The <i>servent</i> structure to destroy
  */
 void
 bk_servent_destroy(bk_s B, struct servent *s)
@@ -311,3 +325,329 @@ bk_servent_destroy(bk_s B, struct servent *s)
 }
 
 
+
+struct bk_gethostbyfoo_state
+{
+  struct hostent **	bgs_user_copyout;
+  struct hostent *	bgs_hostent;
+  void 			(*bgs_callback)(bk_s B, struct bk_run *run, struct hostent **h, void *args);
+  void *		bgs_args;
+  bk_flags		bgs_flags;
+};
+
+/**
+ * Get a hostent using whatever string you might happen to have.
+ *	@param B BAKA thread/global state.
+ *
+ */
+int
+bk_gethostbyfoo(bk_s B, char *name, int family, struct hostent **ih, struct bk_run *br, void (*callback)(bk_s B, struct bk_run *run, struct hostent **h, void *args), void *args)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int flags=0; /* 1 == Is an address */
+  int len=0; /* Length of address by family */
+  struct in_addr in_addr;
+  struct in6_addr in6_addr;
+  struct hostent *h;
+  struct bk_gethostbyfoo_state *bgs=NULL;
+
+  /* No point to using *this* func. without copyout, so we check ih */
+  if (!name || !ih || !callback) 
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  *ih=NULL; /* Make sure this is initialized right away (see error section) */
+
+  if (inet_pton(AF_INET, name, &in_addr))
+  {
+    if (family) 
+    {
+      if (family != AF_INET)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Address family mismatch (%d != %d)\n", family, AF_INET);
+	BK_RETURN(B,1);
+      }
+    }
+
+    family=AF_INET; /* Yes this might be redundant. Leave me alone */
+    BK_FLAG_SET(flags, 0x1);
+    len=sizeof(struct in_addr);
+  }
+  else if (inet_pton(AF_INET6, name, &in6_addr))
+  {
+    if (family) 
+    {
+      if (family != AF_INET6)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Address family mismatch (%d != %d)\n", family, AF_INET6);
+	BK_RETURN(B,1);
+      }
+    }
+
+    BK_FLAG_SET(flags, 0x1);
+    family=AF_INET6;
+    len=sizeof(struct in6_addr);
+
+  }
+
+  /* MUTEX_LOCK */
+  if (BK_FLAG_ISSET(flags, 0x1))
+  {
+    if (!(h=gethostbyaddr(((family==AF_INET)?(char *)&in_addr:(char *)&in6_addr), len, family)))
+    {
+      /* MUTEX_UNLOCK */
+      bk_error_printf(B, BK_ERR_ERR, "Could not convert %s address: %s\n", (family==AF_INET)?"AF_INET":"AF_INET6",hstrerror(h_errno));
+      goto error;
+    }
+  }
+  else
+  {
+    if (family) 
+    {
+      h=gethostbyname2(name, family);
+    }
+    else
+    {
+      if (!(h=gethostbyname2(name, AF_INET)))
+      {
+	h=gethostbyname2(name, AF_INET6);
+	family=AF_INET6; /* Sure this gets set if h==NULL, so what? :-) */
+      }
+      else
+      {
+	family=AF_INET;
+      }
+
+      if (!h)
+      {
+	/* MUTEX_UNLOCK */
+	bk_error_printf(B, BK_ERR_ERR, "Could not convert %s hostname: %s\n", (family==AF_INET)?"AF_INET":"AF_INET6",hstrerror(h_errno));
+	goto error;
+      }
+    }
+  }
+
+  if (copy_hostent(B,ih,h)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not copy hostent\n");
+    /* MUTEX_UNLOCK */
+    goto error;
+  }
+
+  /* MUTEX_UNLOCK */
+
+  /*
+   * From here on down we are making an attempt to prevent "lazy"
+   * programmers from taking advantage of the blocking nature of the above
+   * calls, since ultimately we'd like to tie into a non-blocking resolver
+   * lib. So here we save the state from this function, set a 0 delta event
+   * (ie execute on next select loop) and then call the caller's
+   * callback. This forces users of this function to make sure that there
+   * code can survive returning to at least one select loop run without the
+   * hostname info.
+   */
+  BK_MALLOC(bgs);
+  if (!bgs)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate bgs: %s\n", strerror(errno));
+    goto error;
+    
+  }
+  bgs->bgs_hostent = *ih;
+  *ih=NULL; /*Make sure this isn't set, so call can't use it before its time */
+  bgs->bgs_user_copyout=ih;
+  bgs->bgs_callback=callback;
+  bgs->bgs_args=args;
+  bgs->bgs_flags=flags;
+
+  if (bk_run_enqueue_delta(B, br, 0, gethostbyfoo_callback, bgs, NULL, 0)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not enqueue gethostbyfoo callback\n");
+    goto error;
+  }
+
+  BK_RETURN(B,0);
+
+ error:
+  if (*ih) bk_destroy_hostent(B, *ih);
+  if (bgs) free(bgs);
+  *ih=NULL;
+  BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Destroy a hostent structure
+ *	@param B BAKA thread/global state.
+ *	@param h Hostent to destroy.
+ */
+void
+bk_destroy_hostent(bk_s B, struct hostent *h)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char **s;
+
+  if (!h)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  if (h->h_name) free(h->h_name);
+  
+  if (h->h_aliases)
+  {
+    for(s=h->h_aliases; *s; s++)
+    {
+      free(*s);
+    }
+    free(h->h_aliases);
+  }
+
+  if (h->h_addr_list) free(h->h_addr_list);
+  free(h);
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Copy a struct hostent from static space to allocated space.  <br> NB:
+ * <em>this function assumes that the the struct hostent source buffer has
+ * ben locked by a higher caller.</em>
+ *	@param B BAKA thread/global state.
+ *	@param ih Copyout pointer to new hostent.
+ *	@param h Hostent source data.
+ *	@return <i>0</i> on success.
+ *	@return <i>-1</i> on failure.
+ */
+static int
+copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct hostent *n=NULL;
+  int count,c;
+  char **s;
+  
+  if (!ih || !h)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  BK_MALLOC(n);
+  if (!n)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate hostent: %s\n", strerror(errno));
+    goto error;
+  }
+
+  *ih=n;
+
+  if (!(n->h_name=strdup(h->h_name)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not strdup h_name: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (h->h_aliases)
+  {
+    for(count=0,s=h->h_aliases; *s; s++)
+      count++;
+    if (!(n->h_aliases=calloc(count+1, sizeof(*s))))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not calloc aliases: %s\n", strerror(errno));
+      goto error;
+    }
+  
+    for(c=0; c<count;c++)
+    {
+      if (!(n->h_aliases[c]=strdup(h->h_aliases[c])))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not strdup an alias: %s\n", strerror(errno));
+	goto error;
+      }
+    }
+  }
+  
+  n->h_addrtype = h->h_addrtype;
+  n->h_length = h->h_length;
+
+  if (h->h_addr_list)
+  {
+    if (h->h_addrtype == AF_INET)
+    {
+      struct in_addr **ia;
+      for (count=0,ia=(struct in_addr **)(h->h_addr_list); *ia; ia++)
+	count++;
+    }
+    else if (h->h_addrtype == AF_INET6)
+    {
+      struct in6_addr **ia;
+      for (count=0,ia=(struct in6_addr **)(h->h_addr_list); *ia; ia++)
+	count++;
+    }
+    else
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Unknown address family: %d\n", h->h_addrtype);
+      goto error;
+    }
+
+    if (!(n->h_addr_list=calloc(count,h->h_length)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate addr_list: %s\n", strerror(errno));
+      goto error;
+    }
+    /* We *should* be able to do this one memmove, but this is safer. */
+    for(c=0; c<count; c++)
+    {
+      memmove(&(n->h_addr_list[c]),&(h->h_addr_list[c]), h->h_length);
+    }
+  }
+
+  *ih=n;
+
+  BK_RETURN(B,0);
+ error:
+  if (n) bk_destroy_hostent(B, n);
+  BK_RETURN(B,-1);
+  
+}
+
+
+
+/**
+ * The <i>gethostbyfoo</i> internal callback right now this does very
+ * little but set the caller's pointer at the allocated data and call the
+ * caller's callback (that's a lot of 'call's buddy), but eventually this
+ * code will run when the answer has arrived. It will then need to decode
+ * the answer and allocate the caller's hostent (and then call the callback
+ * :-))
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run bk_run structure pointer.
+ *	@param args The state stored in <i>bk_gethostbyfoo</i>.
+ *	@param starttime The start of the current <i>select</i> run.
+ *	@param flags Random flags.
+ */
+static void
+gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, struct timeval starttime, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_gethostbyfoo_state *bgs;
+  if (!run || !(bgs=args))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+  
+  /* Finally associate the user's pointer with the hostent data */
+  *bgs->bgs_user_copyout=bgs->bgs_hostent;
+
+  (*bgs->bgs_callback)(B, run, bgs->bgs_user_copyout, bgs->bgs_args);
+  free(bgs);
+  BK_VRETURN(B);
+}
