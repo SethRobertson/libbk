@@ -1,3 +1,8 @@
+2003-03-20  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* xml/b_search.c (bkxml_attrnode_data): Restore AWB default of
+	missing text being empty string, not null.
+
 2003-03-19  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_error.c (bk_error_irepeater_flush): Make sure error
