@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.114 2004/10/22 16:25:46 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.115 2004/10/25 17:07:41 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -434,17 +434,21 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *	@param spliton The string containing the character(s) which separate tokens
  *	@param kvht_vardb Key-value hash table for variable substitution
  *	@param variabledb Environ-style environment for variable substitution
- *	@param flags BK_STRING_TOKENIZE_SKIPLEADING, if set will cause
+ *	@param flags 
+ *		BK_STRING_TOKENIZE_SKIPLEADING, if set will cause
  *		leading separator characters to be ignored; otherwise,
  *		an initial zero-length token will be generated.
+ *
  *		BK_STRING_TOKENIZE_MULTISPLIT, if set, will cause
  *		multiple separators in a row to be treated as the same
  *		separator; otherwise, zero-length tokens will be
  *		generated for every subsequent separator character.
+ *
  *		BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR, if set,
  *		will cause ANSI-C backslash sequences to be
  *		interpolated (\n); otherwise, ANSI-C backslash
  *		sequences are not treated differently.
+ *
  *		BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT, if set,
  *		will cause backslash followed by zero and an octal
  *		number (of variable length up to length 3) to be
@@ -456,11 +460,13 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *		appearing in the source string (BACKSLASH_INTERPOLATE
  *		will override this); otherwise BACKSLASH is not
  *		treated specially (modulo BACKSLASH_INTERPOLATE).
+ *
  *		BK_STRING_TOKENIZE_SINGLEQUOTE, if set, will cause
  *		single quotes to create a string in which the
  *		separator character, backslashes, and other magic
  *		characters may exist without interpolation; otherwise
  *		single quote is not treated specially.
+ *
  *		BK_STRING_TOKENIZE_DOUBLEQUOTE, if set, will cause
  *		double quotes to create a string in which the
  *		separator character may exist without causing
@@ -469,8 +475,15 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *		quotes are not treated specially.  See @a libbk.h for
  *		details. You should call @a bk_string_tokenize_destroy
  *		to free up the generated array.
+ *
  *		BK_STRING_TOKENIZE_CONF_EXPAND if set will allow you to
- *		expand keys using values from you bk_conf.
+ *		expand keys using values from you bk_conf. 
+ *
+ *		BK_STRING_TOKENIZE_WANT_EMPTY_TOKEN if set will return an array of two 
+ *		elements if the input string is empty. The first element is the empty
+ * 		string and the second is the NULL string. Normally we would
+ *		return an array containing the NULL string.
+ *
  *	@return <i>NULL</i> on call failure, allocation failure, other failure
  *	@return <br><i>null terminated array of token strings</i> on success.
  */
@@ -511,6 +524,27 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
   {
     if ((tmp = strspn(curloc, spliton)) > 0)
       curloc += tmp;
+  }
+
+  /*
+   * The logic of the algorithm is such that if the incoming string is
+   * empty (or empties as a result of BK_STRING_TOKENIZE_SKIPLEADING, then,
+   * without the following, we will return an array whose first element is
+   * an empty stringi and whose second is the NULL string. This is
+   * counterintuitive. We *should* return an array whose sole element is
+   * the NULL string. BK_STRING_TOKENIZE_WANT_EMPTY_TOKEN overrides this
+   * check.
+   */
+  if (BK_FLAG_ISCLEAR(flags, BK_STRING_TOKENIZE_WANT_EMPTY_TOKEN) && (*src == '\0'))
+  {
+    if (!(BK_MALLOC(ret)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for NULL string: %s\n", strerror(errno));
+      goto error;
+      
+    }
+    *ret = NULL;
+    BK_RETURN(B, ret);    
   }
 
   /* Go over all characters in source string */

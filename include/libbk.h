@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.308 2004/08/27 02:10:15 dupuy Exp $
+ * $Id: libbk.h,v 1.309 2004/10/25 17:07:42 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1838,6 +1838,7 @@ extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, con
 #define BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT	0x040	///< During bk_string_tokenize_split: Convert \010 et al
 #define BK_STRING_TOKENIZE_SKIPLEADING			0x080   ///< During bk_string_tokenize_split: Bypass leading split chars
 #define BK_STRING_TOKENIZE_CONF_EXPAND			0x100   ///< Allow variable expansion from bk_conf.
+#define BK_STRING_TOKENIZE_WANT_EMPTY_TOKEN		0x200   ///< Returned array contains an empty string if input is empty.
 #define BK_STRING_TOKENIZE_SIMPLE	(BK_STRING_TOKENIZE_MULTISPLIT)
 #define BK_STRING_TOKENIZE_NORMAL	(BK_STRING_TOKENIZE_MULTISPLIT|BK_STRING_TOKENIZE_DOUBLEQUOTE)
 #define BK_STRING_TOKENIZE_CONFIG	(BK_STRING_TOKENIZE_DOUBLEQUOTE)
