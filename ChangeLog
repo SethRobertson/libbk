@@ -4,6 +4,8 @@
 	Convert biq_iterate/nextobj to biq_minimum/successor. See comments
 	in libbk_inline.h for explanation as to why this won't potentially
 	slow things down.
+	(ioh_dequeue_byte): Don't attempt to follow the "next" pointer of
+	a freed object.
 
 	* include/libbk_inline.h: Add more of the missing bk_dll functions.
 

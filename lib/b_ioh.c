@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.93 2003/06/25 19:57:08 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.94 2003/06/25 21:37:54 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1769,8 +1769,9 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
 static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *iohq, u_int32_t bytes, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_ioh_data *bid;
+  struct bk_ioh_data *bid, *next_bid;
   int origbytes = bytes;
+  
 
   if (!iohq)
   {
@@ -1779,10 +1780,14 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
   }
 
   // Figure out what buffers have been fully written
+  
+  
   for (bid = biq_minimum(iohq->biq_queue);
        bid && (bytes > 0);
-       bid = biq_successor(iohq->biq_queue, bid))
+       bid = next_bid)
   {
+    next_bid = biq_successor(iohq->biq_queue, bid);
+
     if (!bid->bid_data)
       continue;
 
