@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.9 2001/07/09 07:08:18 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.10 2001/07/12 20:02:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -30,16 +30,19 @@ static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_fl
 /*
  * Grand creation of libbk state structure
  */
-bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, bk_flags flags)
+bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, int error_queue_length, int log_facility, bk_flags flags)
 {
   bk_s B;
 
   if (!(B = bk_general_thread_init(NULL, "*MAIN*")))
     goto error;
 
-  if (!(BK_BT_GENERAL(B) = (struct bk_general *)malloc(sizeof(*BK_BT_GENERAL(B)))))
+  BK_MALLOC(BK_BT_GENERAL(B));
+
+  if (!BK_BT_GENERAL(B))
+  {
     goto error;
-  memset(BK_BT_GENERAL(B), 0, sizeof(*BK_BT_GENERAL(B)));
+  }
 
   if (!(BK_GENERAL_DEBUG(B) = bk_debug_init(B, 0)))
     goto error;
@@ -53,11 +56,7 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int
   if (!(BK_GENERAL_REINIT(B) = bk_funlist_init(B)))
     goto error;
 
-#if 0
   if (!(BK_GENERAL_CONFIG(B) = bk_config_init(B, configfile, 0)))
-    goto error;
-#endif
-  if (bk_config_init(B, configfile, 0)<0)
     goto error;
 
   if (!(BK_GENERAL_PROCTITLE(B) = bk_general_proctitle_init(B, argc, argv, envp, &BK_GENERAL_PROGRAM(B), 0)))
@@ -96,12 +95,8 @@ void bk_general_destroy(bk_s B)
       if (BK_GENERAL_PROCTITLE(B))
 	bk_general_proctitle_destroy(B,BK_GENERAL_PROCTITLE(B), 0);
 
-#if 0
       if (BK_GENERAL_CONFIG(B))
 	bk_config_destroy(B, BK_GENERAL_CONFIG(B));
-#endif
-      if (BK_GENERAL_CONFIG(B))
-	bk_config_destroy(B);
 
       if (BK_GENERAL_REINIT(B))
 	bk_funlist_destroy(B,BK_GENERAL_REINIT(B));
@@ -195,13 +190,13 @@ bk_s bk_general_thread_init(bk_s B, char *name)
     return(NULL);
   }
 
-  if (!(B1 = (bk_s)malloc(sizeof(*B1))))
+  BK_MALLOC(B1);
+  if (!B1)
   {
     if (B)
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate new bk_thread information\n");
     return(NULL);
   }
-  memset(B1,0,sizeof(*B1));
 
   if (!(BK_BT_FUNSTACK(B1) = bk_fun_init()))
     goto error;
@@ -364,7 +359,8 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_proctitle *PT;
 
-  if (!(PT = (struct bk_proctitle *)malloc(sizeof(*PT))))
+  BK_MALLOC(PT);
+  if (!PT)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate proctitle buffer: %s\n",strerror(errno));
     BK_RETURN(B, (struct bk_proctitle *)NULL);
