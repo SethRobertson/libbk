@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.15 2002/05/07 21:06:23 lindauer Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.16 2002/05/13 21:51:22 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -574,12 +574,10 @@ sss_destroy(bk_s B, struct start_service_state *sss)
  *	@param rurl The remoe endpoint specification (may be NULL).
  *	@param rdefhostsstr Remote host string to use if host part of url is not found. (may be NULL).
  *	@param rdefservstr Remote service string to use if service part of url is not found. (may be NULL).
- *	@param rprotostr Remote protocol string to use if protocol part of url is not found. (may be NULL).
  *	@param lurl The local endpoint specification (may be NULL).
  *	@param ldefhostsstr Local host string to use if host part of url is not found. (may be NULL).
  *	@param ldefservstr Local service string to use if service part of url is not found. (may be NULL).
- *	@param lprotostr Local protocol string to use if protocol part of url is not found. (may be NULL).
- *	@param sercurenets Address based security specification.
+ *	@param protostr Protocol string to use if protocol part of url is not found. (may be NULL).
  *	@param timeout Abort connection after @a timeout seconds.
  *	@param callback Function to call when start is complete.
  *	@param args User args for @a callback.
