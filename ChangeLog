@@ -1,3 +1,11 @@
+2004-02-05  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_string.c (bk_memdiff): See RT 2904.  Bug still
+	outstanding.
+
+	* xml/b_search.c (bkxml_nodesearch): Actually set *last like we
+	say we will
+
 2004-01-29  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_cksum.c (bk_in_cksum): Simplify interface

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_search.c,v 1.12 2003/12/10 14:32:03 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_search.c,v 1.13 2004/02/05 08:58:48 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -83,6 +83,8 @@ int bkxml_nodesearch(bk_s B, xmlNodePtr node, xmlNodePtr *last, xmlNodePtr *foun
     if (node->type == findtype && (!findname || (node->name && !strcmp(node->name, findname))))
     {						// We have found our target!
       *found = node;
+      if (last)
+	*last = node;
       BK_RETURN(B, 1);
     }
   }
