@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_skid.c,v 1.3 2003/05/02 03:29:59 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_skid.c,v 1.4 2003/05/09 19:02:19 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -20,7 +20,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * @file
  *
  * WARNING WARNING WARNING:  This code has never been tested and is known
- * to have bugs in it.
+ * to have bugs in it, and needs thread conversion.
  *
  * SKID3 -- Secret Key IDentification Protocol as described in
  * B. Schneier, Applied Crptography Modified to turn it into a

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.38 2003/05/09 03:25:02 seth Exp $
+ * $Id: libbk_internal.h,v 1.39 2003/05/09 19:02:18 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -115,11 +115,15 @@ struct bk_polling_io
 #define BPI_FLAG_SAW_EOF		0x8	///< We have seen EOF.
 #define BPI_FLAG_DONT_DESTROY		0x10	///< Tell io hander not destroy bpi.
 #define BPI_FLAG_IOH_DEAD		0x20	///< Bpi not destroyed, ioh was
+#define BPI_FLAG_THREADED		0x40	///< Don't worry about recursively calling bk_run
   u_int			bpi_size;		///< Amount of data I'm buffering.
   dict_h		bpi_data;		///< Queue of data vptrs.
   struct bk_ioh *	bpi_ioh;		///< Ioh structure.
   u_int			bpi_throttle_cnt;	///< Count the number of people who want to throttle me.
   int64_t		bpi_tell;		///< Where we are in the stream.
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_t	bpi_lock;		///< Lock on bpi management
+#endif /* BK_USING_PTHREADS */
 };
 
 

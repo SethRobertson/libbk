@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.18 2002/09/05 19:20:54 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.19 2003/05/09 19:02:19 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -38,7 +38,7 @@ struct bk_relay
 #define BR_IOH_THROTTLED	0x4		///< Read is throttled because of output queue size
   struct bk_ioh        *br_ioh2;		///< Another of the IOHs
   bk_flags		br_ioh2_state;		///< State of one IOH
-  void 		      (*br_donecb)(bk_s, void *, u_int); ///< Completion callback
+  void		      (*br_donecb)(bk_s, void *, u_int); ///< Completion callback
   void		       *br_opaque;		///< Opaque data for callback
   bk_flags		br_flags;		///< State
 };
@@ -57,6 +57,8 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
  * interface or modification to the relay will be allowed after this
  * point.  Perhaps an FD interface would be useful which would create
  * the IOHs.  Whatever.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param ioh1 One side of the IOH relay
@@ -96,8 +98,8 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
   bk_ioh_readallowed(B, ioh1, 1, 0);
   bk_ioh_readallowed(B, ioh2, 1, 0);
 
-  //<TODO> Alter interface to permit caller to specify hints </TODO>
-  //<TODO> Allow the caller to specify a callback which gets called in each read/write 
+  //<TODO> Alter interface to permit caller to specify hints (though they can specify them in the IOH up front) </TODO>
+  //<TODO> Allow the caller to specify a callback which gets called in each read/write (why?) </TODO>
 
   if (bk_ioh_update(B, ioh1, NULL, NULL, NULL, bk_relay_iohhandler, relay, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER|BK_IOH_UPDATE_OPAQUE) < 0)
     goto error;
@@ -116,6 +118,8 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
 
 /**
  * IOH handler which actually performs the relay
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param data List of data to be relayed
@@ -247,7 +251,6 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
 
   if (BK_FLAG_ISSET(*state_me, BR_IOH_CLOSED) &&
       BK_FLAG_ISSET(*state_him, BR_IOH_CLOSED))
-						  
   {
     // Both sides closed, dry up and go away
     bk_debug_printf_and(B, 1, "Both sides seem to have closed--drying up\n");
@@ -276,4 +279,3 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
 
   BK_VRETURN(B);
 }
-

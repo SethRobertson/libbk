@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.16 2003/04/07 18:43:06 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.17 2003/05/09 19:02:18 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -43,11 +43,11 @@ struct polling_io_data
  * @name Defines: Polling io data lists.
  * List of ioh buffers and status's from the ioh level.
  *
- * <WARNING> 
+ * <WARNING>
  * IF YOU CHANGE THIS FROM A DLL, YOU MUST SEARCH FOR THE STRING clc_add (2
  * instances) AND CHANGE THOSE REFERENCES THAT DO NOT MATCH THE MACRO
  * FORMAT.
- * </WARNING> 
+ * </WARNING>
  */
 // @{
 #define pidlist_create(o,k,f)		dll_create((o),(k),(f))
@@ -83,7 +83,7 @@ static int polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags );
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The BAKA ioh structure to use.
- *	@param flags Flags for future use.
+ *	@param flags BK_POLLING_THREADED if callee is guarenteed in a seperate thread from bk_run_run
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_polling_io on success.
  */
@@ -92,6 +92,7 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_polling_io *bpi = NULL;
+  int pidflags = 0;
 
   if (!ioh)
   {
@@ -105,23 +106,36 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     goto error;
   }
 
-  if (!(bpi->bpi_data = pidlist_create(NULL, NULL, DICT_UNORDERED)))
+  pidflags = DICT_UNORDERED
+#ifdef BK_USING_PTHREADS
+    |(BK_GENERAL_FLAG_ISTHREADON(B)?DICT_THREADED_SAFE:0)
+#endif /* BK_USING_PTHREADS */
+    ;
+
+  if (!(bpi->bpi_data = pidlist_create(NULL, NULL, pidflags)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create data dll\n");
   }
+
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_init(&bpi->bpi_lock, NULL);
+#endif /* BK_USING_PTHREADS */
 
   bpi->bpi_ioh = ioh;
   bpi->bpi_flags = 0;
   bpi->bpi_size = 0;
   bpi->bpi_throttle_cnt = 0;
   bpi->bpi_tell = 0;
-  
+
+  if (BK_FLAG_ISSET(flags, BK_POLLING_THREADED))
+    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_THREADED);
+
   if (bk_ioh_update(B, ioh, NULL, NULL, NULL, polling_io_ioh_handler, bpi, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER | BK_IOH_UPDATE_OPAQUE) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not update ioh with blocking handler.\n");
     goto error;
   }
- 
+
   BK_RETURN(B,bpi);
  error:
   if (bpi) bk_polling_io_destroy(B, bpi);
@@ -133,12 +147,14 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 /**
  * Close up on demand I/O.
  *
- * <WARNING> 
+ * <WARNING>
  * For various and sundry reasons it has become clear that ioh should be
  * closed here too. Therefore if you are using polling io then you should
  * surrender control of the ioh (or more to the point control it via the
  * polling routines). In this respect polling io is like b_relay.c.
  * </WARNING>
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The on demand state to close.
@@ -155,11 +171,21 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_CLOSING);
   if (BK_FLAG_ISSET(flags, BK_POLLING_CLOSE_FLAG_LINGER))
   {
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
   }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   bk_ioh_close(B, bpi->bpi_ioh, 0);
 
@@ -170,6 +196,8 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
 /**
  * Destroy the blocking I/O context.
+ *
+ * THREADS: REENTRANT
  *
  *	@param B BAKA thread/global state.
  *	@param bpi. The context info to destroy.
@@ -186,8 +214,6 @@ bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi)
     BK_VRETURN(B);
   }
 
-  
-
   while((pid=pidlist_minimum(bpi->bpi_data)))
   {
     if (pidlist_delete(bpi->bpi_data, pid) != DICT_OK)
@@ -195,6 +221,10 @@ bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi)
     pid_destroy(B, pid);
   }
   pidlist_destroy(bpi->bpi_data);
+
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_destroy(&bpi->bpi_lock);
+#endif /* BK_USING_PTHREADS */
 
   free(bpi);
   BK_VRETURN(B);
@@ -206,6 +236,8 @@ bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi)
 /**
  * The on demand I/O subsystem's ioh handler. Remember this handles both
  * reads and writes.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param opaque My local data.
@@ -240,7 +272,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
   {
   case BkIohStatusReadComplete:
   case BkIohStatusIncompleteRead:
-    // Copy the data. Sigh....
+    // Copy the data--<BUG>why are we not using coalesce?</BUG> Sigh....
     for(data_cnt=0; data[data_cnt].ptr; data_cnt++)
     {
       size += data[data_cnt].len;
@@ -256,7 +288,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate copy data pointer: %s\n", strerror(errno));
       goto error;
     }
-    
+
     p = ndata->ptr;
     for(data_cnt=0; data[data_cnt].ptr; data_cnt++)
     {
@@ -268,31 +300,86 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
     break;
 
   case BkIohStatusIohClosing:
+
+#ifdef BK_USING_PTHREADS			// Lock to prevent race between user and I/O system
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
     if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_CLOSING))
     {
       bk_error_printf(B, BK_ERR_WARN, "Polling io underlying IOH was nuked before bpi closed. Not Good (probably not fatal).\n");
       // Forge on.
     }
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY))
     {
-      bk_polling_io_destroy(B,bpi);
+      // <BUG>There would appear to be a problem here since io_destroy does not notify user, so user will think he can use the bpi</BUG>
+      bk_polling_io_destroy(B, bpi);
       if (pid) pid_destroy(B, pid);
       BK_VRETURN(B);
     }
-    
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     // The ioh is now dead.
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_IOH_DEAD);
 
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+    break;
+
   case BkIohStatusIohReadError:
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_READ_DEAD);
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     break;
 
   case BkIohStatusIohWriteError:
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_WRITE_DEAD);
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     break;
 
   case BkIohStatusIohReadEOF:
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_SAW_EOF);
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     break;
 
   case BkIohStatusWriteComplete:
@@ -322,7 +409,17 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
 
   if (pid->pid_data)
   {
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
     bpi->bpi_size += pid->pid_data->len;
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
 
     /*
      * Pause reading if buffer is full.  <TODO> if file open for only writing
@@ -339,7 +436,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
  error:
   if (ndata) bk_polling_io_data_destroy(B, ndata);
   if (pid) pid_destroy(B, pid);
-  
+
   BK_VRETURN(B);
 }
 
@@ -350,10 +447,12 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
  * data read from the subsystem or the underlying memory will never be
  * freed.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param data The list of vptrs to nuke.
  */
-void 
+void
 bk_polling_io_data_destroy(bk_s B, bk_vptr *data)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -379,6 +478,8 @@ bk_polling_io_data_destroy(bk_s B, bk_vptr *data)
 /**
  * Do one polling read.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param bpi The polling state to use.
  *	@param datap Data to pass up to the user (copyout).
@@ -400,7 +501,7 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
 
   *datap = NULL;
 
-  // If ioh is dead, go away..
+  // If ioh is dead, go away.. <BUG>If there is data still queued on the channel, return that first</BUG>
   if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_READ_DEAD))
   {
     bk_error_printf(B, BK_ERR_ERR, "Reading from dead channel\n");
@@ -417,6 +518,8 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
  * Do one polling poll. If we have some data, dequeue it and
  * return. Otherwise call bk_run_once() one time.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param bpi The polling state to use.
  *	@param datap Data to pass up to the user (copyout).
@@ -432,7 +535,7 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
   struct polling_io_data *pid;
   bk_flags bk_run_once_flags;
 
-  
+
   if (!bpi || !status)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
@@ -453,11 +556,16 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
     bk_run_once_flags = 0;
   }
 
-  if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
-      bk_run_once(B, bpi->bpi_ioh->ioh_run, bk_run_once_flags) < 0)
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_THREADED) || !BK_GENERAL_FLAG_ISTHREADON(B))
+#endif /* BK_USING_PTHREADS */
   {
-    bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
-    goto error;
+    if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
+	bk_run_once(B, bpi->bpi_ioh->ioh_run, bk_run_once_flags) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
+      goto error;
+    }
   }
 
   if (!pid)
@@ -477,7 +585,7 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
     }
     BK_RETURN(B,1);
   }
-  
+
   // You always send status
   *status = pid->pid_status;
 
@@ -486,10 +594,10 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
     bk_error_printf(B, BK_ERR_ERR, "Could not delete pid from data list: %s\n", pidlist_error_reason(bpi->bpi_data, NULL));
     goto error;
   }
-	
+
 
   // If this is read, then subtract data from my queue.
-  if (pid->pid_status == BkIohStatusReadComplete || 
+  if (pid->pid_status == BkIohStatusReadComplete ||
       pid->pid_status == BkIohStatusIncompleteRead)
   {
     /*
@@ -519,7 +627,7 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
     *datap = pid->pid_data;
     pid->pid_data = NULL;			// Passed off. We're not responsible anymore.
   }
-  
+
   pid_destroy(B, pid);
 
   BK_RETURN(B,0);
@@ -536,6 +644,8 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
  * layers which might not have access to the @a bk_ioh structure and the
  * actual ioh level.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io struct to use.
  *	@param data The data to write out.
@@ -548,7 +658,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, bk_flags f
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret;
-  
+
 
   if (!bpi || !data)
   {
@@ -576,27 +686,37 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, bk_flags f
    */
   while ((ret = bk_ioh_write(B, bpi->bpi_ioh, data, 0)) > 0)
   {
-    if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
-	bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
+#ifdef BK_USING_PTHREADS
+    if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_THREADED) || !BK_GENERAL_FLAG_ISTHREADON(B))
+#endif /* BK_USING_PTHREADS */
     {
-      bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
-      BK_RETURN(B,-1);
+      if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
+	  bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
+	BK_RETURN(B,-1);
+      }
     }
   }
 
   if (ret < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not submit write\n");
-    BK_RETURN(B,-1);    
+    BK_RETURN(B,-1);
   }
   else
   {
-    // Allow our now successfull write a change to go out.
-    if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
-	bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
+#ifdef BK_USING_PTHREADS
+    if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_THREADED) || !BK_GENERAL_FLAG_ISTHREADON(B))
+#endif /* BK_USING_PTHREADS */
     {
-      bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
-      BK_RETURN(B,-1);
+      // Allow our now successfull write a change to go out.
+      if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
+	  bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
+	BK_RETURN(B,-1);
+      }
     }
   }
 
@@ -607,6 +727,9 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, bk_flags f
 
 /**
  * Create an on_demand_data structure.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_on_demand_data on success.
@@ -622,13 +745,16 @@ pid_create(bk_s B)
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate pid: %s\n", strerror(errno));
     BK_RETURN(B,NULL);
   }
-  BK_RETURN(B,pid);
+  BK_RETURN(B, pid);
 }
 
 
 
 /**
- * Destroy an pid. 
+ * Destroy an pid.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param pid The @a bk_on_demand_data to destroy.
  */
@@ -641,7 +767,7 @@ pid_destroy(bk_s B, struct polling_io_data *pid)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   if (pid->pid_data) bk_polling_io_data_destroy(B, pid->pid_data);
   free(pid);
   BK_VRETURN(B);
@@ -651,6 +777,8 @@ pid_destroy(bk_s B, struct polling_io_data *pid)
 
 /**
  * Throttle an polling I/O stream.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io to throttle.
@@ -680,7 +808,17 @@ bk_polling_io_throttle(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     bk_ioh_readallowed(B, bpi->bpi_ioh, 0, 0);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   bpi->bpi_throttle_cnt++;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B,0);
 }
@@ -689,6 +827,8 @@ bk_polling_io_throttle(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
 /**
  * Unthrottle an polling I/O stream.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io to unthrottle.
@@ -700,6 +840,7 @@ int
 bk_polling_io_unthrottle(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int actual = 0;
 
   if (!bpi)
   {
@@ -713,10 +854,23 @@ bk_polling_io_unthrottle(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     BK_RETURN(B,-1);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   // <TRICKY>Other code requires unthrottle as no-op if not throttled.</TRICKY>
   if (bpi->bpi_throttle_cnt != 0)
     if (--bpi->bpi_throttle_cnt == 0)
-      bk_ioh_readallowed(B, bpi->bpi_ioh, 1, 0);
+      actual = 1;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  if (actual)
+    bk_ioh_readallowed(B, bpi->bpi_ioh, 1, 0);
 
   BK_RETURN(B,0);
 }
@@ -725,7 +879,9 @@ bk_polling_io_unthrottle(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
 
 /**
- * Flush all data associated with polling stuff. 
+ * Flush all data associated with polling stuff.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bpi @a bk_polling_io to flush.
@@ -742,7 +898,7 @@ bk_polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   pid = pidlist_maximum(bpi->bpi_data);
   while(pid)
   {
@@ -753,16 +909,26 @@ bk_polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
       // If we're flushing off an EOF, then clear the fact that we have seen EOF.
       if (pid->pid_status == BkIohStatusIohReadEOF)
       {
+#ifdef BK_USING_PTHREADS
+	if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+	  abort();
+#endif /* BK_USING_PTHREADS */
+
 	BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_SAW_EOF);
+
+#ifdef BK_USING_PTHREADS
+	if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+	  abort();
+#endif /* BK_USING_PTHREADS */
       }
       pidlist_delete(bpi->bpi_data, pid);
       // Failure here will not kill the loop since we've already grabbed successor
       pid_destroy(B, pid);
     }
-    
+
     pid = npid;
   }
-    
+
   BK_VRETURN(B);
 }
 
@@ -771,6 +937,8 @@ bk_polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
 /**
  * Flush out the polling cache. Very similar to ioh flush. Flush all data buf and EOF messages.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io to use.
@@ -804,13 +972,23 @@ polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
       if (pid->pid_data)
       {
-	/* 
+#ifdef BK_USING_PTHREADS
+	if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+	  abort();
+#endif /* BK_USING_PTHREADS */
+
+	/*
 	 * We're removing data which *hasn't'* been read by the user so we
 	 * reduce *both* the amount of data on the queue and our tell
 	 * position (in the io_poll routine we *increased* the later.
 	 */
 	bpi->bpi_size -= pid->pid_data->len;
 	bpi->bpi_tell -= pid->pid_data->len;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
 
 	// <WARNING>Requires unthrottle as no-op if not throttled.</WARNING>
 	if (bpi->bpi_ioh->ioh_readq.biq_queuemax &&
@@ -833,6 +1011,8 @@ polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 /**
  * Register a bpi for cacellation.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io struct to register.
  *	@param flags Flags passed through.
@@ -849,7 +1029,7 @@ bk_polling_io_cancel_register(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,bk_ioh_cancel_register(B, bpi->bpi_ioh, flags));  
+  BK_RETURN(B,bk_ioh_cancel_register(B, bpi->bpi_ioh, flags));
 }
 
 
@@ -858,6 +1038,8 @@ bk_polling_io_cancel_register(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
 /**
  * Unregister a bpi for cacellation.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io struct to unregister.
@@ -875,7 +1057,7 @@ bk_polling_io_cancel_unregister(bk_s B, struct bk_polling_io *bpi, bk_flags flag
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,bk_ioh_cancel_unregister(B, bpi->bpi_ioh, flags));  
+  BK_RETURN(B,bk_ioh_cancel_unregister(B, bpi->bpi_ioh, flags));
 }
 
 
@@ -884,6 +1066,8 @@ bk_polling_io_cancel_unregister(bk_s B, struct bk_polling_io *bpi, bk_flags flag
 
 /**
  * Check if a @a bk_polling_io has been registered for cancellation.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io to use.
@@ -903,7 +1087,7 @@ bk_polling_io_is_canceled(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  BK_RETURN(B,bk_ioh_is_canceled(B, bpi->bpi_ioh, 0));  
+  BK_RETURN(B,bk_ioh_is_canceled(B, bpi->bpi_ioh, 0));
 }
 
 
@@ -911,6 +1095,8 @@ bk_polling_io_is_canceled(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
 /**
  * Cancel a bpi.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io to cancel.
@@ -928,5 +1114,5 @@ bk_polling_io_cancel(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B,bk_ioh_cancel(B, bpi->bpi_ioh, flags));  
+  BK_RETURN(B,bk_ioh_cancel(B, bpi->bpi_ioh, flags));
 }

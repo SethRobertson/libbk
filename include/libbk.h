@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.230 2003/04/28 21:59:12 dupuy Exp $
+ * $Id: libbk.h,v 1.231 2003/05/09 19:02:18 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1592,6 +1592,7 @@ extern int bk_ioh_last_error(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 
 /* b_pollio.c */
 extern struct bk_polling_io *bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags);
+#define BK_POLLING_THREADED		0x1	///< Callee is in a seperate thread from the bk_run loop--do not call bk_run_once
 extern void bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags);
 #define BK_POLLING_CLOSE_FLAG_LINGER	0x1	///< This is a linger close
 extern void bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi);
