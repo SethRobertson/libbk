@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.11 2004/04/16 16:25:22 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.12 2004/04/19 22:04:16 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -728,10 +728,7 @@ bk_ringdir_standard_destroy(bk_s B, void *opaque, const char *directory, bk_flag
   {
     // If we get this flag the directory should be empty, it's just up to us to remove it.
     if (rmdir(directory) < 0)
-    {
       bk_error_printf(B, BK_ERR_ERR, "Could not remove directory %s: %s\n", directory, strerror(errno));
-      goto error;
-    }
   }
 
   if (brs->brs_chkpnt_filename)
@@ -740,10 +737,6 @@ bk_ringdir_standard_destroy(bk_s B, void *opaque, const char *directory, bk_flag
   free(brs);
 
   BK_VRETURN(B);  
-
- error:
-  BK_VRETURN(B);  
-  
 }
 
 

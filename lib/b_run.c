@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.65 2004/03/20 12:37:22 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.66 2004/04/19 22:04:16 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -483,6 +483,18 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 
   gettimeofday(&curtime,0);
 
+  // Dequeue the events
+  if (run->br_equeue)
+  {
+    struct br_equeue *cur;
+
+    while (cur = pq_extract_head(run->br_equeue))
+    {
+      bk_run_runevent(B, run, cur->bre_event, cur->bre_opaque, &curtime, BK_RUN_DESTROY, cur->bre_flags);
+      free(cur);
+    }
+  }
+
   // Destroy the fd association
   if (run->br_fdassoc)
   {
@@ -499,20 +511,6 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
       bk_run_runfd(B, run, cur->brf_fd, BK_RUN_DESTROY, cur->brf_handler, cur->brf_opaque, &curtime, cur->brf_flags);
       free(cur);
     }
-    fdassoc_destroy(run->br_fdassoc);
-  }
-
-  // Dequeue the events
-  if (run->br_equeue)
-  {
-    struct br_equeue *cur;
-
-    while (cur = pq_extract_head(run->br_equeue))
-    {
-      bk_run_runevent(B, run, cur->bre_event, cur->bre_opaque, &curtime, BK_RUN_DESTROY, cur->bre_flags);
-      free(cur);
-    }
-    pq_destroy(run->br_equeue);
   }
 
   // XXX Consider saving all the original sig handlers instead of just restoring default.
@@ -559,6 +557,12 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
   if (run->br_runfd >= 0)
     close(run->br_runfd);
 #endif /* BK_USING_PTHREADS */
+
+  if (run->br_equeue)
+    pq_destroy(run->br_equeue);
+  
+  if (run->br_fdassoc)
+    fdassoc_destroy(run->br_fdassoc);
 
   free(run);
 
