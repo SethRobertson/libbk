@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.107 2004/05/28 12:09:32 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.108 2004/05/28 21:00:28 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2418,7 +2418,7 @@ bk_string_csv_quote(bk_s B, const char *in_str, int in_len, char *out_str, int o
 	out_str[out_index++] = '\\';
 	if (out_index == out_len)
 	  goto done;
-	out_str[out_index++] = '\\';
+	out_str[out_index++] = 'n';
 	break;
 	
       case '"':
@@ -2448,7 +2448,7 @@ bk_string_csv_quote(bk_s B, const char *in_str, int in_len, char *out_str, int o
 
   // Insert NUL if space allows, but do *NOT* increment out_index (we don't want to count NUL)
   if (out_index < out_len)
-    out_str[out_index-1] = '\0';
+    out_str[out_index] = '\0';
 
  done:
   BK_RETURN(B, out_index);  

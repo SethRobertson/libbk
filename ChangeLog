@@ -1,3 +1,11 @@
+2004-05-28  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_string.c (bk_string_csv_quote): Escape NEWLINES with the
+	correct sequence. Put NUL in correct spot (if there's space).
+
+	* lib/b_pollio.c (bk_polling_io_read): Null out event handler
+	after dequeue.
+
 2004-05-27  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_string.c (bk_string_csv_quote): Function to quote string

@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.48 2004/01/06 04:54:20 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.49 2004/05/28 21:00:28 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -893,6 +893,7 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
   if (timeout > 0 && bpi->bpi_rdtimeoutevent && !timedout)
   {
     bk_run_dequeue(B, bpi->bpi_ioh->ioh_run, bpi->bpi_rdtimeoutevent, BK_RUN_DEQUEUE_EVENT);
+    bpi->bpi_rdtimeoutevent = NULL;
   }
 
 #ifdef BK_USING_PTHREADS
