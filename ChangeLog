@@ -1,3 +1,8 @@
+2002-03-28  Seth Robertson  <seth@winwood.sysdetect.com>
+
+	* include/libbk.h (BK_FLAG_ALLSET): Macro to test for all flags
+	being set, not any flag.  (Should this be ARESET instead?)
+
 2002-03-26  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk_include.h: work around Insure problems with

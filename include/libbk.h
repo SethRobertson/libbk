@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.130 2002/03/22 00:51:12 dupuy Exp $
+ * $Id: libbk.h,v 1.131 2002/03/28 17:50:33 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -83,7 +83,8 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 // BK_FLAG_{SET,CLEAR} are statement macros to prevent inadvertent use as tests
 #define BK_FLAG_SET(var,bit) do { (var) |= (bit); } while (0) ///< Set a bit in a simple bitfield
 #define BK_FLAG_CLEAR(var,bit) do { (var) &= ~(bit); } while (0) ///< Clear a bit in a simple bitfield
-#define BK_FLAG_ISSET(var,bit) ((var) & (bit))	///< Test if bit is set in a simple bitfield
+#define BK_FLAG_ALLSET(var,bit) (((var) & (bit)) == (bit)) ///< Test if all bits are set in a simple bitfield
+#define BK_FLAG_ISSET(var,bit) ((var) & (bit))	///< Test if bit (any of the bits) is set in a simple bitfield
 #define BK_FLAG_ISCLEAR(var,bit) (!((var) & (bit))) ///< Test of bit is clear in a simple bitfield
 #define BK_STREQ(a,b) ((a) && (b) && !strcmp((a),(b))) ///< Are two strings equal
 #define BK_STREQN(a,b,n) ((a) && (b) && ((int)n>=0) && !strncmp(a,b,n)) ///< Are two strings equal for the first n characters?
