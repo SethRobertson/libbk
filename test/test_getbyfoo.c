@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.1 2001/11/07 00:02:19 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.2 2001/11/07 00:28:18 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -35,7 +35,7 @@ struct global_structure
 
 #define TESTGETBYFOO_FLAG_QUERY_HOST		0x1
 #define TESTGETBYFOO_FLAG_QUERY_SERV		0x2
-#define TESTGETBYFOO_FLAG_QUERY_PROTO		0x3
+#define TESTGETBYFOO_FLAG_QUERY_PROTO		0x4
 
 int proginit(bk_s B);
 void progrun(bk_s B);
@@ -56,8 +56,8 @@ main(int argc, char **argv, char **envp)
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"proto", 'p', POPT_ARG_STRING, &Global.gs_query, 'p', "Query protocols", NULL },
-    {"proto", 'h', POPT_ARG_STRING, &Global.gs_query, 'h', "Query hosts", NULL },
-    {"proto", 's', POPT_ARG_STRING, &Global.gs_query, 's', "Query services", NULL },
+    {"hosts", 'h', POPT_ARG_STRING, &Global.gs_query, 'h', "Query hosts", NULL },
+    {"serv", 's', POPT_ARG_STRING, &Global.gs_query, 's', "Query services", NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -140,8 +140,9 @@ void progrun(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   const char *person = "World";
-  struct protoent *p;
-  char **s;
+  struct protoent *p=NULL;
+  struct servent *s=NULL;
+  char **s1;
 
   if (BK_FLAG_ISSET(Global.gs_flags, TESTGETBYFOO_FLAG_QUERY_PROTO))
   {
@@ -156,9 +157,9 @@ void progrun(bk_s B)
     printf("Aliases: ");
     if (p->p_aliases)
     {
-      for(s=p->p_aliases; *s; s++)
+      for(s1=p->p_aliases; *s1; s1++)
       {
-	printf("%s ", *s);
+	printf("%s ", *s1);
       }
       printf("\n");
     }
@@ -169,6 +170,34 @@ void progrun(bk_s B)
     
     bk_protoent_destroy(B,p);
   }
+  else if (BK_FLAG_ISSET(Global.gs_flags, TESTGETBYFOO_FLAG_QUERY_SERV))
+  {
+    if (bk_getservbyfoo(B, Global.gs_query, "tcp", &s)<0)
+    {
+      fprintf(stderr, "Failed to query services\n");
+      exit(1);
+    }
+
+    printf("Name: %s\n", s->s_name);
+    printf("Number: %u\n", ntohs(s->s_port));
+    printf("Protocol: %s\n", s->s_proto);
+    printf("Aliases: ");
+    if (s->s_aliases)
+    {
+      for(s1=s->s_aliases; *s1; s1++)
+      {
+	printf("%s ", *s1);
+      }
+      printf("\n");
+    }
+    else
+    {
+      printf("NONE\n");
+    }
+    
+    bk_servent_destroy(B,s);
+  }
+
     
   BK_VRETURN(B);
 }

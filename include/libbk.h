@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.38 2001/11/07 00:02:19 jtt Exp $
+ * $Id: libbk.h,v 1.39 2001/11/07 00:28:18 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -482,6 +482,8 @@ extern int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags);
 /* getbyfoo.c */
 extern int bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip);
 extern void bk_protoent_destroy(bk_s B, struct protoent *p);
+extern int bk_getservbyfoo(bk_s B, char *servstr, char *proto, struct servent **is);
+extern void bk_servent_destroy(bk_s B, struct servent *s);
 
 
 #endif /* _BK_h_ */
