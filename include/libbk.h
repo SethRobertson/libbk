@@ -1,15 +1,15 @@
 /*
- * $Id: libbk.h,v 1.181 2002/10/18 18:22:57 lindauer Exp $
+ * $Id: libbk.h,v 1.182 2002/10/18 18:50:14 dupuy Exp $
  *
  * ++Copyright LIBBK++
- *
- * Copyright (c) 2001 The Authors.  All rights reserved.
- *
+ * 
+ * Copyright (c) 2001,2002 The Authors. All rights reserved.
+ * 
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- *
+ * 
  * Mail <projectbaka@baka.org> for further information
- *
+ * 
  * --Copyright LIBBK--
  */
 
@@ -114,7 +114,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_BITS_VALUE(B,b)	(((B)[BK_BITS_BYTENUM(b)] & (1 << BK_BITS_BITNUM(b))) >> BK_BITS_BITNUM(b)) ///< Discover truth (0 or 1) value of a particular bit in a complex bitmap
 #define BK_BITS_SET(B,b,v)	(B)[BK_BITS_BYTENUM(b)] = (((B)[BK_BITS_BYTENUM(b)] & ~(1 << BK_BITS_BITNUM(b))) | ((v) & 1) << BK_BITS_BITNUM(b)); ///< Set a particular bit in a complex bitmap
 
-#if defined (__INSIGHT__) || !defined(HAVE_ALLOCA)
+#if defined (__INSURE__) || !defined(HAVE_ALLOCA)
 #define bk_alloca(l)		malloc(l)
 #define bk_alloca_free(p)	free(p)
 #else

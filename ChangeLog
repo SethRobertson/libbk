@@ -1,3 +1,16 @@
+2002-10-18  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h: __INSURE__, not insight...
+
+	* include/libbk_net.h: add #defines needed by feature extract plugins
+
+	* include/libbk_include.h: turn off BSD extensions for Insure
+
+	* lib/b_url.c: everybody has strcasecmp, not all declare it
+
+	* lib/b_error.c (bk_error_iprint): J.Brian thinks that omitting -O2
+	makes it easier to debug, but he just loses helpful compiler errors
+	
 2002-10-16  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
 
 	* lib/b_error.c (bk_error_iprint): Added rudimentary error

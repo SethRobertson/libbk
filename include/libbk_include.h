@@ -1,15 +1,15 @@
 /*
- * $Id: libbk_include.h,v 1.26 2002/05/20 15:51:58 jtt Exp $
+ * $Id: libbk_include.h,v 1.27 2002/10/18 18:50:14 dupuy Exp $
  *
  * ++Copyright LIBBK++
- *
- * Copyright (c) 2001 The Authors.  All rights reserved.
- *
+ * 
+ * Copyright (c) 2002 The Authors. All rights reserved.
+ * 
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- *
+ * 
  * Mail <projectbaka@baka.org> for further information
- *
+ * 
  * --Copyright LIBBK--
  */
 
@@ -60,6 +60,17 @@
 #define u_int16_t __uint16_t
 #define u_int32_t __uint32_t
 #define u_int64_t __uint64_t
+
+/*
+ * The Linux header files go through some insane contortions (especially for
+ * union wait) to support BSD stuff, which we don't want or need, and which
+ * causes Insure to choke.  So we turn off the BSD grub that we get as a
+ * side-effect of _GNU_SOURCE.  <TRICKY>To avoid dependency on implementation
+ * of _GNU_SOURCE, we don't include <features.h> but rather <stdio.h> which
+ * gets it indirectly.</TRICKY>
+ */
+#include <stdio.h>
+#undef __USE_BSD
 
 #endif /* __INSURE__ */
 

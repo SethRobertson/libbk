@@ -1,18 +1,18 @@
-#if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.29 2002/10/18 18:22:57 lindauer Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2001";
+#if !defined(lint)
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.30 2002/10/18 18:50:15 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001,2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
- *
- * Copyright (c) 2001 The Authors.  All rights reserved.
- *
+ * 
+ * Copyright (c) 2001,2002 The Authors. All rights reserved.
+ * 
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- *
+ * 
  * Mail <projectbaka@baka.org> for further information
- *
+ * 
  * --Copyright LIBBK--
  */
 
@@ -284,7 +284,7 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
 {
   const char *funname;
   time_t curtime = time(NULL);
-  struct bk_error_node *node;
+  struct bk_error_node *node = NULL;
   const char *level = bk_general_errorstr(B, sysloglevel);
   dict_h be_queue;
   u_short *be_cursize;
