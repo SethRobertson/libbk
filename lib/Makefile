@@ -1,15 +1,15 @@
 ######################################################################
-# $Id: Makefile,v 1.40 2003/03/26 16:46:06 jtt Exp $
+# $Id: Makefile,v 1.41 2003/04/16 19:04:43 dupuy Exp $
 #
 # ++Copyright LIBBK++
-#
-# Copyright (c) 2001 The Authors.  All rights reserved.
-#
+# 
+# Copyright (c) 2001-2003 The Authors. All rights reserved.
+# 
 # This source code is licensed to you under the terms of the file
 # LICENSE.TXT in this release for further details.
-#
+# 
 # Mail <projectbaka@baka.org> for further information
-#
+# 
 # --Copyright LIBBK--
 #
 # libbk Makefile
@@ -60,7 +60,7 @@ BK_LARGE_LIBSRC=		       		\
 		b_vault.c			\
 # Line eater fodder -- leave
 
-LT_LDLIBS=-ldict -lpqueue $(BK_LIBM) $(PTHREAD_LIBS)
+LT_LDLIBS=-ldict -lfsma -lpqueue $(BK_LIBM) $(PTHREAD_LIBS) -lz
 
 GROUPTOP=..
 GROUPSUBDIR=lib
