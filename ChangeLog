@@ -1,5 +1,8 @@
 2001-12-04  James Tanis  <jtt@winwood.sysdetect.com>
 
+	* lib/b_netutils.c (bk_netutils_start_service_verbose): Null out
+	the appropriate things at the appropriate time to avoid double free.
+
 	* libbk: (everwhere) Replace XXX's with standards document
 	compliant notation
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.10 2001/12/05 03:21:43 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.11 2001/12/05 18:03:20 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -359,7 +359,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
   securenets = NULL;
   sss->sss_backlog = backlog;
 
-  if (!(ghbf_info = bk_gethostbyfoo(B, hoststr, 0, bni, run, sss_serv_gethost_complete, sss, 0)))
+  if (!(ghbf_info = bk_gethostbyfoo(B, hoststr, 0, sss->sss_lbni, run, sss_serv_gethost_complete, sss, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not begin the hostname lookup process\n");
     /* sss is destroyed */
