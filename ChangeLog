@@ -1,3 +1,10 @@
+2001-11-05  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/*.c: Change to new CLC iterate interface, updating all CLC #defines
+	
+	* lib/b_error.c: Add mark and filtering handling to error queue to improve its capabilities.
+	Document error handling.
+	
 2001-11-05  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* src/proto.c (main): Port to popt.

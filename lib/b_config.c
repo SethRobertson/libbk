@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.13 2001/11/02 23:13:03 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.14 2001/11/05 20:53:06 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -84,6 +84,8 @@ struct bk_config_value
 #define config_kv_destroy(h)		ht_destroy(h)
 #define config_kv_insert(h,o)		ht_insert((h),(o))
 #define config_kv_insert_uniq(h,n,o)	ht_insert_uniq((h),(n),(o))
+#define config_kv_append(h,o)		ht_append((h),(o))
+#define config_kv_append_uniq(h,n,o)	ht_append_uniq((h),(n),(o))
 #define config_kv_search(h,k)		ht_search((h),(k))
 #define config_kv_delete(h,o)		ht_delete((h),(o))
 #define config_kv_minimum(h)		ht_minimum(h)
@@ -91,7 +93,8 @@ struct bk_config_value
 #define config_kv_successor(h,o)	ht_successor((h),(o))
 #define config_kv_predecessor(h,o)	ht_predecessor((h),(o))
 #define config_kv_iterate(h,d)		ht_iterate((h),(d))
-#define config_kv_nextobj(h)		ht_nextobj(h)
+#define config_kv_nextobj(h,i)		ht_nextobj((h),(i))
+#define config_kv_iterate_done(h,i)	ht_iterate_done((h),(i))
 #define config_kv_error_reason(h,i)	ht_error_reason((h),(i))
 
 static int kv_oo_cmp(void *bck1, void *bck2);
@@ -114,7 +117,8 @@ static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
 #define config_values_successor(h,o)		dll_successor((h),(o))
 #define config_values_predecessor(h,o)		dll_predecessor((h),(o))
 #define config_values_iterate(h,d)		dll_iterate((h),(d))
-#define config_values_nextobj(h)		dll_nextobj(h)
+#define config_values_nextobj(h,i)		dll_nextobj((h),(i))
+#define config_values_iterate_done(h,i)		dll_iterate_done((h),(i))
 #define config_values_error_reason(h,i)		dll_error_reason((h),(i))
 
 static int bcv_oo_cmp(void *bck1, void *bck2);

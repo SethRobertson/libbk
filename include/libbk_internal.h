@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.14 2001/11/02 23:13:03 seth Exp $
+ * $Id: libbk_internal.h,v 1.15 2001/11/05 20:53:06 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -51,6 +51,8 @@ struct bk_debugnode
 struct bk_error
 {
   FILE		*be_fh;				/* Error info file handle */
+  u_int		be_seqnum;			/* Sequence number */
+  dict_h	be_markqueue;			/* Queue of high priority error messages */
   dict_h	be_hiqueue;			/* Queue of high priority error messages */
   dict_h	be_lowqueue;			/* Queue of low priority error messages */
   char		be_hilo_pivot;			/* Pivot value */
@@ -65,6 +67,7 @@ struct bk_error
 struct bk_error_node
 {
   time_t	ben_time;			/* Timestamp */
+  u_int		ben_seq;			/* Sequence number */
   int		ben_level;			/* Level of message */
   char		*ben_msg;			/* Actual message */
 };

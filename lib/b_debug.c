@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_debug.c,v 1.8 2001/09/11 13:47:54 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_debug.c,v 1.9 2001/11/05 20:53:06 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -34,7 +34,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define debug_successor(h,o)		ht_successor(h,o)
 #define debug_predecessor(h,o)		ht_predecessor(h,o)
 #define debug_iterate(h,d)		ht_iterate(h,d)
-#define debug_nextobj(h)		ht_nextobj(h)
+#define debug_nextobj(h,i)		ht_nextobj(h,i)
+#define debug_iterate_done(h,i)		ht_iterate_done(h,i)
 #define debug_error_reason(h,i)		ht_error_reason(h,i)
 
 static int debug_oo_cmp(struct bk_debugnode *a, struct bk_debugnode *b);

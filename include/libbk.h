@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.34 2001/11/02 23:13:03 seth Exp $
+ * $Id: libbk.h,v 1.35 2001/11/05 20:53:06 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -153,7 +153,9 @@ typedef struct __bk_thread
 #define bk_error_printf(B,l,f,args...) bk_error_iprintf(B,l,BK_GENERAL_ERROR(B),f,##args)
 #define bk_error_vprintf(B,l,f,ap) bk_error_ivprintf(B,l,BK_GENERAL_ERROR(B),f,ap)
 #define bk_error_printbuf(B,l,i,p,v) bk_error_iprintbuf(B,l,BK_GENERAL_ERROR(B),i,p,v)
-#define bk_error_dump(B,f,s,F) bk_error_idump(B,BK_GENERAL_ERROR(B),f,s,F)
+#define bk_error_dump(B,f,m,M,s,F) bk_error_idump(B,BK_GENERAL_ERROR(B),f,m,M,s,F)
+#define bk_error_mark(B,m,F) bk_error_idump(B,BK_GENERAL_ERROR(B),m,F)
+#define bk_error_clear(B,m,F) bk_error_idump(B,BK_GENERAL_ERROR(B),m,F)
 
 
 
@@ -309,11 +311,13 @@ extern void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, char *format, va_
 extern struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogthreshhold, bk_flags flags);
 extern void bk_error_destroy(bk_s B, struct bk_error *beinfo);
 extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *fh, int syslogthreshhold, int hilo_pivot, bk_flags flags);
+extern void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
+extern void bk_error_imark(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 extern void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf);
 extern void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *format, ...) __attribute__ ((format (printf, 4,5)));
 extern void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *intro, char *prefix, bk_vptr *buf);
 extern void bk_error_ivprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *format, va_list ap);
-extern void bk_error_idump(bk_s, struct bk_error *beinfo, FILE *fh, int sysloglevel, bk_flags flags);
+extern void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int minimumlevel, int sysloglevel, bk_flags flags);
 
 
 

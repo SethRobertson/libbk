@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.2 2001/08/31 05:03:35 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.3 2001/11/05 20:53:06 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -82,7 +82,7 @@ static void bk_printserious(bk_s B, FILE *output, char *type, char *reason, bk_f
   if (BK_FLAG_ISSET(flags,BK_WARNDIE_WANTDETAILS))
   {
     fprintf(output,"---------- Start %s Error Queue ----------\n",BK_GENERAL_PROGRAM(B));
-    bk_error_dump(B, output, BK_ERR_NONE, 0);
+    bk_error_dump(B, output, NULL, BK_ERR_NONE, BK_ERR_NONE, 0);
     fprintf(output,"---------- Start %s Function Trace ----------\n",BK_GENERAL_PROGRAM(B));
     bk_fun_trace(B, output, BK_ERR_NONE, 0);
     fprintf(output,"---------- End %s ----------\n",BK_GENERAL_PROGRAM(B));

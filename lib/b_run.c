@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.2 2001/11/02 23:13:03 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.3 2001/11/05 20:53:06 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -55,7 +55,8 @@ static void brof_destroy(bk_s B, struct bk_run_ondemand_func *brof);
 #define fdassoc_successor(h,o)		ht_successor((h),(o))
 #define fdassoc_predecessor(h,o)	ht_predecessor((h),(o))
 #define fdassoc_iterate(h,d)		ht_iterate((h),(d))
-#define fdassoc_nextobj(h)		ht_nextobj(h)
+#define fdassoc_nextobj(h,i)		ht_nextobj(h,i)
+#define fdassoc_iterate_done(h,i)	ht_iterate_done(h,i)
 #define fdassoc_error_reason(h,i)	ht_error_reason((h),(i))
 static int fa_oo_cmp(struct bk_run_fdassoc *a, struct bk_run_fdassoc *b);
 static int fa_ko_cmp(int *a, struct bk_run_fdassoc *b);
@@ -77,7 +78,8 @@ static struct ht_args fa_args = { 128, 1, (ht_func)fa_obj_hash, (ht_func)fa_key_
 #define brfl_successor(h,o)		dll_successor((h),(o))
 #define brfl_predecessor(h,o)		dll_predecessor((h),(o))
 #define brfl_iterate(h,d)		dll_iterate((h),(d))
-#define brfl_nextobj(h)			dll_nextobj(h)
+#define brfl_nextobj(h,i)		dll_nextobj(h,i)
+#define brfl_iterate_done(h,i)		dll_iterate_done(h,i)
 #define brfl_error_reason(h,i)		dll_error_reason((h),(i))
 static int brfl_oo_cmp(struct bk_run_func *a, struct bk_run_func *b);
 static int brfl_ko_cmp(void *a, struct bk_run_func *b);
@@ -95,10 +97,12 @@ static int brfl_ko_cmp(void *a, struct bk_run_func *b);
 #define brofl_successor(h,o)		dll_successor((h),(o))
 #define brofl_predecessor(h,o)		dll_predecessor((h),(o))
 #define brofl_iterate(h,d)		dll_iterate((h),(d))
-#define brofl_nextobj(h)		dll_nextobj(h)
+#define brofl_nextobj(h,i)		dll_nextobj(h,i)
+#define brofl_iterate_done(h,i)		dll_iterate_done(h,i)
 #define brofl_error_reason(h,i)		dll_error_reason((h),(i))
 static int brofl_oo_cmp(struct bk_run_ondemand_func *a, struct bk_run_ondemand_func *b);
 static int brofl_ko_cmp(void *a, struct bk_run_ondemand_func *b);
+
 
 
 /*
@@ -1149,6 +1153,7 @@ bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle)
 }
 
 
+
 /** 
  * Add a function to bk_run idle task
  *	@param B BAKA thread/global state 
@@ -1234,6 +1239,7 @@ bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle)
 }
 
 
+
 /*
  * Allocate a brf
  */
@@ -1254,6 +1260,7 @@ brfn_alloc(bk_s B)
 
   BK_RETURN(B,brfn);
 }
+
 
 
 /*
@@ -1277,6 +1284,7 @@ brfn_destroy(bk_s B, struct bk_run_func *brfn)
   free(brfn);
   BK_VRETURN(B);
 }
+
 
 
 /** 
@@ -1366,6 +1374,7 @@ bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle)
 }
 
 
+
 /*
  * Allocate a brf
  */
@@ -1384,6 +1393,7 @@ brof_alloc(bk_s B)
 
   BK_RETURN(B,brof);
 }
+
 
 
 /*
@@ -1407,6 +1417,7 @@ brof_destroy(bk_s B, struct bk_run_ondemand_func *brof)
   free(brof);
   BK_VRETURN(B);
 }
+
 
 
 /*

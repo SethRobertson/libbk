@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_funlist.c,v 1.1 2001/08/27 03:10:23 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_funlist.c,v 1.2 2001/11/05 20:53:06 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -33,7 +33,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define funlist_successor(h,o)			dll_successor(h,o)
 #define funlist_predecessor(h,o)		dll_predecessor(h,o)
 #define funlist_iterate(h,d)			dll_iterate(h,d)
-#define funlist_nextobj(h)			dll_nextobj(h)
+#define funlist_nextobj(h,i)			dll_nextobj(h,i)
+#define funlist_iterate_done(h,i)		dll_iterate_done(h,i)
 #define funlist_error_reason(h,i)		dll_error_reason(h,i)
 
 
@@ -102,6 +103,7 @@ void bk_funlist_call(bk_s B, struct bk_funlist *funlist, u_int aux, bk_flags fla
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_fun *curfun;
+  dict_iter iter;
 
   if (!funlist)
   {
@@ -110,8 +112,8 @@ void bk_funlist_call(bk_s B, struct bk_funlist *funlist, u_int aux, bk_flags fla
   }
 
   /* Iterate (to handle deletions) through the functions calling them */
-  funlist_iterate(funlist->bf_list, DICT_FROM_START);
-  while (curfun = funlist_nextobj(funlist->bf_list))
+  iter = funlist_iterate(funlist->bf_list, DICT_FROM_START);
+  while (curfun = funlist_nextobj(funlist->bf_list, iter))
     (*curfun->bf_fun)(B, curfun->bf_args, aux);
 
   BK_VRETURN(B);

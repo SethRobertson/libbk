@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fun.c,v 1.9 2001/09/11 03:35:09 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.10 2001/11/05 20:53:06 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,6 +24,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define funstack_destroy(h)		dll_destroy(h)
 #define funstack_insert(h,o)		dll_insert((h),(o))
 #define funstack_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
+#define funstack_append(h,o)		dll_append((h),(o))
+#define funstack_append_uniq(h,n,o)	dll_append_uniq((h),(n),(o))
 #define funstack_search(h,k)		dll_search((h),(k))
 #define funstack_delete(h,o)		dll_delete((h),(o))
 #define funstack_minimum(h)		dll_minimum(h)
@@ -31,7 +33,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define funstack_successor(h,o)		dll_successor((h),(o))
 #define funstack_predecessor(h,o)	dll_predecessor((h),(o))
 #define funstack_iterate(h,d)		dll_iterate((h),(d))
-#define funstack_nextobj(h)		dll_nextobj(h)
+#define funstack_nextobj(h,i)		dll_nextobj(h,i)
+#define funstack_iterate_done(h,i)	dll_iterate_done(h,i)
 #define funstack_error_reason(h,i)	dll_error_reason((h),(i))
 
 
