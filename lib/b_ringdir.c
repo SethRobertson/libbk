@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.12 2004/04/19 22:04:16 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.13 2004/04/21 20:14:02 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -29,6 +29,8 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+#define jtts stderr
 
 #define NEXT_FILE_NUM(brd,num)		(((num)+1)%(brd)->brd_max_num_files)
 #define PREVIOUS_FILE_NUM(brd,num)	(((num)==0)?((brd)->brd_max_num_files-1):((num)-1))
@@ -380,6 +382,12 @@ bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags)
       goto error;
     }
 
+    if (BK_FLAG_ISCLEAR(brd->brd_flags,BK_RINGDIR_FLAG_NO_CHECKPOINT) &&
+	((*brd->brd_brc.brc_chkpnt)(B, brd->brd_opaque, BkRingDirChkpntActionChkpnt, brd->brd_directory, brd->brd_pattern, &brd->brd_cur_file_num, BkRingDirCallbackSourceDestroy, 0) < 0))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Failed to checkpoint\n");
+    }
+
     free((char *)brd->brd_cur_filename);
     brd->brd_cur_filename = NULL;
   }
@@ -406,8 +414,8 @@ bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags)
       filename = NULL;
     }
     
-  if (brd->brd_brc.brc_chkpnt)
-    (*brd->brd_brc.brc_chkpnt)(B, brd->brd_opaque, BkRingDirChkpntActionDelete, brd->brd_directory, brd->brd_pattern, NULL, BkRingDirCallbackSourceDestroy, 0);
+    if (brd->brd_brc.brc_chkpnt)
+      (*brd->brd_brc.brc_chkpnt)(B, brd->brd_opaque, BkRingDirChkpntActionDelete, brd->brd_directory, brd->brd_pattern, NULL, BkRingDirCallbackSourceDestroy, 0);
   }
 
   if (brd->brd_brc.brc_destroy)
@@ -476,6 +484,14 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     if ((*brd->brd_brc.brc_close)(B, brd->brd_opaque, brd->brd_cur_filename, BkRingDirCallbackSourceRotate, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not close %s\n", brd->brd_cur_filename);
+      goto error;
+    }
+
+    // Checkpoint here just in case we get an error before the next open
+    if (BK_FLAG_ISCLEAR(brd->brd_flags,BK_RINGDIR_FLAG_NO_CHECKPOINT) &&
+	((*brd->brd_brc.brc_chkpnt)(B, brd->brd_opaque, BkRingDirChkpntActionChkpnt, brd->brd_directory, brd->brd_pattern, &brd->brd_cur_file_num, BkRingDirCallbackSourceRotate, 0) < 0))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Failed to checkpoint\n");
       goto error;
     }
 

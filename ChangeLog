@@ -1,3 +1,11 @@
+2004-04-21  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_ringdir.c (bk_ringdir_destroy): Add checkpoint after
+	current open file closes.
+	
+	(bk_ringdir_rotate): Add checkpoint after close in case we get
+	error before subsequent open.  
+
 2004-04-19  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_run.c (bk_run_destroy): Dequeue all events *before*
