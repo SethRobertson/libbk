@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.18 2004/04/23 21:36:20 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_time.c,v 1.19 2004/04/23 23:42:17 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -569,6 +569,9 @@ bk_time_ntp_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
  *
  * Example: 4d7h35m is 4 days, 7 hours, and 35 minutes.
  *
+ * Durations can also be specified in bare seconds.
+ * 1d, 86400s, and 86400 are all valid and equivalent.
+ *
  * @param B BAKA Thread/global state
  * @param string string to parse
  * @param time_t duration in seconds (copy-out)
@@ -650,11 +653,10 @@ bk_time_duration_parse(bk_s B, const char *string, time_t *duration, bk_flags fl
     p = end + 1;
   }
 
-  if (*p)
+  // allow bare numbers as seconds
+  if (!(daystr || hourstr || minstr || secstr) && *p)
   {
-    // trailing garbage
-    bk_error_printf(B, BK_ERR_ERR, "Illegal duration string: correct format is [Dd][Hh][Mm][Ss].\n");
-    goto error;
+    secstr = p;
   }
 
   if (daystr)
