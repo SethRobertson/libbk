@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.56 2003/06/09 22:44:45 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.57 2003/06/12 21:58:44 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -222,8 +222,8 @@ static void *bk_run_runevent_thread(bk_s B, void *opaque);
 #endif /* BK_USING_PTHREADS */
 static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, struct timeval *starttime, bk_flags eventflags, bk_flags flags);
 static void bk_run_runfd(bk_s B, struct bk_run *run, int fd, u_int gottypes, bk_fd_handler_t fun, void *opaque, struct timeval *starttime, bk_flags flags);
-static int bk_run_select_changed_init(bk_s B, struct bk_run *run);
 #ifdef BK_USING_PTHREADS
+static int bk_run_select_changed_init(bk_s B, struct bk_run *run);
 static void *bk_run_runfd_thread(bk_s B, void *opaque);
 #endif /* BK_USING_PTHREADS */
 
@@ -381,9 +381,10 @@ struct bk_run *bk_run_init(bk_s B, bk_flags flags)
     BK_RETURN(B, NULL);
   }
   BK_ZERO(run);
-  run->br_runfd = -1;
 
 #ifdef BK_USING_PTHREADS
+  run->br_runfd = -1;
+
   pthread_mutex_init(&run->br_lock, NULL);
 #endif /* BK_USING_PTHREADS */
 
@@ -428,6 +429,7 @@ struct bk_run *bk_run_init(bk_s B, bk_flags flags)
     goto error;
   }
 
+#ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADREADY(B))
   {
     if ((run->br_runfd = bk_run_select_changed_init(B, run)) < 0)
@@ -436,6 +438,7 @@ struct bk_run *bk_run_init(bk_s B, bk_flags flags)
       goto error;
     }
   }
+#endif /* BK_USING_PTHREADS */
 
 
   BK_RETURN(B, run);
@@ -1325,9 +1328,10 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
     abort();
   islocked = 1;
-#endif /* BK_USING_PTHREADS */
 
   run->br_selectcount++;
+#endif /* BK_USING_PTHREADS */
+
   isinselect = 1;
 
   readset = run->br_readset;
@@ -1346,7 +1350,9 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   {
     ret = 0;					// zero timeout, no fds
 
+#ifdef BK_USING_PTHREADS
     run->br_selectcount--;
+#endif /* BK_USING_PTHREADS */
     isinselect = 0;
   }
   else
@@ -1368,9 +1374,9 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
      * signals behave the same as normal system signals.
      */
 
+#ifdef BK_USING_PTHREADS
     bk_debug_printf_and(B, 64, "Entering select %d, %d, %d\n", run->br_selectn, run->br_selectcount, getpid());
 
-#ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
       abort();
     islocked = 0;
@@ -1383,10 +1389,10 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
       abort();
     islocked = 1;
-#endif /* BK_USING_PTHREADS */
     run->br_selectcount--;
     isinselect = 0;
     bk_debug_printf_and(B, 64, "Select has returned with %d/%d/%d %d\n", ret, errno, run->br_selectcount, getpid());
+#endif /* BK_USING_PTHREADS */
 
     if (ret < 0)
     {
@@ -1614,13 +1620,13 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   if (!islocked && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
     abort();
   islocked = 1;
-#endif /* BK_USING_PTHREADS */
+
   if (isinselect)
   {
     run->br_selectcount--;
     isinselect = 0;
   }
-#ifdef BK_USING_PTHREADS
+
   if (islocked && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
     abort();
   islocked = 0;
@@ -1647,12 +1653,13 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   if (!islocked && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
     abort();
   islocked = 1;
-#endif /* BK_USING_PTHREADS */
+
   if (isinselect)
   {
     run->br_selectcount--;
     isinselect = 0;
   }
+#endif /* BK_USING_PTHREADS */
   BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE);
   BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE);
 #ifdef BK_USING_PTHREADS
@@ -1964,11 +1971,13 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wa
   {
     bk_debug_printf_and(B, 64, "Modified select set for fd %d, now %ld/%ld/%ld\n", fd, (long)FD_ISSET(fd, &run->br_readset), (long)FD_ISSET(fd, &run->br_writeset), (long)FD_ISSET(fd, &run->br_xcptset));
 
+#ifdef BK_USING_PTHREADS
     if (run->br_selectcount)
     {
       bk_debug_printf_and(B, 64, "Asking for runrun rescheduling\n");
       bk_run_select_changed(B, run, BK_RUN_GLOBAL_FLAG_ISLOCKED);
     }
+#endif /* BK_USING_PTHREADS */
   }
 
 #ifdef BK_USING_PTHREADS
@@ -3357,11 +3366,13 @@ void bk_run_handler_discard(bk_s B, struct bk_run *run, int fd, u_int gottypes, 
       abort();
 #endif /* BK_USING_PTHREADS */
 
+#ifdef BK_USING_PTHREADS
     if (run->br_selectcount > 0)
     {
       bk_debug_printf_and(B, 64, "Someone is still in select--leaving interrupting byte on fd\n");
     }
     else
+#endif /* BK_USING_PTHREADS */
     {
       ret = read(fd, buf, sizeof(buf));
       bk_debug_printf_and(B, 64, "Read %d to interrupt select\n", ret);
@@ -3421,6 +3432,7 @@ void bk_run_select_changed(bk_s B, struct bk_run *run, bk_flags flags)
 
 
 
+#ifdef BK_USING_PTHREADS
 /**
  * Create a loopback file descriptor
  *
@@ -3481,6 +3493,7 @@ static int bk_run_select_changed_init(bk_s B, struct bk_run *run)
 
   BK_RETURN(B, fd);
 }
+#endif /* BK_USING_PTHREADS */
 
 
 
