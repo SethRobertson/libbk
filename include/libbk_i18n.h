@@ -1,9 +1,9 @@
 /*
- * $Id: libbk_i18n.h,v 1.5 2002/03/20 20:18:11 dupuy Exp $
+ * $Id: libbk_i18n.h,v 1.6 2003/06/17 06:07:16 seth Exp $
  *
  * ++Copyright LIBBK++
  *
- * Copyright (c) 2001 The Authors.  All rights reserved.
+ * Copyright (c) 2003 The Authors. All rights reserved.
  *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.

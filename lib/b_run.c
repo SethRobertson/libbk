@@ -1,12 +1,12 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.58 2003/06/13 22:23:54 dupuy Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.59 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
  *
- * Copyright (c) 2001 The Authors.  All rights reserved.
+ * Copyright (c) 2003 The Authors. All rights reserved.
  *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.

@@ -1,5 +1,5 @@
-#if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.16 2003/06/13 02:27:59 seth Exp $";
+#if !defined(lint) && !defined(__INSIGHT__)
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.17 2003/06/17 06:07:17 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */

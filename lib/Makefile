@@ -1,9 +1,9 @@
 ######################################################################
-# $Id: Makefile,v 1.43 2003/06/03 17:47:37 lindauer Exp $
+# $Id: Makefile,v 1.44 2003/06/17 06:07:16 seth Exp $
 #
 # ++Copyright LIBBK++
 #
-# Copyright (c) 2001-2003 The Authors. All rights reserved.
+# Copyright (c) 2003 The Authors. All rights reserved.
 #
 # This source code is licensed to you under the terms of the file
 # LICENSE.TXT in this release for further details.

@@ -1,9 +1,9 @@
 /*
- * $Id: libbk_oscompat.h,v 1.42 2003/06/17 05:10:46 seth Exp $
+ * $Id: libbk_oscompat.h,v 1.43 2003/06/17 06:07:16 seth Exp $
  *
  * ++Copyright LIBBK++
  *
- * Copyright (c) 2001 The Authors.  All rights reserved.
+ * Copyright (c) 2003 The Authors. All rights reserved.
  *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.

@@ -1,11 +1,11 @@
 /*
- * $Id: libbk.h,v 1.244 2003/06/12 20:57:41 dupuy Exp $
+ * $Id: libbk.h,v 1.245 2003/06/17 06:07:16 seth Exp $
  *
  * ++Copyright LIBBK++
  *
- * Copyright (c) 2001-2003 The Authors. All rights reserved.
+ * Copyright (c) 2003 The Authors. All rights reserved.
  *
- * This source code is licensed to you under the term of the file
+ * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
  *
  * Mail <projectbaka@baka.org> for further information
