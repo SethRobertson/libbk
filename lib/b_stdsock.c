@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_stdsock.c,v 1.4 2002/05/02 00:42:04 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_stdsock.c,v 1.5 2002/05/03 00:54:25 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -43,8 +43,7 @@ int bk_stdsock_multicast(bk_s B, int fd, u_char ttl, struct bk_netaddr *maddrgro
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int zero = 0;
   int one = 1;
-  struct ip_mreqn mreq;
-
+  struct ip_mreq mreq;
 
   if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP,
 		 (BK_FLAG_ISSET(flags, BK_MULTICAST_WANTLOOP))?&one:&zero, sizeof(one)) < 0)
@@ -64,7 +63,7 @@ int bk_stdsock_multicast(bk_s B, int fd, u_char ttl, struct bk_netaddr *maddrgro
     memset(&mreq, 0, sizeof(mreq));
     // <TODO> Silly linux -- multicast is for all address families</TODO>
     memcpy(&mreq.imr_multiaddr, &maddrgroup->bna_inet, sizeof(mreq.imr_multiaddr));
-    mreq.imr_address.s_addr = INADDR_ANY;
+    mreq.imr_interface.s_addr = INADDR_ANY;
 
     if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
     {
@@ -91,8 +90,6 @@ int bk_stdsock_broadcast(bk_s B, int fd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int one = 1;
-  struct ip_mreq mreq;
-
 
   if (setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &one, sizeof(one)) < 0)
   {
