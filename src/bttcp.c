@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.39 2003/12/27 06:07:56 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.40 2003/12/28 06:30:18 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,13 +27,13 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * (Stupidities of connected UDP).
  *
  * TODO:
- *	--file-io filename  Instead of I/O to stdio, go to this file (typially PTY)
  *	--transmit-limit bytes Limit transmission to this number bytes (e.g. -s)
  *	--execute command   Instead of I/O to stdio, execute this program w/pipes
  *	--execute-with-stderr Dup stderr of --execute to stdout
  *	--execute-in-pty    Execute subprogram in a pty
- *	--keepalives
+ *	--server
  *	--socks w/bind support?
+ *	--proxy (http proxy support?)
  *	* Verify bidirectional SSL authentication, encryption w/keygen ex *
  */
 
@@ -44,6 +44,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define ERRORQUEUE_DEPTH	32		///< Default depth
 #define DEFAULT_PROTO_STR	"tcp"		///< Default protocol
 #define DEFAULT_PORT_STR	"5001"		///< Default port
+#define DEFAULT_BLOCK_SIZE	8192		///< Default ioh block size
 #define ANY_PORT		"0"		///< Any port is OK
 
 
@@ -86,6 +87,7 @@ struct program_config
 #define PC_CLOSE_AFTER_ONE		0x040	///< Close relay after one side closed
 #define PC_SSL				0x080	///< Want SSL
 #define PC_NODELAY			0x100	///< Set nodelay socket buffer option
+#define PC_KEEPALIVE			0x200	///< Set keepalive preference
   u_int			pc_multicast_ttl;	///< Multicast ttl
   char *		pc_proto;		///< What protocol to use
   char *		pc_remoteurl;		///< Remote "url".
@@ -101,6 +103,8 @@ struct program_config
   int			pc_sockbuf;		///< Socket buffer size
   struct bk_relay_ioh_stats	pc_stats;	///< Statistics about relay
   struct timeval	pc_start;		///< Starting time
+  const char	       *pc_filein;		///< Set input filename
+  const char	       *pc_fileout;		///< Set output filename
   struct bk_ssl_ctx    *pc_ssl_ctx;		///< SSL session template
   const char *		pc_ssl_cert_file;	///< Location of SSL cert file
   const char *		pc_ssl_key_file;	///< Location of SSL key file
@@ -142,9 +146,9 @@ main(int argc, char **argv, char **envp)
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
     {"no-seatbelts", 0, POPT_ARG_NONE, NULL, 0x1000, "Sealtbelts off & speed up", NULL },
-    {"transmit", 't', POPT_ARG_STRING, NULL, 't', "Transmit to host", "hostspec" },
+    {"transmit", 't', POPT_ARG_STRING, NULL, 't', "Transmit to host", "proto://ip:port" },
     {"receive", 'r', POPT_ARG_NONE, NULL, 'r', "Receive", NULL },
-    {"local-name", 'l', POPT_ARG_STRING, NULL, 'l', "Local address to bind", "localaddr" },
+    {"local-name", 'l', POPT_ARG_STRING, NULL, 'l', "Local address to bind", "proto://ip:port" },
     {"address-family", 0, POPT_ARG_INT, NULL, 1, "Set the address family", "address_family" },
     {"udp", 'u', POPT_ARG_NONE, NULL, 2, "Use UDP", NULL },
     {"multicast", 0, POPT_ARG_NONE, NULL, 3, "Multicast UDP packets", NULL },
@@ -165,6 +169,10 @@ main(int argc, char **argv, char **envp)
     {"timeout", 'T', POPT_ARG_INT, NULL, 'T', "Set the connection timeout", "timeout" },
     {"sockbuf", 'B', POPT_ARG_INT, NULL, 15, "Socket snd/rcv buffer size", "length in bytes" },
     {"nodelay", 0, POPT_ARG_NONE, NULL, 16, "Set TCP NODELAY", NULL },
+    {"keepalive", 0, POPT_ARG_NONE, NULL, 17, "Set TCP KEEPALIVE", NULL },
+    {"file-io", 0, POPT_ARG_STRING, NULL, 18, "Use file instead of stdio", "filename"},
+    {"file-in", 0, POPT_ARG_STRING, NULL, 19, "Use file instead of stdin", "filename"},
+    {"file-out", 0, POPT_ARG_STRING, NULL, 20, "Use file instead of stdout", "filename"},
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -181,12 +189,14 @@ main(int argc, char **argv, char **envp)
   pc->pc_multicast_ttl = 1;			// Default local net multicast
   pc->pc_timeout=BK_SECS_TO_EVENT(30);
   pc->pc_proto=DEFAULT_PROTO_STR;
+  pc->pc_len=DEFAULT_BLOCK_SIZE;
 
   if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not initialize options processing\n");
     bk_exit(B,254);
   }
+  //  poptSetOtherOptionHelp(optCon, _("[NON-FLAG ARGUMENTS]"));
 
   while ((c = poptGetNextOpt(optCon)) >= 0)
   {
@@ -306,6 +316,28 @@ main(int argc, char **argv, char **envp)
 
     case 16:
       BK_FLAG_SET(pc->pc_flags, PC_NODELAY);
+      break;
+
+    case 17:
+      BK_FLAG_SET(pc->pc_flags, PC_KEEPALIVE);
+      break;
+
+    case 18:
+      /*
+       * I am still wondering if one RDWR open would be better But if
+       * we think about a named pipe or a device, to get proper close
+       * semantics (e.g. be able to notify when network in shuts down)
+       * we need two true file descriptors (and not just dups).
+       */
+      pc->pc_filein = pc->pc_fileout = poptGetOptArg(optCon);
+      break;
+
+    case 19:
+      pc->pc_filein = poptGetOptArg(optCon);
+      break;
+
+    case 20:
+      pc->pc_fileout = poptGetOptArg(optCon);
       break;
     }
   }
@@ -449,6 +481,8 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   struct program_config *pc=args;
   struct bk_ioh *std_ioh = NULL, *net_ioh = NULL;
   int one = 1;
+  int infd = fileno(stdin);
+  int outfd = fileno(stdout);
 
   if (!pc)
   {
@@ -477,7 +511,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   case BkAddrGroupStateReady:
     pc->pc_server = server_handle;
     if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-      fprintf(stderr,"%s%s: Ready and waiting\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
+      fprintf(stderr,"%s%s: Ready and listening\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
     goto done;
     break;
   case BkAddrGroupStateConnected:
@@ -538,6 +572,14 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 	BK_RETURN(B, -1);
       }
     }
+    if (BK_FLAG_ISSET(pc->pc_flags, PC_KEEPALIVE))
+    {
+      if(setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (char *)&one, sizeof(one)) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not set keepalive option: %s\n", strerror(errno));
+	BK_RETURN(B, -1);
+      }
+    }
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0)
     {
       bk_error_printf(B, BK_ERR_WARN, "Could not set reuseaddr on socket: %s\n", strerror(errno));
@@ -561,7 +603,26 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 
   /* If we need to hold on to bag save it here */
 
-  if (!(std_ioh = bk_ioh_init(B, fileno(stdin), fileno(stdout), NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+  if (pc->pc_filein)
+  {
+    if ((infd = open(pc->pc_filein,O_RDONLY,0666)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not open input file %s: %s\n", pc->pc_filein, strerror(errno));
+      goto error;
+    }
+  }
+
+  if (pc->pc_fileout)
+  {
+    if ((outfd = open(pc->pc_fileout,O_WRONLY|O_CREAT|O_TRUNC,0666)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not open output file %s: %s\n", pc->pc_fileout, strerror(errno));
+      goto error;
+    }
+  }
+      
+
+  if (!(std_ioh = bk_ioh_init(B, infd, outfd, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on stdin/stdout\n");
     goto error;
