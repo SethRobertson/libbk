@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.3 2002/01/22 19:52:37 jtt Exp $
+# $Id: Makefile,v 1.4 2003/03/26 16:46:06 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -31,7 +31,7 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
 
-LOCAL_LIBS=-lm
+LOCAL_LIBS=$(BK_LIBM)
 BK_LOCALJUNK=*.bak
 
 enttest:	ent
