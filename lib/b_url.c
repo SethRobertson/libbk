@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.2 2001/12/11 01:34:26 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.3 2001/12/11 01:56:26 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -20,7 +20,6 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * @file
  * All of the support routines for dealing with urls.
  */
-
 #include <libbk.h>
 #include "libbk_internal.h"
 
@@ -29,8 +28,10 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 static u_int count_colons(bk_s B, const char *str);
 
 
+
 /**
  * Parse a url
+ *
  *	@param B BAKA thread/global state.
  *	@param url_in Url to parse.
  *	@param flags Flags for the future.
@@ -78,6 +79,8 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
     host += 2;
   }
 
+  // XXX - IPv6 sucks.  Just look for "/" and then much later, when you know if you are focused at a host section,
+  // XXX   reprocess and count colons (N.B. you probably will want count_colons take a host_end ptr, or a length).
   if ((host_end = bk_strdelim(B, host,":/")))
   {
     if (*host_end == ':')			/* Host ends with : (or EOS) */
@@ -120,6 +123,8 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
 
   if (host)
   {
+    // XXX - in case of foo://bar -- host_end is not set
+    // XXX - note, "later" as defined above, has arrived
     len=host_end-host+1;
     if (!(bu->bu_host = bk_strndup(B, host, len)))
     {
