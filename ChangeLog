@@ -1,3 +1,8 @@
+2003-06-16  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_fun.c (bk_fun_exit): Allow for stats tracking of functions
+	which take longer than 2^32 microseconds to complete.
+
 2003-06-12  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_pollio.c (bk_polling_io_close): Race condition.

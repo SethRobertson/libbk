@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.20 2003/04/28 21:59:12 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.21 2003/06/16 19:10:10 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -168,7 +168,7 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
     u_quad_t thisus = 0;
     gettimeofday(&end, NULL);
     BK_TV_SUB(&sum, &end, &fh->bf_starttime);
-    thisus = BK_SECSTOUSEC(sum.tv_sec) + sum.tv_usec;
+    thisus = BK_SECSTOUSEC((u_quad_t)sum.tv_sec) + sum.tv_usec;
     bk_stat_add(B, BK_GENERAL_FUNSTATS(B), "Function Tracing", fh->bf_funname, thisus, 0);
   }
 
