@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.7 2004/05/06 21:50:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.8 2004/05/06 22:05:44 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -322,11 +322,12 @@ static int child(int argc, char **argv, int optint)
   if (want_dev_null_stdio)
   {
     int dev_null_fd;
+    int fdin, fdout, fderr;
     long fd_flags;
 
-    fd = fileno(stdin);
+    fdin = fileno(stdin);
 
-    if ((fcntl(fd, F_GETFL, &fd_flags) < 0) && (errno == EBADF))
+    if ((fcntl(fdin, F_GETFL, &fd_flags) < 0) && (errno == EBADF))
     {
       if ((dev_null_fd = open(_PATH_DEVNULL, O_RDONLY)) < 0)
       {
@@ -335,13 +336,13 @@ static int child(int argc, char **argv, int optint)
       }
 
 
-      if (dup2(dev_null_fd, fd) < 0)
+      if (dup2(dev_null_fd, fdin) < 0)
       {
 	perror("dup2 of stdin");
 	exit(2);
       }
 
-      if (dev_null_fd != fd)
+      if (dev_null_fd != fdin)
 	close(dev_null_fd);
     }
 
@@ -351,29 +352,29 @@ static int child(int argc, char **argv, int optint)
       exit(2);
     }
 
-    fd = fileno(stdout);
+    fdout = fileno(stdout);
 
-    if ((fcntl(fd, F_GETFL, &fd_flags) < 0) && (errno == EBADF))
+    if ((fcntl(fdout, F_GETFL, &fd_flags) < 0) && (errno == EBADF))
     {
-      if (dup2(dev_null_fd, fd) < 0)
+      if (dup2(dev_null_fd, fdout) < 0)
       {
 	perror("dup2 of stdout");
 	exit(2);
       }
     }
 
-    fd = fileno(stderr);
+    fderr = fileno(stderr);
 
-    if ((fcntl(fd, F_GETFL, &fd_flags) < 0) && (errno == EBADF))
+    if ((fcntl(fderr, F_GETFL, &fd_flags) < 0) && (errno == EBADF))
     {
-      if (dup2(dev_null_fd, fd) < 0)
+      if (dup2(dev_null_fd, fderr) < 0)
       {
 	perror("dup2 of stderr");
 	exit(2);
       }
     }
 
-    if (dev_null_fd != fd)
+    if (dev_null_fd != fdout && dev_null_fd != fderr)
       close(dev_null_fd);
   }
 
