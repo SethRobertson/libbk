@@ -1,0 +1,19 @@
+######################################################################
+# $Id: Make.include,v 1.1 2001/06/18 20:09:51 seth Exp $
+#
+# ++Copyright LIBBK++
+#
+# Copyright (c) 2001 The Authors.  All rights reserved.
+#
+# This source code is licensed to you under the terms of the file
+# LICENSE.TXT in this release for further details.
+#
+# Mail <projectbaka@baka.org> for further information
+#
+# --Copyright LIBBK--
+#
+# libbk group Makefile 
+#
+GROUP_INCS=-I$(GROUPTOP)/include
+GROUP_LDS=-L$(GROUPTOP)/lib
+GROUP_LIBS=-llibbk
