@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.8 2002/02/22 07:09:38 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.9 2002/03/07 05:52:21 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -439,7 +439,8 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
   if (datap)
     *datap = NULL;
 
-  if ((pid = pidlist_minimum(bpi->bpi_data)))
+  if ((pid = pidlist_minimum(bpi->bpi_data)) ||
+      BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_SAW_EOF))
   {
   // Seth sez: do bk_run_once regardless of presence of existing data to report.
     bk_run_once_flags = BK_RUN_ONCE_FLAG_DONT_BLOCK;
@@ -740,7 +741,7 @@ bk_polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
 
 /**
- * Flush out the poling cache. Very similar to ioh flush. Flush all data buf and EOF messages.
+ * Flush out the polling cache. Very similar to ioh flush. Flush all data buf and EOF messages.
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io to use.

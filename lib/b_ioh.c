@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.42 2002/03/06 22:51:47 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.43 2002/03/07 05:52:21 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -62,8 +62,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  */
 struct ioh_seek_args
 {
-  off_t		isa_offset;			///< Seek offset ala lseek(2)
-  int		isa_whence;			///< Whence ala lseek(2)
+  off_t		isa_offset;			///< Seek offset a la lseek(2)
+  int		isa_whence;			///< Whence a la lseek(2)
 };
 
 
@@ -114,8 +114,8 @@ struct bk_ioh_data
   u_int32_t		bid_inuse;		///< Amount actually used (!including consumed)
   u_int32_t		bid_used;		///< Amount virtually consumed (written or sent to user)
   bk_vptr	       *bid_vptr;		///< Stored vptr to return in callback
-  bk_flags		bid_flags;		///< Additional information about this dataa
-#define BID_FLAG_MESSAGE	0x01		///< This is a message boundry
+  bk_flags		bid_flags;		///< Additional information about this data
+#define BID_FLAG_MESSAGE	0x01		///< This is a message boundary
   struct ioh_data_cmd	bid_idc;		///< Command info.
 };
 
@@ -144,7 +144,7 @@ static void idc_destroy(bk_s B, struct ioh_data_cmd *idc);
 
 
 /**
- * @name IOH message type queueing functions
+ * @name IOH message type queuing functions
  * Data sent from the user must be placed on the output queue prior to actual system output.
  * This allows transformation (vectoring, blocking, etc) to take place.
  */
@@ -199,7 +199,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk
 
 /**
  * @name Defines: IOH Data Commands List clc
- * Abstracts the list of commands to run from various queus.
+ * Abstracts the list of commands to run from various queues.
  */
 // @{
 #define cmd_list_create(o,k,f)		dll_create(o,k,f)
@@ -545,10 +545,10 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
 
 
 /**
- * Tell the system that no futher system I/O will be permitted.
+ * Tell the system that no further system I/O will be permitted.
  *
  * If data is currently queued for input, this data will sent to the user as incomplete.
- * If data is currented queued for output, this data will be drained before the shutdown takes effect.
+ * If data is currently queued for output, this data will be drained before the shutdown takes effect.
  * See @a bk_ioh_flush for a way to avoid this.
  *
  *	@param B BAKA thread/global state 
@@ -642,6 +642,11 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
 
   if (ioh->ioh_fdin >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
   {
+    /*
+     * <TODO>ioh_readallowed is probably not wanted here, since it has no
+     * effect if SHUTDOWN_INPUT or ERROR_INPUT are set.  figure out what, if
+     * anything, should be done here</TODO>
+     */
     // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read
     bk_ioh_readallowed(B, ioh, 0, 0);
   }
@@ -739,7 +744,7 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
 
   if (ioh->ioh_fdin < 0 || BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT | IOH_FLAGS_ERROR_INPUT | IOH_FLAGS_SHUTDOWN_DESTROYING))
   {
-    bk_error_printf(B, BK_ERR_WARN, "You cannot manipulate the read desireability if input is technically impossible\n");
+    bk_error_printf(B, BK_ERR_WARN, "You cannot manipulate the read desirability if input is technically impossible\n");
     BK_RETURN(B,-1);
   }
 
@@ -791,18 +796,17 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
 /**
  * Indicate that no further activity is desired on this ioh.
  *
- * The ioh may linger if data requires draining, unless abort.
- * Incomplete data pending on the input queue will be sent to user as incomplete unless abort.
- * Additional callbacks may occur--WRITECOMPLETEs or IOHWRITEERRORs
- *  (if no abort), WRITEABORTEDs (if abort), IOHCLOSING (if
- *  NOTIFYANYWAY)
+ * The ioh may linger if data requires draining, unless abort.  Incomplete data
+ * pending on the input queue will be sent to user as incomplete unless abort.
+ * Additional callbacks may occur--WRITECOMPLETEs or IOHWRITEERRORs (if no
+ * abort), WRITEABORTEDs (if abort), IOHCLOSING (if NOTIFYANYWAY)
  *
  *	@param B BAKA thread/global state 
  *	@param ioh The IOH environment to update
- *	@param flags BK_IOH_(DONTCLOSEFDS to prevent close() from being executed on the fds,
- *			ABORT to cause automatic flush of input and output queues (to prevent
- *			indefinite wait for output to drain), NOTIFYANYWAY to cause user to be
- *			notified of this close()).
+ *	@param flags BK_IOH_DONTCLOSEFDS to prevent close() from being
+ *	executed on the fds, BK_IOH_ABORT to cause automatic flush of input
+ *	and output queues (to prevent indefinite wait for output to drain),
+ *	BK_IOH_NOTIFYANYWAY to cause user to be notified of this close()).
  */
 void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 {
@@ -857,7 +861,7 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   {
     ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
     
-    // sigh.. Sometimes using a clc makes things eaisier sometimes it *really* doesn't...
+    // sigh.. Sometimes using a clc makes things easier sometimes it *really* doesn't...
     if ((cmds = cmd_list_create(NULL, NULL, 0)))
     {
       struct ioh_data_cmd *idc;
@@ -893,6 +897,11 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   // Propagate close to RUN level
   if (ioh->ioh_fdin >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
   {
+    /*
+     * <TODO>ioh_readallowed is probably not wanted here, since it has no
+     * effect if SHUTDOWN_INPUT or ERROR_INPUT are set.  figure out what, if
+     * anything, should be done here</TODO>
+     */
     // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read
     bk_ioh_readallowed(B, ioh, 0, 0);
   }
@@ -916,11 +925,11 @@ void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
  * Did we mention you should use _close instead of this interface?
  * 
  * <WARNING>
- * jtt made this static since noone outside this file was using it and
+ * jtt made this static since no one outside this file was using it and
  * you're really not supposed to. Seth is dubious; he feels that it just
  * <em>might</em> happen that someone will get in a weird state where they
  * <em>really</em> need to get rid of their ioh without getting called back
- * or anything. So you may make this unstatic if you like, but it might
+ * or anything. So you may make this extern if you like, but it might
  * nice to document the reason why.
  * </WARNING>
  *
@@ -996,7 +1005,7 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
 
 /**
  * Get length of IOH queues.  Note that this may only have a passing
- * resemblence to the amount of user data that can still be placed in
+ * resemblance to the amount of user data that can still be placed in
  * the queue, the amount that was placed in the queue, or any other
  * version thereof.  The message types may compress or expand the
  * number of bytes which get enqueued for transmission.
@@ -1039,7 +1048,7 @@ int bk_ioh_getqlen(bk_s B, struct bk_ioh *ioh, u_int32_t *inqueue, u_int32_t *ou
  *	@param run Handle into run environment
  *	@param fd File descriptor which had the activity
  *	@param gottypes Description of activity seen
- *	@param opaque The ioh we passed in previosly
+ *	@param opaque The ioh we passed in previously
  *	@param starttime The "current time" of when the select loop
  *		terminated, which may have a casual relationship with the
  *		actual time.  Useful to save system calls when you don't care
@@ -1060,7 +1069,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
     BK_VRETURN(B);
   }
 
-  bk_debug_printf_and(B, 1, "Received run notificaiton of %x ready for IOH %p/%x\n", gottypes, ioh, ioh->ioh_intflags);
+  bk_debug_printf_and(B, 1, "Received run notification of %x ready for IOH %p/%x\n", gottypes, ioh, ioh->ioh_intflags);
 
   // Check for error or exceptional conditions
   if (BK_FLAG_ISSET(gottypes, BK_RUN_DESTROY) || BK_FLAG_ISSET(gottypes, BK_RUN_CLOSE))
@@ -1069,7 +1078,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
     BK_VRETURN(B);
   }
 
-  // Don't do anything if we are shut down. This is weird and probaby shouldn't have happened but whatever...
+  // Don't do anything if we are shut down. This is weird and probably shouldn't have happened but whatever...
   if (BK_FLAG_ISSET(gottypes, BK_RUN_READREADY) &&
       BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
   {
@@ -1162,6 +1171,10 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
 	// EOF
 	ioh_sendincomplete_up(B, ioh, BID_FLAG_MESSAGE, 0);
 	CALLBACK(B, ioh, NULL, BkIohStatusIohReadEOF);
+	/*
+	 * <TODO>don't set ERROR_INPUT here, since seek could be used to undo
+	 * EOF-ness.  use FLAGS_EOF_SEEN instead?</TODO>
+	 */
 	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_INPUT); // This is a little bogus.....
 	bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read from select
       }
@@ -1562,7 +1575,7 @@ static int ioht_block_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags 
   {
     /*
      * Yes, there may be blocks already partially sent, but if this condition
-     * is true, then we are guarenteed that there is at least one block ready.
+     * is true, then we are guaranteed that there is at least one block ready.
      * This block may be the partially sent block, and in that case write should
      * already be set, and this will do no harm.
      */
@@ -1655,9 +1668,9 @@ static int ioht_vector_queue(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags
 
 /**
  * Line oriented messaging format--IOH Type routines to queue data sent from user for output.
- * Note that we do not enforce line message boundries on output.
+ * Note that we do not enforce line message boundaries on output.
  *
- * <TODO>Perhaps we *should* do "enforcement" in order to achive buffering.  Worry about UDP case as well.</TODO>
+ * <TODO>Perhaps we *should* do "enforcement" in order to achieve buffering.  Worry about UDP case as well.</TODO>
  *
  *	@param B BAKA Thread/Global state
  *	@param ioh The IOH environment handle
@@ -2263,6 +2276,14 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	  bk_error_printf(B, BK_ERR_ERR, "Incoming message is greater than the maximum allowed size (%d > %d)\n", room, ioh->ioh_readq.biq_queuemax);
 	  ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, 0);
 	  CALLBACK(B, ioh, NULL, BkIohStatusIohReadError);
+	  /**
+	   * @bug
+	   * <BUG>This is very very "bugus", since ioh_readallowed has no
+	   * effect if the ERROR_INPUT flag is set.  In general, the handling
+	   * of ioh_readallowed vs. ERROR_INPUT is not clearly thought out or
+	   * implemented, and there is no possibility to perform a seek after
+	   * hitting EOF.</BUG>
+	   */
 	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_INPUT);
 	  // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTREAD, 0);
 	  bk_ioh_readallowed(B, ioh, 0, 0);
@@ -2372,7 +2393,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 /**
  * Line--"/n" terminated lines--IOH Type routines to perform I/O
  * maintenance and activity.  A mechanism should be devised to specify
- * the EOL character (or preferrably sequence but that would really
+ * the EOL character (or preferably sequence but that would really
  * suck).
  * 
  *
@@ -2429,7 +2450,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
        *
        * I suppose one possible modification would be to ensure
        * that everything is NUL terminated, but since the stuff
-       * is not guarenteed contiguous, this is not too interesting.
+       * is not guaranteed contiguous, this is not too interesting.
        */
       BK_ORETURN(B, ioht_raw_other(B, ioh, aux, cmd, flags));
     }
@@ -2949,7 +2970,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
 	break;
     
       default: 
-	bk_error_printf(B, BK_ERR_ERR, "Unkown bid command: %d\n", idc->idc_type);
+	bk_error_printf(B, BK_ERR_ERR, "Unknown bid command: %d\n", idc->idc_type);
 	break;
       }
     }
@@ -2969,7 +2990,7 @@ static int ioh_execute_cmds(bk_s B, struct bk_ioh *ioh, dict_h cmds, bk_flags fl
 
 
 /**
- * Standard read() functionality in IOH api
+ * Standard read() functionality in IOH API
  *
  *	@param B BAKA Thread/global state
  *	@param opaque Common opaque data for read and write funs
@@ -3007,7 +3028,7 @@ int bk_ioh_stdrdfun(bk_s B, void *opaque, int fd, caddr_t buf, __SIZE_TYPE__ siz
 
 
 /**
- * Standard write() functionality in IOH api
+ * Standard write() functionality in IOH API
  *
  *	@param B BAKA Thread/global state
  *	@param fd File descriptor
@@ -3144,9 +3165,9 @@ idc_destroy(bk_s B, struct ioh_data_cmd *idc)
  * Seek on an ioh. This is trickier then it sounds. We have to pause reads,
  * place a cmd on the write queue and wait for that to flush, *then* run
  * the seek. If the seek succeeds we then have to flush the current input
- * queue and then notify the user. If the seek fails we have to notifiy the
+ * queue and then notify the user. If the seek fails we have to notify the
  * user, but we don't flush the input queue. The rest of the function is in
- * ioh_execut_cmds()
+ * ioh_execute_cmds()
  *
  *	@param B BAKA thread/global state.
  *	@param ioh The @a bk_ioh to use. 
@@ -3169,6 +3190,7 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
   }
 
   bk_ioh_readallowed(B, ioh, 0, 0);
+
   if (!(BK_CALLOC(isa)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate isa: %s\n", strerror(errno));
@@ -3177,8 +3199,6 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
 
   isa->isa_offset = offset;
   isa->isa_whence = whence;
-
-  // <TOOD> remove descriptor from read set.
 
   if (ioh_queue(B, &ioh->ioh_writeq, NULL, 0, 0, 0, NULL, 0, IohDataCmdSeek, isa, 0) < 0)
   {
@@ -3197,13 +3217,14 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
 
  error:
   if (isa) free(isa);
+  bk_ioh_readallowed(B, ioh, 1, 0);
   BK_RETURN(B,-1);
 }
 
 
 
 /**
- * IOH coalescion routine for external users who need unified buffers
+ * IOH coalescing routine for external users who need unified buffers
  * w/optimizations for simple cases. NB @a data is <em>not</em> freed. This
  * routine is written to the ioh read API and according to that API the ioh
  * system frees the data it has read.
@@ -3250,7 +3271,7 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
   {
     if (!BK_MALLOC(new) || !BK_MALLOC_LEN(new->ptr, cdata))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not allocate data during coalescion of %d bytes: %s\n", cdata, strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate data during coalescing of %d bytes: %s\n", cdata, strerror(errno));
       goto error;
     }
     new->len = cdata;

@@ -1,3 +1,10 @@
+2002-03-07  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_pollio.c (bk_polling_io_do_poll): don't block if at EOF
+
+	* lib/b_ioh.c (ioht_vector_other): document one of probably many
+	bugs in vectored i/o
+
 2002-03-06  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (BK_FLAG_SET, BK_FLAG_CLEAR): make these statement
