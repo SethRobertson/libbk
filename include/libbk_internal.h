@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.41 2003/06/03 17:47:37 lindauer Exp $
+ * $Id: libbk_internal.h,v 1.42 2003/06/07 18:21:44 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -92,7 +92,7 @@ struct bk_ioh
 #define IOH_FLAGS_ERROR_OUTPUT		0x100	///< Output had I/O error
 #define IOH_FLAGS_CLOSE_PENDING		0x200	///< We want to close, but others are using the IOH
 #define IOH_FLAGS_IN_CALLBACK		0x400	///< We are in a user callback
-#define IOH_FLAGS_COMPRESS		0x800	///< We want to go through output compression
+#define IOH_FLAGS_IN_WRITE		0x800	///< Outputting data now--further writes deferred
 #ifdef BK_USING_PTHREADS
   u_int			ioh_waiting;		///< Number of people waiting
   pthread_t		ioh_userid;		///< Thread ID of person in user callback

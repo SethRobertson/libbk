@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.84 2003/06/05 06:54:03 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.85 2003/06/07 18:21:44 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1463,6 +1463,9 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
   // Write first to hopefully free memory for read if necessary
   if (ret >= 0 && BK_FLAG_ISSET(gottypes, BK_RUN_WRITEREADY))
   {
+    if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_IN_WRITE))
+      goto bypasswrite;
+    BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_IN_WRITE);
     if (BK_FLAG_ISSET(ioh->ioh_extflags, BK_IOH_RAW))
     {
       ret = ioht_raw_other(B, ioh, BK_RUN_WRITEREADY, IOHT_HANDLER, 0);
@@ -1483,7 +1486,9 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
     {
       bk_error_printf(B, BK_ERR_ERR, "Unknown message format type %x\n",ioh->ioh_extflags);
     }
+    BK_FLAG_CLEAR(ioh->ioh_intflags, IOH_FLAGS_IN_WRITE);
   }
+ bypasswrite:
 
   // Time for reading
   if (ret >= 0 && BK_FLAG_ISSET(gottypes, BK_RUN_READREADY|BK_RUN_USERFLAG1))
@@ -1757,14 +1762,13 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   dict_iter iter;
   struct bk_ioh_data *bid;
+  int origbytes = bytes;
 
   if (!iohq)
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
     BK_RETURN(B, -1);
   }
-
-  bk_debug_printf_and(B, 1, "Dequeuing %d bytes for IOH queue %p\n", bytes, iohq);
 
   // Figure out what buffers have been fully written
   iter = biq_iterate(iohq->biq_queue, DICT_FROM_START);
@@ -1794,6 +1798,8 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
     ioh_dequeue(B, ioh, iohq, bid, 0);
   }
   biq_iterate_done(iohq->biq_queue, iter);
+
+  bk_debug_printf_and(B, 1, "Dequeueing %d bytes (now %d) for IOH queue %p\n", origbytes, iohq->biq_queuelen, iohq);
 
   BK_RETURN(B, 0);
 }
@@ -2167,7 +2173,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	bid = biq_successor(ioh->ioh_writeq.biq_queue, bid);
       }
 
-      // process up to the next cmd bid
+      // process up to the next cmd bid <TODO>Make message boundry aware?</TODO>
       while(bid && bid->bid_data)
       {
 	// Process first IOH_VECTOR_WRITE_BATCH_SIZE in one write
@@ -2175,11 +2181,19 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	{
 	  iov[vectors_in_use].iov_base = bid->bid_data + bid->bid_used;
 	  iov[vectors_in_use].iov_len = bid->bid_inuse;
+	  if (bk_debug_and(B, 0x20))
+	  {
+	    bk_vptr dbuf;
+	    dbuf.ptr = iov[vectors_in_use].iov_base;
+	    dbuf.len = MIN((u_int)iov[vectors_in_use].iov_len, 128U);
+	    bk_debug_printbuf_and(B, 0x20, "Buffer ready to write:", "\t", &dbuf);
+	  }
 	  bid = biq_successor(ioh->ioh_writeq.biq_queue, bid);
 	}
+	bk_debug_printf_and(B, 64, "Stopped enqueueing data, vectors %d, bid %p, bid->data %p, bid->flags %x, bid->idc_type %d\n", vectors_in_use, bid, bid?bid->bid_data:NULL, bid?bid->bid_flags:0, bid?bid->bid_idc.idc_type:0);
 
 #ifdef BK_USING_PTHREADS
-	if (BK_GENERAL_FLAG_ISTHREADON(B))
+ 	if (BK_GENERAL_FLAG_ISTHREADON(B))
 	{
 	  ioh->ioh_userid = pthread_self();
 	  if (pthread_mutex_unlock(&ioh->ioh_lock) != 0)
@@ -2205,6 +2219,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	{
 	  // Not quite ready for writing yet
 	  cnt = 0;
+	  ret = 1;
 	  break;
 	}
 	else if (cnt < 0)
@@ -3617,12 +3632,21 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
 
   if (bk_debug_and(B, 0x20) && ret > 0)
   {
-    bk_vptr dbuf;
+    u_int x;
+    int myret = ret;
+    int len = 0;
+    for (x = 0; x < size && myret > 0; x++)
+    {
+      bk_vptr dbuf;
 
-    dbuf.ptr = buf[0].iov_base;
-    dbuf.len = MIN(MIN((u_int)buf[0].iov_len, 32U), (u_int)ret);
+      dbuf.ptr = buf[x].iov_base;
+      dbuf.len = MIN(MIN((u_int)buf[x].iov_len, 128U), (u_int)myret);
 
-    bk_debug_printbuf_and(B, 0x20, "Buffer just wrote:", "\t", &dbuf);
+      len += buf[x].iov_len;
+      bk_debug_printbuf_and(B, 0x20, "Buffer just wrote:", "\t", &dbuf);
+      myret -= buf[x].iov_len;
+    }
+    bk_debug_printf_and(B, 1, "Returns %d, but submitted %d\n",ret,len);
   }
 
   errno = erno;

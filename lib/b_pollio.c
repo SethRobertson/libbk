@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.37 2003/06/05 08:33:26 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.38 2003/06/07 18:21:44 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -67,6 +67,7 @@ struct bk_polling_io
   u_int			bpi_throttle_cnt;	///< Count the number of people who want to throttle me.
   int64_t		bpi_tell;		///< Where we are in the stream.
   u_int			bpi_wroutstanding;	///< Number of outstanding writes
+  u_int			bpi_wrbytes;		///< Outstanding write bytes
   void		       *bpi_rdtimeoutevent;	///< Timeout event handle for rd timeout
   void		       *bpi_wrtimeoutevent;	///< Timeout event handle for wr timeout
 #ifdef BK_USING_PTHREADS
@@ -565,23 +566,23 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
 
   case BkIohStatusWriteComplete:
   case BkIohStatusWriteAborted:
-    free(data->ptr);
-    free(data);
-    pid_destroy(B, pid);
-    data = NULL;
 #ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
       abort();
 #endif /* BK_USING_PTHREADS */
     bpi->bpi_wroutstanding--;
+    bpi->bpi_wrbytes -= data->len;
+    bk_debug_printf_and(B, 64, "Dequeued %d bytes for outstanding total of %d\n", data->len, bpi->bpi_wrbytes);
 #ifdef BK_USING_PTHREADS
     bk_debug_printf_and(B, 64, "Broadcasting write timed condition wait\n");
     pthread_cond_broadcast(&bpi->bpi_wrcond);
-#endif /* BK_USING_PTHREADS */
-#ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
       abort();
 #endif /* BK_USING_PTHREADS */
+    free(data->ptr);
+    free(data);
+    pid_destroy(B, pid);
+    data = NULL;
     BK_VRETURN(B);
     break;
 
@@ -984,7 +985,12 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
     bk_error_printf(B, BK_ERR_ERR, "Could not submit write\n");
 
   if (ret == 0)
+  {
     bpi->bpi_wroutstanding++;
+    bpi->bpi_wrbytes += data->len;
+    bk_debug_printf_and(B, 64, "Enqueued %d bytes for outstanding total of %d\n", data->len, bpi->bpi_wrbytes);
+  }
+
 
   // Handle requests to wait until data has hit OS
   if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_SYNC))
