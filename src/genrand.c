@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: genrand.c,v 1.9 2003/06/17 06:07:18 seth Exp $";
+static const char libbk__rcsid[] = "$Id: genrand.c,v 1.10 2004/02/21 01:57:15 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -51,6 +51,7 @@ struct program_config
 {
   u_int			pc_bytes;		///< How much output
   u_int			pc_reinit;		///< Reinit interval
+  u_int			pc_maxnum;		///< Maximum number in range
   bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x001			///< Verbose output
 #define PC_MULTI	0x002			///< Ascii-output
@@ -92,6 +93,7 @@ main(int argc, char **argv, char **envp)
     {"multioutput", 'm', POPT_ARG_NONE, NULL, 'm', N_("Produce ascii output"), NULL },
     {"outbytes", 's', POPT_ARG_INT, NULL, 's', "Number of bytes of output", "bytes" },
     {"reinit", 'R', POPT_ARG_INT, NULL, 'R', "Refresh pool every Exponent (2^N) words", "exponent" },
+    {"number", 'n', POPT_ARG_INT, NULL, 'n', "Integers between 0 and n", "max number" },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -162,6 +164,9 @@ main(int argc, char **argv, char **envp)
     case 'r':					// Bits of entropy
       pconfig->pc_reinit=atoi(poptGetOptArg(optCon));
       break;
+    case 'n':					// Number
+      pconfig->pc_maxnum=atoi(poptGetOptArg(optCon));
+      break;
     }
   }
 
@@ -201,6 +206,25 @@ static void runit(bk_s B, struct program_config *pconfig)
   if (!(R = bk_truerand_init(B, pconfig->pc_reinit, 0)))
   {
     bk_die(B, 1, stderr, "Could not initialize random number generator\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+  }
+
+  if (pconfig->pc_maxnum)
+  {
+    double fraction;
+
+    for(cntr = 0; cntr < pconfig->pc_bytes; cntr++)
+    {
+      u_int64_t first, second;
+
+      first = ((u_int64_t)bk_truerand_getword(B, R, NULL, 0))<<32 | ((u_int64_t)bk_truerand_getword(B, R, NULL, 0));
+      second = UINT64_MAX;
+
+      fraction = (double)first/(double)second;
+
+      printf("%d\n",(int)(fraction*pconfig->pc_maxnum));
+    }
+
+    exit(0);
   }
 
   while (!pconfig->pc_bytes || cntr < pconfig->pc_bytes)
