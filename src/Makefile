@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.34 2005/03/16 18:53:26 seth Exp $
+# $Id: Makefile,v 1.35 2005/03/16 22:08:25 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -91,7 +91,7 @@ ifneq ($(BK_WANT_LIBTOOL),false)
 LDLIBS=$(filter-out -lbkssl -lssl -lcrypto -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
 
 # these are not really baka programs, despite their names
-bk_daemon bk_funi timeout: LDLIBS=
+adjtime bk_daemon bk_funi timeout: LDLIBS=
 
 ifneq ($(strip $(BK_USING_SSL)),false)
 bttcp: LDLIBS=$(filter-out -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))

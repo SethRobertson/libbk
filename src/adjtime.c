@@ -1,10 +1,17 @@
 /*
  * Dedicated to the public.
  *
- * Example usage: adjtime `/usr/sbin/ntpdate  -d timex.cs.columbia.edu 2>/dev/null | egrep ^offset | sed 's/\./ /' | awk '{print $2,$3}'`
+ * Example usage:
+ *
+ * adjtime `ntpdate -d pool.ntp.org | sed -n '/^offset/s/offset\(.*\)\./\1 /p'`
+ *
+ * ntpdate -B is simpler as long as offset is within +/-2146s limit but this
+ * program will apply maximum offset in that case, whereas ntpdate fails...
  */
 
 #include <libbk.h>
+
+#define MILLION 1000000
 
 int main(int argc, char *argv[], char *envp[])
 {
@@ -20,26 +27,32 @@ int main(int argc, char *argv[], char *envp[])
   forward.tv_sec = atoi(argv[1]);
   forward.tv_usec = atoi(argv[2]);
 
-  if (forward.tv_sec > 2000)
+
+  if (forward.tv_sec > (INT_MAX / MILLION - 2))
   {
-    printf("Maximum adjustment is 2000 or so, resetting maximum from %ld\n", forward.tv_sec);
-    forward.tv_sec = 2000;
-    forward.tv_usec = 0;
+    printf("Limiting to maximum positive offset adjustment\n");
+    forward.tv_sec = INT_MAX / MILLION - 2;
+    forward.tv_usec = 999999;
   }
-  if (forward.tv_sec < -2000)
+  else if (forward.tv_sec < (INT_MIN / MILLION + 2))
   {
-    printf("Minimum adjustment is -2000 or so, resetting minimum from %ld\n", forward.tv_sec);
-    forward.tv_sec = -2000;
-    forward.tv_usec = 0;
+    printf("Limiting to maximum negative offset adjustment\n");
+    forward.tv_sec = INT_MIN / MILLION + 2;
+    forward.tv_usec = -999999;
+  }
+  else if (forward.tv_sec < 0 && forward.tv_usec > 0) 
+  {
+    forward.tv_usec = -forward.tv_usec;
   }
 
-  printf("Adjusting time by %ld.%06ld seconds\n", forward.tv_sec, forward.tv_usec);
+  printf("Adjusting time by %f seconds\n", forward.tv_sec + forward.tv_usec / (double) MILLION);
+
   if (adjtime(&forward, &oldforward) < 0)
   {
     perror("adjtime() failure");
     exit(2);
   }
 
-  printf("Old adjustment was %ld.%06ld seconds\n", oldforward.tv_sec, oldforward.tv_usec);
+  printf("Old adjustment was %f seconds\n", oldforward.tv_sec + oldforward.tv_usec / (double) MILLION);
   exit(0);
 }
