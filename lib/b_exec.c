@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.22 2004/12/16 20:52:08 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.23 2005/01/18 20:29:27 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,6 +24,8 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+#define jtts stderr
 
 // Declaration of openpty
 #ifdef HAVE_OPENPTY
@@ -209,10 +211,10 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
 	goto error;
       }
       if (p2c[0] != fdin)
-	close(p2c[0]);
-
-      bk_debug_printf_and(B,2,"Child: closing p2c read (after dup to %d): %d\n", fdin, p2c[0]);
-
+      {
+	if (close(p2c[0]) == 0)
+	  bk_debug_printf_and(B,2,"Child: closing p2c read (after dup to %d): %d\n", fdin, p2c[0]);
+      }
     }
 
     if (fdinp)
@@ -232,10 +234,31 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
 	bk_error_printf(B, BK_ERR_ERR, "dup failed: %s\n", strerror(errno));
 	goto error;
       }
-      if (c2p[1] != fdout && c2p[1] != fderr)
-	close(c2p[1]);
+      if (c2p[1] != fdout && (BK_FLAG_ISCLEAR(flags, BK_PIPE_FLAG_STDERR_ON_STDOUT) || 
+			      (c2p[1] != fderr)))
+      {
+	if (close(c2p[1]) == 0)
+	  bk_debug_printf_and(B,2,"Child: closing c2p write (after dup to %d): %d\n", fdout, c2p[1]);
+      }
+    }
 
-      bk_debug_printf_and(B,2,"Child: closing c2p write (after dup to %d): %d\n", fdout, c2p[1]);
+    /* 
+     * If you have a process which isn't going to use unredirected stdin or stdout, you
+     * might want to set BK_PIPE_FLAG_CLOSE_UNNEEDED_STDINOUT
+     */
+    if (BK_FLAG_ISSET(flags, BK_PIPE_FLAG_CLOSE_UNNEEDED_STDINOUT))
+    {
+      if (!fdoutp)
+      {
+	bk_debug_printf_and(B,2,"Child closing unneeded fdin: %d\n", fdin);
+	close(fdin);
+      }
+
+      if (!fdinp)
+      {
+	bk_debug_printf_and(B,2,"Child closing unneeded fdout: %d\n", fdout);
+	close(fdout);
+      }
     }
     break;
 
@@ -548,7 +571,9 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
       *fdoutp = -1;
   }
 
+
   pid = bk_pipe_to_process(B, fdinp, fdoutp, ((BK_FLAG_ISSET(flags, BK_EXEC_FLAG_CLOSE_CHILD_DESC)?BK_PIPE_TO_PROCESS_FLAG_CLOSE_EXTRANEOUS_DESC:0) |
+					      (BK_FLAG_ISSET(flags, BK_EXEC_FLAG_CLOSE_UNNEEDED_STDINOUT)?BK_PIPE_FLAG_CLOSE_UNNEEDED_STDINOUT:0) |
 					      (BK_FLAG_ISSET(flags, BK_EXEC_FLAG_STDERR_ON_STDOUT)?BK_PIPE_FLAG_STDERR_ON_STDOUT:0) |
 					      (BK_FLAG_ISSET(flags, BK_EXEC_FLAG_USE_PTY)?BK_PIPE_FLAG_USE_PTY:0)));
 
@@ -684,6 +709,7 @@ bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *
   }
 
   pid = bk_pipe_to_process(B, fdinp, fdoutp, ((BK_FLAG_ISSET(flags, BK_EXEC_FLAG_CLOSE_CHILD_DESC)?BK_PIPE_TO_PROCESS_FLAG_CLOSE_EXTRANEOUS_DESC:0) |
+					      (BK_FLAG_ISSET(flags, BK_EXEC_FLAG_CLOSE_UNNEEDED_STDINOUT)?BK_PIPE_FLAG_CLOSE_UNNEEDED_STDINOUT:0) |
 					      (BK_FLAG_ISSET(flags, BK_EXEC_FLAG_STDERR_ON_STDOUT)?BK_PIPE_FLAG_STDERR_ON_STDOUT:0) |
 					      (BK_FLAG_ISSET(flags, BK_EXEC_FLAG_USE_PTY)?BK_PIPE_FLAG_USE_PTY:0)));
 

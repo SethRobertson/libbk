@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.315 2004/12/24 00:28:00 dupuy Exp $
+ * $Id: libbk.h,v 1.316 2005/01/18 20:29:28 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2059,6 +2059,7 @@ extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, 
 #define BK_EXEC_FLAG_CLOSE_CHILD_DESC		0x10 ///< Close all extraneous deciptors in child
 #define BK_EXEC_FLAG_STDERR_ON_STDOUT		0x20 ///< When creating pipe to child, stderr dups on stdout
 #define BK_EXEC_FLAG_USE_PTY			0x40 ///< Use PTY instead of pipe
+#define BK_EXEC_FLAG_CLOSE_UNNEEDED_STDINOUT	0x80 ///< Close unneeded stdin/stdout
 
 #ifdef MISSING_PTHREAD_RWLOCK_INIT
 /* lock initialization only required on platforms where rwlock_t is not a pointer (Darwin) */
@@ -2068,6 +2069,7 @@ extern pid_t bk_pipe_to_process(bk_s B, int *fdinp, int*fdoutp, bk_flags flags);
 #define BK_PIPE_TO_PROCESS_FLAG_CLOSE_EXTRANEOUS_DESC	0x1
 #define BK_PIPE_FLAG_STDERR_ON_STDOUT		0x2 ///< When creating pipe to child, stderr dups on stdout
 #define BK_PIPE_FLAG_USE_PTY			0x4 ///< Use PTY instead of pipe
+#define BK_PIPE_FLAG_CLOSE_UNNEEDED_STDINOUT	0x8 ///< Close stdin/stdout in child if not needed.
 extern int bk_fork_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags flags);
 extern int bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags flags);
 extern char *bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags flags);
