@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.231 2003/05/09 19:02:18 seth Exp $
+ * $Id: libbk.h,v 1.232 2003/05/13 07:53:12 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -895,6 +895,12 @@ do {						\
 // <TRICKY>This rounds to nearest microsecond rather than truncating</TRICKY>
 #define BK_NSECTOUSEC(x) ((x) + 500) / 1000)	///< Convert nano to micro
 // @}
+
+/*
+ * variant of BK_TS2F for "standard types not as good as my types" baka version
+ * (the extra 's' at the end of the field names is for "special")
+ */
+#define BK_BTS2F(bt) ((double)(((double)((bt)->bt_secs)) + ((double)((bt)->bt_nsecs))/1000000000.0))
 
 
 /** @brief Special symbol which means resolve to "any" address. */

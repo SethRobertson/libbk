@@ -1,5 +1,7 @@
 2003-05-13  Alexander Dupuy  <dupuy@sysdetect.com>
 
+	* include/libbk.h (BK_BTS2F): deal with struct bk_timespec too...
+
 	* lib/b_strcode.c (bk_string_str2xml): #963: grow destination correctly
 
 2003-05-12  Seth Robertson  <seth@startide.sysdetect.com>

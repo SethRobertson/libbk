@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.12 2003/05/13 04:33:51 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.13 2003/05/13 07:53:13 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -329,9 +329,15 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
 
 /**
  * Convert a string to a "valid" xml string. The function allocates memory
- * which must be freed with free(3).  Note that 8-bit characters are mostly
- * passed as-is, even though they are only valid if the appropriate encoding
- * was specified in the <?xml?> processing instruction.
+ * which must be freed with free(3).
+ *
+ * <WARNING bugid="1219">Note that 8-bit characters are passed as-is, even
+ * though they are only valid if the appropriate encoding was specified in the
+ * <?xml?> processing instruction.</WARNING>
+ *
+ * <TODO bugid="1277">There should be some way for this function to return an
+ * indication that non-normalized whitespace is present in the string, so an
+ * xml:space="preserve" attribute can be added if desired.</TODO>
  *
  * THREADS: MT-SAFE
  *
