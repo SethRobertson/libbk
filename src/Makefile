@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.22 2003/10/16 23:11:31 jtt Exp $
+# $Id: Makefile,v 1.23 2003/12/16 21:54:48 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -82,7 +82,9 @@ PKG_LIBS:=
 LOCAL_LIBS:=
 THIRD_PARTY_LIBS:=
 
+ifneq ($(strip $(BK_USING_SSL)),false)
 bttcp: BK_LIBS := -lbkssl $(BK_LIBS)
+endif
 
 bk_daemon timeout: BK_LIBS :=
 bk_daemon timeout: PTHREAD_LIBS :=
@@ -90,3 +92,4 @@ bk_daemon timeout: PTHREAD_CFLAGS :=
 bk_daemon timeout: PTHREAD_CC := $(CC_CONFIG)
 
 endif # BK_WANT_LIBTOOL
+
