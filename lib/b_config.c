@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_config.c,v 1.32 2003/04/13 00:24:39 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_config.c,v 1.33 2003/06/05 08:33:26 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -620,12 +620,24 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
       }
     }
     else if (strchr(bc->bc_bcup.bcup_commentchars, start[0]))
-      continue;					// ignore comment line
+      goto loopagain;					// ignore comment line
     else if (config_manage(B, bc, *key, *value, NULL, lineno) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not add %s ==> %s to DB\n", *key, *value);
       ret=-1;
       goto done;
+    }
+
+  loopagain:
+    if (key)
+    {
+      bk_string_tokenize_destroy(B, key);
+      key = NULL;
+    }
+    if (value)
+    {
+      bk_string_tokenize_destroy(B, value);
+      value = NULL;
     }
   }
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.36 2003/06/05 06:54:03 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.37 2003/06/05 08:33:26 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -567,6 +567,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
   case BkIohStatusWriteAborted:
     free(data->ptr);
     free(data);
+    pid_destroy(B, pid);
     data = NULL;
 #ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)

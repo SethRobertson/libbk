@@ -1,3 +1,9 @@
+2003-06-05  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_pollio.c (polling_io_ioh_handler): Memory leak on writes
+
+	* lib/b_config.c (load_config_from_file): Memory leak during comments
+
 2003-06-03  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_getbyfoo.c (bk_gethostbyfoo): Memory leak due to reentrant
