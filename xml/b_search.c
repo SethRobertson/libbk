@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_search.c,v 1.10 2003/12/08 20:34:47 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_search.c,v 1.11 2003/12/10 07:18:11 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -249,12 +249,12 @@ bkxml_attrnode_valbyname(bk_s B, xmlNodePtr node, const char *findname, bk_flags
  * This function is a more restrictive version of bkxml_nodesearch() above
  * which allows you to essentially demand "dtd correctness" by always
  * looking for what is supposed to come next rather than just locating all
- * the relevent tags in any order.
+ * the relevant tags in any order.
  *
  *	@param B BAKA thread/global state.
  *	@param node. Check starts from this node.
  *	@param name. Name to check for.
- *	@param nodep. Optional CO xmlNodePtr ptr pointing at next node.
+ *	@param nodep. Optional copyout xmlNodePtr ptr pointing at next node.
  *	@param flags Flags.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
@@ -263,32 +263,31 @@ bkxml_attrnode_valbyname(bk_s B, xmlNodePtr node, const char *findname, bk_flags
 int
 bkxml_check_next_node_name(bk_s B, xmlNodePtr node, const xmlChar *name, xmlNodePtr *nodep, bk_flags flags)
 {
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsysd-jobstep");
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkxml");
 
   if (!node || !name)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
-  // Initialize nodep if it is not simply a reference to node.
-  if (nodep && *nodep != node)
-    *nodep = NULL;
 
-  if (BK_FLAG_ISCLEAR(flags, BKXML_CHECK_NEXT_NODE_NAME_CHECK_THIS_NODE))
+  if (BK_FLAG_ISCLEAR(flags, BKXML_CHECK_THIS_NODE))
     node = node->next;
 
-  // Find next node.
-  while(node->type != XML_ELEMENT_NODE)
+  // Find next node
+  while (node->type != XML_ELEMENT_NODE)
     node = node->next;
 
   // Compare
   if (!xmlStrEqual(node->name, name))
-    BK_RETURN(B,1);    
+  {
+    *nodep = NULL;
+    BK_RETURN(B, 1);
+  }
 
   // Copy out if desired.
   if (nodep)
     *nodep = node;
 
-  BK_RETURN(B,0);  
+  BK_RETURN(B, 0);
 }

@@ -1,3 +1,11 @@
+2003-12-10  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbkxml.h (BKXML_CHECK_THIS_NODE): stop the
+	BKXML_CHECK_NEXT_NODE_NAME_CHECK_THIS_NODE_NULL_NULL_SPAM_SPAM_INSANITY
+
+	* xml/b_search.c (bkxml_check_next_node_name): if nodep is an optional
+	copyout, then don't compare it [uninitialized] node -- sez valgrind
+
 2003-12-09  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_ioh.c (bk_ioh_shutdown): avoid idiocy trying to turn off reads
