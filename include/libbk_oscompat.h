@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.4 2001/09/25 08:25:50 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.5 2001/11/02 23:13:03 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -60,6 +60,8 @@ typedef char *caddr_t;
 #define LITTLE_ENDIAN 4321
 #define BIG_ENDIAN 1234
 #endif /* _WIN32 && !__CYGWIN32__ */
+
+#define __SIZE_TYPE__ size_t
 
 
 #endif /* _libbk_oscompat_h_ */

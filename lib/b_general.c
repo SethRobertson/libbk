@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.15 2001/09/25 08:25:50 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.16 2001/11/02 23:13:03 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -63,8 +63,8 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
   if (!(BK_GENERAL_REINIT(B) = bk_funlist_init(B,0)))
     goto error;
 
-  if (!(BK_GENERAL_CONFIG(B) = bk_config_init(B, configfile, 0)))
-    goto error;
+  // Config files should not be required, generally
+  BK_GENERAL_CONFIG(B) = bk_config_init(B, configfile, 0);
 
   if (!(BK_GENERAL_PROCTITLE(B) = bk_general_proctitle_init(B, argc, argv, envp, &program, 0)))
     goto error;

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.33 2001/10/01 02:46:52 seth Exp $
+ * $Id: libbk.h,v 1.34 2001/11/02 23:13:03 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -17,6 +17,11 @@
 #define _LIBBK_h_
 #include "libbk_include.h"
 #include "libbk_oscompat.h"
+
+
+
+/* Forward references */
+struct bk_ioh;
 
 
 
@@ -43,6 +48,9 @@
 #define BK_FLAG_ISSET(var,bit) ((var) & (bit))
 #define BK_FLAG_CLEAR(var,bit) ((var) &= ~(bit))
 #define BK_FLAG_ISCLEAR(var,bit) (!((var) & (bit)))
+
+/* Convert a timeval to float for easy comparison (expensive!) */
+#define BK_TV2F(tv) ((double)(((double)((tv)->tv_sec)) + ((double)((tv)->tv_usec))/1000000.0))
 
 /* String equality functions */
 #define BK_STREQ(a,b) ((a) && (b) && !strcmp((a),(b)))
@@ -341,43 +349,71 @@ extern int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags
 
 
 /* b_run.c */
-extern struct bk_run *bk_run_init(bk_s B, int (*pollfun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *pollopaque, volatile int *demand, int (*ondemand)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime), void *demandopaque, bk_flags flags);
+extern struct bk_run *bk_run_init(bk_s B, bk_flags flags);
 extern void bk_run_destroy(bk_s B, struct bk_run *run);
 extern int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B, struct bk_run *run, int signum, void *opaque, struct timeval starttime), void *opaque, bk_flags flags);
 #define BK_RUN_SIGNAL_CLEARPENDING		0x01	// Clear pending signal count for this signum
 #define BK_RUN_SIGNAL_INTR			0x02	// Interrupt system calls
 #define BK_RUN_SIGNAL_RESTART			0x04	// Restart system calls
-extern int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *opaque, void **handle, bk_flags flags);
-extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *opaque, void **handle, bk_flags flags);
-extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
 extern int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags);
 #define BK_RUN_DEQUEUE_EVENT			0x01	// Normal event to dequeue
 #define BK_RUN_DEQUEUE_CRON			0x02	// Cron event to dequeue
 extern int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags);
 extern int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags);
-extern int bk_run_handle(bk_s B, struct bk_run *run, void (*handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime), void *opaque, u_int wanttypes, bk_flags flags);
+extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, void (*handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime), void *opaque, u_int wanttypes, bk_flags flags);
 #define BK_RUN_READREADY			0x01
 #define BK_RUN_WRITEREADY			0x02
 #define BK_RUN_XCPTREADY			0x04
+#define BK_RUN_CLOSE				0x08
+#define BK_RUN_DESTROY				0x10
+extern int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags);
+#define BK_RUN_NOTIFYANYWAY			1
 extern u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, bk_flags flags);
 #define BK_RUN_WANTREAD				0x01
 #define BK_RUN_WANTWRITE			0x02
 #define BK_RUN_WANTXCPT				0x04
 
+extern int bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
+extern int bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle);
+extern int bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
+extern int bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle);
+extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime, bk_flags flags), void *opaque, volatile int *demand, void **handle);
+extern int bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle);
 
 
 /* b_ioh.c */
-typedef int bk_iofunc(int, caddr_t, __SIZE_TYPE__);
-extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_iofunc writefun, int (*handler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags), void *opaque, bk_flags flags, u_int32_t inbuflen, u_int32_t outbuflen, struct bk_run *run);
-#define BK_IOH_STREAM		0x01
-#define BK_IOH_RAW		0x02
-extern int bk_ioh_update(bk_s B, bk_iofunc readfun, bk_iofunc writefun, int (*handler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags), void *opaque, bk_flags flags, u_int32_t inbuflen, u_int32_t outbuflen);
-extern int bk_ioh_get(bk_s B, int *fdin, int *fdout, bk_iofunc *readfun, bk_iofunc *writefun, int (**handler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags), void **opaque, bk_flags *flags, u_int32_t *inbuflen, u_int32_t *outbuflen, struct bk_run *run);
-extern void bk_run_close(bk_s B, struct bk_run *run, bk_flags flags);
+typedef int (*bk_iofunc)(int, caddr_t, __SIZE_TYPE__);
+typedef int (*bk_iohhandler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags);
+extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iofunc readfun, bk_iofunc writefun, bk_iohhandler handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
+#define BK_IOH_STREAM		0x01		/* read/write suitable */
+#define BK_IOH_RAW		0x02		/* Any data is suitable */
+#define BK_IOH_BLOCKED		0x04		/* Must read in hint blocks */
+#define BK_IOH_VECTORED		0x08		/* Size of data sent before */
+#define BK_IOH_LINE		0x10		/* Line oriented reads */
+#define BK_IOH_STATUS_INCOMPLETEREAD	1	/* Incomplete, data */
+#define BK_IOH_STATUS_IOHCLOSING	2	/* IOH in process of close() -- all data flushed/drained */
+#define BK_IOH_STATUS_IOHREADERROR	3	/* Received IOH error on read */
+#define BK_IOH_STATUS_IOHWRITEERROR	4	/* Received IOH error on write--and here is the buffer */
+#define BK_IOH_STATUS_IOHABORT		5	/* IOH going away due to system constraints */
+#define BK_IOH_STATUS_WRITECOMPLETE	6	/* A previous write of a buffer has completed, and here is the buffer */
+#define BK_IOH_STATUS_WRITEABORTED	7	/* A previous write of a buffer was not fully completed before abort, and here is the buffer */
+#define BK_IOH_STATUS_READCOMPLETE	8	/* A previous write of a buffer has completed, and here is the buffer, which you must free */
+extern int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iofunc readfun, bk_iofunc writefun, int (*handler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags), void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, bk_flags flags);
+extern int bk_ioh_get(bk_s B, struct bk_ioh *ioh, int *fdin, int *fdout, bk_iofunc *readfun, bk_iofunc *writefun, int (**handler)(bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags), void **opaque, u_int32_t *inbufhint, u_int32_t *inbufmax, u_int32_t *outbufmax, struct bk_run **run, bk_flags *flags);
+extern int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags);
+extern void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags);
+extern void bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags);
+extern void bk_ioh_flush(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags);
+extern void bk_ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 #define BK_IOH_ABORT		0x01		/* Abort stream immediately -- don't wait to drain */
 #define BK_IOH_NOTIFYANYWAY	0x02		/* Call handler notifying when close actually completes */
-extern void bk_run_destroy(bk_s B, struct bk_run *run);
+#define BK_IOH_DONTCLOSEFDS	0x04		/* Don't close the file descriptors during close */
+extern void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
+
 
 
 /* b_stdfun.c */

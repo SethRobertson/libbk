@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.12 2001/09/19 21:25:51 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_config.c,v 1.13 2001/11/02 23:13:03 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -167,7 +167,7 @@ bk_config_init(bk_s B, const char *filename, bk_flags flags)
 
   if (!(bcf=bcf_create(B, filename, NULL)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create fileinfo entry for %s\n", filename);
+    bk_error_printf(B, BK_ERR_WARN, "Could not create fileinfo entry for %s\n", filename);
     ret=-1;
     goto done;
   }
@@ -258,7 +258,7 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
 
   if (!(fp=fopen(bcf->bcf_filename, "r")))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not open %s: %s\n", bcf->bcf_filename, strerror(errno));
+    bk_error_printf(B, BK_ERR_WARN, "Could not open %s: %s\n", bcf->bcf_filename, strerror(errno));
     ret=-1; 
     goto done;
   }

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.13 2001/10/01 02:46:52 seth Exp $
+ * $Id: libbk_internal.h,v 1.14 2001/11/02 23:13:03 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -105,7 +105,7 @@ struct bk_memx
 struct br_equeue
 {
   struct timeval	bre_when;		/* Time to run event */
-  void			(*bre_event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime); /* Event to run */
+  void			(*bre_event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags); /* Event to run */
   void			*bre_opaque;		/* Data for opaque */
 };
 
@@ -113,7 +113,7 @@ struct br_equeue
 struct br_equeuecron
 {
   time_t		brec_interval;		/* usec Interval timer */
-  void			(*brec_event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime); /* Event to run */
+  void			(*brec_event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags); /* Event to run */
   void			*brec_opaque;		/* Data for opaque */
   struct br_equeue	*brec_equeue;		/* Current event */
 };
@@ -128,7 +128,7 @@ struct br_sighandler
 /* fd association structure */
 struct bk_run_fdassoc
 {
-  u_int			brf_fd;			/* Fd we are handling */
+  int			brf_fd;			/* Fd we are handling */
   void		      (*brf_handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottype, void *opaque, struct timeval starttime);		/* Function to handle */
   void		       *brf_opaque;		/* Opaque information */
 };
@@ -139,18 +139,44 @@ struct bk_run
   fd_set		br_readset;		/* FDs interested in this operation */
   fd_set		br_writeset;		/* FDs interested in this operation */
   fd_set		br_xcptset;		/* FDs interested in this operation */
-  u_int			br_selectn;		/* Highest FD (+1) in fdsets */
+  int			br_selectn;		/* Highest FD (+1) in fdsets */
   dict_h		br_fdassoc;		/* FD to callback association */
-  volatile int		*br_ondemandtest;	/* Should on-demand function be called */
-  int			(*br_ondemand)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime); /* On-demand function */
-  void			*br_ondemandopaque;	/* On-demand opaque */
-  int			(*br_pollfun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime); /* Polling function */
-  void			*br_pollopaque;		/* Polling opaque */
+  dict_h		br_poll_funcs;		/* Poll functions */
+  dict_h		br_ondemand_funcs;	/* On demands functions */
+  dict_h		br_idle_funcs;		/* Idle tasks */
+  
   pq_h			*br_equeue;		/* Event queue */
-  volatile u_int8_t	br_signums[NSIG];	/* Number of signal events we have received */
+  volatile u_int8_t	br_signums[NSIG];	/* Number of signal events we hx]ave received */
   struct br_sighandler	br_handlerlist[NSIG];	/* Handlers for signals */
   bk_flags		br_flags;		/* General flags */
-#define BK_RUN_RUN_OVER			0x01	/* bk_run_run should terminate */
+#define BK_RUN_FLAG_RUN_OVER		0x1	/* bk_run_run should terminate */
+#define BK_RUN_FLAG_NEED_POLL		0x2	/* Execute poll list */
+#define BK_RUN_FLAG_CHECK_DEMAND	0x4	/* Check demand list */
+#define BK_RUN_FLAG_HAVE_IDLE		0x8	/* Run idle task */
+#define BK_RUN_FLAG_NOTIFYANYWAY	0x10	/* Notify caller if handed off*/
+};
+
+
+/* Used for polling and idle tasks */
+struct bk_run_func
+{
+  void *	brfn_key;
+  int		(*brfn_fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags);
+  void *	brfn_opaque;
+  bk_flags	brfn_flags;
+  dict_h	brfn_backptr;
+};
+
+
+/* Used for on demand function */
+struct bk_run_ondemand_func
+{
+  void *		brof_key;
+  int			(*brof_fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime, bk_flags flags);
+  void *		brof_opaque;
+  volatile int *	brof_demand;
+  bk_flags		brof_flags;
+  dict_h		brof_backptr;
 };
 
 #endif /* _libbk_h_ */

@@ -1,3 +1,29 @@
+2001-11-02  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_run.c (bk_run_destroy): don't destroy things twice, but
+	destroy everything at least once.
+
+2001-11-01  James Tanis  <jtt@localhost.localdomain>
+
+	* lib/b_run.c (bk_run_once): Add on demand function calls.
+	(bk_run_on_demand_add): Public functions to add and remove functions
+	to and from on demand list.
+	(bk_run_once): sort out whether idle task should be run.
+	(bk_run_once): sort out exactly which timeout to use in select.
+
+2001-11-01  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_run.c (bk_run_once): update poll functions to have list.
+	(bk_run_once): Add idle task.
+	(bk_run_poll_add): Public functions to add and remove functions
+	to and from poll list.
+	(bk_run_idle_add): Public functions to add  and remove functions
+	to and run idle list.
+
+2001-11-01  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_run.c (bk_run_handsoff): Yes, we do need a method of getting rid of file associations
+
 2001-09-21  James Tanis  <jtt@outpost.tanis.org>
 
 	* lib/b_bits.c: libbk not libphadm.

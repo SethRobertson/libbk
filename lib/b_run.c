@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.1 2001/10/01 02:46:52 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_run.c,v 1.2 2001/11/02 23:13:03 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,6 +16,11 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
+/**
+ * @file
+ * All of the baka run public and private functions.
+ */
+
 #include <libbk.h>
 #include "libbk_internal.h"
 
@@ -23,13 +28,19 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 static int bk_run_event_comparator(struct br_equeue *a, struct br_equeue *b);
 static void bk_run_signal_ihandler(int signum);
-static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime);
+static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags);
 static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval starttime, struct timeval *delta);
+static struct bk_run_func *brfn_alloc(bk_s B);
+static void brfn_destroy(bk_s B, struct bk_run_func *brf);
+static struct bk_run_ondemand_func *brof_alloc(bk_s B);
+static void brof_destroy(bk_s B, struct bk_run_ondemand_func *brof);
 
 
 
-/*
- * FD association CLC
+/**
+ * @group fdassocclc File Descriptor assocations CLC definitions.
+ * CLC indirection to hide fd association CLC choice. 
+ * @{
  */
 #define fdassoc_create(o,k,f,a)		ht_create((o),(k),(f),(a))
 #define fdassoc_destroy(h)		ht_destroy(h)
@@ -51,8 +62,43 @@ static int fa_ko_cmp(int *a, struct bk_run_fdassoc *b);
 static ht_val fa_obj_hash(struct bk_run_fdassoc *a);
 static ht_val fa_key_hash(int *a);
 static struct ht_args fa_args = { 128, 1, (ht_func)fa_obj_hash, (ht_func)fa_key_hash };
+/*@}*/
 
+#define brfl_create(o,k,f)		dll_create((o),(k),(f))
+#define brfl_destroy(h)			dll_destroy(h)
+#define brfl_insert(h,o)		dll_insert((h),(o))
+#define brfl_insert_uniq(h,n,o)		dll_insert_uniq((h),(n),(o))
+#define brfl_append(h,o)		dll_append((h),(o))
+#define brfl_append_uniq(h,n,o)		dll_append_uniq((h),(n),(o))
+#define brfl_search(h,k)		dll_search((h),(k))
+#define brfl_delete(h,o)		dll_delete((h),(o))
+#define brfl_minimum(h)			dll_minimum(h)
+#define brfl_maximum(h)			dll_maximum(h)
+#define brfl_successor(h,o)		dll_successor((h),(o))
+#define brfl_predecessor(h,o)		dll_predecessor((h),(o))
+#define brfl_iterate(h,d)		dll_iterate((h),(d))
+#define brfl_nextobj(h)			dll_nextobj(h)
+#define brfl_error_reason(h,i)		dll_error_reason((h),(i))
+static int brfl_oo_cmp(struct bk_run_func *a, struct bk_run_func *b);
+static int brfl_ko_cmp(void *a, struct bk_run_func *b);
 
+#define brofl_create(o,k,f)		dll_create((o),(k),(f))
+#define brofl_destroy(h)		dll_destroy(h)
+#define brofl_insert(h,o)		dll_insert((h),(o))
+#define brofl_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
+#define brofl_append(h,o)		dll_append((h),(o))
+#define brofl_append_uniq(h,n,o)	dll_append_uniq((h),(n),(o))
+#define brofl_search(h,k)		dll_search((h),(k))
+#define brofl_delete(h,o)		dll_delete((h),(o))
+#define brofl_minimum(h)		dll_minimum(h)
+#define brofl_maximum(h)		dll_maximum(h)
+#define brofl_successor(h,o)		dll_successor((h),(o))
+#define brofl_predecessor(h,o)		dll_predecessor((h),(o))
+#define brofl_iterate(h,d)		dll_iterate((h),(d))
+#define brofl_nextobj(h)		dll_nextobj(h)
+#define brofl_error_reason(h,i)		dll_error_reason((h),(i))
+static int brofl_oo_cmp(struct bk_run_ondemand_func *a, struct bk_run_ondemand_func *b);
+static int brofl_ko_cmp(void *a, struct bk_run_ondemand_func *b);
 
 
 /*
@@ -66,10 +112,14 @@ static volatile int		br_beensignaled;
 
 
 
-/*
- * Create and initialize the run environment
+/**
+ * Create and initialize the run environment.
+ *	@param B BAKA thread/global state 
+ *	@param flags Flags for future expansion--saved through run structure.
+ *	@return NULL on call failure, allocation failure, or other fatal error.
+ *	@return The initialized baka run structure if successful.
  */
-struct bk_run *bk_run_init(bk_s B, int (*pollfun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *pollopaque, volatile int *demand, int (*ondemand)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime), void *demandopaque, bk_flags flags)
+struct bk_run *bk_run_init(bk_s B, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_run *run;
@@ -81,11 +131,6 @@ struct bk_run *bk_run_init(bk_s B, int (*pollfun)(bk_s B, struct bk_run *run, vo
   }
   memset(run, 0, sizeof(*run));
 
-  run->br_pollfun = pollfun;
-  run->br_pollopaque = pollopaque;
-  run->br_ondemandtest = demand;
-  run->br_ondemand = ondemand;
-  run->br_ondemandopaque = demandopaque;
   run->br_flags = flags;
 
   br_signums = &run->br_signums;			// Initialize static signal array ptr
@@ -103,6 +148,24 @@ struct bk_run *bk_run_init(bk_s B, int (*pollfun)(bk_s B, struct bk_run *run, vo
     goto error;
   }
 
+  if (!(run->br_poll_funcs = brfl_create((dict_function)brfl_oo_cmp,(dict_function)brfl_ko_cmp, DICT_UNORDERED)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create poll function list\n");
+    goto error;
+  }
+
+  if (!(run->br_idle_funcs = brfl_create((dict_function)brfl_oo_cmp,(dict_function)brfl_ko_cmp, DICT_UNORDERED)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create idle function list\n");
+    goto error;
+  }
+
+  if (!(run->br_ondemand_funcs = brfl_create((dict_function)brofl_oo_cmp,(dict_function)brofl_ko_cmp, DICT_UNORDERED)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create on demand function list\n");
+    goto error;
+  }
+
   BK_RETURN(B, run);
 
  error:
@@ -114,19 +177,26 @@ struct bk_run *bk_run_init(bk_s B, int (*pollfun)(bk_s B, struct bk_run *run, vo
 
 
 
-/*
- * Destroy the baka run environment
+/**
+ * Destroy the baka run environment.
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
  */
 void bk_run_destroy(bk_s B, struct bk_run *run)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int signum;
+  struct bk_run_func *brfn;
+  struct bk_run_ondemand_func *brof;
+  struct timeval curtime;
 
   if (!run)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
+
+  gettimeofday(&curtime,0);
 
   // Destroy the fd association
   if (run->br_fdassoc)
@@ -135,6 +205,8 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 
     while (cur = fdassoc_minimum(run->br_fdassoc))
     {
+      (*cur->brf_handler)(B, run, -1, BK_RUN_DESTROY, cur->brf_opaque, curtime);
+      fdassoc_delete(run->br_fdassoc, cur);
       free(cur);
     }
     fdassoc_destroy(run->br_fdassoc);
@@ -147,7 +219,7 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 
     while (cur = pq_extract_head(run->br_equeue))
     {
-      // Should we notify the event that it is no more?
+      (*cur->bre_event)(B, run, cur->bre_opaque, curtime, BK_RUN_DESTROY);
       free(cur);
     }
   }
@@ -158,6 +230,27 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
     bk_run_signal(B, run, signum, NULL, NULL, 0);
   }
 
+  while (brfn=brfl_minimum(run->br_poll_funcs))
+  {
+    (*brfn->brfn_fun)(B, run, brfn->brfn_opaque, curtime, NULL, BK_RUN_DESTROY);
+    brfn_destroy(B, brfn);
+  }
+  brfl_destroy(run->br_poll_funcs);
+
+  while (brfn=brfl_minimum(run->br_idle_funcs))
+  {
+    (*brfn->brfn_fun)(B, run, brfn->brfn_opaque, curtime, NULL, BK_RUN_DESTROY);
+    brfn_destroy(B, brfn);
+  }
+  brfl_destroy(run->br_idle_funcs);
+
+  while (brof=brfl_minimum(run->br_ondemand_funcs))
+  {
+    (*brof->brof_fun)(B, run, brof->brof_opaque, brof->brof_demand, curtime, BK_RUN_DESTROY);
+    brof_destroy(B, brof);
+  }
+  brofl_destroy(run->br_ondemand_funcs);
+
   br_signums = NULL;
 
   free(run);
@@ -167,10 +260,19 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 
 
 
-/*
- * Set (or clear) a synchronous handler for some signal
+/**
+ * Set (or clear) a synchronous handler for some signal.
  *
  * Default is to interrupt system calls
+ *
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
+ *	@param signum The signal number to install a synchronous signal handler for.
+ *	@param handler The function to call during the run event loop if a signal was received.
+ *	@param opaque The opaque data for the handler.
+ *	@param flags Flags for future expansion.
+ *	@return <0 on call failure, system call failure, or other failure.
+ *	@return 0 on success.
  */
 int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B, struct bk_run *run, int signum, void *opaque, struct timeval starttime), void *opaque, bk_flags flags)
 {
@@ -221,10 +323,20 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
 
 
 
-/*
- * Enqueue an event for future action
+/**
+ * Enqueue an event for future action.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
+ *	@param when The UTC timeval when the event handler should be called.
+ *	@param event The handler to fire when the time comes (or we are destroyed).
+ *	@param opaque The opaque data for the handler
+ *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
+ *	@param flags Flags for the Future.
+ *	@return <0 on call failure, allocation failure, or other error.
+ *	@return 0 on success.
  */
-int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *opaque, void **handle, bk_flags flags)
+int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeue *new;
@@ -264,10 +376,20 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
 
 
 
-/*
- * Enqueue an event for a future time
+/**
+ * Enqueue an event for a future action.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
+ *	@param usec The number of microseconds until the event should fire
+ *	@param event The handler to fire when the time comes (or we are destroyed).
+ *	@param opaque The opaque data for the handler
+ *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
+ *	@param flags Flags for the Future.
+ *	@return <0 on call failure, allocation failure, or other error.
+ *	@return 0 on success.
  */
-int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *opaque, void **handle, bk_flags flags)
+int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct timeval tv, diff;
@@ -289,10 +411,20 @@ int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t usec, void (*event)(
 
 
 
-/*
- * Set up a reoccurring event at a periodic interval
+/**
+ * Set up a reoccurring event at a periodic interval.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
+ *	@param usec The number of microseconds until the event should fire
+ *	@param event The handler to fire when the time comes (or we are destroyed).
+ *	@param opaque The opaque data for the handler
+ *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
+ *	@param flags Flags for the Future.
+ *	@return <0 on call failure, allocation failure, or other error.
+ *	@return 0 on success.
  */
-int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime), void *opaque, void **handle, bk_flags flags)
+int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeuecron *brec;
@@ -324,8 +456,15 @@ int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t usec, void (*event)(b
 
 
 
-/*
- * Dequeue a normal event or a full "cron" job
+/**
+ * Dequeue a normal event or a full "cron" job.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
+ *	@param handle A copy-out parameter to allow someone to dequeue the event in the future
+ *	@param flags Flags for the Future.
+ *	@return <0 on call failure, or other error.
+ *	@return 0 on success.
  */
 int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags)
 {
@@ -353,8 +492,17 @@ int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags)
 
 
 
-/*
- * Run the event loop until the end
+/**
+ * Run the event loop until ``the end''.
+ *
+ * The end is defined as one of the standard functions failing, or
+ * someone setting the BK_RUN_RUN_OVER flag.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
+ *	@param flags Flags for the Future.
+ *	@return <0 on call failure, or other error.
+ *	@return 0 on success.
  */
 int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags)
 {
@@ -367,7 +515,7 @@ int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  while (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_RUN_OVER))
+  while (BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_RUN_OVER))
   {
     if ((ret = bk_run_once(B, run, flags)) < 0)
       break;
@@ -378,17 +526,24 @@ int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags)
 
 
 
-/*
- * Run through all events
+/**
+ * Run through all events once.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
+ *	@param flags Flags for the Future.
+ *	@return <0 on call failure, or other error.
+ *	@return 0 on success.
  */
 int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   fd_set readset, writeset, xcptset;
-  struct timeval curtime, deltaevent;
+  struct timeval curtime, deltaevent, zero, deltapoll;
   struct timeval *selectarg;
   int ret;
-  u_int x;
+  int x;
+  int use_deltapoll, check_idle;
 
   if (!run)
   {
@@ -396,21 +551,60 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
+  zero.tv_sec=0;
+  zero.tv_usec=0;
+
   gettimeofday(&curtime, NULL);
 
-  // Check for ondemand activities
-  if (run->br_ondemandtest && *run->br_ondemandtest && (*run->br_ondemand)(B, run, run->br_ondemandopaque, run->br_ondemandtest, curtime) < 0)
+  check_idle=0;
+  use_deltapoll=0;
+
+  if (br_beensignaled) goto beensignaled;
+
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_CHECK_DEMAND))
   {
-    bk_error_printf(B, BK_ERR_WARN, "The ondemand procedure failed severely.\n");
-    BK_RETURN(B, -1);
+    struct bk_run_ondemand_func *brof;
+    for(brof=brfl_minimum(run->br_ondemand_funcs);
+	brof;
+	brof=brfl_successor(run->br_ondemand_funcs,brof))
+    {
+      if (*brof->brof_demand && (*brof->brof_fun)(B, run, brof->brof_opaque, brof->brof_demand, curtime, 0)<0)
+      {
+	bk_error_printf(B, BK_ERR_WARN, "The on demand procedure failed severely.\n");
+	BK_RETURN(B, -1);
+      }
+    }
   }
-    
+
+  if (br_beensignaled) goto beensignaled;
+
   // Run polling activities
-  if (run->br_pollfun && (*run->br_pollfun)(B, run, run->br_pollopaque, curtime) < 0)
+  if (BK_FLAG_ISSET(run->br_flags,BK_RUN_FLAG_NEED_POLL))
   {
-    bk_error_printf(B, BK_ERR_WARN, "The polling procedure failed severely.\n");
-    BK_RETURN(B, -1);
+    struct bk_run_func *brfn;
+    struct timeval tmp_deltapoll;
+    for(brfn=brfl_minimum(run->br_poll_funcs);
+	brfn;
+	brfn=brfl_successor(run->br_poll_funcs,brfn))
+    {
+      if ((ret=(*brfn->brfn_fun)(B, run, brfn->brfn_opaque, curtime, &tmp_deltapoll,0))<0)
+      {
+	bk_error_printf(B, BK_ERR_WARN, "The polling procedure failed severely.\n");
+	BK_RETURN(B, -1);
+      }
+
+      if (ret == 1)
+      {
+	if (!use_deltapoll || (BK_TV2F(&tmp_deltapoll) < BK_TV2F(&deltapoll)))
+	{
+	  deltapoll=tmp_deltapoll;
+	}
+	use_deltapoll=1;
+      }
+    }
   }
+
+  if (br_beensignaled) goto beensignaled;
 
   // Check for event queue
   if ((ret = bk_run_checkeventq(B, run, curtime, &deltaevent)) < 0)
@@ -419,15 +613,55 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  // Figure out the select argument (if no queued event
+  // Figure out the select argument
   if (ret == 0)
-    selectarg = NULL;
+  {
+    /* There are no queued events, so either use deltapoll or .... */
+    if (use_deltapoll)
+    {
+      selectarg = &deltapoll;
+    }
+    else
+    {
+      /* ... wait forever */
+      selectarg = NULL;
+    }
+  }
   else
-    selectarg = &deltaevent;
+  {
+    /* 
+     * Use the shorter delta (between event and poll) if there's a deltapoll
+     * at to be concerned about or ...
+     */
+    if (use_deltapoll && BK_TV2F(&deltapoll) < BK_TV2F(&deltaevent))
+    {
+      selectarg = &deltapoll;     
+    }
+    else
+    {
+      /* ... just use deltaevent */
+      selectarg = &deltaevent;
+    }
+  }
+
+  /* 
+   * If some caller has registered and idle task then check to see *if*
+   * we would have blocked in select(2) for at least *some* amount of time.
+   * If so, rewrite the timeout to { 0,0 } (poll), but note that idle
+   * tasks should run.
+   */
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_HAVE_IDLE) &&
+      (!selectarg || selectarg->tv_sec != 0 || selectarg->tv_usec != 0))
+  {
+    selectarg->tv_sec = selectarg->tv_usec = 0;
+    check_idle=1;
+  }
 
   readset = run->br_readset;
   writeset = run->br_writeset;
   xcptset = run->br_xcptset;
+
+  if (br_beensignaled) goto beensignaled;
 
   // Wait for I/O or timeout
   if ((ret = select(run->br_selectn, &readset, &writeset, &xcptset, selectarg)) < 0)
@@ -442,34 +676,59 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   // Time may have changed drasticly during select
   gettimeofday(&curtime, NULL);
 
+  if (br_beensignaled) goto beensignaled;
+
   // Are there any I/O events pending?
-  for (x=0; ret > 0 && x < run->br_selectn; x++)
+  if (ret > 0 )
   {
-    int type = 0;
-
-    if (FD_ISSET(x, &readset))
-      type |= BK_RUN_READREADY;
-    if (FD_ISSET(x, &writeset))
-      type |= BK_RUN_WRITEREADY;
-    if (FD_ISSET(x, &xcptset))
-      type |= BK_RUN_XCPTREADY;
-
-    if (type)
+    for (x=0; ret > 0 && x < run->br_selectn; x++)
     {
-      struct bk_run_fdassoc *curfd;
+      int type = 0;
 
-      ret--;
+      if (FD_ISSET(x, &readset))
+	type |= BK_RUN_READREADY;
+      if (FD_ISSET(x, &writeset))
+	type |= BK_RUN_WRITEREADY;
+      if (FD_ISSET(x, &xcptset))
+	type |= BK_RUN_XCPTREADY;
 
-      if (!(curfd = fdassoc_search(run->br_fdassoc, &x)))
+      if (type)
       {
-	bk_error_printf(B, BK_ERR_WARN, "Could not find fd %d in association, yet type is %x\n",x,type);
-	continue;
+	struct bk_run_fdassoc *curfd;
+
+	ret--;
+
+	if (!(curfd = fdassoc_search(run->br_fdassoc, &x)))
+	{
+	  bk_error_printf(B, BK_ERR_WARN, "Could not find fd %d in association, yet type is %x\n",x,type);
+	  continue;
+	}
+	(*curfd->brf_handler)(B, run, x, type, curfd->brf_opaque, curtime);
       }
-      (*curfd->brf_handler)(B, run, x, type, curfd->brf_opaque, curtime);
+      if (br_beensignaled) goto beensignaled;
+    }
+  }
+  else 
+  {
+    /* No I/O has occured. Check for idle task */
+    if (check_idle)
+    {
+      struct bk_run_func *brfn;
+      for(brfn=brfl_minimum(run->br_idle_funcs);
+	  brfn;
+	  brfn=brfl_successor(run->br_idle_funcs,brfn))
+      {
+	if ((*brfn->brfn_fun)(B, run, brfn->brfn_opaque, curtime, NULL, 0)<0)
+	{
+	  bk_error_printf(B, BK_ERR_WARN, "The polling procedure failed severely.\n");
+	  BK_RETURN(B, -1);
+	}
+      }
     }
   }
 
   // Check for synchronous signals to handle
+ beensignaled:
   while (br_beensignaled)
   {
     br_beensignaled = 0;				// Race condition--needs locking
@@ -490,15 +749,22 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 
 
 
-
-
-
-/*
- * Event priority queue comparison routines
+/**
+ * Specify the handler to take care of all fd activity.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
+ *	@param fd The file descriptor which should be monitored
+ *	@param handler The function to call when activity is monitored on the fd
+ *	@param wanttypes What types of activities you want notification on
+ *	@param flags Flags for the Future.
+ *	@return <0 on call failure, or other error.
+ *	@return 0 on success.
  */
-int bk_run_handle(bk_s B, struct bk_run *run, void (*handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime), void *opaque, u_int wanttypes, bk_flags flags)
+int bk_run_handle(bk_s B, struct bk_run *run, int fd, void (*handler)(bk_s B, struct bk_run *run, u_int fd, u_int gottypes, void *opaque, struct timeval starttime), void *opaque, u_int wanttypes, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_run_fdassoc *new = NULL;
 
   if (!run || !handler)
   {
@@ -506,13 +772,131 @@ int bk_run_handle(bk_s B, struct bk_run *run, void (*handler)(bk_s B, struct bk_
     BK_RETURN(B, -1);
   }
 
+  if (!(new = malloc(sizeof(*new))))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate fd association structure: %s\n",strerror(errno));
+    BK_RETURN(B, -1);
+  }
+
+  new->brf_fd = fd;
+  new->brf_handler = handler;
+  new->brf_opaque = opaque;
+
+  if (fdassoc_insert(run->br_fdassoc, new) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not associate fd %d: %s\n",fd,fdassoc_error_reason(run->br_fdassoc, NULL));
+    goto error;
+  }
+
+  if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTREAD))
+    {
+      FD_SET(fd, &run->br_readset);
+    }
+  else
+    {
+      FD_CLR(fd, &run->br_readset);
+    }
+
+  if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTWRITE))
+    {
+      FD_SET(fd, &run->br_writeset);
+    }
+  else
+    {
+      FD_CLR(fd, &run->br_writeset);
+    }
+
+  if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTXCPT))
+    {
+      FD_SET(fd, &run->br_xcptset);
+    }
+  else
+    {
+      FD_CLR(fd, &run->br_xcptset);
+    }
+
+  run->br_selectn = MAX(run->br_selectn,fd+1);
+
+  BK_RETURN(B, 0);
+
+ error:
+  if (new)
+  {
+    free(new);
+  }
+  BK_RETURN(B, -1);
+}
+
+
+
+/**
+ * Specify that we no longer wish bk_run to take care of file descriptors
+ *
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
+ *	@param fd The file descriptor which should be monitored
+ *	@param flags Flags for the Future.
+ *	@return <0 on call failure, or other error.
+ *	@return 0 on success.
+ */
+int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_run_fdassoc *curfda;
+
+  if (!run)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!(curfda = fdassoc_search(run->br_fdassoc, &fd)))
+    {
+      bk_error_printf(B, BK_ERR_WARN, "Could not find fd %d in association while attempting to delete\n",fd);
+      BK_RETURN(B, 0);
+    }
+
+  // Get rid of event in list, which will also prevent double deletion
+  fdassoc_delete(run->br_fdassoc, curfda);
+
+  // Optionally tell user handler that he will never be called again.
+  if (BK_FLAG_ISSET(flags, BK_RUN_FLAG_NOTIFYANYWAY))
+    {
+      struct timeval curtime;
+      gettimeofday(&curtime, NULL);
+      (*curfda->brf_handler)(B, run, fd, BK_RUN_CLOSE, curfda->brf_opaque, curtime);
+    }
+
+  free(curfda);
+
+  FD_CLR(fd, &run->br_readset);
+  FD_CLR(fd, &run->br_writeset);
+  FD_CLR(fd, &run->br_xcptset);
+
+  // Check to see if we need to find out a new value for selectn
+  if (run->br_selectn == fd+1)
+    {
+      run->br_selectn = 0;
+      for(curfda=fdassoc_minimum(run->br_fdassoc);curfda;curfda = fdassoc_successor(run->br_fdassoc, curfda))
+	{
+	  run->br_selectn = MAX(run->br_selectn,curfda->brf_fd + 1);
+	}
+    }
+
   BK_RETURN(B, 0);
 }
 
 
 
-/*
- * Event priority queue comparison routines
+/**
+ * Find out what read/write/xcpt desires are current for a given fd.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
+ *	@param fd The file descriptor which should be monitored
+ *	@param flags Flags for the Future.
+ *	@return (u_int)-1 on error
+ *	@return BK_RUN_WANT* bitmap on success
  */
 u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 {
@@ -537,8 +921,16 @@ u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 
 
 
-/*
- * Event priority queue comparison routines
+/**
+ * Find out what read/write/xcpt desires are current for a given fd.
+ *
+ *	@param B BAKA thread/global state 
+ *	@param run The baka run environment state
+ *	@param fd The file descriptor which should be monitored
+ *	@param whattypes What preferences the user wishes to get notification on
+ *	@param flags Flags for the Future.
+ *	@return -1 on error
+ *	@return 0 on success
  */
 int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, bk_flags flags)
 {
@@ -598,7 +990,7 @@ static void bk_run_signal_ihandler(int signum)
  * The internal event which implements cron functionality on top of
  * the normal once-only event queue methodology
  */
-static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime)
+static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeuecron *brec = opaque;
@@ -609,8 +1001,10 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, struct t
     BK_VRETURN(B);
   }
 
-  bk_run_enqueue_delta(B, run, brec->brec_interval, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), 0);
-  (*brec->brec_event)(B, run, brec->brec_opaque, starttime);
+  if (BK_FLAG_ISCLEAR(flags,BK_RUN_DESTROY))
+    bk_run_enqueue_delta(B, run, brec->brec_interval, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), 0);
+
+  (*brec->brec_event)(B, run, brec->brec_opaque, starttime, flags);
 
   BK_VRETURN(B);
 }
@@ -626,6 +1020,7 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval startti
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret = 0;
   struct br_equeue *top;
+  struct timeval curtime;
 
   if (!run)
   {
@@ -640,7 +1035,7 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval startti
 
     top = pq_extract_head(run->br_equeue);
 
-    (*top->bre_event)(B, run, top->bre_opaque, starttime);
+    (*top->bre_event)(B, run, top->bre_opaque, starttime, 0);
     free(top);
   }
 
@@ -648,14 +1043,370 @@ static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval startti
     BK_RETURN(B, 0);
 
   if (delta)
-    BK_TV_SUB(delta,&top->bre_when,&starttime);
+    {
+      /* Use the actual time to next event to allow for more accurate events */
+      gettimeofday(&curtime, NULL);
 
-  if (!(ret = delta->tv_sec))
-    ret = 1;
+      BK_TV_SUB(delta,&top->bre_when,&starttime);
+      if (delta->tv_sec < 0 || delta->tv_usec < 0)
+	{
+	  delta->tv_sec = 0;
+	  delta->tv_usec = 0;
+	}
+
+      if (!(ret = delta->tv_sec))
+	ret = 1;
+    }
+
 
   BK_RETURN(B, ret);
 }
 
+
+
+/** 
+ * Add a function for bk_run polling.
+ *	@param B BAKA thread/global state 
+ * 	@param run bk_run structure pointer
+ *	@param fun function to call
+ * 	@param opaque data for fun call
+ * 	@param handle handle to use to remove this fun
+ * 	@return -1 on failure
+ * 	@return 0 on success
+ */
+int
+bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_run_func *brfn=NULL;
+
+  if (!fun)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (handle) *handle=NULL;
+
+  if (!brfn_alloc(B))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf: %s\n", strerror(errno));
+    goto error;
+  }
+  
+  brfn->brfn_fun=fun;
+  brfn->brfn_opaque=opaque;
+  brfn->brfn_flags=0;
+
+  if (brfl_insert(run->br_poll_funcs, brfn) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert brf in dll\n");
+    goto error;
+  }
+  
+  brfn->brfn_backptr=run->br_poll_funcs;
+  BK_FLAG_SET(run->br_flags,BK_RUN_FLAG_NEED_POLL);
+  
+  if (handle) *handle=brfn->brfn_key;
+  BK_RETURN(B,0);
+
+ error:
+  if (brfn) brfn_destroy(B,brfn);
+  BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Remove a function from the bk_run poll list
+ *	@param B BAKA thread/global state 
+ *	@param run bk_run structure
+ *	@param handle polling function to remove
+ */
+int
+bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_run_func *brf=NULL;
+
+  if (!run || !handle)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  if (!(brf=brfl_search(run->br_poll_funcs, handle)))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Handle %p not found in delete\n", handle);
+    BK_RETURN(B, 0);
+  }
+
+  if (!brfl_minimum(run->br_poll_funcs))
+  {
+    BK_FLAG_CLEAR(run->br_flags,BK_RUN_FLAG_NEED_POLL);
+  }
+  BK_RETURN(B, 0);
+}
+
+
+/** 
+ * Add a function to bk_run idle task
+ *	@param B BAKA thread/global state 
+ * 	@param run bk_run structure pointer
+ *	@param fun function to call
+ * 	@param opaque data for fun call
+ * 	@param handle handle to use to remove this fun
+ * 	@return -1 on failure
+ * 	@return 0 on success
+ */
+int
+bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, struct timeval starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_run_func *brfn=NULL;
+
+  if (!fun)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (handle) *handle=NULL;
+
+  if (!brfn_alloc(B))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf: %s\n", strerror(errno));
+    goto error;
+  }
+  
+  brfn->brfn_fun=fun;
+  brfn->brfn_opaque=opaque;
+  brfn->brfn_flags=0;
+
+  if (brfl_insert(run->br_idle_funcs, brfn) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert brf in dll\n");
+    goto error;
+  }
+  
+  brfn->brfn_backptr=run->br_idle_funcs;
+  BK_FLAG_SET(run->br_flags,BK_RUN_FLAG_HAVE_IDLE);
+  
+  if (handle) *handle=brfn->brfn_key;
+  BK_RETURN(B,0);
+
+ error:
+  if (brfn) brfn_destroy(B,brfn);
+  BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Remove a function from the bk_run poll list
+ *	@param B BAKA thread/global state 
+ *	@param run bk_run structure
+ *	@param handle idle function to remove
+ */
+int
+bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_run_func *brfn=NULL;
+
+  if (!run || !handle)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  if (!(brfn=brfl_search(run->br_idle_funcs, handle)))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Handle %p not found in delete\n", handle);
+    BK_RETURN(B, 0);
+  }
+
+  if (!brfl_minimum(run->br_idle_funcs))
+  {
+    BK_FLAG_CLEAR(run->br_flags,BK_RUN_FLAG_HAVE_IDLE);
+  }
+  BK_RETURN(B, 0);
+}
+
+
+/*
+ * Allocate a brf
+ */
+static struct bk_run_func *
+brfn_alloc(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_run_func *brfn;
+
+  BK_MALLOC(brfn);
+  if (!brfn)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf: %s\n", strerror(errno));
+    BK_RETURN(B, NULL);
+  }
+
+  brfn->brfn_key=brfn;
+
+  BK_RETURN(B,brfn);
+}
+
+
+/*
+ * Destroy a brf
+ */
+static void
+brfn_destroy(bk_s B, struct bk_run_func *brfn)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  
+  if (!brfn)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+  
+  if (brfn->brfn_backptr)
+  {
+    brfl_delete(brfn->brfn_backptr,brfn);
+  }
+  free(brfn);
+  BK_VRETURN(B);
+}
+
+
+/** 
+ * Add a function to bk_run on demand list
+ *	@param B BAKA thread/global state 
+ * 	@param run bk_run structure pointer
+ *	@param fun function to call
+ * 	@param opaque data for fun call
+ * 	@param demand pointer to int which controls whether function will run
+ * 	@param handle handle to use to remove this fun
+ * 	@return -1 on failure
+ * 	@return 0 on success
+ */
+int
+bk_run_on_demand_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, struct timeval starttime, bk_flags flags), void *opaque, volatile int *demand, void **handle)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_run_ondemand_func *brof=NULL;
+
+  if (!fun)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  if (handle) *handle=NULL;
+
+  if (!brof_alloc(B))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf: %s\n", strerror(errno));
+    goto error;
+  }
+  
+  brof->brof_fun=fun;
+  brof->brof_opaque=opaque;
+  brof->brof_demand=demand;
+  brof->brof_flags=0;
+
+  if (brfl_insert(run->br_ondemand_funcs, brof) != DICT_OK)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert brf in dll\n");
+    goto error;
+  }
+  
+  brof->brof_backptr=run->br_ondemand_funcs;
+  BK_FLAG_SET(run->br_flags,BK_RUN_FLAG_CHECK_DEMAND);
+  
+  if (handle) *handle=brof->brof_key;
+  BK_RETURN(B,0);
+
+ error:
+  if (brof) brof_destroy(B,brof);
+  BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Remove a function from the bk_run poll list
+ *	@param B BAKA thread/global state 
+ *	@param run bk_run structure
+ *	@param hand on demand function to remove
+ */
+int
+bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_run_ondemand_func *brof=NULL;
+
+  if (!run || !handle)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  if (!(brof=brfl_search(run->br_ondemand_funcs, handle)))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Handle %p not found in delete\n", handle);
+    BK_RETURN(B, 0);
+  }
+
+  if (!brfl_minimum(run->br_ondemand_funcs))
+  {
+    BK_FLAG_CLEAR(run->br_flags,BK_RUN_FLAG_CHECK_DEMAND);
+  }
+  BK_RETURN(B, 0);
+}
+
+
+/*
+ * Allocate a brf
+ */
+static struct bk_run_ondemand_func *
+brof_alloc(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_run_ondemand_func *brof;
+
+  BK_MALLOC(brof);
+  if (!brof)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate brf: %s\n", strerror(errno));
+    BK_RETURN(B, NULL);
+  }
+
+  BK_RETURN(B,brof);
+}
+
+
+/*
+ * Destroy a brf
+ */
+static void
+brof_destroy(bk_s B, struct bk_run_ondemand_func *brof)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  
+  if (!brof)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+  
+  if (brof->brof_backptr)
+  {
+    brfl_delete(brof->brof_backptr,brof);
+  }
+  free(brof);
+  BK_VRETURN(B);
+}
 
 
 /*
@@ -677,3 +1428,22 @@ static ht_val fa_key_hash(int *a)
 {
   return(*a);
 }
+
+static int brfl_oo_cmp(struct bk_run_func *a, struct bk_run_func *b)
+{
+  return ((char *)(a->brfn_key) - (char *)(b->brfn_key));
+}
+static int brfl_ko_cmp(void *a, struct bk_run_func *b)
+{
+  return ((char *)a)-((char *)b->brfn_key);
+}
+
+static int brofl_oo_cmp(struct bk_run_ondemand_func *a, struct bk_run_ondemand_func *b)
+{
+  return ((char *)(a->brof_key) - (char *)(b->brof_key));
+}
+static int brofl_ko_cmp(void *a, struct bk_run_ondemand_func *b)
+{
+  return ((char *)a)-((char *)b->brof_key);
+}
+
