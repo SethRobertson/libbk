@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.82 2001/12/11 20:06:47 jtt Exp $
+ * $Id: libbk.h,v 1.83 2001/12/11 21:59:02 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -229,6 +229,8 @@ typedef struct __bk_thread
 // @}
 
 
+
+#define BK_URL_FILE_STR	"file"			///< String to use use for url protocol if it's a bare path
 
 /**
  * Baka internal representation of a URL. The char *'s are all NULL
@@ -1007,6 +1009,7 @@ extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
 
 /* b_url.c */
 struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_flags flags);
+#define BK_URL_BARE_PATH_IS_FILE	0x1	///< Treat bare path as protocol "file"
 struct bk_url *bk_url_create(bk_s B);
 void bk_url_destroy(bk_s B, struct bk_url *bu);
 

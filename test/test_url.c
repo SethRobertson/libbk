@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_url.c,v 1.5 2001/12/11 21:36:08 seth Exp $";
+static char libbk__rcsid[] = "$Id: test_url.c,v 1.6 2001/12/11 21:59:02 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -181,36 +181,36 @@ void progrun(bk_s B, struct program_config *pconfig)
 
     memset(outputline,0,1024);
     nextstart = 0;
-    if (!(bu=bk_url_parse(B, inputline, 0)))
+    if (!(bu=bk_url_parse(B, inputline, BK_URL_BARE_PATH_IS_FILE)))
     {
       fprintf(stderr,"Could not convert url: %s\n", inputline);
       continue;
     }
 
-    if (!BK_STREQ(bu->bu_proto,""))
+    if (bu->bu_proto)
     {
       snprintf(outputline, 1024, "%s://", bu->bu_proto);
       nextstart = strlen(outputline);
     }
 
-    if (!BK_STREQ(bu->bu_host,""))
+    if (bu->bu_host)
     {
       snprintf(outputline + nextstart, 1024 - nextstart, "%s", bu->bu_host);
       nextstart = strlen(outputline);
     }
 
-    if (!BK_STREQ(bu->bu_serv,""))
+    if (bu->bu_serv)
     {
       snprintf(outputline + nextstart, 1024 - nextstart, ":%s", bu->bu_serv);
       nextstart = strlen(outputline);
     }
     
-    if (!BK_STREQ(bu->bu_path,""))
+    if (bu->bu_path)
     {
       snprintf(outputline + nextstart, 1024 - nextstart, "%s", bu->bu_path);
     }
 
-    printf("%-20s %-20s > %s ** %s ** %s ** %s\n", inputline, outputline,  bu->bu_proto, bu->bu_host, bu->bu_serv, bu->bu_path);
+    printf("%-20s %-20s > %s ** %s ** %s ** %s\n", inputline, outputline,  bu->bu_proto?bu->bu_proto:"", bu->bu_host?bu->bu_host:"", bu->bu_serv?bu->bu_serv:"", bu->bu_path?bu->bu_path:"");
   }
   
   BK_VRETURN(B);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.18 2001/12/11 20:06:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.19 2001/12/11 21:59:02 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1367,12 +1367,12 @@ bk_strndup(bk_s B, const char *s, u_int len)
     BK_RETURN(B, NULL);
   }
   
-  if (!(BK_CALLOC_LEN(new, len)))
+  if (!(BK_CALLOC_LEN(new, len+1)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not malloc: %s\n", strerror(errno));
     BK_RETURN(B,NULL);
   }
   
-  snprintf(new,len, "%s", s);
+  snprintf(new,len+1, "%s", s);
   BK_RETURN(B,new);
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.6 2001/12/11 21:30:53 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.7 2001/12/11 21:59:02 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -30,7 +30,8 @@ static u_int count_colons(bk_s B, const char *str, const char *str_end);
 
 
 /**
- * Parse a url
+ * Parse a url. Place results in returned structure with undeterminable
+ * value set to NULL.
  *
  *	@param B BAKA thread/global state.
  *	@param url Url to parse.
@@ -69,16 +70,12 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
   {
     proto = NULL;				/* No protocol */
     host = url;					/* Try host from begining */
-    if (!(bu->bu_proto = strdup("")))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not strdup proto: %s\n", strerror(errno));
-      goto error;
-    }
+    bu->bu_proto = NULL;
   }
   else
   {
     host = proto_end+1;				/* Skip over : but *not* / */
-    if (!(bu->bu_proto = bk_strndup(B, proto, proto_end - proto +1)))
+    if (!(bu->bu_proto = bk_strndup(B, proto, proto_end - proto)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not copy proto\n");
       goto error;
@@ -106,11 +103,7 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
   }
   else
   {
-    if (!(bu->bu_path = strdup("")))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not strdup empty string to path: %s\n", strerror(errno));
-      goto error;
-    }
+    bu->bu_path = NULL;
     host_end = host+strlen(host);
   }
 
@@ -127,13 +120,13 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
 	goto error;
       }
       serv++;					/* Skip over ':' */
-      if (!(bu->bu_serv = bk_strndup(B, serv, host_end - serv +1)))
+      if (!(bu->bu_serv = bk_strndup(B, serv, host_end - serv)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not copy service string\n");
 	goto error;
       }
     
-      if (!(bu->bu_host = bk_strndup(B, host, serv - host)))
+      if (!(bu->bu_host = bk_strndup(B, host, serv - host -1)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not copy host string\n");
 	goto error;
@@ -143,13 +136,8 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
     /* host_part only. No service string */
     case 0: /* AF_INET or hostname or missing host_part */
     case 7: /* Af_INET6 */
-      if (!(bu->bu_serv = strdup("")))
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not strdup service string: %s\n", strerror(errno));
-	goto error;
-      }
-
-      if (!(bu->bu_host = bk_strndup(B, host, host_end - host +1)))
+      bu->bu_serv = NULL;
+      if (!(bu->bu_host = bk_strndup(B, host, host_end - host)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not copy host string\n");
 	goto error;
@@ -164,14 +152,16 @@ bk_url_parse(bk_s B, const char *url, bk_flags flags)
   else
   {
     /* There is no host *or* service part */
-    if (!(bu->bu_host = strdup("")))
+    bu->bu_host = NULL;
+    bu->bu_serv = NULL;
+  }
+
+  if (BK_FLAG_ISSET(flags, BK_URL_BARE_PATH_IS_FILE) &&
+      !bu->bu_proto && !bu->bu_host && !bu->bu_serv && bu->bu_path)
+  {
+    if (!(bu->bu_proto=strdup(BK_URL_FILE_STR)))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not strdup empty string to host\n");
-      goto error;
-    }
-    if (!(bu->bu_serv = strdup("")))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not strdup empty string to serv\n");
+      bk_error_printf(B, BK_ERR_ERR, "Could not strdup file proto: %s\n", strerror(errno));
       goto error;
     }
   }
