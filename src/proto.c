@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: proto.c,v 1.33 2003/06/17 06:07:18 seth Exp $";
+static const char libbk__rcsid[] = "$Id: proto.c,v 1.34 2004/04/10 03:14:17 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -109,6 +109,11 @@ main(int argc, char **argv, char **envp)
     exit(254);
   }
   bk_fun_reentry(B);
+
+  // Enable error output
+  bk_error_config(B, BK_GENERAL_ERROR(B), ERRORQUEUE_DEPTH, stderr, BK_ERR_ERR,
+		  BK_ERR_ERR, BK_ERROR_CONFIG_FH |
+		  BK_ERROR_CONFIG_SYSLOGTHRESHOLD | BK_ERROR_CONFIG_HILO_PIVOT);
 
   // i18n stuff
   setlocale(LC_ALL, "");
