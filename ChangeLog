@@ -1,3 +1,7 @@
+2002-02-11  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_string.c (bk_string_intcols): DOH Some real dumb errors.
+
 2002-02-11  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_string.c (bk_string_intcols): fix bugs, spelling errors,

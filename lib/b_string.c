@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.25 2002/02/11 19:42:05 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.26 2002/02/11 20:15:43 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1569,7 +1569,7 @@ bk_string_intcols(bk_s B, int64_t num, u_int base)
   else
     val = 0;
     
-  val += 0.5 + log(num) / logbase[base];
+  val += 1.0 + log(num) / logbase[base];
 
   BK_RETURN(B, val);  
 }
