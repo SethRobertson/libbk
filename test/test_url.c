@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_url.c,v 1.7 2001/12/21 21:28:44 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_url.c,v 1.8 2001/12/21 21:53:32 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -235,6 +235,8 @@ void progrun(bk_s B, struct program_config *pconfig)
     printf("\tQuery: %s\n", scratch);
     PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_fragment);
     printf("\tFragment: %s\n", scratch);
+    
+    bk_url_destroy(B, bu);
 
   }
   

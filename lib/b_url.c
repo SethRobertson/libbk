@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.9 2001/12/21 21:28:44 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.10 2001/12/21 21:53:32 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -69,7 +69,7 @@ do {											\
 } while(0)
 
 
-#define FREE_URL_ELEMENT(bu, mode, element)	\
+#define FREE_URL_ELEMENT(bu, element)		\
 {						\
   if (!BK_URL_IS_VPTR(bu))			\
   {						\
@@ -317,6 +317,12 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 	if (!authority_end)
 	  authority_end = path_end;
 
+	/*
+	 * eYou must free this even though it does not appear to be set
+	 * owing to the fact that in BkUrlParseStrEmpty mode all ptrs are
+	 * strdup'ed to "" even if unset.
+	 */
+	FREE_URL_ELEMENT(bu, bu->bu_authority);
 	STORE_URL_ELEMENT(B, mode, bu->bu_authority, authority, authority_end);
 	BK_FLAG_SET(bu->bu_flags, BK_URL_FLAG_AUTHORITY);
 
@@ -326,11 +332,11 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 	{
 	  STORE_URL_ELEMENT(B, mode, bu->bu_path, authority_end, path_end);
 	  BK_FLAG_SET(bu->bu_flags, BK_URL_FLAG_PATH);
-	  FREE_URL_ELEMENT(bu, bu->bu_mode, hold);
+	  FREE_URL_ELEMENT(bu, hold);
 	}
 	else
 	{
-	  FREE_URL_ELEMENT(bu, bu->bu_mode, bu->bu_path);
+	  FREE_URL_ELEMENT(bu, bu->bu_path);
 	}
       }
 

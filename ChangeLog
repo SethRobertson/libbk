@@ -1,6 +1,8 @@
 2001-12-21  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_url.c: Brand new rfc2396 compliant url parsing code.
+	(bk_url_parse): Free up apparently unset data because it is not in
+	fact unset :-)
 
 2001-12-20  James Tanis  <jtt@winwood.sysdetect.com>
 
