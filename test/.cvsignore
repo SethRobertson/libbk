@@ -1,9 +1,10 @@
 .depend
+test_bio
 test_config
 test_errorstuff
 test_getbyfoo
+test_ioh
 test_printbuf
 test_stringconv
-test_ioh
-testrandidea
 test_url
+testrandidea
