@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_time.c,v 1.3 2002/03/05 22:24:09 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: test_time.c,v 1.4 2002/03/26 22:16:09 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2002";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -80,7 +80,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_LOCAL0, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -127,9 +127,7 @@ main(int argc, char **argv, char **envp)
   }
 
   progrun(B, pconfig);
-  bk_exit(B,0);
-  abort();
-  return(255);
+  BK_RETURN(B,0);
 }
 
 

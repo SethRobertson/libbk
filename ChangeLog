@@ -1,3 +1,21 @@
+2002-03-26  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* test/Makefile (BK_SIMPLE_INTERNALPROGS): support "make test_fun"
+
+	* test/test_config.c (main): bk_general_debug_config obviates
+	bk_debug_setconfig
+
+	* test/test_getbyfoo.c (main): bk_general_debug_config obviates
+	bk_debug_setconfig
+
+	* test/test_time.c (main): use BK_RETURN to keep Insure happy
+
+	* test/test_bio.c, test/test_config.c, test/test_errorstuff.c:
+	* test/test_fun.c, test/test_getbyfoo.c, test/test_ioh.c:
+	* test/test_locks.c, test/test_stringconv.c, test/test_time.c:
+	* test/test_url.c, test/testhashspeed.c:
+	* test/testrandidea.c: use LOG_USER, not BK_ERR or LOG_LOCAL0
+	
 2002-03-19  James Tanis  <jtt@saint.sysdetect.com>
 
 	* include/libbk.h (BK_USECTONSEC): Convert usecs <=> nsecs.
