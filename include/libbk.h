@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.220 2003/03/25 04:56:23 seth Exp $
+ * $Id: libbk.h,v 1.221 2003/03/25 22:01:44 dupuy Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -384,10 +384,23 @@ typedef struct __bk_thread
  *	@param run The @a bk_run structure to use.
  *	@param opaque User args passed back.
  *	@param demand The flag which when raised causes this function to run.
- *	@param starttime The start time of the latest invokcation of @a bk_run_once.
+ *	@param starttime The start time of the latest invocation of @a bk_run_once.
  *	@param flags Flags for your enjoyment.
  */
 typedef int (*bk_run_on_demand_f)(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags);
+
+
+/**
+ * Type for poll/idle functions
+ * 
+ *	@param B BAKA thread/global state 
+ *	@param run The @a bk_run structure to use.
+ *	@param opaque User args passed back.
+ *	@param starttime The start time of the latest invocation of @a bk_run_once.
+ *	@param delta Copy out of poll interval (NULL for other function types).
+ *	@param flags Flags for your enjoyment.
+ */
+typedef int (*bk_run_f)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags);
 
 
 /**
@@ -758,7 +771,7 @@ do {						\
       (sum)->tv_usec = (a)->tv_usec + (b)->tv_usec;	\
       BK_TV_RECTIFY(sum);				\
     } while (0)
-/** @brief Subtract timeval a from b--anwser may be an argument */
+/** @brief Subtract timeval a from b--answer may be an argument */
 #define BK_TV_SUB(sum,a,b)				\
     do							\
     {							\
@@ -817,7 +830,7 @@ do {						\
       (sum)->tv_nsec = (a)->tv_nsec + (b)->tv_nsec;	\
       BK_TS_RECTIFY(sum);				\
     } while (0)
-/** @brief Subtract timespec a from b--anwser may be an argument */
+/** @brief Subtract timespec a from b--answer may be an argument */
 #define BK_TS_SUB(sum,a,b)				\
     do							\
     {							\
@@ -1433,6 +1446,9 @@ extern int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags);
 extern int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags);
 #define BK_RUN_ONCE_FLAG_DONT_BLOCK		0x1 ///<  Execute run once without blocking in select(2).
 extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, void *opaque, u_int wanttypes, bk_flags flags);
+// handler flags passed to bk_run_handle/poll_add/idle_add/on_demand/add
+#define BK_RUN_HANDLE_TIME			0x01 ///< user handler wants current time
+// flags passed to run handler
 #define BK_RUN_READREADY			0x01 ///< user handler is notified by bk_run that data is ready for reading
 #define BK_RUN_WRITEREADY			0x02 ///< user handler is notified by bk_run that data is ready for writing
 #define BK_RUN_XCPTREADY			0x04 ///< user handler is notified by bk_run that exception data is ready
@@ -1449,12 +1465,12 @@ extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u
 #define BK_RUN_WANTREAD				0x01 ///< Specify to bk_run_setpref that we want read notification for this fd
 #define BK_RUN_WANTWRITE			0x02 ///< Specify to bk_run_setpref that we want write notification for this fd
 #define BK_RUN_WANTXCPT				0x04 ///< Specify to bk_run_setpref that we want exceptional notification for this fd
-#define BK_RUN_WANTALL				(BK_RUN_WANTREAD|BK_RUN_WANTWRITE|BK_RUN_WANTXCPT|) ///< Specify to bk_run_setpref that we want *all* notifcations.
-extern int bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
+#define BK_RUN_WANTALL				(BK_RUN_WANTREAD|BK_RUN_WANTWRITE|BK_RUN_WANTXCPT|) ///< Specify to bk_run_setpref that we want *all* notifications.
+extern int bk_run_poll_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle, int flags);
 extern int bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle);
-extern int bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle);
+extern int bk_run_idle_add(bk_s B, struct bk_run *run, int (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, struct timeval *delta, bk_flags flags), void *opaque, void **handle, int flags);
 extern int bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle);
-extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *opaque, volatile int *demand, void **handle);
+extern int bk_run_on_demand_add(bk_s B, struct bk_run *run, bk_run_on_demand_f fun, void *opaque, volatile int *demand, void **handle, int flags);
 extern int bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle);
 extern int bk_run_set_run_over(bk_s B, struct bk_run *run);
 extern void bk_run_set_dont_block_run_once(bk_s B, struct bk_run *run);

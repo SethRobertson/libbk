@@ -1,3 +1,13 @@
+2003-03-25  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h (BK_RUN_HANDLE_TIME): flag for handlers to get time
+	add flags to bk_run_{poll,idle,on_demand}_add
+
+	* lib/b_run.c (bk_run_once): only select, gettimeofday if absolutely
+	needed [requires BK_RUN_HANDLE_TIME for non-eventq handlers; not one of
+	which actually used the timestamp passed in]
+	(bk_run_checkeventq): gettimeofday if needed, return to bk_run_once
+
 2003-03-24  Seth Robertson  <seth@hawking.sysdetect.com>
 
 	* lib/b_stats.c: New support routines to track timing of whatever

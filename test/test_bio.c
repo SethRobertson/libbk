@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_bio.c,v 1.9 2003/03/19 00:10:35 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_bio.c,v 1.10 2003/03/25 22:01:45 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -247,7 +247,7 @@ static int proginit(bk_s B, struct program_config *pconfig)
   }
   pconfig->pc_bib = bib;
 
-  if (bk_run_on_demand_add(B, run, do_read, pconfig, &pconfig->pc_cntl, &pconfig->pc_on_demand) < 0)
+  if (bk_run_on_demand_add(B, run, do_read, pconfig, &pconfig->pc_cntl, &pconfig->pc_on_demand, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "\n");
     BK_RETURN(B,-1);    
