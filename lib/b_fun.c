@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fun.c,v 1.11 2001/11/06 20:31:14 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.12 2001/11/15 18:27:21 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -147,7 +147,7 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
     for(;cur;cur=fh)
     {
       if (fh = (struct bk_funinfo *)funstack_predecessor(BK_BT_FUNSTACK(B), cur))
-	bk_error_printf(B, BK_ERR_NOTICE,"Implicit exit of %s\n",fh->bf_funname);
+	bk_error_printf(B, BK_ERR_NOTICE,"Implicit exit of %s during %s exit\n",fh->bf_funname,cur->bf_funname);
       funstack_delete(BK_BT_FUNSTACK(B), cur);
       free(cur);
     }

@@ -1,3 +1,10 @@
+2001-11-15  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_fun.c (bk_fun_exit): More info about implicit exits
+
+	* lib/b_ioh.c (ioh_dequeue_byte): Abstract shared functionality
+	into function.
+
 2001-11-14  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_signal.c (bk_signal): conditionalize SA_SIGINFO, and

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_relay.c,v 1.2 2001/11/14 23:08:30 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_relay.c,v 1.3 2001/11/15 18:27:21 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -189,6 +189,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
 	// Turn off reads, write into queue anyway
 	BK_FLAG_SET(*state_me, BR_IOH_THROTTLED);
 	bk_ioh_readallowed(B, ioh, 0, 0);
+	bk_debug_printf_and(B, 1, "Throttling input.  My state %x, his state %x\n",*state_me,*state_him);
 	ret = bk_ioh_write(B, ioh_other, newcopy, BK_IOH_BYPASSQUEUEFULL);
       }
       if (ret < 0)
@@ -225,6 +226,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
     // Now that some data has drained...
     if (BK_FLAG_ISSET(*state_me, BR_IOH_THROTTLED))
     {
+      bk_debug_printf_and(B, 1, "Clearing throttle.  My state %x, his state %x\n",*state_me,*state_him);
       BK_FLAG_CLEAR(*state_me, BR_IOH_THROTTLED);
       bk_ioh_readallowed(B, ioh, 1, 0);
     }
@@ -234,6 +236,13 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   case BK_IOH_STATUS_IOHABORT:
   case BK_IOH_STATUS_USERERROR:
     BK_FLAG_SET(*state_me, BR_IOH_CLOSED);
+    if (BK_FLAG_ISCLEAR(*state_me, BR_IOH_READCLOSE) ||
+	BK_FLAG_ISCLEAR(*state_him, BR_IOH_READCLOSE))
+    {						// Other party not aware of severity yet
+      BK_FLAG_SET(*state_me, BR_IOH_READCLOSE);
+      BK_FLAG_SET(*state_him, BR_IOH_READCLOSE);
+      bk_ioh_close(B, ioh_other, BK_IOH_NOTIFYANYWAY);
+    }
     bk_debug_printf_and(B, 1, "Received ioh close notification.  My state %x, his state %x\n",*state_me,*state_him);
     break;
 
