@@ -71,4 +71,49 @@ struct baka_fun
 
 
 
+/* b_run.c */
+struct baka_run
+{
+  fd_set		br_readset;		/* FDs interested in this operation */
+  fd_set		br_writeset;		/* FDs interested in this operation */
+  fd_set		br_xcptset;		/* FDs interested in this operation */
+  dict_h		br_fdassoc;		/* FD to callback association */
+  volatile int		*br_ondemandtest;	/* Should on-demand function be called */
+  int			(*br_ondemand)(void *opaque, volatile int *demand, time_t starttime); /* On-demand function */
+  void			*br_ondemandopaque;	/* On-demand opaque */
+  int			(*br_pollfun)(void *opaque, time_t starttime); /* Polling function */
+  void			*br_pollopaque;		/* Polling opaque */
+  struct br_equeue	*br_equeue;		/* Event queue ARRAY */
+  u_int16_t		br_eq_cursize;		/* Equeue current size */
+  u_int16_t		br_eq_maxsize;		/* Equeue current size */
+  u_int8_t		br_signums[NSIG];	/* Number of signal events we have received */
+  struct br_sighandler	br_handlerlist[NSIG];	/* Handlers for signals */
+  baka_flags		br_flags;		/* General flags */
+};
+
+/* Event queue structure */
+struct br_equeue
+{
+  struct timeval	bre_when;		/* Time to run event */
+  void			(*bre_event)(void *opaque, time_t starttime); /* Event to run */
+  void			*bre_opaque;		/* Data for opaque */
+};
+
+/* Cron structure */
+struct br_equeuecron
+{
+  u_int			brec_allones;		/* All ones for structure discrimination */
+  time_t		brec_interval;		/* Interval timer */
+  void			(*brec_event)(void *opaque, time_t starttime); /* Event to run */
+  void			*brec_opaque;		/* Data for opaque */
+  struct br_equeue	*brec_equeue;		/* Current event */
+};
+
+/* Signal handler to run */
+struct br_sighandler
+{
+  void			(*brs_handler)(int signum, void *opaque, time_t starttime); /* Handler */
+  void			*brs_opaque;		/* Opaque data */
+};
+
 #endif /* _baka_h_ */

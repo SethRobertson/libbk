@@ -18,14 +18,14 @@
 
 
 
-typedef u_int32_t bakaflags;
+typedef u_int32_t baka_flags;
 
 /* General vectored pointer */
-struct bakavptr
+typedef struct baka_vptr
 {
   void *ptr;					/* Data */
   u_int32_t len;				/* Length */
-};
+} baka_vptr;
 
 /* General vectored pointer */
 struct baka_alloc_ptr
@@ -37,27 +37,27 @@ struct baka_alloc_ptr
 
 
 /* baka.c -- General baka global information */
-struct bakageneral
+struct baka_general
 {
   struct baka_debug	*bg_debug;		/* Debug info */
   struct baka_error	*bg_error;		/* Error info */
   struct baka_config	*bg_config;		/* Configuration info */
   struct baka_funlist	*bg_reinit;		/* Reinitialization list */
   char			*bg_program;		/* Program name */
-  bakaflags		bg_flags;		/* Flags */
+  baka_flags		bg_flags;		/* Flags */
 #define BAKA_BGFLAGS_FUNON	1		/* Is function tracing on? */
 #define BAKA_BGFLAGS_DEBUGON	2		/* Is debugging on? */
 #define BAKA_BGFLAGS_SYSLOGON	4		/* Is syslog on? */
 };
 
 /* Per-thread state information */
-typedef struct __bakathread
+typedef struct __baka_thread
 {
   dict_h		bt_funstack;		/* Function stack */
   struct baka_funinfo	*bt_curfun;		/* Current function */
   char			*bt_threadname;		/* Function name */
-  struct bakageneral	bt_general;		/* Common program state */
-  bakaflags		bt_flags;
+  struct baka_general	bt_general;		/* Common program state */
+  baka_flags		bt_flags;
 } *baka;
 
 
@@ -125,7 +125,7 @@ extern void baka_baka_thread_destroy(baka);
 
 
 /* b_config.c */
-extern struct baka_config *baka_config_init(baka B, char *filename, bakaflags flags);
+extern struct baka_config *baka_config_init(baka B, char *filename, baka_flags flags);
 extern int baka_config_reinit(baka B, struct baka_config *config);
 extern void baka_config_destroy(baka B, struct baka_config *config);
 extern void baka_config_write(baka B, struct baka_config *config, char *outfile);
@@ -140,7 +140,7 @@ extern char *baka_config_delete(baka B, struct baka_config *config, char *key);
 extern u_int32_t baka_debug_query(baka B, struct baka_debug *bdinfo, const char *funname, const char *pkgname, const char *program);
 extern int baka_debug_set(baka B, struct baka_debug *bdinfo, const char *name, u_int32_t level);
 extern int baka_debug_setconfig(baka B, struct baka_debug *bdinfo, baka_config_t config, const char *program);
-extern void baka_debug_config(baka B, struct baka_debug *bdinfo, u_int16_t queuelen, FILE *fh, u_int8_t sysloglevel, bakaflags flags);
+extern void baka_debug_config(baka B, struct baka_debug *bdinfo, u_int16_t queuelen, FILE *fh, u_int8_t sysloglevel, baka_flags flags);
 extern void baka_debug_iprint(baka B, struct baka_debug *bdinfo, char *buf);
 extern void baka_debug_iprintf(baka B, struct baka_debug *bdinfo, char *format, ...);
 extern void baka_debug_iprintbuf(baka B, struct baka_debug *bdinfo, struct bakavptr *buf);
@@ -149,13 +149,13 @@ extern void baka_debug_ivprintf(baka B, struct baka_debug *bdinfo, char *format,
 
 
 /* b_error.c */
-extern struct baka_error *baka_error_init(baka B, u_int16_t queuelen, FILE *fh, u_int8_t sysloglevel, bakaflags flags);
+extern struct baka_error *baka_error_init(baka B, u_int16_t queuelen, FILE *fh, u_int8_t sysloglevel, baka_flags flags);
 extern void baka_error_destroy(baka B, struct baka_error *beinfo);
-extern void baka_error_config(baka B, struct baka_error *beinfo, u_int16_t queuelen, FILE *fh, u_int8_t sysloglevel, bakaflags flags);
+extern void baka_error_config(baka B, struct baka_error *beinfo, u_int16_t queuelen, FILE *fh, u_int8_t sysloglevel, baka_flags flags);
 extern u_int32_t baka_error_query(baka B, struct baka_error *beinfo, const char *funname, const char *pkgname, const char *program);
 extern int baka_error_set(baka B, struct baka_error *beinfo, const char *name, u_int32_t level);
 extern int baka_error_setconfig(baka B, struct baka_error *beinfo, baka_config_t config, const char *program);
-extern void baka_error_config(baka B, struct baka_error *beinfo, u_int16_t queuelen, FILE *fh, u_int8_t sysloglevel, bakaflags flags);
+extern void baka_error_config(baka B, struct baka_error *beinfo, u_int16_t queuelen, FILE *fh, u_int8_t sysloglevel, baka_flags flags);
 extern void baka_error_iprint(baka B, struct baka_error *beinfo, char *buf);
 extern void baka_error_iprintf(baka B, struct baka_error *beinfo, char *format, ...);
 extern void baka_error_iprintbuf(baka B, struct baka_error *beinfo, struct bakavptr *buf);
@@ -167,8 +167,8 @@ extern void baka_error_ivprintf(baka B, struct baka_error *beinfo, char *format,
 extern baka_funinfo baka_fun_entry(baka B, const char *func, const char *package);
 extern void baka_fun_exit(baka B, baka_funinfo fh);
 extern void baka_fun_reentry(baka B, void);
-extern void baka_fun_trace(baka B, FILE *out, u_int8_t sysloglevel, bakaflags flags);
-extern void baka_fun_set(baka B, bakaflags flags);
+extern void baka_fun_trace(baka B, FILE *out, u_int8_t sysloglevel, baka_flags flags);
+extern void baka_fun_set(baka B, baka_flags flags);
 #define BAKA_FUN_OFF	0			/* Turn off function tracing */
 #define BAKA_FUN_ON	1			/* Turn on function tracing */
 
@@ -180,6 +180,25 @@ extern void baka_funlist_destroy(baka B, struct baka_funlist *funlist);
 extern void baka_funlist_call(baka B, struct baka_funlist *funlist, u_int aux);
 extern void baka_funlist_insert(baka B, struct baka_funlist *funlist, void (*bf_fun)(baka, void *, u_int), void *args);
 extern void baka_funlist_delete(baka B, struct baka_funlist *funlist, void (*bf_fun)(baka, void *, u_int), void *args);
+
+
+
+/* b_run.c */
+extern struct baka_run *baka_run_init(baka B, int (*pollfun)(void *opaque, time_t starttime), void *pollopaque, volatile int *demand, int (*ondemand)(void *opaque, volatile int *demand, time_t starttime), void *demandopaque, baka_flags flags);
+extern void baka_run_destroy(baka B, struct baka_run *run);
+extern int baka_run_signal(baka B, struct baka_run *run, int signum, void (*handler)(int signum, void *opaque, time_t starttime), void *opaque);
+extern int baka_run_designal(baka B, int signum);
+extern int baka_run_enqueue(baka B, struct baka_run *run, struct timeval *when, void (*event)(void *opaque, time_t starttime), void *opaque, void **handle);
+extern int baka_run_enqueue_delta(baka B, struct baka_run *run, time_t usec, void (*event)(void *opaque, time_t starttime), void *opaque, void **handle);
+extern int baka_run_enqueue_cron(baka B, struct baka_run *run, time_t usec, void (*event)(void *opaque, time_t starttime), void *opaque, void **handle);
+extern int baka_run_dequeue(baka B, struct baka_run *run, void *handle);
+
+
+
+/* b_sioh.c */
+typedef int baka_iofunc(int, caddr_t, __SIZE_TYPE__);
+extern struct baka_ioh *baka_ioh_init(baka B, int fdin, int fdout, baka_iofunc readfun, baka_iofunc writefun, int (*handler)(baka_vptr *data, void *opaque, struct baka_ioh *ioh, u_int state_flags
+extern void baka_run_destroy(baka B, struct baka_run *run);
 
 
 
