@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.19 2001/11/15 22:19:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.20 2001/11/16 19:16:17 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2011,6 +2011,44 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 
   bk_debug_printf_and(B, 1, "Vectored other cmd %d/%d for IOH %p\n", cmd, aux, ioh);
 
+
+  // Subroutines
+  if ((cmd == IOHT_HANDLER && aux == BK_RUN_READREADY) || (cmd == IOHT_HANDLER_RMSG))
+  {						// Return the number of bytes to read
+    // Determine how many bytes we have ready, and what the length of data queued up is
+    for (bid = biq_minimum(ioh->ioh_readq.biq_queue); bid; bid=biq_successor(ioh->ioh_readq.biq_queue, bid))
+    {
+      if (!bid->bid_data || bid->bid_inuse < 1)
+	continue;				// Nothing to see, move along
+
+      if (size < sizeof(lengthfromwire))
+      {
+	memcpy((char *)&lengthfromwire, bid->bid_data + bid->bid_used, MIN(sizeof(lengthfromwire) - size, bid->bid_inuse));
+      }
+
+      size += bid->bid_inuse;
+      cnt++;
+    }
+    if (size >= 4)
+      lengthfromwire = ntohl(lengthfromwire);
+    else
+      lengthfromwire = 0;
+
+    assert(size == ioh->ioh_readq.biq_queuelen);
+
+    if (ioh_getlastbuf(B, &ioh->ioh_readq, &room, NULL, &bid, 0) != 0)
+      room = 0;
+
+      // Size now contains the number of bytes of data in queue
+      // if (size > 4) lengthfromwire contains the host-order number of data bytes in the message
+      // room contains the number of bytes "free" in the last buffer
+      // bid points to the last buffer where these bytes are stored
+      // cnt now contains the number of buffers that this data is stored in
+
+    bk_debug_printf_and(B, 4, "Bytes available: %d, lengthfromwire: %d, bytes free: %d, lastbid: %p, cnt: %d\n", size, lengthfromwire, room, bid, cnt);
+  }
+
+
   switch (cmd)
   {
   case IOHT_FLUSH:
@@ -2039,7 +2077,6 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
       if (bid && cnt > 0)
       {
 	cnt = (*ioh->ioh_writefun)(B, ioh->ioh_fdout, iov, cnt, 0);
-	free(iov);
 
 	if (cnt == 0 || cnt < 0 && (
 #ifdef EWOULDBLOCK
@@ -2074,39 +2111,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	  }
 	}
       }
-    }
-
-    if (aux == BK_RUN_READREADY || aux == IOHT_HANDLER_RMSG)
-    {						// Return the number of bytes to read
-      // Determine how many bytes we have ready, and what the length of data queued up is
-      for (bid = biq_minimum(ioh->ioh_readq.biq_queue); bid; bid=biq_successor(ioh->ioh_readq.biq_queue, bid))
-      {
-	if (!bid->bid_data || bid->bid_inuse < 1)
-	  continue;				// Nothing to see, move along
-
-	if (size < sizeof(lengthfromwire))
-	{
-	  memcpy((char *)&lengthfromwire, bid->bid_data + bid->bid_used, MIN(sizeof(lengthfromwire) - size, bid->bid_inuse));
-	}
-
-	size += bid->bid_inuse;
-	cnt++;
-      }
-      if (size >= 4)
-	lengthfromwire = ntohl(lengthfromwire);
-      else
-	lengthfromwire = 0;
-
-      assert(size == ioh->ioh_readq.biq_queuelen);
-
-      if (ioh_getlastbuf(B, &ioh->ioh_readq, &room, NULL, &bid, 0) != 0)
-	room = 0;
-
-      // Size now contains the number of bytes of data in queue
-      // if (size > 4) lengthfromwire contains the host-order number of data bytes in the message
-      // room contains the number of bytes "free" in the last buffer
-      // bid points to the last buffer where these bytes are stored
-      // cnt now contains the number of buffers that this data is stored in
+      BK_RETURN(B, ioh->ioh_writeq.biq_queuelen > 0);
     }
 
     if (aux == BK_RUN_READREADY)
@@ -2146,7 +2151,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
       }
 
       // We have length from wire
-      if (lengthfromwire+sizeof(lengthfromwire) >= size)
+      if (size >= lengthfromwire+sizeof(lengthfromwire))
       {
 	/*
 	 * Uh--we already have a complete message in queue.  How?
@@ -2160,7 +2165,19 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 
       if (!room)
       {
-	room = lengthfromwire + sizeof(lengthfromwire) - size;
+	room = lengthfromwire - (size - sizeof(lengthfromwire));
+
+	if (ioh->ioh_readq.biq_queuemax && room > ioh->ioh_readq.biq_queuemax)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Incoming message is greater than the maximum allowed size (%d > %d)\n", room, ioh->ioh_readq.biq_queuemax);
+	  ioh_flush_queue(B, ioh, &ioh->ioh_readq, NULL, 0);
+	  CALLBACK(B, ioh, NULL, BK_IOH_STATUS_IOHREADERROR);
+	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_INPUT);
+	  bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTREAD, 0);
+	  BK_RETURN(B, 0);
+	}
+	
+	bk_debug_printf_and(B, 2, "Attempting to allocate vectored storage of size %d (lengthfromwire %d)\n",room,lengthfromwire);
 	if (!(data = malloc(room)))
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer for ioh %p of size %d: %s\n",ioh,room,strerror(errno));
@@ -2188,7 +2205,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 
   IOHT_HANDLER_RMSG_case:
   case IOHT_HANDLER_RMSG:
-    if (lengthfromwire+sizeof(lengthfromwire) >= size)
+    if (size >= lengthfromwire+sizeof(lengthfromwire))
     {
       bk_vptr *sendup;
       u_int32_t tmp = 0;
@@ -2210,10 +2227,10 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	{
 	  if (size < sizeof(lengthfromwire))
 	  {
-	    if (bid->bid_inuse > (sizeof(lengthfromwire) - size))
+	    if (bid->bid_inuse > (sizeof(lengthfromwire) - tmp))
 	    {
-	      sendup[cnt].ptr = bid->bid_data+bid->bid_used + sizeof(lengthfromwire) - size;
-	      sendup[cnt].len = MIN(bid->bid_inuse - (sizeof(lengthfromwire) - size),
+	      sendup[cnt].ptr = bid->bid_data+bid->bid_used + sizeof(lengthfromwire) - tmp;
+	      sendup[cnt].len = MIN(bid->bid_inuse - (sizeof(lengthfromwire) - tmp),
 				    lengthfromwire);
 	      size += sendup[cnt].len;
 	      cnt++;
@@ -2350,11 +2367,12 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
 	    if (*(bid->bid_data + tmp + bid->bid_used) == ioh->ioh_eolchar)
 	    {
 	      // Hurrah--we have found E-O-L
-	      break;
+	      goto outloop;
 	    }
 	  }
 	}
       }
+    outloop:
       biq_iterate_done(ioh->ioh_readq.biq_queue, iter);
       needed = size;
 
@@ -2554,7 +2572,7 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
     BK_RETURN(B,-1);
   }
 
-  bk_debug_printf_and(B, 1, "Interal read IOH %p\n", ioh);
+  bk_debug_printf_and(B, 1, "Internal read IOH %p of %d bytes\n", ioh, len);
 
   // Worry about non-stream protocols--somehow
   ret = (*ioh->ioh_readfun)(B, fd, data, len, flags);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.8 2001/11/15 22:19:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_ioh.c,v 1.9 2001/11/16 19:16:17 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -411,7 +411,7 @@ static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int f
   }
 
   // Create IOH for stdio
-  if (!(ioh2 = bk_ioh_init(B, fd2in, fd2out, bk_ioh_stdrdfun, bk_ioh_stdwrfun, nullhandler, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, mode)))
+  if (!(ioh2 = bk_ioh_init(B, fd2in, fd2out, bk_ioh_stdrdfun, bk_ioh_stdwrfun, nullhandler, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, BK_IOH_STREAM|BK_IOH_RAW)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid network ioh creation\n");
     bk_die(B,254,stderr,"Could not perform ioh initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
