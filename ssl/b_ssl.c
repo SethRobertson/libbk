@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.12 2005/01/23 07:33:13 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.13 2005/02/08 02:07:29 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -210,6 +210,8 @@ bk_ssl_env_destroy(bk_s B)
  *
  * Flags:
  *   BK_SSL_REJECT_V2 Restrict access to ssl v3 clients.
+ *   BK_SSL_NOCERT Use anonymous DH instead of certificates
+ *   BK_SSL_WANT_CRL	Enable Certificate Revocation Lists
  *
  * @param B BAKA Thread/global state
  * @param cert_path (file) path to certificate file in PEM format
@@ -250,14 +252,14 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
     cert_path = NULL;
     key_path = NULL;
     cafile = NULL;
-   
+
     // Read DH params
     if (!(dhparam_in = BIO_new_file(dhparam_path, "r")))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not initialize BIO: %s.\n", ERR_error_string(ERR_get_error(), NULL));
       goto error;
     }
-   
+
     if (!(dh = PEM_read_bio_DHparams(dhparam_in, NULL, NULL, NULL)))
     {
       err = ERR_get_error();
@@ -280,7 +282,7 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
       goto error;
     }
     dhparam_in = NULL;
- 
+
     if (!SSL_CTX_set_tmp_dh(ssl_ctx->bsc_ssl_ctx, dh))
     {
       bk_error_printf(B, BK_ERR_ERR, "Failed to set temporary DH key: %s.\n", ERR_error_string(ERR_get_error(), NULL));
@@ -317,14 +319,15 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
       bk_error_printf(B, BK_ERR_ERR, "Could not load SSL CA file: %s.\n", ERR_error_string(ERR_get_error(), NULL));
       goto error;
     }
-   
+
     if (!(store = SSL_CTX_get_cert_store(ssl_ctx->bsc_ssl_ctx)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not get SSL certificate store: %s.\n", ERR_error_string(ERR_get_error(), NULL));
       goto error;
     }
 
-    X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK);
+    if (BK_FLAG_ISSET(flags, BK_SSL_WANT_CRL))
+      X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK);
 
     SSL_CTX_set_verify(ssl_ctx->bsc_ssl_ctx,
 		       SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT | SSL_VERIFY_CLIENT_ONCE, verify_callback);
@@ -479,7 +482,7 @@ bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_
     bk_error_printf(B, BK_ERR_ERR, "Failed to start service.\n");
     goto error;
   }
- 
+
   BK_RETURN(B, 0);
 
  error:
@@ -613,7 +616,7 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
   {
     bk_ioh_close(B, ioh, 0);
   }
- 
+
   BK_RETURN(B, NULL);
 }
 
@@ -670,7 +673,7 @@ bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, struct bk_ssl_ctx
   BK_RETURN(B, 0);
 
  error:
-  if (ssa) 
+  if (ssa)
     free(ssa);
 
   BK_RETURN(B, -1);
@@ -697,7 +700,7 @@ ssl_newsock(bk_s B, void *opaque, int newsock, struct bk_addrgroup *bag, void *s
   void *user_args = NULL;
   struct accept_handler_args *aha = NULL;
   int err_ret = 0;				// value to return from this function on error
- 
+
   if (!ssa || !server_handle)
   {
     bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments.\n");
@@ -826,7 +829,7 @@ ssl_connect_accept_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, vo
   int ret;
   int err;
   int err_level;
- 
+
   if (!run || !(aha = args))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -957,7 +960,7 @@ ssl_connect_accept_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, vo
       bk_error_printf(B, BK_ERR_ERR, "Calloc failed: %s.\n", strerror(errno));
       goto error;
     }
-   
+
     bs->bs_ssl = aha->aha_ssl;
     bs->bs_run = run;
     /*
@@ -985,7 +988,7 @@ ssl_connect_accept_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, vo
   }
 
   close(fd);
- 
+
   if (aha)
   {
     if (aha->aha_ssl)
@@ -1207,7 +1210,7 @@ void ssl_closefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int fdout,
       goto error;
     }
   }
-     
+
   if ((fdin >=0) && (fdin != fdout))
   {
     if (bk_run_handle(B, bs->bs_run, fdin, ssl_shutdown_handler, bs->bs_ssl, 0, 0) < 0)
@@ -1286,16 +1289,16 @@ ssl_shutdown_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, void *op
   SSL_shutdown(bs->bs_ssl);
 #else /* 0 */
   ret = SSL_shutdown(bs->bs_ssl);
- 
+
   if (ret == 1)
     goto done;
- 
+
   ssl_err = SSL_get_error(bs->bs_ssl, ret);
 
   /* <TODO>SSL has this stupid shutdown handshake.  This means that close is now blocking.
-   * The IOH system can't really deal with this without major modifications, so we give 
+   * The IOH system can't really deal with this without major modifications, so we give
    * SSL one shot to do its little shutdown dance.  If that's not enough, just close the
-   * socket anyway to avoid leaking memory.  At some point IOH could be overhauled to 
+   * socket anyway to avoid leaking memory.  At some point IOH could be overhauled to
    * better support this, but it doesn't really seem worthwhile at the moment.</TODO>
    */
   goto done;
