@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.18 2001/12/06 16:53:23 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.19 2002/02/22 07:09:38 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -35,11 +35,11 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * This file is structured in a particular way and it might be a good
  * idea if you strive to maintain that. The problem with network code
  * like this is that you can wind up with <em>huge</em> functions with
- * so many descisions that debugging is a bear and modifying darn near
+ * so many decisions that debugging is a bear and modifying darn near
  * impossible. So instead we choose to make only a small number of
- * descisions in each function and call down to sub functions (with
- * typcially longer names :-)) based on that descision. This is very
- * irrirtating when you're first coding or first looking at the file,
+ * decisions in each function and call down to sub functions (with
+ * typically longer names :-)) based on that decision. This is very
+ * irritating when you're first coding or first looking at the file,
  * but believe me, it's great when you just need to go in and make a
  * slight change (of course if sucks <em>big time</em> if you have to
  * make some form of global change). The structure of the file should
@@ -51,9 +51,9 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * net_init_end() no matter what happens.</em> That function takes a
  * @a state argument which allows you to offer some basic error
  * handling. Now just as important as it is to reach net_init_end()
- * once, it's equally imporant that you don't call it again (for this
+ * once, it's equally important that you don't call it again (for this
  * file descriptor) unless this is a tcp accepting socket (or
- * something similiar). This is to say that if the socket is a
+ * something similar). This is to say that if the socket is a
  * connecting socket or in an error condition (regardless of type),
  * then this state structure is going to be cleaned up in
  * net_init_end() and thus you do <em>not</em> to call this again (for
@@ -78,7 +78,7 @@ struct addrgroup_state
   struct bk_run *	as_run;			///< run handle.
   int			as_backlog;		///< Listen backlog.
   bk_flags		as_user_flags;		///< Flags passed in from user.
-  struct addrgroup_state *as_server;		///< Server as (gerenally pointing at myself).
+  struct addrgroup_state *as_server;		///< Server as (generally pointing at myself).
 };
 
 
@@ -281,15 +281,15 @@ as_destroy(bk_s B, struct addrgroup_state *as)
 
 
 /**
- * Intialize a transport layer "tap". This takes two @a bk_netinfo structs:
+ * Initialize a transport layer "tap". This takes two @a bk_netinfo structs:
  * one @a local and one @a remote. Either of these may be NULL (but not
  * both :-)). If @a remote is NULL, then this will be a server (though
  * listen(2)) is deferred until later). If @a local is NULL, then the
- * kernel will chose the local side addres information and this structure
- * will be filled out when @a callback is called (assuming a successfull
+ * kernel will chose the local side address information and this structure
+ * will be filled out when @a callback is called (assuming a successful
  * conclusion). If neither side is NULL, then we will attempt to bind to @a
  * local and connect to @a remote. NB UDP connections are completely
- * legal. If the caller is setting up a service (ie @a local is non-NULL
+ * legal. If the caller is setting up a service (i.e. @a local is non-NULL
  * and @a remote is NULL), he may choose not to fill in either (or both) of
  * the @a bk_netinfo @a bk_netaddr or @a bk_servinfo structures (the @a
  * bk_protoinfo *must* be filled in). If left unset, the kernel will select
@@ -542,10 +542,6 @@ do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as)
   }
   
   BK_RETURN(B,tcp_connect_start(B, as));
-
- error:
-  net_init_abort(B, as);
-  BK_RETURN(B,-1);
 }
 
 
@@ -599,7 +595,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
      * made at least *one* attempt to connect) we are running "off the
      * select loop" as it were and return values are pretty meaningless
      * (certainly returning the socket number is meaningless). But much
-     * more imporant than this is is the fact we *know* we're on the
+     * more important than this is is the fact we *know* we're on the
      * connecting side of a tcp association here and thus when tcp_end()
      * returns 'as' HAS BEEN DESTROYED. Now you *could* save as->as_sock
      * before calling tcp_end(), but why bother?
@@ -631,7 +627,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
     bk_error_printf(B, BK_ERR_ERR, "Could not set O_NONBLOCK on socket: %s\n", strerror(errno));
     /* 
      * <WARNING>
-     * Should this really be fatal? Well, given what a totally bizzare
+     * Should this really be fatal? Well, given what a totally bizarre
      * situation you must be in for this to fail, jtt actually thinks this
      * is reasonable.
      * </WARNING>
@@ -658,7 +654,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
 
   if (bk_run_enqueue_delta(B, as->as_run, as->as_timeout, tcp_connect_timeout, as, &as->as_eventh, 0) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not enque timeout event\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not enqueue timeout event\n");
     goto error;
   }
 
@@ -751,10 +747,6 @@ tcp_end(bk_s B, struct addrgroup_state *as)
   
   net_init_end(B, as);
 
-  BK_VRETURN(B);
-
- error:
-  net_init_abort(B, as);
   BK_VRETURN(B);
 }
 
@@ -876,7 +868,7 @@ net_init_end(bk_s B, struct addrgroup_state *as)
 
 
 /**
- * Convience function for aborting a @a bk_net_init thread.
+ * Convenience function for aborting a @a bk_net_init thread.
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
  *	@param state The state to pass to the user.
@@ -922,7 +914,7 @@ tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval
     BK_VRETURN(B);
   }
 
-  /* Make darn sure this is NULL in the case of emegency :-) */
+  /* Make darn sure this is NULL in the case of emergency :-) */
   as->as_eventh = NULL;
   
   bk_error_printf(B, BK_ERR_WARN, "Connection to %s timed out\n", as->as_bag->bag_remote->bni_pretty);
@@ -941,7 +933,7 @@ tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval
 
 
 /**
- * Activity has occured on a conecting TCP socket check. Check to see what
+ * Activity has occurred on a connecting TCP socket check. Check to see what
  * the disposition of this connection is. If it's an error, check for
  * another address. If it's OK, head for the end
  *
@@ -1029,10 +1021,10 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
    * descriptor. The specific states of this seem to be platform
    * specific, which is a little disturbing. The following illustrates
    * the confusion. 1st call and 2nd call refer to calls to connect(2)
-   * *following* the return from select(2) (IOW when we have idea of
-   * what has hapened to the socket.
+   * *following* the return from select(2) (i.e. when we have idea of
+   * what has happened to the socket.
    * 
-   * 		Succesful connection
+   * 		Successful connection
    * 		--------------------
    *		1st Call		2nd call
    * linux: 	Success (returns 0)	EISCONN
@@ -1048,9 +1040,9 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
    * 
    * For my money only *solaris* gets it right all the way the way
    * around. It, along with openbsd, properly returns EISCONN on the
-   * first connect(2) following a successfull connect unlike linux
+   * first connect(2) following a successful connect unlike linux
    * which returns 0 on this call (and EISCONN only after
-   * that). Futhermore it, along with linux, returns the actual error
+   * that). Furthermore it, along with linux, returns the actual error
    * on a connect failure (as a state of that first call), while
    * openbsd simply return EINVALID which tell you *nothing* about what
    * actually went wrong!
@@ -1121,7 +1113,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
     bk_error_printf(B, BK_ERR_ERR, "Could not set O_NONBLOCK on socket: %s\n", strerror(errno));
     /* 
      * <WARNING>
-     * Should this really be fatal? Well, given what a totally bizzare
+     * Should this really be fatal? Well, given what a totally bizarre
      * situation you must be in for this to fail, jtt actually thinks this
      * is reasonable.
      * </WARNING>
@@ -1252,14 +1244,14 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
 
   if ((newfd = accept(as->as_sock, &sa, &len)) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "accept failed: %sd\n",strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "accept failed: %s\n",strerror(errno));
     as->as_state = bk_net_init_sys_error(B, errno);
     goto error;
   }
 
   if (!(nas = as_server_copy(B,as, newfd)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Couldnot create new addrgroup_state\n");
+    bk_error_printf(B, BK_ERR_ERR, "Couldn't create new addrgroup_state\n");
     goto error;
   }
   
@@ -1301,7 +1293,7 @@ net_close(bk_s B, struct addrgroup_state *as)
 
   if (bk_run_close(B,as->as_run, as->as_sock, 0) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not withdrawl socket from run\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not withdraw socket from run\n");
   }
   as->as_sock = -1;
 
@@ -1311,7 +1303,7 @@ net_close(bk_s B, struct addrgroup_state *as)
 
 
 /*
- * bk_net_init sanity checking. This code is experted here so that it
+ * bk_net_init sanity checking. This code is exported here so that it
  * doesn't take up space in the main function.
  *	@param B BAKA thread/global state.
  *	@param local @a bk_netinfo of the local side.
@@ -1361,11 +1353,11 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
     
   /*
    * Check on address family sanity, but this is more complicated than
-   * above. If both netinfo's have adresses then make sure that the
+   * above. If both netinfos have addresses then make sure that the
    * address families match (the insertion routines should ensure that no
-   * netinfo contains a heterogenous set of addrs); if only one or the
-   * other of netinfo's have netaddr's, then use that value; if both
-   * netinfo's *lack* addresses, then flag a fatal error and return.
+   * netinfo contains a heterogeneous set of addrs); if only one or the
+   * other of netinfos have netaddrs, then use that value; if both
+   * netinfos *lack* addresses, then flag a fatal error and return.
    */
   if (local && (bna = bk_netinfo_get_addr(B, local)))
   {
@@ -1471,7 +1463,7 @@ bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securene
  * Retrieve the socket from the server handle
  *
  *	@param B BAKA thread/global state.
- *	@param server_handle The handle supplied to the conect callbacks.
+ *	@param server_handle The handle supplied to the connect callbacks.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>socket</i> on success.
  */
@@ -1497,7 +1489,7 @@ bk_addrgroup_get_server_socket(bk_s B, void *server_handle)
  * Shutdown a server referenced by the server handle.
  *
  *	@param B BAKA thread/global state.
- *	@param server_handle The handle supplied to the conect callbacks.
+ *	@param server_handle The handle supplied to the connect callbacks.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */

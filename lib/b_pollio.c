@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.7 2002/01/18 17:35:13 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.8 2002/02/22 07:09:38 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -34,8 +34,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 struct polling_io_data
 {
   bk_flags		pid_flags;		///< Everyone needs flags.
-  bk_vptr *		pid_data;		///< The actuall data.
-  bk_ioh_status_e	pid_status;		///< The status which was returned.
+  bk_vptr *		pid_data;		///< The actual data.
+  bk_ioh_status_e	pid_status;		///< The returned status.
 };
 
 
@@ -45,7 +45,7 @@ struct polling_io_data
  *
  * <WARNING> 
  * IF YOU CHANGE THIS FROM A DLL, YOU MUST SEARCH FOR THE STRING clc_add (2
- * instances) AND CHANGE THOS REFERENCES WHICH DO NOT MATCH THE MACRO
+ * instances) AND CHANGE THOSE REFERENCES THAT DO NOT MATCH THE MACRO
  * FORMAT.
  * </WARNING> 
  */
@@ -72,7 +72,7 @@ struct polling_io_data
 
 static struct polling_io_data *pid_create(bk_s B);
 static void pid_destroy(bk_s B, struct polling_io_data *pid);
-static void polling_io_ioh_handler(bk_s B, bk_vptr data[], void *args, struct bk_ioh *ioh, bk_ioh_status_e status);
+static void polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk_ioh_status_e status);
 static int polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags );
 
 
@@ -134,10 +134,10 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
  * Close up on demand I/O.
  *
  * <WARNING> 
- * For various and sundry reasons it's beoome clear that ioh should be
+ * For various and sundry reasons it has become clear that ioh should be
  * closed here too. Therefore if you are using polling io then you should
- * surrender contrl of the ioh (or more to the point control it via the
- * polling routines). In this respect poilling io is like b_relay.c.
+ * surrender control of the ioh (or more to the point control it via the
+ * polling routines). In this respect polling io is like b_relay.c.
  * </WARNING>
  *
  *	@param B BAKA thread/global state.
@@ -202,7 +202,7 @@ bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi)
 
 
 /**
- * The on demand I/O subsytem's ioh handler. Remember this handles both
+ * The on demand I/O subsystem's ioh handler. Remember this handles both
  * reads and writes.
  *
  *	@param B BAKA thread/global state.
@@ -211,7 +211,7 @@ bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi)
  *	@param state What's going on in the world.
  */
 static void
-polling_io_ioh_handler(bk_s B, bk_vptr data[], void *args, struct bk_ioh *ioh, bk_ioh_status_e status)
+polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk_ioh_status_e status)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_polling_io *bpi = args;
@@ -349,7 +349,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr data[], void *args, struct bk_ioh *ioh, b
  * freed.
  *
  *	@param B BAKA thread/global state.
- *	@param data The list of vptr's to nuke.
+ *	@param data The list of vptrs to nuke.
  */
 void 
 bk_polling_io_data_destroy(bk_s B, bk_vptr *data)
@@ -383,7 +383,7 @@ bk_polling_io_data_destroy(bk_s B, bk_vptr *data)
  *	@param statusp Status to pass up to the user (copyout).
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success (with data).
- *	@return <i>>0</i> on no progress.
+ *	@return <i>positive</i> on no progress.
  */
 int
 bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_status_e *status, bk_flags flags)
@@ -413,7 +413,7 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
 
 /**
  * Do one polling poll. If we have some data, dequeue it and
- * return. Othewise call bk_run_once() one time.
+ * return. Otherwise call bk_run_once() one time.
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The polling state to use.
@@ -421,7 +421,7 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
  *	@param statusp Status to pass up to the user (copyout).
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success (with data).
- *	@return <i>>0</i> on no progress.
+ *	@return <i>positive</i> on no progress.
  */
 int
 bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_status_e *status, bk_flags flags)
@@ -452,7 +452,7 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
   if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
       bk_run_once(B, bpi->bpi_ioh->ioh_run, bk_run_once_flags) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severly\n");
+    bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
     goto error;
   }
 
@@ -463,7 +463,7 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
   if (!pid)
   {
     /*
-     * If the IOH is in an eof state then return 0. However if there *is*
+     * If the IOH is in an EOF state then return 0. However if there *is*
      * data then go ahead and return it. This will occur at *least* when
      * the pid contains the actual EOF message.
      */
@@ -474,7 +474,7 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
     BK_RETURN(B,1);
   }
   
-  // You alway send status
+  // You always send status
   *status = pid->pid_status;
 
   if (pidlist_delete(bpi->bpi_data, pid) != DICT_OK)
@@ -527,7 +527,7 @@ bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh
  * Write out a buffer polling. Basically <em>all</em> bk_ioh writes are
  * "polling", but we need this function to provide the glue between some
  * layers which might not have access to the @a bk_ioh structure and the
- * actuall ioh level.
+ * actual ioh level.
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io struct to use.
@@ -564,7 +564,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, bk_flags f
   if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
       bk_run_once(B, bpi->bpi_ioh->ioh_run, BK_RUN_ONCE_FLAG_DONT_BLOCK) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severly\n");
+    bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
     BK_RETURN(B,-1);
   }
 
@@ -720,13 +720,13 @@ bk_polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     // Only nuke data vbufs.
     if (pid->pid_data->ptr || pid->pid_status == BkIohStatusIohReadEOF)
     {
-      // If we're flusing off an EOF, then clear the fact that we have seen EOF.
+      // If we're flushing off an EOF, then clear the fact that we have seen EOF.
       if (pid->pid_status == BkIohStatusIohReadEOF)
       {
 	BK_FLAG_CLEAR(bpi->bpi_flags, BPI_FLAG_SAW_EOF);
       }
       pidlist_delete(bpi->bpi_data, pid);
-      // Failure here will not kill the loop since we've already grabbed successesor
+      // Failure here will not kill the loop since we've already grabbed successor
       pid_destroy(B, pid);
     }
     
@@ -740,7 +740,7 @@ bk_polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
 
 
 /**
- * Flush out the poling cache. Very similiar to ioh flush. Flush all data buf and EOF messages.
+ * Flush out the poling cache. Very similar to ioh flush. Flush all data buf and EOF messages.
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io to use.
@@ -775,7 +775,7 @@ polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
       if (pid->pid_data)
       {
 	/* 
-	 * We're removing data which *hasnt'* been read by the user so we
+	 * We're removing data which *hasn't'* been read by the user so we
 	 * reduce *both* the amount of data on the queue and our tell
 	 * position (in the io_poll routine we *increased* the later.
 	 */

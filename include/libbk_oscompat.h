@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.14 2002/02/22 06:12:21 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.15 2002/02/22 07:09:38 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -159,7 +159,7 @@ typedef char *caddr_t;
 # define ntohll(x) (x)
 # define htonll(x) (x)
 #elif BYTE_ORDER == LITTLE_ENDIAN
-# ifdef __bswap_64				// Linux uses this
+# if defined(__bswap_64) && !defined(__INSURE__)	// Linux uses this
 #  define ntohll(x) __bswap_64 (x)
 #  define htonll(x) __bswap_64 (x)
 # else  /* !bswap_64 */
