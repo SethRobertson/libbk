@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.8 2001/07/07 13:41:14 seth Exp $
+ * $Id: libbk_internal.h,v 1.9 2001/07/08 05:10:46 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -29,6 +29,7 @@ struct bk_proctitle
 };
 
 
+#if 0
 /* b_config.h */
 struct bk_config
 {
@@ -42,7 +43,7 @@ struct bk_config_key
   char			*bc_getnext;		/* State for getnext */
   dict_h		bc_vallist;		/* List of values */
 };
-
+#endif
 
 
 /* b_debug.c */
