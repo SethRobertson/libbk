@@ -1,3 +1,9 @@
+2002-03-19  Seth Robertson  <seth@yeah.baka.org>
+
+	* lib/b_listnum.c: List of linked list heads.  Data structures for
+	fixed expiry queues with large numbers of members that get deleted
+	and reinserted a lot.
+
 2002-03-18  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_exec.c (bk_pipe_to_exec): Toss stderr if user requests.

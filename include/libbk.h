@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.124 2002/03/18 21:40:18 jtt Exp $
+ * $Id: libbk.h,v 1.125 2002/03/19 05:29:31 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -363,6 +363,28 @@ typedef enum
  *	@param args User arguments
  */
 typedef void (*bk_gethostbyfoo_callback_f)(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state);
+
+
+
+/**
+ * @name b_listnum structure and macros
+ */
+// @{
+/**
+ * Information about one numbered list
+ */
+struct bk_listnum_head
+{
+  void	       *blh_first;		///< First item on list
+  void	       *blh_last;		///< Last item on list
+  u_int		blh_num;		///< Number of this list (of the beast?)
+};
+
+
+#define BK_LISTNUM_ADD(head,node,nextname,prevname) { (node)->(nextname) = &(head); (node)->(prevname) = (head)->blh_last; (node)->(prevname)->(nextname) = &(node); (head)->blh_last = &(node); }
+#define BK_LISTNUM_DELETE(node,prefix) { (node)->(nextname)->(prevname) = (node)->(prevname); (node)->(prevname)->(nextname) = (node)->(nextname); (node)->(nextname) = NULL; (node)->(prevname) = NULL; }
+// @}
+
 
 
 /**
@@ -1428,6 +1450,13 @@ typedef void (*bk_skid_cb)(bk_s B, struct bk_ioh *ioh, void *opaque, u_int state
 extern int bk_skid_authenticate(bk_s B, struct bk_ioh *ioh, bk_vptr *myname, bk_vptr *hisname, bk_vptr *key, struct bk_config *bs_hisnamekeylist, bk_skid_cb done, void *opaque, bk_flags flags);
 extern void bk_skid_destroy(bk_s B, struct bk_skid *bs, bk_flags flags);
 #define BK_SKID_NORESTORE	0x01		///< Do not restore IOH parameters during destroy
+
+
+/* b_listnum.c */
+extern struct bk_listnum_main *bk_listnum_create(bk_s B, bk_flags flags);
+extern struct bk_listnum_head *bk_listnum_get(bk_s B, struct bk_listnum_main *main, u_int number, bk_flags flags);
+extern void bk_listnum_destroy(bk_s B, struct bk_listnum_main *main);
+extern struct bk_listnum_head *bk_listnum_next(bk_s B, struct bk_listnum_main *main, struct bk_listnum_head *prev);
 
 
 #endif /* _BK_h_ */

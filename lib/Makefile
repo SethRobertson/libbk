@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.28 2002/01/31 17:35:09 dupuy Exp $
+# $Id: Makefile,v 1.29 2002/03/19 05:29:31 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -31,6 +31,7 @@ BK_LARGE_LIBSRC=		       		\
 		b_general.c			\
 		b_getbyfoo.c			\
 		b_ioh.c				\
+		b_listnum.c			\
 		b_md5.c				\
 		b_memx.c			\
 		b_netaddr.c			\
