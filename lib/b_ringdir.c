@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.10 2004/04/15 22:06:30 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.11 2004/04/16 16:25:22 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1281,7 +1281,7 @@ bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, bk_flags flags)
   
   oldest_num = NEXT_FILE_NUM(brd, brd->brd_cur_file_num);
   
-  if (!(filename = create_file_name(B, brd->brd_pattern, oldest_num, 0)))
+  if (!(filename = create_file_name(B, brd->brd_path, oldest_num, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;
@@ -1331,7 +1331,7 @@ bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, b
 
   next_num = NEXT_FILE_NUM(brd, file_num);
 
-  if (!(next_filename = create_file_name(B, brd->brd_pattern, next_num, 0)))
+  if (!(next_filename = create_file_name(B, brd->brd_path, next_num, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;
@@ -1407,13 +1407,13 @@ bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename,
   
   if (!sscanf(filename, brd->brd_path, &file_num))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not extract file number from %s with pattern %s\n", filename, brd->brd_pattern);
+    bk_error_printf(B, BK_ERR_ERR, "Could not extract file number from %s with pattern %s\n", filename, brd->brd_path);
     goto error;
   }
 
   previous_num = PREVIOUS_FILE_NUM(brd, file_num);
 
-  if (!(previous_filename = create_file_name(B, brd->brd_pattern, previous_num, 0)))
+  if (!(previous_filename = create_file_name(B, brd->brd_path, previous_num, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;

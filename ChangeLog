@@ -1,3 +1,8 @@
+2004-04-16  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_ringdir.c (bk_ringdir_filename_predecessor): Use the
+	pattern with the full path.
+
 2004-04-15  James Tanis  <jtt@buscemi.sysdetect.com>
 
 	* lib/b_ringdir.c (bk_ringdir_standard_get_size): Return correct
