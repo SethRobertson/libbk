@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.53 2002/07/24 08:00:25 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.54 2002/07/26 07:34:00 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1823,7 +1823,7 @@ bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t nlen)
     BK_RETURN(B, NULL);
   }
 
-  BK_RETURN(B, memmem(haystack, strlen(haystack), needle, nlen);
+  BK_RETURN(B, memmem(haystack, strlen(haystack), needle, nlen));
 #endif /* !HAVE_MEMMEM */
 }
 
