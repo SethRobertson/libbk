@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.20 2003/07/03 01:58:25 seth Exp $
+# $Id: Makefile,v 1.21 2003/10/08 04:26:19 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -70,8 +70,22 @@ ifneq ($(BK_WANT_LIBTOOL),false)
 # We must do this in order for bttcp to run even if the postgres/xml/etc.
 # libraries are missing.
 
+# <TRICKY>We don't want -lbkssl or -lbkxml for most of the programs here, and
+# some of the programs don't need *anything* (e.g. timeout); however, some
+# programs (e.g. bttcp) do need -lbkssl.  To manage this mess, we use a fairly
+# obscure GNU make feature, Target-specific Variables, to set variables
+# differently for different targets.  Note that this won't necessarily do what
+# we want if there are previous := assignments using the variable we're trying
+# to override, but it works until somebody breaks it by getting fancy.</TRICKY>
 PKG_LIBS:=
-
+LOCAL_LIBS:=
 THIRD_PARTY_LIBS:=
+
+bttcp: BK_LIBS := -lbkssl $(BK_LIBS)
+
+bk_daemon timeout: BK_LIBS :=
+bk_daemon timeout: PTHREAD_LIBS :=
+bk_daemon timeout: PTHREAD_CFLAGS :=
+bk_daemon timeout: PTHREAD_CC := $(CC_CONFIG)
 
 endif # BK_WANT_LIBTOOL
