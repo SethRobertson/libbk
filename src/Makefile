@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.7 2001/11/15 22:19:47 jtt Exp $
+# $Id: Makefile,v 1.8 2001/11/18 19:04:39 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -16,6 +16,7 @@
 #
 
 BK_SIMPLE_PROGS=			\
+	mmcat				\
 	proto				\
 	bttcp				\
 #line fodder eater. Do not remove.

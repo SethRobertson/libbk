@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.10 2001/11/08 23:11:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.11 2001/11/18 19:04:39 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1050,3 +1050,272 @@ bk_strnlen(bk_s B, char *s, ssize_t max)
 
   BK_RETURN(B,c);
 }
+
+
+
+/**
+ * @name MIME routines
+ * Convert raw memory coding to and from an efficient portable representation (MIMEB64)
+ * ala RFC2045
+ *
+ * These routines are from the perl module MIME::Base64 (i.e. not covered
+ * under LGPL) converted into C by the Authors (e.g. a derivative work).
+ *
+ * Copyright (c) 1991 Bell Communications Research, Inc. (Bellcore)
+ *
+ * Permission to use, copy, modify, and distribute this material 
+ * for any purpose and without fee is hereby granted, provided 
+ * that the above copyright notice and this permission notice 
+ * appear in all copies, and that the name of Bellcore not be 
+ * used in advertising or publicity pertaining to this 
+ * material without the specific, prior written permission 
+ * of an authorized representative of Bellcore.	BELLCORE 
+ * MAKES NO REPRESENTATIONS ABOUT THE ACCURACY OR SUITABILITY 
+ * OF THIS MATERIAL FOR ANY PURPOSE.  IT IS PROVIDED "AS IS", 
+ * WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
+ */
+// @{
+
+#define MAX_LINE  76				///< size of encoded lines
+
+/// The characters used for encoding, in order of their usage
+static char basis_64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+#define XX      255				///< illegal base64 char
+#define EQ      254				///< padding
+#define INVALID XX				///< illegal base64 char
+
+/**
+ * The mime decode lookup table
+ */
+static unsigned char index_64[256] = {
+    XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+    XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+    XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,62, XX,XX,XX,63,
+    52,53,54,55, 56,57,58,59, 60,61,XX,XX, XX,EQ,XX,XX,
+    XX, 0, 1, 2,  3, 4, 5, 6,  7, 8, 9,10, 11,12,13,14,
+    15,16,17,18, 19,20,21,22, 23,24,25,XX, XX,XX,XX,XX,
+    XX,26,27,28, 29,30,31,32, 33,34,35,36, 37,38,39,40,
+    41,42,43,44, 45,46,47,48, 49,50,51,XX, XX,XX,XX,XX,
+
+    XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+    XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+    XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+    XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+    XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+    XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+    XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+    XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+};
+
+
+
+/**
+ * Encode a memory buffer into a base64 string.  The buffer will be broken
+ * in to a series of lines 76 characters long, with the eol string used to
+ * seperate each line ("\n" used if the eol string is NULL).  If the eol
+ * sequence is non-NULL, it will additionally be used to terminate the last
+ * line.
+ *
+ *	@param B BAKA Thread/Global state
+ *	@param src Source memory to convert
+ *	@param eolseq End of line sequence.
+ *	@return <i>NULL</i> on error
+ *	@return <br><i>encoded string</i> on success which caller must free
+ */
+char *bk_encode_base64(bk_s B, bk_vptr *src, char *eolseq)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  char *str;					/* string to encode */
+  ssize_t len;					/* length of the string */
+  char *eol;					/* the end-of-line sequence to use */
+  ssize_t eollen;				/* length of the EOL sequence */
+  char *r;					/* result string */
+  ssize_t rlen;					/* length of result string */
+  unsigned char c1, c2, c3;
+  int chunk;
+
+  if (!src)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
+    BK_RETURN(B, NULL);
+  }
+
+  str = src->ptr;
+  len = src->len;
+
+  /* set up EOL from the second argument if present, default to "\n" */
+  if (eolseq)
+  {
+    eol = eolseq;
+  }
+  else
+  {
+    eol = "\n";
+  }
+  eollen = strlen(eol);
+
+  /* calculate the length of the result */
+  rlen = (len+2) / 3 * 4;			/* encoded bytes */
+  if (rlen)
+  {
+    /* add space for EOL */
+    rlen += ((rlen-1) / MAX_LINE + 1) * eollen;
+  }
+
+  /* allocate a result buffer */
+  if (!BK_MALLOC_LEN(r, rlen?rlen:1))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory(%d) for result: %s\n", rlen, strerror(errno));
+    BK_RETURN(B, NULL);
+  }
+
+  /* encode */
+  for (chunk=0; len > 0; len -= 3, chunk++)
+  {
+    if (chunk == (MAX_LINE/4))
+    {
+      char *c = eol;
+      char *e = eol + eollen;
+      while (c < e)
+	*r++ = *c++;
+      chunk = 0;
+    }
+
+    c1 = *str++;
+    c2 = *str++;
+    *r++ = basis_64[c1>>2];
+    *r++ = basis_64[((c1 & 0x3)<< 4) | ((c2 & 0xF0) >> 4)];
+
+    if (len > 2)
+    {
+      c3 = *str++;
+      *r++ = basis_64[((c2 & 0xF) << 2) | ((c3 & 0xC0) >>6)];
+      *r++ = basis_64[c3 & 0x3F];
+    }
+    else if (len == 2)
+    {
+      *r++ = basis_64[(c2 & 0xF) << 2];
+      *r++ = '=';
+    }
+    else /* len == 1 */
+    {
+      *r++ = '=';
+      *r++ = '=';
+    }
+  }
+
+  if (rlen)
+  {						/* append eol to the result string */
+    char *c = eol;
+    char *e = eol + eollen;
+    while (c < e)
+      *r++ = *c++;
+  }
+  *r = '\0';					/* NULL terminate */
+
+  BK_RETURN(B, r);
+}
+
+
+
+/**
+ * Decode a base64 encoded string into memory buffer.
+ *
+ *	@param B BAKA Thread/Global state
+ *	@param src Source memory to convert
+ *	@param eolseq End of line sequence.
+ *	@return <i>NULL</i> on error
+ *	@return <br><i>decoded buffer</i> on success which caller must free (both bk_vptr and embedded string)
+ */
+bk_vptr *bk_decode_base64(bk_s B, const char *str)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
+  ssize_t len;
+  const char *end;
+  char *r;
+  ssize_t rlen;
+  unsigned char c[4];
+  bk_vptr *ret;
+
+  if (!str)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  if (!BK_MALLOC(ret))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate return structure\n");
+    BK_RETURN(B, NULL);
+  }
+
+  len = strlen(str);
+  rlen = len * 3 / 4;				// Might be too much, but always enough
+  if (!BK_MALLOC_LEN(ret->ptr, rlen?rlen:1))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate return structure\n");
+    free(ret);
+    BK_RETURN(B, NULL);
+  }
+
+  len = strlen(str);
+  end = str + len;
+  r = ret->ptr;
+
+  while (str < end)
+  {
+    int i = 0;
+
+    do
+    {
+      unsigned char uc = index_64[(int)*str++];
+      if (uc != INVALID)
+	c[i++] = uc;
+
+      if (str == end)
+      {
+	if (i < 4)
+	{
+	  if (i)
+	    bk_error_printf(B, BK_ERR_WARN, "Premature end of base64 data\n");
+
+	  if (i < 2)
+	    goto thats_it;
+
+	  if (i == 2)
+	    c[2] = EQ;
+
+	  c[3] = EQ;
+	}
+	break;
+      }
+    } while (i < 4);
+	    
+    if (c[0] == EQ || c[1] == EQ)
+    {
+      bk_error_printf(B, BK_ERR_WARN, "Premature padding of base64 data\n");
+      break;
+    }
+
+    bk_debug_printf_and(B, 1, "c0=%d,c1=%d,c2=%d,c3=%d\n", c[0],c[1],c[2],c[3]);
+
+    *r++ = (c[0] << 2) | ((c[1] & 0x30) >> 4);
+
+    if (c[2] == EQ)
+      break;
+    *r++ = ((c[1] & 0x0F) << 4) | ((c[2] & 0x3C) >> 2);
+
+    if (c[3] == EQ)
+      break;
+    *r++ = ((c[2] & 0x03) << 6) | c[3];
+  }
+
+ thats_it:
+  *r = '\0';
+  ret->len = strlen(ret->ptr);
+
+  BK_RETURN(B, ret);
+}
+// @}
+
