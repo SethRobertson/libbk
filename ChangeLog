@@ -28,6 +28,10 @@
 	* lib/b_relay.c (bk_relay_iohhandler): If defined, invoke callback
 	on reads.
 
+2003-10-27  James Tanis  <jtt@pearl.sysdetect.com>
+
+	* test/entropy/randtest.c: <libbk.h> apparently not needed at all.
+
 2003-10-07  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* ssl/Make.include (BK_EXTERNAL_RPATH): #2174: don't embed build area,

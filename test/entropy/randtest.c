@@ -8,7 +8,6 @@
 */
 
 #include <math.h>
-#include <libbk.h>
 
 #define FALSE 0
 #define TRUE  1
