@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.16 2002/07/23 02:56:29 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.17 2002/08/08 20:27:05 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -99,7 +99,8 @@ struct bk_debug *bk_debug_init(bk_s B, bk_flags flags)
 
   if (!(ret = (struct bk_debug *)malloc(sizeof(*ret))))
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Could not allocate debug structure: %s\n",strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "%s: Could not allocate debug structure: %s\n",
+		    BK_FUNCNAME, strerror(errno));
     return(NULL);
   }
   memset(ret, 0, sizeof(*ret));
@@ -123,7 +124,7 @@ void bk_debug_destroy(bk_s B, struct bk_debug *bd)
 {
   if (!bd)
   {
-    bk_error_printf(B, BK_ERR_NOTICE, __FUNCTION__ ": Invalid argument\n");
+    bk_error_printf(B, BK_ERR_NOTICE, "%s: Invalid argument\n", BK_FUNCNAME);
     return;
   }
 
@@ -180,7 +181,7 @@ u_int32_t bk_debug_query(bk_s B, struct bk_debug *bdinfo, const char *funname, c
 
   if (!bdinfo)
   {
-    bk_error_printf(B, BK_ERR_WARN, __FUNCTION__ ": Invalid arguments\n");
+    bk_error_printf(B, BK_ERR_WARN, "%s: Invalid arguments\n", BK_FUNCNAME);
     return(0);
   }
 
@@ -219,13 +220,14 @@ int bk_debug_set(bk_s B, struct bk_debug *bdinfo, const char *name, u_int32_t le
 
   if (!bdinfo || !name)
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Invalid arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "%s: Invalid arguments\n", BK_FUNCNAME);
     return(-1);
   }
 
   if (!bdinfo->bd_leveldb)
   {
-    bk_error_printf(B, BK_ERR_NOTICE, __FUNCTION__ ": Debugging not configured yet\n");
+    bk_error_printf(B, BK_ERR_NOTICE, "%s: Debugging not configured yet\n",
+		    BK_FUNCNAME);
     return(-1);
   }
 
@@ -237,13 +239,15 @@ int bk_debug_set(bk_s B, struct bk_debug *bdinfo, const char *name, u_int32_t le
 
   if (!(node = malloc(sizeof(*node))))
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Could not allocate memory to set debug level: %s\n",strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "%s: Could not allocate memory to set debug level: %s\n",
+		    BK_FUNCNAME, strerror(errno));
     goto error;
   }
 
   if (!(node->bd_name = strdup(name)))
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Could not strdup debug name %s: %s\n",name,strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "%s: Could not strdup debug name %s: %s\n",name,
+		    BK_FUNCNAME, strerror(errno));
     goto error;
   }
 
@@ -251,7 +255,8 @@ int bk_debug_set(bk_s B, struct bk_debug *bdinfo, const char *name, u_int32_t le
 
   if (debug_insert(bdinfo->bd_leveldb, node) != DICT_OK)
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Could not insert debug node for %s: %s\n",name, debug_error_reason(bdinfo->bd_leveldb, NULL));
+    bk_error_printf(B, BK_ERR_ERR, "%s: Could not insert debug node for %s: %s\n",
+		    BK_FUNCNAME, name, debug_error_reason(bdinfo->bd_leveldb, NULL));
     goto error;
   }
 
@@ -297,7 +302,7 @@ int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config
 
   if (!bdinfo || !config || !program)
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Invalid arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "%s: Invalid arguments\n", BK_FUNCNAME);
     return(-1);
   }
 
@@ -307,13 +312,15 @@ int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config
 
     if (!(tokenized = bk_string_tokenize_split(B, value, 0, BK_WHITESPACE, NULL, BK_STRING_TOKENIZE_SIMPLE)))
     {
-      bk_error_printf(B, BK_ERR_WARN, __FUNCTION__ ": Could not tokenize value %s\n",value);
+      bk_error_printf(B, BK_ERR_WARN, "%s: Could not tokenize value %s\n",
+		      BK_FUNCNAME, value);
       ret++;
       continue;
     }
     if (!tokenized[0] || !tokenized[1] || !tokenized[2])
     {
-      bk_error_printf(B, BK_ERR_WARN, __FUNCTION__ ": Invalid number of tokens while parsing `%s'\n",value);
+      bk_error_printf(B, BK_ERR_WARN, "%s: Invalid number of tokens while parsing `%s'\n",
+		      BK_FUNCNAME, value);
       ret++;
       goto next;
     }
@@ -322,7 +329,8 @@ int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config
 
     if (bk_string_atou(B, tokenized[2], &level, 0) < 0)
     {
-      bk_error_printf(B, BK_ERR_WARN, __FUNCTION__ ": Invalid debugging level `%s' in `%s'\n",tokenized[2],value);
+      bk_error_printf(B, BK_ERR_WARN, "%s: Invalid debugging level `%s' in `%s'\n",
+		      BK_FUNCNAME, tokenized[2], value);
       ret++;
       goto next;
     }
@@ -331,7 +339,8 @@ int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config
 
     if (bk_debug_set(B, bdinfo, tokenized[1], level) < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Could not set debugging level for `%s'\n",value);
+      bk_error_printf(B, BK_ERR_ERR, "%s: Could not set debugging level for `%s'\n",
+		      BK_FUNCNAME, value);
       ret++;
       goto next;
     }
@@ -363,13 +372,14 @@ void bk_debug_config(bk_s B, struct bk_debug *bdinfo, FILE *fh, int sysloglevel,
 {
   if (!bdinfo)
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Invalid arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "%s: Invalid arguments\n", BK_FUNCNAME);
     return;
   }
 
   if (!(bdinfo->bd_leveldb = debug_create((dict_function)debug_oo_cmp, (dict_function)debug_ko_cmp, DICT_HT_STRICT_HINTS, &debug_args)))
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Could not creat debug queue: %s\n", debug_error_reason(NULL, NULL));
+    bk_error_printf(B, BK_ERR_ERR, "%s: Could not creat debug queue: %s\n",
+		    BK_FUNCNAME, debug_error_reason(NULL, NULL));
     return;
   }
 
@@ -398,7 +408,8 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, const char *buf)
   
   if (!(funname = bk_fun_funname(B, 0, 0)))
   {
-    bk_error_printf(B, BK_ERR_NOTICE, __FUNCTION__ ": Cannot determine function name\n");
+    bk_error_printf(B, BK_ERR_NOTICE, "%s: Cannot determine function name\n",
+		    BK_FUNCNAME);
     funname = "?";
   }
 
@@ -417,7 +428,8 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, const char *buf)
     /* <WARNING>this check should really be done with assert</WARNING> */
     if ((tmp = strftime(timeprefix, sizeof(timeprefix), "%m/%d %H:%M:%S", tm)) != 14)
     {
-      bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Somehow strftime produced %d bytes instead of the expected 14\n",tmp);
+      bk_error_printf(B, BK_ERR_ERR, "%s: strftime returns %d != 14\n",
+		      BK_FUNCNAME, tmp);
       return;
     }
 
@@ -452,7 +464,7 @@ void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, const char *format, ...)
 
   if (!bdinfo || !format)
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Invalid argument\n");
+    bk_error_printf(B, BK_ERR_ERR, "%s: Invalid argument\n", BK_FUNCNAME);
     return;
   }
     
@@ -483,7 +495,7 @@ void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, const char *intro, cons
 
   if (!(out = bk_string_printbuf(B, intro, prefix, buf, 0)))
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Could not convert buffer for debug printing\n");
+    bk_error_printf(B, BK_ERR_ERR, "%s: Could not convert buffer for debug printing\n", BK_FUNCNAME);
     return;
   }
 
@@ -510,7 +522,7 @@ void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, const char *format, va_l
 
   if (!bdinfo || !format)
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Invalid argument\n");
+    bk_error_printf(B, BK_ERR_ERR, "%s: Invalid argument\n", BK_FUNCNAME);
     return;
   }
     

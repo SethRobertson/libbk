@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.25 2002/07/23 02:56:29 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.26 2002/08/08 20:27:05 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -120,7 +120,8 @@ struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogt
   if (!(beinfo = malloc(sizeof(*beinfo))))
   {
     if (fh)
-      fprintf(fh, __FUNCTION__ ": Could not allocate storage for error queue structure: %s\n", strerror(errno));
+      fprintf(fh, "%s: Could not allocate storage for error queue structure: %s\n",
+	      BK_FUNCNAME, strerror(errno));
     return(NULL);
   }
 
@@ -136,21 +137,24 @@ struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogt
   if (!(beinfo->be_markqueue = errq_create(NULL, NULL, DICT_UNORDERED, NULL)))
   {
     if (fh)
-      fprintf(fh, __FUNCTION__ ": Could not create mark error queue: %s\n", errq_error_reason(NULL, NULL));
+      fprintf(fh, "%s: Could not create mark error queue: %s\n",
+	      BK_FUNCNAME, errq_error_reason(NULL, NULL));
     goto error;
   }
 
   if (!(beinfo->be_hiqueue = errq_create(NULL, NULL, DICT_UNORDERED, NULL)))
   {
     if (fh)
-      fprintf(fh, __FUNCTION__ ": Could not create hi error queue: %s\n", errq_error_reason(NULL, NULL));
+      fprintf(fh, "%s: Could not create hi error queue: %s\n",
+	      BK_FUNCNAME, errq_error_reason(NULL, NULL));
     goto error;
   }
 
   if (!(beinfo->be_lowqueue = errq_create(NULL, NULL, DICT_UNORDERED, NULL)))
   {
     if (fh)
-      fprintf(fh, __FUNCTION__ ": Could not create low error queue: %s\n", errq_error_reason(NULL, NULL));
+      fprintf(fh, "%s: Could not create low error queue: %s\n",
+	      BK_FUNCNAME, errq_error_reason(NULL, NULL));
     goto error;
   }
 
