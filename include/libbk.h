@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.221 2003/03/25 22:01:44 dupuy Exp $
+ * $Id: libbk.h,v 1.222 2003/03/28 20:33:34 seth Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -38,6 +38,10 @@ struct bk_addrgroup;
 struct bk_server_info;
 struct bk_netinfo;
 struct bk_polling_io;
+struct bk_stat_list;
+struct bk_stat_node;
+
+
 
 /*
  * This formula is based on zlib manual which states that dst buffer must
@@ -282,12 +286,14 @@ struct bk_general
   struct bk_proctitle	*bg_proctitle;		///< Process title info
   struct bk_config	*bg_config;		///< Configuration info
   struct bk_child	*bg_child;		///< Tracked child info 
+  struct bk_stat_list	*bg_funstats;		///< Function performance stats
+  char			*bg_funstatfile;		///< Filename to output funperfstats
   char			*bg_program;		///< Name of program
   bk_flags		bg_flags;		///< Flags
-#define BK_BGFLAGS_FUNON	0x1		///< Is function tracing on?
-#define BK_BGFLAGS_DEBUGON	0x2		///< Is debugging on?
-#define BK_BGFLAGS_SYSLOGON	0x4		///< Is syslog on?
-#define BK_BGFLAGS_THREADON	0x8		///< Is threading on?
+#define BK_BGFLAGS_FUNON	0x01		///< Is function tracing on?
+#define BK_BGFLAGS_DEBUGON	0x02		///< Is debugging on?
+#define BK_BGFLAGS_SYSLOGON	0x04		///< Is syslog on?
+#define BK_BGFLAGS_THREADON	0x08		///< Is threading on?
 #ifdef BK_USING_PTHREADS
   pthread_mutex_t	bg_wrmutex;		///< Lock on writing of general structure <TODO>Verify that readers either get old or new value--otherwise this needs to be a rdwr lock and all hell starts breaking loose</TODO>
 #endif /* BK_USING_PTHREADS */
@@ -298,6 +304,8 @@ struct bk_general
 #define BK_GENERAL_REINIT(B)	((B)?(B)->bt_general->bg_reinit:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general reinit list
 #define BK_GENERAL_DESTROY(B)	((B)?(B)->bt_general->bg_destroy:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general destruction list
 #define BK_GENERAL_PROCTITLE(B) ((B)?(B)->bt_general->bg_proctitle:(struct bk_proctitle *)bk_nullptr) ///< Access the bk_general process title state
+#define BK_GENERAL_FUNSTATS(B) ((B)?(B)->bt_general->bg_funstats:(struct bk_stat_list *)bk_nullptr) ///< Access the bk_general function statistics state
+#define BK_GENERAL_FUNSTATFILE(B) ((B)?(B)->bt_general->bg_funstatfile:(char *)bk_nullptr) ///< Access the bk_general function statistics output filename
 #define BK_GENERAL_CONFIG(B)	((B)?(B)->bt_general->bg_config:(struct bk_config *)bk_nullptr) ///< Access the bk_general config info
 #define BK_GENERAL_PROGRAM(B)	((B)?(B)->bt_general->bg_program:(char *)bk_nullptr) ///< Access the bk_general program name
 #define BK_GENERAL_FLAGS(B)	((B)?(B)->bt_general->bg_flags:bk_zerouint) ///< Access the bk_general flags
@@ -306,6 +314,7 @@ struct bk_general
 #define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON) ///< Is debugging on?
 #define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON) ///< Is system logging on?
 #define BK_GENERAL_FLAG_ISTHREADON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADON) ///< Is threading on?
+#define BK_GENERAL_ISFUNSTATSON(B) (BK_GENERAL_FUNSTATFILE(B) && BK_GENERAL_FUNSTATS(B)) ///< Is fun stats on?
 // @}
 
 
@@ -940,6 +949,7 @@ struct bk_funinfo
   const char *bf_pkgname;			///< Package name
   const char *bf_grpname;			///< Group name
   u_int32_t bf_debuglevel;			///< Per-function debug level
+  struct timeval bf_starttime;			///< If function stats on...
 };
 
 
@@ -1316,6 +1326,7 @@ extern void bk_general_vsyslog(bk_s B, int level, bk_flags flags, const char *fo
 #define BK_SYSLOG_FLAG_NOFUN 1			///< Don't want function name included during bk_general_*syslog
 #define BK_SYSLOG_FLAG_NOLEVEL 2		///< Don't want error level included during bk_general_*syslog
 extern const char *bk_general_errorstr(bk_s B, int level);
+extern int bk_general_funstat_init(bk_s B, char *filename, bk_flags flags);
 extern int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags);
 extern void *bk_nullptr;			/* NULL pointer junk */
 extern int bk_zeroint;				/* Zero integer junk */
@@ -1939,8 +1950,6 @@ extern bk_vault_t bk_vault_create(bk_s B, int table_entries, int bucket_entries,
 
 
 /* b_stats.c */
-struct bk_stat_list;				// Forward reference
-struct bk_stat_node;				// Forward reference
 extern struct bk_stat_list *bk_stat_create(bk_s B, bk_flags flags);
 extern void bk_stat_destroy(bk_s B, struct bk_stat_list *blist);
 extern struct bk_stat_node *bk_stat_nodelist_create(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, bk_flags flags);
@@ -1952,9 +1961,9 @@ extern void bk_stat_node_start(bk_s B, struct bk_stat_node *bnode, bk_flags flag
 extern void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags);
 extern char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags);
 #define BK_STAT_DUMP_HTML	0x1	///< Request HTML string instead of CSV
-extern void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, u_int *minusec, u_int *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags);
-extern void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_int *minusec, u_int *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags);
-
-
+extern void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, u_quad_t *minusec, u_quad_t *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags);
+extern void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_quad_t *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags);
+extern void bk_stat_add(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, u_quad_t usec, bk_flags flags);
+extern void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, bk_flags flags);
 
 #endif /* _BK_h_ */

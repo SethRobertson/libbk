@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.32 2002/11/11 22:53:58 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.33 2003/03/28 20:33:35 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -149,6 +149,33 @@ void bk_general_destroy(bk_s B)
       {
 	bk_funlist_call(B, BK_GENERAL_DESTROY(B), 0, 0);
 	bk_funlist_destroy(B, BK_GENERAL_DESTROY(B));
+      }
+
+      if (BK_GENERAL_ISFUNSTATSON(B))
+      {
+	FILE *FH = fopen(BK_GENERAL_FUNSTATFILE(B),"w");
+	if (FH)
+	{
+	  char *data = bk_stat_dump(B, BK_GENERAL_FUNSTATS(B), BK_STAT_DUMP_HTML);
+	  if (data)
+	  {
+	    fwrite(data, strlen(data), 1, FH);
+	    free(data);
+	  }
+	  fclose(FH);
+	}
+      }
+
+      if (BK_GENERAL_FUNSTATS(B))
+      {
+	bk_stat_destroy(B, BK_GENERAL_FUNSTATS(B));
+	BK_GENERAL_FUNSTATS(B) = NULL;
+      }
+
+      if (BK_GENERAL_FUNSTATFILE(B))
+      {
+	free(BK_GENERAL_FUNSTATFILE(B));
+	BK_GENERAL_FUNSTATFILE(B) = NULL;
       }
 
       if (BK_GENERAL_PROCTITLE(B))
@@ -537,6 +564,43 @@ int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags)
   BK_RETURN(B, 0);
 }
 
+
+
+/**
+ * Initialize function statistics
+ *
+ * THREADS: REENTRANT
+ *
+ *	@param B BAKA Thread/global state
+ *	@param filename Filename to log function statistics to (NULL to disable)
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> on call failure
+ *	@return <br><i>0</i> on success
+ */
+int bk_general_funstat_init(bk_s B, char *filename, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!B)
+    BK_RETURN(B, -1);
+
+  if (BK_GENERAL_FUNSTATFILE(B))
+    free(BK_GENERAL_FUNSTATFILE(B));
+  BK_GENERAL_FUNSTATFILE(B) = NULL;
+
+  if (filename)
+  {
+    if (!(BK_GENERAL_FUNSTATS(B) = bk_stat_create(B, 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create stats structure\n");
+      BK_RETURN(B, -1);
+    }
+
+    BK_GENERAL_FUNSTATFILE(B) = strdup(filename);
+  }
+
+  BK_RETURN(B, 0);
+}
 
 
 /**

@@ -1,3 +1,13 @@
+2003-03-25  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_fun.c (bk_fun_{entry,exit}): Hooks to bk profiling
+
+	* lib/b_stats.c (bk_stat_*add): Allow API to accumulation function
+	(for bk profiling which has recursive calls to functions)
+
+	* lib/b_general.c (bk_general_funstat_init): Initialization
+	routine for bk profiling
+
 2003-03-25  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_url.c (bk_url_parse): distinguish scheme:/// from scheme:/

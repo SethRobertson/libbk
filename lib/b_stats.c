@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.1 2003/03/25 04:56:23 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_stats.c,v 1.2 2003/03/28 20:33:35 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,6 +26,21 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
+/**
+ * We cannot use bk_fun since bk_fun uses us.  Nasty recursion if we do...
+ */
+// @{
+#undef BK_ENTRY
+#undef BK_RETURN
+#undef BK_ORETURN
+#undef BK_VRETURN
+#define BK_ENTRY(B, fun, pkg, grp) struct bk_funinfo *__bk_funinfo = NULL
+#define BK_RETURN(B, ret) do { return(ret); } while (__bk_funinfo)
+#define BK_ORETURN(B, ret) do { return(ret); } while (__bk_funinfo)
+#define BK_VRETURN(B) do { return; } while (__bk_funinfo)
+// @}
+
+
 #define MAXPERFINFO	8192			///< Maximum size for a performance information line
 
 
@@ -48,12 +63,12 @@ struct bk_stat_node
 {
   const char	       *bsn_name1;		///< Primary name of tracking node
   const char	       *bsn_name2;		///< Subsidiary name of tracking node
-  u_int			bsn_minutime;		///< Minimum number of microseconds we have seen for this item
-  u_int			bsn_maxutime;		///< Maximum number of microseconds we have seen for this item
-  u_int			bsn_count;		///< Number of times we have tracked 
-  bk_flags		bsn_flags;		///< Flags for the future
+  u_quad_t		bsn_minutime;		///< Minimum number of microseconds we have seen for this item
+  u_quad_t		bsn_maxutime;		///< Maximum number of microseconds we have seen for this item
   u_quad_t		bsn_sumutime;		///< Sum of microseconds we have seen for this itme
   struct timeval	bsn_start;		///< Start time for current tracking
+  u_int			bsn_count;		///< Number of times we have tracked 
+  bk_flags		bsn_flags;		///< Flags for the future
 };
 
 
@@ -383,7 +398,7 @@ void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct timeval end, sum;
-  u_int thisus = 0;
+  u_quad_t thisus = 0;
 
   if (!bnode)
   {
@@ -401,12 +416,14 @@ void bk_stat_node_end(bk_s B, struct bk_stat_node *bnode, bk_flags flags)
 
   BK_TV_SUB(&sum, &end, &bnode->bsn_start);
 
+#ifdef THISUS_IS_INT
   if (sum.tv_sec >= 4294)
   {
     bk_error_printf(B, BK_ERR_WARN, "Performance tracking only good for intervals <= 2^32/10^6 seconds\n");
     thisus = UINT_MAX;
   }
   else
+#endif /*THISUS_IS_INT*/
     thisus = BK_SECSTOUSEC(sum.tv_sec) + sum.tv_usec;
 
   if (thisus < bnode->bsn_minutime)
@@ -461,11 +478,11 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
   {
     if (BK_FLAG_ISSET(flags, BK_STAT_DUMP_HTML))
     {
-      snprintf(perfbuf, sizeof(perfbuf), "<tr><td>%s</td><td>%s</td><td>%u</td><td>%.3f</td><td>%u</td><td>%u</td></tr>\n",bnode->bsn_name1, bnode->bsn_name2, bnode->bsn_minutime, bnode->bsn_count?(float)bnode->bsn_sumutime/bnode->bsn_count:0.0, bnode->bsn_maxutime, bnode->bsn_count);
+      snprintf(perfbuf, sizeof(perfbuf), "<tr><td>%s</td><td>%s</td><td>%llu</td><td>%.3f</td><td>%llu</td><td>%u</td><td>%llu</td></tr>\n",bnode->bsn_name1, bnode->bsn_name2, bnode->bsn_minutime, bnode->bsn_count?(float)bnode->bsn_sumutime/bnode->bsn_count:0.0, bnode->bsn_maxutime, bnode->bsn_count,bnode->bsn_sumutime);
     }
     else
     {
-      snprintf(perfbuf, sizeof(perfbuf), "\"%s\",\"%s\",\"%u\",\"%.3f\",\"%u\",\"%u\"\n",bnode->bsn_name1, bnode->bsn_name2, bnode->bsn_minutime, bnode->bsn_count?(float)bnode->bsn_sumutime/bnode->bsn_count:0.0, bnode->bsn_maxutime, bnode->bsn_count);
+      snprintf(perfbuf, sizeof(perfbuf), "\"%s\",\"%s\",\"%llu\",\"%.3f\",\"%llu\",\"%u\",\"%llu\"\n",bnode->bsn_name1, bnode->bsn_name2, bnode->bsn_minutime, bnode->bsn_count?(float)bnode->bsn_sumutime/bnode->bsn_count:0.0, bnode->bsn_maxutime, bnode->bsn_count,bnode->bsn_sumutime);
     }
     if (bk_vstr_cat(B, 0, &ostring, perfbuf) < 0)
       goto error;
@@ -504,7 +521,7 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
  * @param count Copy-out for node information
  * @param flags Fun for the future
  */
-void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, u_int *minusec, u_int *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags)
+void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, u_quad_t *minusec, u_quad_t *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_stat_node *bnode;
@@ -553,7 +570,7 @@ void bk_stat_info(bk_s B, struct bk_stat_list *blist, const char *name1, const c
  * @param count Copy-out for node information
  * @param flags Fun for the future
  */
-void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_int *minusec, u_int *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags)
+void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_quad_t *minusec, u_quad_t *maxusec, u_quad_t *sumutime, u_int *count, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -574,6 +591,79 @@ void bk_stat_node_info(bk_s B, struct bk_stat_node *bnode, u_int *minusec, u_int
 
   if (count)
     *count = bnode->bsn_count;
+
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Add units to a performance interval, by name
+ *
+ * @param B BAKA thread/global environment
+ * @param blist Performance list
+ * @param name1 Primary name
+ * @param name2 Secondary name
+ * @param usec Units (usec usually) to add
+ * @param flags Fun for the future
+ */
+void bk_stat_add(bk_s B, struct bk_stat_list *blist, const char *name1, const char *name2, u_quad_t usec, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_stat_node *bnode;
+  struct bk_stat_node searchnode;
+
+  if (!blist || !name1)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_VRETURN(B);
+  }
+
+  searchnode.bsn_name1 = name1;
+  searchnode.bsn_name2 = name2;
+
+  if (!(bnode = bsl_search(blist->bsl_list, &searchnode)))
+  {
+    // New node, start tracking
+    if (!(bnode = bk_stat_nodelist_create(B, blist, name1, name2, 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not autocreate performance node %s/%s, pressing on\n",name1, name2?name2:"");
+      BK_VRETURN(B);
+    }
+  }
+  bk_stat_node_add(B, bnode, usec, 0);
+
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Add to a performance interval
+ *
+ * @param B BAKA thread/global environment
+ * @param bnode Node to end interval
+ * @param usec Units (usec usually) to add
+ * @param flags Fun for the future
+ */
+void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bnode)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_VRETURN(B);
+  }
+
+  if (usec < bnode->bsn_minutime)
+    bnode->bsn_minutime = usec;
+
+  if (usec > bnode->bsn_maxutime)
+    bnode->bsn_maxutime = usec;
+
+  bnode->bsn_sumutime += usec;
+  bnode->bsn_count++;
 
   BK_VRETURN(B);
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.18 2002/11/11 22:53:58 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_fun.c,v 1.19 2003/03/28 20:33:35 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -109,7 +109,7 @@ struct bk_funinfo *bk_fun_entry(bk_s B, const char *func, const char *package, c
     return(NULL);
   }
 
-  if (!(fh = (struct bk_funinfo *)malloc(sizeof *fh)))
+  if (!BK_MALLOC(fh))
   {
     if (B)
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate storage for function header: %s\n",strerror(errno));
@@ -120,6 +120,15 @@ struct bk_funinfo *bk_fun_entry(bk_s B, const char *func, const char *package, c
   fh->bf_pkgname = package;
   fh->bf_grpname = grp;
   fh->bf_debuglevel = 0;
+
+  if (BK_GENERAL_ISFUNSTATSON(B))
+  {
+    gettimeofday(&fh->bf_starttime, NULL);
+  }
+  else
+  {
+    fh->bf_starttime.tv_sec = 0;		// Stupid, yes, but funstats could be turned on at any moment...
+  }
 
   bk_fun_reentry_i(B, fh);			/* OK, not re-entry, but code concentration... */
 
@@ -151,6 +160,17 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
     free(fh);
     return;
   }
+
+  if (fh->bf_starttime.tv_sec && BK_GENERAL_ISFUNSTATSON(B))
+  {
+    struct timeval end, sum;
+    u_quad_t thisus = 0;
+    gettimeofday(&end, NULL);
+    BK_TV_SUB(&sum, &end, &fh->bf_starttime);
+    thisus = BK_SECSTOUSEC(sum.tv_sec) + sum.tv_usec;
+    bk_stat_add(B, BK_GENERAL_FUNSTATS(B), "Function Tracing", fh->bf_funname, thisus, 0);
+  }
+
 
   for(cur = (struct bk_funinfo *)funstack_minimum(BK_BT_FUNSTACK(B)); cur && cur != fh; cur = (struct bk_funinfo *)funstack_successor(BK_BT_FUNSTACK(B), cur))
     ; // Intentionally void
