@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.57 2003/06/12 21:58:44 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.58 2003/06/13 22:23:54 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -152,7 +152,7 @@ struct bk_run
   dict_h		br_poll_funcs;		///< Poll functions
   dict_h		br_ondemand_funcs;	///< On demands functions
   dict_h		br_idle_funcs;		///< Idle tasks (nothing else to do)
-  pq_h			*br_equeue;		///< Event queue
+  pq_h			br_equeue;		///< Event queue
   volatile sig_atomic_t	br_signums[NSIG];	///< Number of signal events we have received
   struct br_sighandler	br_handlerlist[NSIG];	///< Handlers for signals
   bk_flags		br_flags;		///< General flags
