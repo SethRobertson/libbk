@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.8 2004/04/14 18:54:01 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.9 2004/04/14 23:37:23 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1310,7 +1310,7 @@ bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, b
     BK_RETURN(B, NULL);
   }
   
-  if (!sscanf(filename, brd->brd_pattern, &file_num))
+  if (!sscanf(filename, brd->brd_path, &file_num))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not extract file number from %s\n", filename);
     goto error;
@@ -1392,9 +1392,9 @@ bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename,
     BK_RETURN(B, NULL);
   }
   
-  if (!sscanf(filename, brd->brd_pattern, &file_num))
+  if (!sscanf(filename, brd->brd_path, &file_num))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not extract file number from %s\n", filename);
+    bk_error_printf(B, BK_ERR_ERR, "Could not extract file number from %s with pattern %s\n", filename, brd->brd_pattern);
     goto error;
   }
 
