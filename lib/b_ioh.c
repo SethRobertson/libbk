@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.97 2003/07/16 00:11:27 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.98 2003/07/25 20:16:04 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2255,6 +2255,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	}
 	else if (cnt < 0)
 	{
+	  bk_error_printf(B, BK_ERR_ERR, "Write (in raw mode) failed\n");
 	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
 	  ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
 	  CALL_BACK(B, ioh, NULL, BkIohStatusIohWriteError);
@@ -2535,6 +2536,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
       }
       else if (cnt < 0)
       {
+	bk_error_printf(B, BK_ERR_ERR, "Write (in block mode) failed\n");
 	BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
 	ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
 	CALL_BACK(B, ioh, NULL, BkIohStatusIohWriteError);
@@ -2816,6 +2818,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	}
 	else if (cnt < 0)
 	{
+	  bk_error_printf(B, BK_ERR_ERR, "Write (in vector mode) failed\n");
 	  BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_ERROR_OUTPUT);
 	  ioh_flush_queue(B, ioh, &ioh->ioh_writeq, NULL, 0);
 	  CALL_BACK(B, ioh, NULL, BkIohStatusIohWriteError);
@@ -3705,7 +3708,9 @@ int bk_ioh_stdrdfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t bu
   int ret, erno;
 
   errno = 0;
-  ret = read(fd, buf, size);
+  if ((ret = read(fd, buf, size)) < 0)
+    bk_error_printf(B, BK_ERR_ERR, "read syscall failed on fd %d of size %u: %s\n", fd, size, strerror(errno));
+    
   erno = errno;
 
   bk_debug_printf_and(B, 1, "System read returns %d with errno %d\n", ret, errno);
@@ -3746,7 +3751,9 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
   int ret, erno;
 
   errno = 0;
-  ret = writev(fd, buf, size);
+  if ((ret = writev(fd, buf, size)) < 0)
+    bk_error_printf(B, BK_ERR_ERR, "write syscall failed on fd %d of size %u: %s\n", fd, size, strerror(errno));
+    
   erno = errno;
 
   bk_debug_printf_and(B, 1, "System writev returns %d with errno %d\n",ret,errno);
@@ -3849,7 +3856,7 @@ compress_write(bk_s B, struct bk_ioh *ioh, bk_iowfunc_f writefun, void *opaque, 
     {
       if (!(q = realloc(src, len + buf[cnt].iov_len)))
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not allocat compress source"));
+	bk_error_printf(B, BK_ERR_ERR, "Could not allocat compress source");
 	free(src);
 	src = NULL;
 	break;

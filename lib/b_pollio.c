@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.43 2003/06/20 22:33:21 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.44 2003/07/25 20:16:05 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -542,6 +542,8 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
 #endif /* BK_USING_PTHREADS */
 
     // The ioh is now dead.
+    bk_debug_printf_and(B, 128,"Polling IOH is closing\n");
+    
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_IOH_DEAD);
 
 #ifdef BK_USING_PTHREADS
@@ -573,6 +575,9 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
 
     bpi->bpi_wroutstanding--;
     BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_WRITE_DEAD);
+
+    bk_error_printf(B, BK_ERR_ERR, "Polling write failed at IOH level\n");
+    
 
 #ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
