@@ -8,6 +8,7 @@
 */
 
 #include <math.h>
+#include <libbk.h>
 
 #define FALSE 0
 #define TRUE  1
@@ -22,7 +23,7 @@ static double prob[256];	   /* Probabilities per bin for entropy */
 
 /*  LOG2  --  Calculate log to the base 2  */
 
-#ifndef log2
+#if !defined(log2) && !defined(HAVE_LOG2)
 static double log2(double x)
 {
     return log2of10 * log10(x);

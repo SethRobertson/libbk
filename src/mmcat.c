@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: mmcat.c,v 1.9 2003/06/17 06:07:18 seth Exp $";
+static const char libbk__rcsid[] = "$Id: mmcat.c,v 1.10 2003/06/25 15:34:05 brian Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -187,7 +187,7 @@ main(int argc, char **argv, char **envp)
 
   if (!BK_MALLOC_LEN(buf, pconfig->pc_size))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer of size %d: %s\n", pconfig->pc_size, strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer of size %d: %s\n", (int)pconfig->pc_size, strerror(errno));
     bk_die(B, 254, stderr,"Could not allocate memory for input buffer\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 
