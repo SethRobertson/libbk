@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.31 2004/12/24 00:28:00 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.32 2005/03/17 06:20:04 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -426,7 +426,7 @@ int bk_debug_setconfig_i(bk_s B, struct bk_debug *bdinfo, struct bk_config *conf
   {
     u_int32_t level;
 
-    if (!(tokenized = bk_string_tokenize_split(B, value, 0, BK_WHITESPACE, NULL, NULL, BK_STRING_TOKENIZE_SIMPLE)))
+    if (!(tokenized = bk_string_tokenize_split(B, value, 0, BK_WHITESPACE, NULL, NULL, NULL, BK_STRING_TOKENIZE_SIMPLE)))
     {
       bk_error_printf(B, BK_ERR_WARN, "%s: Could not tokenize value %s\n",
 		      BK_FUNCNAME, value);

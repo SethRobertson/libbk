@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.120 2005/02/22 21:53:34 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.121 2005/03/17 06:20:04 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,6 +25,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
+#define jtts stderr
 
 /**
  * @name bk_str_registry
@@ -75,6 +76,7 @@ struct bk_str_registry_element
 #define S_SPLIT			0x20		///< In split character
 #define S_BASE			0x40		///< Base state
 #define S_VARIABLEDELIM		0x80		///< In ${variable} (saw at least ${)
+#define S_BRACE			0x100		///< Inside braces.
 #define INSTATE(x)		(state & (x))	///< Are we in this state
 #define GOSTATE(x)		state = x	///< Become this state
 #define ADDSTATE(x)		state |= x	///< Superstate (typically variable in dquote)
@@ -425,12 +427,25 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  * $[A-Za-z0-9_]+ and ${[A-Za-z0-9_]+} will take place, in unquoted and double-quoted
  * strings.
  *
+ * Braces act like quotes with a few enhancements: 1) The caller decides
+ * which character pairs are braces and passes them via the @a brace
+ * argument below. An example of a brace string is "<>{}[]". 2) They
+ * nest. So the following string "{ text { more text } even more text }"
+ * comes out looking like "text { more text } even more text" instead of
+ * "text " which would be the case for quotes. By default the text inside
+ * braces is expanded as if the outter braces were doulble quotes but the
+ * BK_STRING_TOKENIZE_BRACES_LIKE_SQUOTE overrides this. By default the
+ * outter braces are stripped just like with quotes, but the
+ * BK_STRING_TOKENIZE_KEEP_BRACES overrides this.
+ *
+ *
  * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
  *	@param src Source string to tokenize
  *	@param limit Maximum number of tokens to generate--last token contains "rest" of string.  Zero for unlimited.
  *	@param spliton The string containing the character(s) which separate tokens
+ *	@param braces String of character pairs which degine left and right braces.
  *	@param kvht_vardb Key-value hash table for variable substitution
  *	@param variabledb Environ-style environment for variable substitution
  *	@param flags 
@@ -480,15 +495,24 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *		BK_STRING_TOKENIZE_CONF_EXPAND if set will allow you to
  *		expand keys using values from you bk_conf. 
  *
- *		BK_STRING_TOKENIZE_WANT_EMPTY_TOKEN if set will return an array of two 
- *		elements if the input string is empty. The first element is the empty
- * 		string and the second is the NULL string. Normally we would
- *		return an array containing the NULL string.
+ *		BK_STRING_TOKENIZE_WANT_EMPTY_TOKEN if set will return an
+ *		array of two elements if the input string is empty. The
+ *		first element is the empty string and the second is the
+ *		NULL string. Normally we would return an array containing
+ *		the NULL string.
+ *
+ * 		BK_STRING_TOKENIZE_KEEP_BRACES overrides the default
+ * 		behavior of stripping the outermost braces.
+ *
+ * 		BK_STRING_TOKENIZE_BRACES_LIKE_SQUOTE overrides the default
+ * 		behavior of expanding the text within braces like as if the
+ * 		outermost braces were double quotes and treats them like
+ * 		single quotes.
  *
  *	@return <i>NULL</i> on call failure, allocation failure, other failure
  *	@return <br><i>null terminated array of token strings</i> on success.
  */
-char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const dict_h kvht_vardb, const char **variabledb, bk_flags flags)
+char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const char *braces, const dict_h kvht_vardb, const char **variabledb, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char **ret;
@@ -502,6 +526,9 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
   char varspace[MAXVARIABLESIZE];
   char *envvar = NULL;
   char *expanded_default = NULL;
+  char *left_braces = NULL;
+  char *right_braces = NULL;
+  u_int brace_cnt = 0;
 
   if (!src)
   {
@@ -520,6 +547,42 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 
   if (!spliton)
     spliton = BK_WHITESPACE;
+
+  // If braces have been specified, break them up in to strings of left and right.
+  if (braces && !BK_STREQ(braces,""))
+  {
+    int half_len;
+    const char *q = braces;
+    char *l, *r;
+    
+    if ((half_len = strlen(braces) % 2) != 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Brace string must contain sets of brace pairs (implying that it must be of even length)\n");
+      goto error;
+    }
+
+    if (!BK_MALLOC_LEN(left_braces, half_len+1) ||
+	!BK_MALLOC_LEN(right_braces, half_len+1))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for dividing up braces string into left and right strings: %s\n", strerror(errno));
+      goto error;
+    }
+
+    l = left_braces;
+    r = right_braces;
+    
+    // Copy left brace chars into left string and right brace chars into right string.
+    while(*q)
+    {
+      *l++ = *q++;
+      *r++ = *q++;
+    }
+    *l = '\0';					// NUL terminate
+    *r = '\0';					// NUL terminate
+    
+    fprintf(jtts, "left: %s\n", left_braces);
+    fprintf(jtts, "right: %s\n", right_braces);
+  }
 
   if (BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_SKIPLEADING))
   {
@@ -922,6 +985,17 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	continue;
       }
 
+      if (braces && strchr(left_braces, *curloc))
+      {
+	GOSTATE(S_BRACE);
+	brace_cnt = 1;
+	if (BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_KEEP_BRACES))
+	{
+	  goto addnormal;
+	}
+	continue;
+      }
+
       /* Backslash? */
       if (*curloc == 0134 && (BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_BACKSLASH) ||
 			      BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR) ||
@@ -992,8 +1066,61 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
       goto addnormal;
     }
 
+    if (INSTATE(S_BRACE))
+    {
+      if (strchr(left_braces, *curloc))
+      {
+	brace_cnt++;
+	fprintf(jtts, "Saw '%c': %u\n", *curloc, brace_cnt);
+	goto addnormal;
+      }
+      else if (strchr(right_braces, *curloc))
+      {
+	if (!--brace_cnt)
+	{
+	  GOSTATE(S_BASE);
+	  fprintf(jtts, "Saw '%c': %u\n", *curloc, brace_cnt);
+	  if (BK_FLAG_ISCLEAR(flags, BK_STRING_TOKENIZE_KEEP_BRACES))
+	  {
+	    continue;	    
+	  }
+	}
+	goto addnormal;
+      }
+      else if (*curloc == 0)
+      {
+	bk_error_printf(B, BK_ERR_NOTICE, "Unexpected end-of-string inside a brace\n");
+	goto tokenizeme;
+      }
+      else if ((kvht_vardb || variabledb) && *curloc == 044)
+      {
+	ADDSTATE(S_VARIABLE);
+	startseq = curloc;
+	continue;
+      }
+      else if (*curloc == 0134 && (BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_BACKSLASH) ||
+				   BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR) ||
+				   BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_OCT)))
+      {
+	ADDSTATE(S_BSLASH);
+	continue;
+      }
+
+      // Not a character special to braces.
+      goto addnormal;
+    }
+    
+
     bk_error_printf(B, BK_ERR_ERR, "Should never reach here (%d)\n", *curloc);
     goto error;
+  }
+
+  if (braces)
+  {
+    free(left_braces);
+    left_braces = NULL;
+    free(right_braces);
+    right_braces = NULL;
   }
 
   /* Get the token slot */
@@ -1030,6 +1157,12 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 
   if (expanded_default)
     free(expanded_default);
+
+  if (left_braces)
+    free(left_braces);
+  
+  if (right_braces)
+    free(right_braces);
 
   BK_RETURN(B, NULL);
 }
@@ -2503,7 +2636,7 @@ char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **
     goto error;
   }
 
-  if (!(tokens = bk_string_tokenize_split(B, src, 1, NULL, kvht_vardb, envdb, BK_STRING_TOKENIZE_BACKSLASH | BK_STRING_TOKENIZE_CONF_EXPAND)) ||
+  if (!(tokens = bk_string_tokenize_split(B, src, 1, NULL, NULL, kvht_vardb, envdb, BK_STRING_TOKENIZE_BACKSLASH | BK_STRING_TOKENIZE_CONF_EXPAND)) ||
       !(ret = tokens[0]))
   {
     bk_error_printf(B, BK_ERR_ERR, "Tokenization couldn't perform actual expansion\n");

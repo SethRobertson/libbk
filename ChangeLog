@@ -1,3 +1,8 @@
+2005-03-17  James Tanis  <jtt@cheviot.sysdetect.com>
+
+	* lib/b_string.c (bk_string_tokenize_split): Allow for user
+	defined braces which act like nesting quotes.
+
 2005-02-15  James Tanis  <jtt@cheviot.sysdetect.com>
 
 	* lib/b_time.c (bk_time_iso_format): Failure diagnostic and core

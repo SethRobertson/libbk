@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-UNUSED static const char libbk__rcsid[] = "$Id: b_skid.c,v 1.7 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_skid.c,v 1.8 2005/03/17 06:20:04 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -439,7 +439,7 @@ static void skid_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh 
       BK_VRETURN(B);
     }
 
-    if (!(tokens = bk_string_tokenize_split(B, newcopy->ptr, newcopy->len, NULL, NULL, BK_STRING_TOKENIZE_SKIPLEADING|BK_STRING_TOKENIZE_MULTISPLIT)))
+    if (!(tokens = bk_string_tokenize_split(B, newcopy->ptr, newcopy->len, NULL, NULL, NULL, BK_STRING_TOKENIZE_SKIPLEADING|BK_STRING_TOKENIZE_MULTISPLIT)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not tokenize skid data\n");
       bk_ioh_close(B, ioh, 0);

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.25 2005/02/07 18:52:25 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.26 2005/03/17 06:20:04 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -501,7 +501,7 @@ bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, con
     BK_RETURN(B, -1);
   }
 
-  if (!(args = bk_string_tokenize_split(B, cmd, limit, spliton, kvht_vardb, variabledb, tokenize_flags)))
+  if (!(args = bk_string_tokenize_split(B, cmd, limit, NULL, spliton, kvht_vardb, variabledb, tokenize_flags)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not tokenize string\n");
     goto error;

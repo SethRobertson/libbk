@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_config.c,v 1.40 2004/10/27 15:59:24 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_config.c,v 1.41 2005/03/17 06:20:04 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -575,8 +575,8 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
      * handle backslash escapes, we (ab)use bk_string_tokenize_split to convert
      * the escapes without actually splitting the key or value further.
      */
-    key = bk_string_tokenize_split(B, start, 1, "", NULL, NULL, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR|BK_STRING_TOKENIZE_BACKSLASH);
-    value = bk_string_tokenize_split(B, rest, 1, "", NULL, NULL, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR|BK_STRING_TOKENIZE_BACKSLASH);
+    key = bk_string_tokenize_split(B, start, 1, "", NULL, NULL, NULL, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR|BK_STRING_TOKENIZE_BACKSLASH);
+    value = bk_string_tokenize_split(B, rest, 1, "", NULL, NULL, NULL, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR|BK_STRING_TOKENIZE_BACKSLASH);
 
     // check for include tag before ignoring comments
     if (BK_STREQ(start, bc->bc_bcup.bcup_include_tag))

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.318 2005/02/15 19:31:49 lindauer Exp $
+ * $Id: libbk.h,v 1.319 2005/03/17 06:20:05 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1828,7 +1828,7 @@ extern u_int bk_strhash(const char *a, bk_flags flags);
 extern u_int bk_bufhash(const bk_vptr *b, bk_flags flags);
 #define BK_HASH_STRING		0x01		///< String hash if len=1/2/4/8
 
-extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const dict_h kvht_vardb, const char **variabledb, bk_flags flags);
+extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const char *braces, const dict_h kvht_vardb, const char **variabledb, bk_flags flags);
 #define BK_WHITESPACE					" \t\r\n" ///< General definition of horizonal and vertical whitespace
 #define BK_VWHITESPACE					"\r\n" ///< General definition of vertical whitespace
 #define BK_HWHITESPACE					" \t" ///< General definition of horizontal whitespace
@@ -1842,6 +1842,8 @@ extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, con
 #define BK_STRING_TOKENIZE_SKIPLEADING			0x080   ///< During bk_string_tokenize_split: Bypass leading split chars
 #define BK_STRING_TOKENIZE_CONF_EXPAND			0x100   ///< Allow variable expansion from bk_conf.
 #define BK_STRING_TOKENIZE_WANT_EMPTY_TOKEN		0x200   ///< Returned array contains an empty string if input is empty.
+#define BK_STRING_TOKENIZE_KEEP_BRACES			0x400   ///< If doing brace processing, don't strip outter most braces.
+#define BK_STRING_TOKENIZE_BRACES_LIKE_SQUOTE		0x800   ///< Do not do exapansion within braces.
 #define BK_STRING_TOKENIZE_SIMPLE	(BK_STRING_TOKENIZE_MULTISPLIT)
 #define BK_STRING_TOKENIZE_NORMAL	(BK_STRING_TOKENIZE_MULTISPLIT|BK_STRING_TOKENIZE_DOUBLEQUOTE)
 #define BK_STRING_TOKENIZE_CONFIG	(BK_STRING_TOKENIZE_DOUBLEQUOTE)

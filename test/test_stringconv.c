@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.20 2005/02/05 03:27:34 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.21 2005/03/17 06:20:03 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -56,7 +56,20 @@ char *prompts[] =
   "String to unsigned 64 bit integer conversion.  Please enter number:  ",
   "String to signed 64 bit integer conversion.  Please enter number:  ",
   "String hash.  Please enter string to hash:  ",
-  "String tokenization.  Please enter arguments followed by the string to tokenize.\n  <limit>#<spliton>#<flagbits>#<string to tokenize>\n  0x01 - Multisplit (foo::bar are two tokens, not three)\n  0x02 - Singlequote quoting\n  0x04 - Doublequote quoting\n  0x08 - Variable expansion\n  0x10 - Backslash quoting of next character\n  0x20 - Backslash character interpolation\\n\n  0x40 - Backslash octal number ascii interpolation\010\n\n",
+  "String tokenization.  Please enter arguments followed by the string to tokenize.\n  <limit>#<spliton>#<flagbits>#<string to tokenize>\n"
+  "  0x001 - Multisplit (foo::bar are two tokens, not three)\n"
+  "  0x002 - Singlequote quoting\n"
+  "  0x004 - Doublequote quoting\n"
+  "  0x008 - Variable expansion\n"
+  "  0x010 - Backslash quoting of next character\n"
+  "  0x020 - Backslash character interpolation\n"
+  "  0x040 - Backslash octal number ascii interpolation\010\n"
+  "  0x080 - Skip leading spaces\n"
+  "  0x100 - Expand from BK conf file\n"
+  "  0x200 - [Not a useful flag for testing]\n"
+  "  0x400 - Don't strip braces\n"
+  "  0x800 - Treat text in braces as if in single quotes\n"
+  "\n",
   "String XML encoding.  Please enter string to encode:  ",
   NULL,
 };
@@ -229,7 +242,7 @@ void progrun(bk_s B, struct program_config *pconfig)
 	    vardb = environ;
 	  }
 
-	  if (!(tokens = bk_string_tokenize_split(B, string, limit, split, NULL, (const char **)vardb, flags)))
+	  if (!(tokens = bk_string_tokenize_split(B, string, limit, split, "{}[]", NULL, (const char **)vardb, flags)))
 	  {
 	    printf("Could not tokenize string\n");
 	    break;

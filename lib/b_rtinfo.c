@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_rtinfo.c,v 1.2 2004/07/12 18:10:57 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_rtinfo.c,v 1.3 2005/03/17 06:20:04 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -392,7 +392,7 @@ obtain_route_table(bk_s B, dict_h bri_list, bk_flags flags)
       goto error;
     }
 
-    if (!(tokens = bk_string_tokenize_split(B, line, 0, NULL, NULL, NULL, 0)))
+    if (!(tokens = bk_string_tokenize_split(B, line, 0, NULL, NULL, NULL, NULL, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not token line from %s\n", NET_ROUTE_FILE);
       goto error;
