@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_md5.c,v 1.3 2002/04/08 18:33:49 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_md5.c,v 1.4 2002/05/16 18:42:49 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -182,6 +182,10 @@ void bk_MD5Update(bk_s B, bk_MD5_CTX *mdContext, unsigned char *inBuf, unsigned 
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_VRETURN(B);
   }
+
+#ifdef __INSIGHT__
+  memset(in, 0, sizeof(in));
+#endif
 
   /* compute number of bytes mod 64 */
   mdi = (int)((mdContext->i[0] >> 3) & 0x3F);
