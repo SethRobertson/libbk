@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_i18n.h,v 1.3 2001/12/06 00:17:47 seth Exp $
+ * $Id: libbk_i18n.h,v 1.4 2002/01/09 06:26:38 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -17,12 +17,13 @@
 #define _libbk_i18n_h_
 
 #ifndef BK_I18N_DISABLE
+ #include <locale.h>
  #include <libintl.h>
  #define  _(String) gettext(String)
  #define N_(String) gettext_noop(String)
  #define gettext_noop(String) (String)
 
-#if defined(USING_INSIGHT)
+#if defined(__INSURE__)
 #define LC_ALL 6				// XXX - evil, naughty code
 #endif /* __INSURE__ */
 

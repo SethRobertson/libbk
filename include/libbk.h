@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.98 2002/01/08 21:03:38 jtt Exp $
+ * $Id: libbk.h,v 1.99 2002/01/09 06:26:38 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -36,8 +36,22 @@ struct bk_polling_io;
 
 
 
+#if defined(__GNUC__) && !defined(__INSURE__)
+/**
+ * Non-boolean OR.  Returns first argument if nonzero, else second argument
+ * (<em>Note:</em> may evaluate first argument multiple times).
+ */
+#define BK_OR(a,b) ((a)?:(b))			
+#elif defined(__GNUC__)			// insure++ can handle this
+#define BK_OR(a,b) ({ typeof(a) x = (a); x = x ? x : (b); })
+#else
+#define BK_OR(a,b) ((a)?(a):(b))
+#endif
+
+
+
 typedef u_int32_t bk_flags;			///< Normal bitfield type
-						// 
+
 
 
 /* Error levels & their syslog equivalents */
@@ -52,7 +66,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 
 #define BK_APP_CONF	"/etc/bk.conf"		///< Default configuration file name
 #define BK_ENV_GWD(e,d)	((char *)(getenv(e)?getenv(e):(d))) ///< Get an environmental variable with a default if it does not work
-#define BK_GWD(B,k,d) (bk_config_getnext(B, NULL, (k), NULL)?:(d)) ///< Get a value from the config file, or return a default
+#define BK_GWD(B,k,d) BK_OR(bk_config_getnext(B, NULL, (k), NULL),(d)) ///< Get a value from the config file, or return a default
 #define BK_SYSLOG_MAXLEN 256			///< Length of maximum user message we will syslog
 #define BK_FLAG_SET(var,bit) ((var) |= (bit))	///< Set a bit in a simple bitfield
 #define BK_FLAG_ISSET(var,bit) ((var) & (bit))	///< Test if bit is set in a simple bitfield
@@ -475,7 +489,7 @@ struct bk_addrgroup
 
 /**
  * @brief Return a value, letting function tracing know you are exiting the
- * function, while preseving errno
+ * function, while preserving errno
  */
 #define BK_RETURN(B, retval)			\
 do {						\
@@ -754,10 +768,10 @@ union bk_url_element_u
  */
 typedef enum
 {
-  BkUrlParseVptr=0,				///< Translate URl to VPT's pointing into URL
+  BkUrlParseVptr=0,				///< Parse URL to vptrs pointing into original URL
   BkUrlParseVptrCopy,				///< As above but make private copy of URL.
-  BkUrlParseStrNULL,				///< Make knwn elements strings. NULL for unknown.
-  BkUrlParseStrEmpty,				///< Make knwn elements strings. "" for unknown.
+  BkUrlParseStrNULL,				///< Make known elements strings. NULL for unknown.
+  BkUrlParseStrEmpty,				///< Make known elements strings. "" for unknown.
 } bk_url_parse_mode_e;
 
 
@@ -775,13 +789,12 @@ struct bk_url
 #define BK_URL_FLAG_FRAGMENT		0x10	///< Fragment section set.
 #define BK_URL_FLAG_HOST		0x20	///< Host authority section set.
 #define BK_URL_FLAG_SERV		0x40	///< Service authority section set.
-#define BK_URL_FLAG_STRICT_PARSE	0x80	///< Don't do BAKA fuzzy logic.
   bk_url_parse_mode_e		bu_mode;	///< Mode of URL
-  char *			bu_url;		///< Original URL
+  char *			bu_url;		///< Entire URL
   union bk_url_element_u	bu_scheme;	///< Scheme specification
   union bk_url_element_u	bu_authority;	///< Authority specification
   union bk_url_element_u	bu_path;	///< Path specification
-  union bk_url_element_u	bu_query;	///< Path specification
+  union bk_url_element_u	bu_query;	///< Query specification
   union bk_url_element_u	bu_fragment;	///< Fragment specification
   union bk_url_element_u	bu_host;	///< Host (auth subset) specification
   union bk_url_element_u	bu_serv;	///< Service (auth. subset) specification
@@ -1180,10 +1193,10 @@ extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
 
 /* b_url.c */
 struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_url_parse_mode_e mode, bk_flags flags);
-#define BK_URL_BARE_PATH_IS_FILE	0x1	///< Treat bare path as protocol "file"
+#define BK_URL_STRICT_PARSE	0x1	///< Don't do BAKA fuzzy logic.
 struct bk_url *bk_url_create(bk_s B);
 void bk_url_destroy(bk_s B, struct bk_url *bu);
-
+char *bk_url_unescape(bk_s B, const char *urlcomponent);
 
 /* b_nvmap.c */
 extern int64_t bk_nvmap_name2value(bk_s B,  struct bk_name_value_map nvmap[], const char *name);

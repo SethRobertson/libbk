@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_debug.c,v 1.12 2001/11/27 00:58:41 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_debug.c,v 1.13 2002/01/09 06:26:38 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -133,6 +133,7 @@ void bk_debug_destroy(bk_s B, struct bk_debug *bd)
     DICT_NUKE_CONTENTS(bd->bd_leveldb, debug, cur, bk_error_printf(B, BK_ERR_ERR,"Could not delete item from front of CLC: %s\n",debug_error_reason(bd->bd_leveldb,NULL)), if (cur->bd_name) free(cur->bd_name); free(cur));
     debug_destroy(bd->bd_leveldb);
   }
+  free(bd);
 }
 
 

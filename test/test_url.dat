@@ -4,13 +4,13 @@ file://foo:80/baz
 file://foo
 file://
 w3:80
-:20/foo/bar/baz
+:20/foo/%20bar/baz
 /foo/bar/baz
 foo:baz
 //foo/baz
 proto:////foo.bar.baz:80/path
 proto:/http://foo.bar.baz:80/path
-/http://foo.bar.baz:80/path
+/http://foo.bar.baz:80/path%2fpath%
 foo.bar.gaz
 //foo/bar:baz
 //foo/bar?baz

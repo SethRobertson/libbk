@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.25 2001/12/06 00:17:47 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.26 2002/01/09 06:26:38 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -524,19 +524,16 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
   PT->bp_title.len = 0;
   PT->bp_flags = flags;
 
-  if (!argv || !envp)
+#if !defined(__INSURE__)				// always off for Insure++
+  if (BK_FLAG_ISCLEAR(flags, BK_GENERAL_NOPROCTITLE) || !argv || !envp)
+#endif /* (__INSURE__) */
     BK_FLAG_SET(PT->bp_flags, BK_PROCTITLE_OFF);
-
-#if defined(__INSIGHT__)
-  BK_FLAG_SET(PT->bp_flags, BK_PROCTITLE_OFF);
-#endif /* (__INSIGHT__) */
-
 
   /*
    * If the OS can support this functionality, create new copy of argv&envp,
    * repoint original pointers to this location, and set up proctitle vector
    */
-  if (BK_FLAG_ISCLEAR(flags, BK_PROCTITLE_OFF))
+  if (BK_FLAG_ISCLEAR(PT->bp_flags, BK_PROCTITLE_OFF))
   {
     int envc = 0;
 

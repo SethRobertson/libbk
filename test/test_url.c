@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_url.c,v 1.8 2001/12/21 21:53:32 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_url.c,v 1.9 2002/01/09 06:26:38 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -32,6 +32,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  */
 struct global_structure
 {
+  bk_flags	gs_flags;
 } Global;
 
 
@@ -76,7 +77,7 @@ main(int argc, char **argv, char **envp)
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"vptr", 'v', POPT_ARG_NONE, NULL, 'v', "Use Vptr mode", NULL },
-    {"vptr-cpoy", 'c', POPT_ARG_NONE, NULL, 'c', "Use Vptr Copy mode", NULL },
+    {"vptr-copy", 'c', POPT_ARG_NONE, NULL, 'c', "Use Vptr Copy mode", NULL },
     {"str-null", 'n', POPT_ARG_NONE, NULL, 'n', "Use string NULL mode", NULL },
     {"str-empty", 'e', POPT_ARG_NONE, NULL, 'e', "Use string empty mode", NULL },
     POPT_AUTOHELP
@@ -98,6 +99,8 @@ main(int argc, char **argv, char **envp)
     bk_error_printf(B, BK_ERR_ERR, "Could not initialize options processing\n");
     bk_exit(B,254);
   }
+
+  pconfig->pc_parse_mode = BkUrlParseStrNULL;	// default -n
 
   while ((c = poptGetNextOpt(optCon)) >= 0)
   {
@@ -170,17 +173,21 @@ int proginit(bk_s B, struct program_config *pconfig)
   BK_RETURN(B, 0);
 }
 
-#define PRINT_ELEMENT(scratch, size, bu, element)				\
-do {										\
-  if (BK_URL_DATA((bu),(element)))						\
-  {										\
-    snprintf((scratch), MIN((size),(BK_URL_LEN((bu),(element))+1)), "%s",  	\
-			    BK_URL_DATA((bu),(element)));			\
-  }										\
-  else										\
-  {										\
-    snprintf((scratch),(size),"Not Found");					\
-  }										\
+#define PRINT_ELEMENT(scratch, size, bu, element)			  \
+do {									  \
+  if (BK_URL_DATA((bu),(element)))					  \
+  {									  \
+    char *expanded = bk_url_unescape(B, BK_URL_DATA((bu),(element)));	  \
+    int len =								  \
+      snprintf((scratch),MIN((size),(BK_URL_LEN((bu),(element))+1)),"%s", \
+			    BK_URL_DATA((bu),(element)));		  \
+    snprintf((scratch)+len,(size)-len," |%s|", expanded);		  \
+    free(expanded);							  \
+  }									  \
+  else									  \
+  {									  \
+    snprintf((scratch),(size),"Not Found");				  \
+  }									  \
 } while (0)
 
 
@@ -213,7 +220,7 @@ void progrun(bk_s B, struct program_config *pconfig)
     
     memset(scratch,0,sizeof(scratch));
     nextstart = 0;
-    if (!(bu=bk_url_parse(B, inputline, pconfig->pc_parse_mode, BK_URL_BARE_PATH_IS_FILE)))
+    if (!(bu=bk_url_parse(B, inputline, pconfig->pc_parse_mode, BK_URL_STRICT_PARSE)))
     {
       fprintf(stderr,"Could not convert url: %s\n", inputline);
       continue;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.12 2001/12/27 18:25:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.13 2002/01/09 06:26:38 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,47 +25,46 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-static u_int count_colons(bk_s B, const char *str, const char *str_end);
-
-
-#define STORE_URL_ELEMENT(B, mode, element, start, end)					\
-do {											\
-  switch(mode)										\
-  {											\
-  case BkUrlParseVptr:									\
-  case BkUrlParseVptrCopy:								\
-    if (start)										\
-    {											\
-      (element).bue_vptr.ptr = ((char *)(start));					\
-      (element).bue_vptr.len = ((end) - (start));					\
-    }											\
-    break;										\
-  case BkUrlParseStrEmpty:								\
-    if (!(start))									\
-    {											\
-      if (!((element).bue_str = strdup("")))						\
-      {											\
-	bk_error_printf(B, BK_ERR_ERR, "Could not strdup an element of url: %s\n",	\
-			strerror(errno));						\
-	goto error;									\
-      }											\
-    }											\
-    /* Intetional fall through. */							\
-  case BkUrlParseStrNULL:								\
-    if (start)										\
-    {											\
-      if (!((element).bue_str = bk_strndup((B), (start), (end)-(start))))		\
-      {											\
-	bk_error_printf(B, BK_ERR_ERR, "Could not strdup an element of url: %s\n",	\
-			strerror(errno));						\
-	goto error;									\
-      }											\
-    }											\
-    break;										\
-  default:										\
-    bk_error_printf(B, BK_ERR_ERR,"Unknown mode: %d\n", (mode));			\
-    break;										\
-  }											\
+#define STORE_URL_ELEMENT(B, mode, element, start, end)			  \
+do {									  \
+  switch(mode)								  \
+  {									  \
+  case BkUrlParseVptr:							  \
+  case BkUrlParseVptrCopy:						  \
+    if (start)								  \
+    {									  \
+      (element).bue_vptr.ptr = ((char *)(start));			  \
+      (element).bue_vptr.len = ((end) - (start));			  \
+    }									  \
+    break;								  \
+  case BkUrlParseStrEmpty:						  \
+    if (!(start))							  \
+    {									  \
+      if (!((element).bue_str = strdup("")))				  \
+      {									  \
+	bk_error_printf(B, BK_ERR_ERR,					  \
+			"Could not strdup an element of url: %s\n",	  \
+			strerror(errno));				  \
+	goto error;							  \
+      }									  \
+    }									  \
+    /* Intentional fall through. */					  \
+  case BkUrlParseStrNULL:						  \
+    if (start)								  \
+    {									  \
+      if (!((element).bue_str = bk_strndup((B), (start), (end)-(start)))) \
+      {									  \
+	bk_error_printf(B, BK_ERR_ERR,					  \
+			"Could not strdup an element of url: %s\n",	  \
+			strerror(errno));				  \
+	goto error;							  \
+      }									  \
+    }									  \
+    break;								  \
+  default:								  \
+    bk_error_printf(B, BK_ERR_ERR, "Unknown mode: %d\n", (mode));	  \
+    break;								  \
+  }									  \
 } while(0)
 
 
@@ -82,20 +81,19 @@ do {											\
 
 
 /**
- * Parse a url in a roughly rfc2396 compliant way. This is to say:
- * what it does is rfc2396 compliant; it doesn't go the whole 9 yards
- * (interpreting relative paths WRT path of base document). Place
- * results in returned structure with undeterminable value set to
- * NULL. This funtion sets the BK_URL_foo flag for each sectin foo
- * which is actually located. If the flag BK_URL_STRICT_PARSE is
- * <em>not</em> set, the function will then attempt to apply some
- * fuzzy (non-rfr2396 compliant) logic to make things URL's like
- * "foobar.baka.org" come out more like you might expect in a network
- * enviornment.
+ * Parse a url in a roughly rfc2396 compliant way.  This is to say: what it
+ * does is rfc2396 compliant; it doesn't go the whole 9 yards (interpreting
+ * relative paths w.r.t. path of base document).  Place results in returned
+ * structure with any missing values set to NULL.  This function sets the
+ * BK_URL_foo flag for each section foo which is actually located.  If
+ * BK_URL_STRICT_PARSE is <em>not</em> set in the flags passed to this
+ * function, it will attempt to apply some fuzzy (non-rfc2396 compliant) logic
+ * to make URLs like "foobar.baka.org" come out more like you might expect in a
+ * network environment.
  *
- * <TODO> Explain modes </TODO>
+ * <TODO> Explain modes, rationalize them w.r.t flags </TODO>
  *
- * The RE (from rfc 2396) which we implement is:
+ * The regex (adapted from rfc2396) that this implements is:
  *	http://www.ics.uci.edu/pub/ietf/uri/#Related
  *     ^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?
  *      12            3  4          5       6  7        8 9
@@ -117,7 +115,7 @@ do {											\
  *	@param mode The mode of parsing.
  *	@param flags Flags for the future.
  *	@return <i>NULL</i> on failure.<br>
- *	@return a new @a bk_url on sucess.
+ *	@return a new @a bk_url on success.
  */
 struct bk_url *
 bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
@@ -135,7 +133,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 
   if (!url)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
   
@@ -147,7 +145,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
   
   bu->bu_mode = mode;
   
-  // Cache the end of the url since we use it alot.
+  // Cache the end of the url since we use it a lot.
   url_end = url + strlen(url);
 
   // Search for scheme.
@@ -174,16 +172,16 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
 
   
   /*
-   * The following is safe. start is gaurenteed to point at something valid
+   * The following is safe. start is guaranteed to point at something valid
    * (although perhaps '\0') and if *start == '/' then *(start+1) is
-   * guarenteed to point at something valid (though, again, it might be
+   * guaranteed to point at something valid (though, again, it might be
    * '\0').
    */
   if (*start == '/' && *(start+1) == '/')
   {
     start += 2;
     authority = start;
-    authority_end = strpbrk(start,"/?#");
+    authority_end = strpbrk(start, "/?#");
     if (!authority_end)
       authority_end = url_end;
     if (authority_end == authority)
@@ -205,7 +203,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
   if (*start)
   {
     path = start;
-    path_end = strpbrk(start,"?#");
+    path_end = strpbrk(start, "?#");
     if (!path_end)
       path_end = url_end;
     if (path_end == path)
@@ -227,7 +225,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
   if (*start == '?')
   {
     query = start + 1;
-    query_end = strpbrk(start,"#");
+    query_end = strpbrk(start, "#");
     if (!query_end)
       query_end = url_end;
     if (query_end == query)
@@ -284,23 +282,23 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
   STORE_URL_ELEMENT(B, mode, bu->bu_fragment, fragment, fragment_end);
 
 
-  if (BK_FLAG_ISCLEAR(flags, BK_URL_FLAG_STRICT_PARSE))
+  if (BK_FLAG_ISCLEAR(flags, BK_URL_STRICT_PARSE))
   {
-    // Do BAKA fuzzy URL logic (basically update relavtive paths).
+    // Do BAKA fuzzy URL logic (basically update relative paths).
 
     /*
      * <WARNING>
      * Ordering in the fuzzy logic section is important. For instance you
      * want to make sure you promote (and demote too I suppose) all info
-     * into (out of) the authority section before creating the host serv
-     * thingys.
+     * into (out of) the authority section before creating the host/serv
+     * thingies.
      * </WARNING>
      */
 
 
     /*
      * If we have a relative path and no authority component (not that we
-     * *can* have an authority component *without* an aboslute path :-)),
+     * *can* have an authority component *without* an absolute path :-)),
      * then "promote" the first path component to authority.
      */
     if (BK_FLAG_ISCLEAR(bu->bu_flags, BK_URL_FLAG_AUTHORITY) &&
@@ -315,7 +313,7 @@ bk_url_parse(bk_s B, const char *url, bk_url_parse_mode_e mode, bk_flags flags)
       {
 	// Relative path.
 	authority = path;
-	authority_end = strpbrk(authority,"/?#");
+	authority_end = strpbrk(authority, "/?#");
 	if (!authority_end)
 	  authority_end = path_end;
 
@@ -446,7 +444,7 @@ bk_url_destroy(bk_s B, struct bk_url *bu)
 
   if (!bu)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
 
@@ -485,33 +483,64 @@ bk_url_destroy(bk_s B, struct bk_url *bu)
 
 
 /**
- * Count the number of colons (:) in a string.
+ * Expand % escapes in a component of URL.
+ *
+ * This function creates a copy of a string with rfc2396 % escapes expanded.
+ * For security reasons, % escapes that encode control characters (i.e. %00
+ * through %1F, and %7F) are <em>not</em> expanded.  Illegal % escapes
+ * (e.g. %GB, %%) are not altered (the string "%%20" is expanded as "% ", as
+ * the first % is not a legal escape, but the second one is).
+ *
+ * <TODO>This should be integrated with bk_url_parse and enabled/disabled with
+ * a flag, but it is incompatible with the BkUrlParseVptr mode, since a copy of
+ * the string must be made to expand % escapes.  In general, the mode vs. flags
+ * arguments of bk_url_parse need to be rationalized.</TODO>
  *
  *	@param B BAKA thread/global state.
- *	@param str The string to sum up.
- *	@param str_end The maximum position of str.
- *	@return <i>-1</i> on failure.<br>
- *	@return The <i>cnt</i> of colons on success.
+ *	@param component The url component string.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a new @a bk_url on success.
  */
-static u_int
-count_colons(bk_s B, const char *str, const char *str_end)
+
+char *
+bk_url_unescape(bk_s B, const char *component)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  u_int cnt = 0;
-  char c;
+  char *expanded;
+  char *copy;
 
-  if (!str)
+  if (!component)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_RETURN(B, -1);
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
   }
 
-  while(str < str_end && *str)
+  if (!(expanded = malloc(strlen(component) + 1))) // may be a bit too big, ok
   {
-    if (*str == ':') 
-      cnt++;
-    str++;
+    bk_error_printf(B, BK_ERR_ERR, "could not allocate unescaped URL component\n");
+    BK_RETURN(B, NULL);
   }
 
-  BK_RETURN(B,cnt);
+  for (copy = expanded; *component; copy++, component++)
+  {
+    if (*component == '%' && isxdigit(component[1]) && isxdigit(component[2]))
+    {
+      char convert[3];
+      int val;
+      convert[0] = component[1];
+      convert[1] = component[2];
+      convert[2] = '\0';
+      if (!iscntrl((val = strtoul(convert, NULL, 16))))
+      {
+	*copy = val;
+	component += 2;				// advance over hex digits
+	continue;
+      }						// else fall through
+    }
+
+    *copy = *component;				// default action
+  }
+
+  *copy = '\0';					// finish expanded
+  BK_RETURN(B, expanded);
 }

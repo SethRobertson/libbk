@@ -1,3 +1,25 @@
+2002-01-09  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* test/test_url.c (PRINT_ELEMENT): test bk_url_unescape
+
+	* lib/b_url.c (bk_url_unescape): new function to expand % escapes
+	(bk_url_parse): separate strict parse flag for function from flags
+	in structure
+	(count_colons): eliminated this obsolete static function
+	
+	* lib/b_general.c (bk_general_proctitle_init): don't confuse flag
+	for function with flag in structure; always turn off proctitle
+	stuff when running with Insure++
+
+	* lib/b_debug.c (bk_debug_destroy): free bk_debug struct itself
+
+	* include/libbk.h (BK_OR): wrap GNU extension to ?: omitting middle arg
+
+	* include/libbk_i18n.h: INSIGHT->INSURE, include <locale.h>
+
+	* include/libbk_include.h (u_int#_t): work around esoteric gcc'isms
+	that Insure++ doesn't grok at all
+
 2002-01-08  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_string.c (bk_string_str2xml): Function to convert a normal
