@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.9 2004/08/02 17:24:59 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_protoinfo.c,v 1.10 2004/08/05 12:17:19 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -91,6 +91,52 @@ bpi_destroy (bk_s B,struct bk_protoinfo *bpi)
   free(bpi);
 
   BK_VRETURN(B);
+}
+
+
+
+/**
+ * Create a baka proto info.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param proto The protocol number
+ *	@param proto_str The protocol string
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+struct bk_protoinfo *
+bk_protoinfo_create(bk_s B, int proto, const char *proto_str, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_protoinfo *bpi = NULL;
+
+  if (!proto_str)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  if (!(bpi = bpi_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create the protoinfo\n");
+    goto error;
+  }
+  
+  bpi->bpi_flags = flags;
+  bpi->bpi_proto = proto;
+  if (!(bpi->bpi_protostr = strdup(proto_str)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not duplicate protocol string: %s\n", strerror(errno));
+    goto error;
+  }
+
+  BK_RETURN(B, bpi);  
+
+ error:
+  if (bpi)
+    bpi_destroy(B, bpi);
+  BK_RETURN(B, NULL);  
 }
 
 

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.41 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.42 2004/08/05 12:17:19 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,6 +26,8 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 #include <libbk.h>
 #include "libbk_internal.h"
+
+#define jtts stderr
 
 
 /**
@@ -567,6 +569,7 @@ do_net_init_af_local(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret = 0;
+  struct bk_addrgroup *bag;
 
   if (!as)
   {
@@ -574,10 +577,28 @@ do_net_init_af_local(bk_s B, struct addrgroup_state *as)
     BK_RETURN(B, -1);
   }
 
-  bk_error_printf(B, BK_ERR_ERR, "Do not support local domain sockets quite yet...\n");
-  ret = -1;					// Not quite ready yet
+  bag = as->as_bag;
+
+  switch (bag->bag_proto)
+  {
+  case BK_GENERIC_STREAM_PROTO:
+    ret = do_net_init_af_inet_tcp(B, as);
+    break;
+
+  case BK_GENERIC_DGRAM_PROTO:
+    ret = do_net_init_af_inet_udp(B, as);
+    break;
+
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Unknown generic protocol: %d\n", bag->bag_proto);
+    goto error;
+  }
 
   BK_RETURN(B, ret);
+
+ error:
+  net_close(B, as);
+  BK_RETURN(B, -1);
 }
 
 
@@ -719,8 +740,7 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
   /* af can be either AF_INET of AF_INET6 */
   af = bk_netaddr_nat2af(B, bag->bag_type);
 
-  /* We *know* this is udp so we can assume SOCK_DGRAM */
-  if ((s = socket(af, SOCK_DGRAM, bag->bag_proto)) < 0)
+  if ((s = socket(af, SOCK_DGRAM, (bag->bag_proto == BK_GENERIC_DGRAM_PROTO)?0:bag->bag_proto)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
     goto error;
@@ -798,7 +818,7 @@ do_net_init_af_inet_udp_listen(bk_s B, struct addrgroup_state *as)
   af = bk_netaddr_nat2af(B, bag->bag_type);
 
   /* We *know* this is udp so we can assume SOCK_DGRAM */
-  if ((s = socket(af, SOCK_DGRAM, bag->bag_proto)) < 0)
+  if ((s = socket(af, SOCK_DGRAM, (bag->bag_proto == BK_GENERIC_DGRAM_PROTO)?0:bag->bag_proto)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
     goto error;
@@ -936,7 +956,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
   af = bk_netaddr_nat2af(B, bag->bag_type);
 
   /* We *know* this is tcp so we can assume SOCK_STREAM */
-  if ((s = socket(af, SOCK_STREAM, bag->bag_proto)) < 0)
+  if ((s = socket(af, SOCK_STREAM, (bag->bag_proto == BK_GENERIC_STREAM_PROTO)?0:bag->bag_proto)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
     goto error;
@@ -1380,12 +1400,12 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
   }
 
   /*
-   * Run a second connect to find out what has happened to our
-   * descriptor. The specific states of this seem to be platform
-   * specific, which is a little disturbing. The following illustrates
-   * the confusion. 1st call and 2nd call refer to calls to connect(2)
-   * *following* the return from select(2) (i.e. when we have idea of
-   * what has happened to the socket.
+   * For network addrgroups, run a second connect to find out what has
+   * happened to our descriptor. The specific states of this seem to be
+   * platform specific, which is a little disturbing. The following
+   * illustrates the confusion. 1st call and 2nd call refer to calls to
+   * connect(2) *following* the return from select(2) (i.e. when we have
+   * idea of what has happened to the socket.
    *
    *		Successful connection
    *		--------------------
@@ -1416,7 +1436,7 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
    *
    * I wonder what Windows does....
    */
-  if (connect(fd, &sa, sizeof(sa))<0 && errno != EISCONN)
+  if (bk_addrgroup_network(B, bag, 0) && (connect(fd, &sa, sizeof(sa)) < 0) && (errno != EISCONN))
   {
     // calls to bk_error_printf() can result in errno changing. Sigh...
     int connect_errno = errno;
@@ -1432,7 +1452,6 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
     tcp_connect_start(B, as);
     BK_VRETURN(B);
   }
-
   as->as_state = BkAddrGroupStateConnected;
   tcp_end(B, as);
 
@@ -1480,7 +1499,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
 
   af = bk_netaddr_nat2af(B, bag->bag_type);
 
-  if ((s = socket(af, SOCK_STREAM, bag->bag_proto)) < 0)
+  if ((s = socket(af, SOCK_STREAM, (bag->bag_proto == BK_GENERIC_STREAM_PROTO)?0:bag->bag_proto)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
     goto error;
@@ -2065,4 +2084,96 @@ bk_net_init_sys_error(bk_s B, int lerrno)
     break;
   }
   BK_RETURN(B, BkAddrGroupStateSysError);
+}
+
+
+
+/**
+ * Obtain the address type of an addrgroup. All addrs are assumed to be
+ * homogeneous so the type of one is the type of all.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bag The address group to check
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return address <i>type</i> on success.
+ */
+int
+bk_addrgroup_addr_type(bk_s B, struct bk_addrgroup *bag, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bag)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (bag->bag_local)
+    BK_RETURN(B, bk_netinfo_addr_type(B, bag->bag_local, 0));    
+  
+  if (bag->bag_remote)
+    BK_RETURN(B, bk_netinfo_addr_type(B, bag->bag_remote, 0));    
+
+  BK_RETURN(B, BkNetinfoTypeUnknown);  
+}
+
+
+
+/**
+ * Check if the a particular address group refers to a network connection or some other type
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bag The address group to check
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> if not a network address group.
+ *	@return <i>0</i> if a network address group.
+ */
+int
+bk_addrgroup_network(bk_s B, struct bk_addrgroup *bag, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int type;
+  int ret;
+
+  if (!bag)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  if ((type = bk_addrgroup_addr_type(B, bag, flags)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not obtain address group type\n");
+    BK_RETURN(B, -1);    
+  }
+
+  switch(type)
+  {
+  case BkNetinfoTypeUnknown:
+    ret = 0;
+    break;
+  case BkNetinfoTypeInet:
+    ret = 1;
+    break;
+  case BkNetinfoTypeInet6:
+    ret = 1;
+    break;
+  case BkNetinfoTypeLocal:
+    ret = 0;
+    break;
+  case BkNetinfoTypeEther:
+    ret = 0;
+    break;
+  default:
+    bk_error_printf(B, BK_ERR_ERR,"Unknown type: %d\n", type);
+    goto error;
+    break;
+  }
+
+  BK_RETURN(B, ret);  
+
+ error:
+  BK_RETURN(B, -1);  
 }

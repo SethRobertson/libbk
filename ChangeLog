@@ -1,3 +1,8 @@
+2004-08-03  James Tanis  <jtt@outpost.tanis.org>
+
+	* lib/b_netaddr.c (bk_netaddr_clone): Missed break in previously
+	unused case.
+
 2004-08-04  Seth Robertson  <seth@cheviot.sysdetect.com>
 
 	* lib/b_ioh.c (bk_ioh_is_canceled): It is not fully clear whether

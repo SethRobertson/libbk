@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.30 2004/07/09 16:22:10 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.31 2004/08/05 12:17:19 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -321,6 +321,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, c
   struct in_addr inaddr_any;
   struct hostent fake_hostent;
   void *ghbf_info;
+  struct bk_netaddr *bna = NULL;
 
   if (!run || !callback)
   {
@@ -379,7 +380,33 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, c
 
   if (!(BK_FLAG_ISSET(flags, BK_NETUTILS_ANY_ADDR)))
   {
-    if (!(ghbf_info = bk_gethostbyfoo(B, hoststr, 0, sss->sss_lbni, run, sss_serv_gethost_complete, sss, 0)))
+    if (BK_STREQ(protostr, BK_AF_LOCAL_STREAM_PROTO_STR) || BK_STREQ(protostr, BK_AF_LOCAL_DGRAM_PROTO_STR))
+    {
+      if (!(bna = bk_netaddr_user(B, BkNetinfoTypeLocal, hoststr, 0, 0)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not create local netaddr info for AF_LOCAL\n");
+	goto error;
+      }
+    
+      if (bk_netinfo_add_addr(B, sss->sss_lbni, bna, NULL) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not add local path name to netinfo\n");
+	goto error;
+      }
+      
+      bna = NULL;
+
+      if (bk_net_init(B, run, sss->sss_lbni, NULL, sss->sss_timeout, sss->sss_flags, sss->sss_callback, sss->sss_args, sss->sss_backlog) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not open service\n");
+	goto error;
+      }
+
+      sss_destroy(B, sss);
+      sss = NULL;
+
+    }
+    else if (!(ghbf_info = bk_gethostbyfoo(B, hoststr, 0, sss->sss_lbni, run, sss_serv_gethost_complete, sss, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not begin the hostname lookup process\n");
       /* sss is destroyed */
@@ -430,6 +457,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, c
   if (protostr) free(protostr);
   if (bni) bk_netinfo_destroy(B, bni);
   if (sss) sss_destroy(B, sss);
+  if (bna) bk_netaddr_destroy(B, bna);
   BK_RETURN(B,-1);
 
 }
@@ -639,6 +667,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
   struct bk_netinfo *lbni = NULL;
   struct start_service_state *sss = NULL;
   void *ghbf_info;
+  struct bk_netaddr *bna = NULL;
 
 
   if (!run || !rurl || !callback)
@@ -668,7 +697,23 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
 
   /* Convert NULL to a real empty url */
   if (!lurl)
-    lurl = "";
+  {
+    /*
+     * It is apparently acceptable to for AF_LOCAL to bind to one addr and
+     * connect to another just like AF_INET. Seems a little weird, but why
+     * not? At any rate make sure that if the lurl is *not* set and we're
+     * in AF_LOCAL, then lurl == rurl
+     */
+    if (BK_STREQ(rprotostr, BK_AF_LOCAL_STREAM_PROTO_STR) || 
+	BK_STREQ(rprotostr, BK_AF_LOCAL_DGRAM_PROTO_STR))
+    {
+      lurl = rurl;
+    }
+    else
+    {
+      lurl = "";
+    }
+  }
 
   /* Parse out the local side "URL" */
   if (bk_parse_endpt_spec(B, lurl, &lhoststr, deflhost?deflhost:BK_ADDR_ANY, &lservstr, deflserv, &lprotostr, defproto)<0)
@@ -753,7 +798,45 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
   lhoststr=NULL;
   sss->sss_timeout = timeout;
 
-  if (!(ghbf_info = bk_gethostbyfoo(B, rhoststr, 0, sss->sss_rbni, run, sss_connect_rgethost_complete, sss, 0)))
+  if (BK_STREQ(rprotostr, BK_AF_LOCAL_STREAM_PROTO_STR) || BK_STREQ(rprotostr, BK_AF_LOCAL_DGRAM_PROTO_STR))
+  {
+
+    if (!(bna = bk_netaddr_user(B, BkNetinfoTypeLocal, sss->sss_host, 0, 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create local netaddr info for AF_LOCAL\n");
+      goto error;
+    }
+    
+    if (bk_netinfo_add_addr(B, sss->sss_lbni, bna, NULL) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not add local path name to netinfo\n");
+      goto error;
+    }
+    
+    if (!(bna = bk_netaddr_user(B, BkNetinfoTypeLocal, rhoststr, 0, 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create remote netaddr info for AF_LOCAL\n");
+      goto error;
+    }
+    
+    if (bk_netinfo_add_addr(B, sss->sss_rbni, bna, NULL) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not add remote path name to netinfo\n");
+      goto error;
+    }
+
+    bna = NULL;
+    
+    if (bk_net_init(B, run, NULL, sss->sss_rbni, sss->sss_timeout, sss->sss_flags, sss->sss_callback, sss->sss_args, sss->sss_backlog) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not open service\n");
+      goto error;
+    }
+
+    sss_destroy(B, sss);
+    sss = NULL;
+  }
+  else if (!(ghbf_info = bk_gethostbyfoo(B, rhoststr, 0, sss->sss_rbni, run, sss_connect_rgethost_complete, sss, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not start search for remote hostname\n");
     /* sss is destroyed */
@@ -788,7 +871,8 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
   if (lprotostr) free(lprotostr);
   if (lbni) bk_netinfo_destroy(B, lbni);
   if (rbni) bk_netinfo_destroy(B, rbni);
-  if (sss) sss_destroy(B,sss);
+  if (sss) sss_destroy(B, sss);
+  if (bna) bk_netaddr_destroy(B, bna);
   BK_RETURN(B,-1);
 }
 

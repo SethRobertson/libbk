@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.16 2004/08/02 17:24:59 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.17 2004/08/05 12:17:19 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -83,6 +83,7 @@ bk_netaddr_create(bk_s B)
   if (!(bna = bna_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create bk_netaddr\n");
+    BK_RETURN(B, NULL);    
   }
 
   BK_RETURN(B, bna);
@@ -476,6 +477,7 @@ bk_netaddr_clone (bk_s B, struct bk_netaddr *obna)
       bk_error_printf(B, BK_ERR_ERR, "Could not strdup netaddr path: %s\n", strerror(errno));
       goto error;
     }
+    break;
 
   default:
     bk_error_printf(B, BK_ERR_ERR, "Unknown addr type: %d\n", obna->bna_type);
@@ -560,17 +562,17 @@ bk_netaddr_nat2af(bk_s B, int type)
   switch (type)
   {
   case BkNetinfoTypeInet:
-    af=AF_INET;
+    af = AF_INET;
     break;
 
 #ifdef AF_INET6
   case BkNetinfoTypeInet6:
-    af=AF_INET6;
+    af = AF_INET6;
     break;
 #endif
 
   case BkNetinfoTypeLocal:
-    af=AF_LOCAL;
+    af = AF_LOCAL;
     break;
 
   case BkNetinfoTypeEther:
@@ -581,6 +583,8 @@ bk_netaddr_nat2af(bk_s B, int type)
   default:
     bk_error_printf(B, BK_ERR_ERR, "Unsupported netaddr type: %d\n", type);
     af=-1;
+    break;
   }
+
   BK_RETURN(B,af);
 }

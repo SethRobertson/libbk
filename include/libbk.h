@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.302 2004/08/02 17:25:00 jtt Exp $
+ * $Id: libbk.h,v 1.303 2004/08/05 12:17:20 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -444,6 +444,25 @@ typedef struct __bk_thread
 
 #define BK_URL_FILE_STR	"file"			///< String to use use for url protocol if it's a bare path
 
+#define BK_AF_LOCAL_STREAM_PROTO_STR	"unixs"	///< Stream AF_LOCAL url marker
+#define BK_AF_LOCAL_DGRAM_PROTO_STR	"unixd"	///< Datagram AF_LOCAL url marker
+
+
+/*
+ * We need to establish two numbers to be used as "generic" socket protocol
+ * numbers. The requirements are simple: 1) they have to be > 0; and 2)
+ * they have to be guarenteed never to be chosen for socket protocol
+ * numbers. Choosing two network layer protocol numbers fits the bill quite
+ * nicely. So with no particularly reason for these two over any others, we
+ * chose IPPROTO_IP and IPPROTO_ICMP.
+ */
+#define BK_GENERIC_STREAM_PROTO		IPPROTO_IP
+#define BK_GENERIC_STREAM_PROTO_STR	"stream"
+#define BK_GENERIC_DGRAM_PROTO		IPPROTO_ICMP
+#define BK_GENERIC_DGRAM_PROTO_STR	"dgram"
+
+
+
 /**
  * Type for on demand functions
  *
@@ -744,7 +763,6 @@ struct bk_addrgroup
   struct bk_ssl	    *	bag_ssl;		///< SSL state for connection
   int32_t		bag_refcount;		///< Don't free until this refcount is zero.
 };
-
 
 
 #define BK_ADDRGROUP_FLAGS(bag) ((bag)->bag_flags)
@@ -1096,6 +1114,8 @@ struct bk_netinfo
   struct bk_protoinfo *	bni_bpi;		///< Protocol info
   char *		bni_pretty;		///< Printable forms
 };
+
+#define BK_NETINFO_ADDR_TYPE(bni)	(((bni)->bni_addr && (bni)->bni_addr->bna_type) || ((bni)->bni_addr2 && (bni)->bni_addr2->bna_type) || BkNetinfoTypeUnknown)
 
 
 
@@ -1863,6 +1883,7 @@ extern int bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_neta
 extern struct bk_netinfo *bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side);
 extern const char *bk_netinfo_info(bk_s B, struct bk_netinfo *bni);
 extern struct bk_netaddr * bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni);
+extern int bk_netinfo_addr_type(bk_s B, struct bk_netinfo *bni, bk_flags flags);
 
 
 /* b_netaddr.c */
@@ -1879,8 +1900,11 @@ extern int bk_netaddr_nat2af(bk_s B, int type);
 extern struct bk_servinfo *bk_servinfo_serventdup (bk_s B, struct servent *s);
 extern void bk_servinfo_destroy (bk_s B,struct bk_servinfo *bsi);
 extern struct bk_servinfo *bk_servinfo_clone (bk_s B, struct bk_servinfo *obsi);
+
+/* b_protoinfo.c */
+extern struct bk_protoinfo *bk_protoinfo_create(bk_s B, int proto, const char *proto_str, bk_flags flags);
+extern void bk_protoinfo_destroy(bk_s B, struct bk_protoinfo *bpi);
 extern struct bk_protoinfo *bk_protoinfo_protoentdup (bk_s B, struct protoent *p);
-extern void bk_protoinfo_destroy (bk_s B,struct bk_protoinfo *bsi);
 extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obsi);
 
 
@@ -1961,6 +1985,9 @@ extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
 extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
 extern int bk_addressgroup_suspend(bk_s B, struct bk_run *run, void *server_handle, bk_flags flags);
 #define BK_ADDRESSGROUP_RESUME	1		///< Resume addressgroup instead of suspending it
+extern int bk_addrgroup_addr_type(bk_s B, struct bk_addrgroup *bag, bk_flags flags);
+extern int bk_addrgroup_network(bk_s B, struct bk_addrgroup *bag, bk_flags flags);
+
 
 /* b_time.c */
 extern size_t bk_time_iso_format(bk_s B, char *str, size_t max, const struct timespec *timep, bk_flags *out_flagsp, bk_flags flags);

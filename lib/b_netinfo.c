@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.20 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.21 2004/08/05 12:17:19 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -984,6 +984,9 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
   struct sockaddr_in6 *sin6 = NULL;
   socklen_t len;
   struct sockaddr sa;
+  int socket_type, socket_type_len;
+  struct sockaddr_un *sun;
+  const char *proto_str = NULL;
 
   memset(&sa, 0,sizeof(sa));
 
@@ -1022,22 +1025,21 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 
   netaddr_type = bk_netaddr_af2nat(B, sa.sa_family);
 
+  socket_type_len = sizeof(socket_type);
+
+  if (getsockopt(s, SOL_SOCKET, SO_TYPE, &socket_type, &socket_type_len)<0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not get socket type: %s\n", strerror(errno));
+    goto error;
+  }
+
   switch (netaddr_type)
   {
   case BkNetinfoTypeInet:
     if (!proto)
     {
-      int type;
-
-      len = sizeof(type);
       /* Guess the protocol */
-      if (getsockopt(s, SOL_SOCKET, SO_TYPE, &type, &len)<0)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not get socket type: %s\n", strerror(errno));
-	goto error;
-      }
-
-      switch (type)
+      switch (socket_type)
       {
       case SOCK_STREAM:
 	proto = IPPROTO_TCP;
@@ -1046,7 +1048,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 	proto = IPPROTO_UDP;
 	break;
       default:
-	bk_error_printf(B, BK_ERR_ERR, "Unknown or unsupported socket type: %d\n", type);
+	bk_error_printf(B, BK_ERR_ERR, "Unknown or unsupported socket type: %d\n", socket_type);
 	goto error;
 	break;
       }
@@ -1078,17 +1080,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
   case BkNetinfoTypeInet6:
     if (!proto)
     {
-      int type;
-
-      len = sizeof(type);
-      /* Guess the protocol */
-      if (getsockopt(s, SOL_SOCKET, SO_TYPE, &type, &len)<0)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not get socket type: %s\n", strerror(errno));
-	goto error;
-      }
-
-      switch (type)
+      switch (socket_type)
       {
       case SOCK_STREAM:
 	proto = IPPROTO_TCP;
@@ -1097,7 +1089,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 	proto = IPPROTO_UDP;
 	break;
       default:
-	bk_error_printf(B, BK_ERR_ERR, "Unknown or unsupported socket type: %d\n", type);
+	bk_error_printf(B, BK_ERR_ERR, "Unknown or unsupported socket type: %d\n", socket_type);
 	goto error;
 	break;
       }
@@ -1127,14 +1119,54 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
     break;
 
   case BkNetinfoTypeLocal:
-    /* <TODO> Do this for local type </TODO>*/
-#if 0
-    if (un2bni(B, bni, bna, (struct sockaddr_un *)sa, flags) < 0)
+    if (!proto)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not convert bni to sockaddr_un\n");
+      switch (socket_type)
+      {
+      case SOCK_STREAM:
+	proto = BK_GENERIC_STREAM_PROTO;
+	break;
+
+      case SOCK_DGRAM:
+	proto = BK_GENERIC_DGRAM_PROTO;
+	break;
+
+      default:
+	bk_error_printf(B, BK_ERR_ERR, "Unknown or unsupported socket type: %d\n", socket_type);
+	goto error;
+	break;
+      }
+    }
+
+    switch (proto)
+    {
+    case BK_GENERIC_STREAM_PROTO:
+      proto_str = BK_GENERIC_STREAM_PROTO_STR;
+      break;
+
+    case BK_GENERIC_DGRAM_PROTO:
+      proto_str = BK_GENERIC_DGRAM_PROTO_STR;
+      break;
+
+    default:
+      bk_error_printf(B, BK_ERR_ERR, "Unknown AF_LOCAL protocol: %d\n", proto);
       goto error;
     }
-#endif
+
+    if (!(bni->bni_bpi = bk_protoinfo_create(B, proto, proto_str, 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create proto info\n");
+      goto error;
+    }
+
+    sun = (struct sockaddr_un *)(&sa);
+
+    if (!(bna = bk_netaddr_user(B, BkNetinfoTypeLocal, sun->sun_path, 0, 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
+      goto error;
+    }
+    
     break;
 
   default:
@@ -1245,6 +1277,37 @@ bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni)
 
  error:
   BK_RETURN(B, NULL);
+}
+
+
+
+/**
+ * Return the adress type of a netinfo structure. All addresses contained
+ * within are assumed to be homogeneous so the type of any one should be
+ * the type of all
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bni The netinfo to check
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return netinfo <i>type</i> on success.
+ */
+int
+bk_netinfo_addr_type(bk_s B, struct bk_netinfo *bni, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_netaddr *bna;
+
+  if (!bni)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);    
+  }
+  
+  if (!(bna = netinfo_addrs_minimum(bni->bni_addrs)))
+    BK_RETURN(B, BkNetinfoTypeUnknown);
+
+  BK_RETURN(B, bna->bna_type);  
 }
 
 

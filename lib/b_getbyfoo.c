@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.29 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.30 2004/08/05 12:17:19 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -107,16 +107,27 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
     }
   }
 
-
-  /* MUTEX_LOCK */
-  if (BK_STRING_ATOI(B,protostr,&num,0) == 0)
+  if (BK_STREQ(protostr, BK_AF_LOCAL_STREAM_PROTO_STR))
+  {
+    p = &dummy;
+    memset(p, 0, sizeof(*p));
+    p->p_proto = BK_GENERIC_STREAM_PROTO;
+    p->p_name = BK_AF_LOCAL_STREAM_PROTO_STR;
+  }
+  else if (BK_STREQ(protostr, BK_AF_LOCAL_DGRAM_PROTO_STR))
+  {
+    p = &dummy;
+    memset(p, 0, sizeof(*p));
+    p->p_proto = BK_GENERIC_DGRAM_PROTO;
+    p->p_name = BK_AF_LOCAL_DGRAM_PROTO_STR;
+  }
+  else if (BK_STRING_ATOI(B,protostr,&num,0) == 0)
   {
     /* This is a number so only do search if forced */
     if (BK_FLAG_ISSET(flags, BK_GETPROTOBYFOO_FORCE_LOOKUP))
     {
       if (!(p = getprotobynumber(num)))
       {
-	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to protocol: %s\n", protostr, strerror(errno));
 	goto error;
       }
@@ -132,7 +143,6 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
   {
     if (!(p = getprotobyname(protostr)))
     {
-      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to protocol: %s\n", protostr, strerror(errno));
       goto error;
     }
@@ -142,7 +152,6 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
   {
     if (p->p_name && !(n->p_name = strdup(p->p_name)))
     {
-      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not dup protocol name: %s\n", strerror(errno));
       goto error;
     }
@@ -154,7 +163,6 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
 
       if (!(n->p_aliases = calloc((alias_count+1),sizeof(*(n->p_aliases)))))
       {
-	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate proto alias buffer: %s\n", strerror(errno));
 	goto error;
       }
@@ -163,7 +171,6 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
       {
 	if (!(n->p_aliases[count] = strdup(p->p_aliases[count])))
 	{
-	  /* MUTEX_UNLOCK */
 	  bk_error_printf(B, BK_ERR_ERR, "Could not duplicate a protocol aliase: %s\n", strerror(errno));
 	  goto error;
 	}
@@ -177,8 +184,6 @@ bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_net
 
   if (bni)
     bk_netinfo_update_protoent(B,bni,p);
-
-  /* MUTEX_UNLOCK */
 
   if (iproto)
   {
@@ -254,8 +259,8 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct servent *s, *n = NULL;
   char **s1;
+  int ret = 0;
   int alias_count = 0;
-  int ret;
   int num;					///< Port number (*host* order)
   int count;
   char *proto = NULL;
@@ -329,8 +334,6 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
     proto = lproto->p_name;
   }
 
-
-  /* MUTEX_LOCK */
   if (BK_STRING_ATOI(B, servstr, &num, 0) == 0)
   {
     /* This a a number so only do seach if forced */
@@ -338,7 +341,6 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
     {
       if (!(s = getservbyport(num, proto)))
       {
-	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to service: %s\n", servstr, strerror(errno));
 	goto error;
       }
@@ -355,7 +357,6 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
   {
     if (!(s = getservbyname(servstr, proto)))
     {
-      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to service: %s\n", servstr, strerror(errno));
       goto error;
     }
@@ -365,7 +366,6 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
   {
     if (!(n->s_name = strdup(s->s_name)))
     {
-      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not dup service name: %s\n", strerror(errno));
       goto error;
     }
@@ -377,14 +377,12 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
 
       if (!(n->s_aliases = calloc((alias_count+1),sizeof(*n->s_aliases))))
       {
-	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not allocate service alias buffer: %s\n", strerror(errno));
 	goto error;
       }
 
       for(count = 0; count<alias_count; count++)
       {
-	/* MUTEX_UNLOCK */
 	if (!(n->s_aliases[count] = strdup(s->s_aliases[count])))
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not duplicate a service aliase: %s\n", strerror(errno));
@@ -395,7 +393,6 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
 
     if (!(n->s_proto = strdup(s->s_proto)))
     {
-      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not duplicate proto name: %s\n", strerror(errno));
       goto error;
     }
@@ -406,8 +403,6 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
 
   /* Sigh have to save this to automatic so we can unlock before return */
   ret = s->s_port;
-
-  /* MUTEX_UNLOCK */
 
   if (is)
   {
@@ -421,7 +416,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
 
   if (lproto) bk_protoent_destroy(B,lproto);
 
-  BK_RETURN(B,ret);
+  BK_RETURN(B, ret);
 
  error:
   if (lproto) bk_protoent_destroy(B,lproto);
@@ -605,7 +600,6 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   }
 #endif /* HAVE_INET6 */
 
-  /* MUTEX_LOCK */
   if (BK_FLAG_ISCLEAR(user_flags, BK_GETHOSTBYFOO_FLAG_FQDN) && BK_FLAG_ISSET(flags, 0x1))
   {
     if (addr)
@@ -625,7 +619,6 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   {
     if (!(h = gethostbyaddr(((family==AF_INET)?(char *)&in_addr:(char *)&in6_addr), len, family)))
     {
-      /* MUTEX_UNLOCK */
       bk_error_printf(B, BK_ERR_ERR, "Could not convert %s address: %s\n", (family==AF_INET)?"AF_INET":"AF_INET6",hstrerror(h_errno));
       goto error;
     }
@@ -660,7 +653,6 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
 
       if (!h)
       {
-	/* MUTEX_UNLOCK */
 	bk_error_printf(B, BK_ERR_ERR, "Could not convert %s hostname: %s\n", (family==AF_INET)?"AF_INET":"AF_INET6",hstrerror(h_errno));
 	goto error;
       }
@@ -676,11 +668,8 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   if (copy_hostent(B,&tmp_h,h) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not copy hostent\n");
-    /* MUTEX_UNLOCK */
     goto error;
   }
-
-  /* MUTEX_UNLOCK */
 
   /*
    * From here on down we are making an attempt to prevent "lazy"
