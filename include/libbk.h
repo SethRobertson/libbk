@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.88 2001/12/19 20:21:02 jtt Exp $
+ * $Id: libbk.h,v 1.89 2001/12/20 00:34:24 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -309,6 +309,18 @@ typedef enum
  *	@param args User arguments
  */
 typedef void (*bk_gethostbyfoo_callback_f)(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state);
+
+
+/**
+ * @name Lock types
+ * The types of locks you may acquire with bk file locking
+ */
+typedef enum
+{
+  BkFileLockTypeShared=0,			///< Shared lock.
+  BkFileLockTypeExclusive,			///< Exclusive lock.
+} bk_file_lock_type_e; 
+
 
 
 /**
@@ -1069,6 +1081,9 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, void (*donecb
 
 /* b_fileutils.c */
 extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils_modify_fd_flags_action_e action);
+extern void *bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char *admin_ext, const char *lock_ext, bk_flags flgas);
+int bk_file_unlock(bk_s B, void *opaque, bk_flags flags);
+
 
 /* b_addrgroup.c */
 extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_f callback, void *args, int backlog);
