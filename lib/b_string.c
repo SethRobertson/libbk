@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.76 2003/02/01 04:23:11 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.77 2003/02/01 05:38:41 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1685,7 +1685,6 @@ bk_string_registry_destroy(bk_s B, struct bk_str_registry *bsr)
 }
 
 
-
 /**
  * Create a bsre
  *
@@ -1770,9 +1769,9 @@ bsre_destroy(bk_s B, struct bk_str_registry_element *bsre)
 
 
 /**
- * Insert a string into the registry. This function is only provided for
- * convenience (and "balance" with @name bk_string_registry_delete). See 
- * @a bk_string_registry_idbystr.
+ * Retrieve a string id without "registering" it. This function should be
+ * used with caution. Don't cache the value too long as it may become
+ * invalid.
  *
  * THREADS: EVIL (through CLC)
  *
@@ -1783,10 +1782,26 @@ bsre_destroy(bk_s B, struct bk_str_registry_element *bsre)
  *	@return <i>positive</i> on success.
  */
 bk_str_id_t
-bk_string_registry_insert(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags)
+bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, bk_string_registry_idbystr(B, bsr, str, flags));
+  struct bk_str_registry_element *bsre;
+
+  if (!bsr || !str)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, 0);
+  }
+  
+  for(bsre = bsr_minimum(bsr->bsr_repository);
+      bsre;
+      bsre = bsr_successor(bsr->bsr_repository, bsre))
+  {
+    if (BK_STREQ(bsre->bsre_str, str))
+      break;
+  }
+  
+  BK_RETURN(B,bsre?bsre->bsre_id:0);  
 }
 
 
@@ -1852,7 +1867,7 @@ bk_string_registry_delete(bk_s B, struct bk_str_registry *bsr, const char *str, 
 
 /**
  * Obtain the ID of a string which has been inserted into the
- * registry. This is *also* the insert routine.
+ * registry.
  *
  * THREADS: EVIL (through CLC)
  *
@@ -1863,7 +1878,7 @@ bk_string_registry_delete(bk_s B, struct bk_str_registry *bsr, const char *str, 
  *	@return <i>positive</i> on success.
  */
 bk_str_id_t
-bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags)
+bk_string_registry_insert(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_str_registry_element *bsre = NULL;
