@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.95 2002/01/02 17:05:34 seth Exp $
+ * $Id: libbk.h,v 1.96 2002/01/02 20:01:51 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -317,6 +317,19 @@ typedef enum
   BkFileLockTypeShared=0,			///< Shared lock.
   BkFileLockTypeExclusive,			///< Exclusive lock.
 } bk_file_lock_type_e; 
+
+
+
+/**
+ * Name <=> value map. 
+ * <WARNING> values should be non-negative or becareful of @abk_nvmap_name2value
+ */
+struct bk_name_val_map
+{
+  const char *		bnvm_name;		///< The name of pairt
+  int64_t		bnvm_val;		///< The value of the pait
+};
+
 
 
 
@@ -1169,6 +1182,13 @@ struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_url_parse_mode_e mode
 #define BK_URL_BARE_PATH_IS_FILE	0x1	///< Treat bare path as protocol "file"
 struct bk_url *bk_url_create(bk_s B);
 void bk_url_destroy(bk_s B, struct bk_url *bu);
+
+
+/* b_nvmap.c */
+extern int64_t bk_nvmap_name2value(bk_s B,  struct bk_name_val_map nvmap[], const char *name);
+extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_val_map nvmap[], int64_t val);
+
+
 
 
 #endif /* _BK_h_ */
