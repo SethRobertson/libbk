@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.6 2001/11/18 20:22:23 seth Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.7 2001/11/18 20:24:07 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -366,6 +366,7 @@ parse_host_specifier(bk_s B, const char *url, char **name, char **port, char **p
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   char *tmp;
+  char *p;
   char *tmp_name;
   
   if (!url || !name || !port || !proto)
