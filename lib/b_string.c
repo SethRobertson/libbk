@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.55 2002/08/14 17:01:03 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.56 2002/08/14 17:17:00 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1167,8 +1167,9 @@ char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags f
  * Convert flags to a string.
  *
  * Will use symbolic flags as provided by %b-style names if there is enough
- * room and there are names for all bits set; always appends hex encoding.
- * Reverse of @a bk_string_atoflag().
+ * room; always appends hex encoding.  If there are not names for all bits set,
+ * a tilde '~' will be used to indicate that hex encoding is authoritative, and
+ * symbolic names are only comments.  Reverse of @a bk_string_atoflag().
  *
  *	@param B BAKA Thread/global state
  *	@param src Source flags to convert
@@ -1275,7 +1276,10 @@ int bk_string_flagtoa(bk_s B, bk_flags src, char *dst, size_t len, const char *n
  * Convert a string to flags.
  *
  * Decodes symbolic flags if present and all flags are provided in names;
- * otherwise performs hex decoding.  Reverse of @a bk_string_flagtoa.
+ * otherwise performs hex decoding.  Reverse of @a bk_string_flagtoa.  Example
+ * valid input strings are "[flagbit1,flagbit2]0x3", "[flagbit1]", "0x6", and
+ * "[flagbit1]~0x5".  In the first two cases, symbolic decoding will be used if
+ * possible, in the second two cases, hex decoding will be used.
  *
  *	@param B BAKA Thread/global state
  *	@param src Source ascii string to convert
