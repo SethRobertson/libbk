@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.214 2003/03/17 22:22:14 jtt Exp $
+ * $Id: libbk.h,v 1.215 2003/03/17 23:46:50 jtt Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1228,35 +1228,7 @@ typedef struct
  * Abstracted type of the value returned by the string registry.
  */
 typedef u_int32_t bk_str_id_t;
-
-
-
-/**
- * @name bk_str_registry
- * This the container for the registry.
- */
-struct bk_str_registry
-{
-  bk_flags		bsr_flags;		///< EVeryone needs flags. (NB Shares flags space with bk_str_registry_element
-#define BK_STR_REGISTRY_FLAG_COPY_STR	0x1	///< strdup(3) this string instead of just copying the pointer.
-#define BK_STR_REGISTRY_FLAG_WRAPPED	0x2	///< True if the string id values have wrapped.
-  dict_h		bsr_repository;		///< The repository of strings.
-};
-
-
-
-/**
- * @name bk_str_registry_element
- * This is the structure which maps a string to an identifier
- */
-struct bk_str_registry_element
-{
-  bk_flags		bsre_flags;		///< Everyone needs flags. (NB Shares flag space with bk_str_registry)
-  const char *		bsre_str;		///< The saved string.
-  bk_str_id_t		bsre_id;		///< The id of this string.
-  u_int			bsre_ref;		///< Reference count
-};
-
+typedef void *bk_str_registry_t;
 
 
 /**
@@ -1675,12 +1647,13 @@ extern int bk_vstr_cat(bk_s B,  bk_flags flags, bk_vstr *dest, const char *src_f
 #define BK_VSTR_CAT_FLAG_STINGY_MEMORY		0x1 ///< Take more time; use less memory
 extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags);
 extern void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset);
-extern struct bk_str_registry *bk_string_registry_init(bk_s B);
-extern void bk_string_registry_destroy(bk_s B, struct bk_str_registry *bsr);
-extern bk_str_id_t bk_string_registry_insert(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags);
-extern int bk_string_registry_delete(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags);
-extern bk_str_id_t bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags);
-extern const char *bk_string_registry_strbyid(bk_s B, struct bk_str_registry *bsr, bk_str_id_t id, bk_flags flags);
+extern bk_str_registry_t bk_string_registry_init(bk_s B);
+extern void bk_string_registry_destroy(bk_s B, bk_str_registry_t handle);
+extern bk_str_id_t bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags);
+#define BK_STR_REGISTRY_FLAG_COPY_STR	0x1	///< strdup(3) this string instead of just copying the pointer.
+extern int bk_string_registry_delete(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags);
+extern bk_str_id_t bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags);
+extern const char *bk_string_registry_strbyid(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags);
 extern char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **envdb, bk_flags flags);
 #define BK_STRING_EXPAND_FREE 1
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.79 2003/03/14 21:41:41 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.80 2003/03/17 23:46:50 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,6 +23,32 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+
+/**
+ * @name bk_str_registry
+ * This the container for the registry.
+ */
+struct bk_str_registry
+{
+  bk_flags		bsr_flags;		///< EVeryone needs flags. (NB Shares flags space with bk_str_registry_element
+  dict_h		bsr_repository;		///< The repository of strings.
+};
+
+
+
+/**
+ * @name bk_str_registry_element
+ * This is the structure which maps a string to an identifier
+ */
+struct bk_str_registry_element
+{
+  bk_flags		bsre_flags;		///< Everyone needs flags. (NB Shares flag space with bk_str_registry)
+  const char *		bsre_str;		///< The saved string.
+  bk_str_id_t		bsre_id;		///< The id of this string.
+  u_int			bsre_ref;		///< Reference count
+};
+
 
 
 #define TOKENIZE_FIRST		8		///< How many we will start with 
@@ -1633,7 +1659,7 @@ void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset)
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_str_registry on success.
  */
-struct bk_str_registry *
+bk_str_registry_t
 bk_string_registry_init(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -1655,7 +1681,7 @@ bk_string_registry_init(bk_s B)
 
  error:
   if (bsr)
-    bk_string_registry_destroy(B, bsr);
+    bk_string_registry_destroy(B, (bk_str_registry_t)bsr);
   BK_RETURN(B,NULL);  
 }
 
@@ -1670,9 +1696,10 @@ bk_string_registry_init(bk_s B)
  *	@param bsr The registry to fully destroy.
  */
 void
-bk_string_registry_destroy(bk_s B, struct bk_str_registry *bsr)
+bk_string_registry_destroy(bk_s B, bk_str_registry_t handle)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre;
 
   if (!bsr)
@@ -1789,15 +1816,17 @@ bsre_destroy(bk_s B, struct bk_str_registry_element *bsre)
  * THREADS: EVIL (through CLC)
  *
  *	@param B BAKA thread/global state.
+ *	@param handle the registry handle to use.
  *	@param str The string to insert
- *	@param flag Flags.
+*	@param flag Flags.
  *	@return <i>0</i> on FAILURE (!! THIS IS NOT NORMAL FOR LIBBK !!).<br>
  *	@return <i>positive</i> on success.
  */
 bk_str_id_t
-bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags)
+bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre;
 
   if (!bsr || !str)
@@ -1831,9 +1860,10 @@ bk_string_registry_idbystr(bk_s B, struct bk_str_registry *bsr, const char *str,
  *	@return <i>0</i> on success.
  */
 int
-bk_string_registry_delete(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags)
+bk_string_registry_delete(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre;
   
   if (!bsr || !str)
@@ -1891,9 +1921,10 @@ bk_string_registry_delete(bk_s B, struct bk_str_registry *bsr, const char *str, 
  *	@return <i>positive</i> on success.
  */
 bk_str_id_t
-bk_string_registry_insert(bk_s B, struct bk_str_registry *bsr, const char *str, bk_flags flags)
+bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre = NULL;
   bk_str_id_t id = 0;
   bk_str_id_t tmp = 1;
@@ -1992,9 +2023,10 @@ bk_string_registry_insert(bk_s B, struct bk_str_registry *bsr, const char *str, 
  *	@return <i>str</i> on success.
  */
 const char *
-bk_string_registry_strbyid(bk_s B, struct bk_str_registry *bsr, bk_str_id_t id, bk_flags flags)
+bk_string_registry_strbyid(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre;
   
   if (!bsr || id == 0)
