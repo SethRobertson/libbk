@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.55 2004/08/12 20:19:00 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.56 2004/08/14 19:39:27 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -37,7 +37,6 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include <libbkssl.h>
 
-#define jtts stderr
 
 
 #define ERRORQUEUE_DEPTH	32		///< Default depth
