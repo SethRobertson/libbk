@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.55 2003/06/09 22:09:58 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.56 2003/06/09 22:44:45 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1504,7 +1504,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	// Look again, we may have been deleted in the interim
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
 	{
-	  struct bk_run_fdassoc *oldfd = curfd;
+	  struct bk_run_fdassoc *oldfd = curfd;	// May be COPY_DANGLING
 
 	  if (curfd = fdassoc_search(run->br_fdassoc, &x))
 	  {
