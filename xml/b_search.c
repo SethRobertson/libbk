@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_search.c,v 1.3 2003/03/20 18:59:23 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_search.c,v 1.4 2003/03/20 19:09:13 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -184,7 +184,7 @@ char *bkxml_attrnode_data(bk_s B, xmlDocPtr doc, xmlNodePtr attrnode, bk_flags f
     BK_RETURN(B, NULL);
   }
 
-  if (BK_FLAGS_ISCLEAR(flags, BKXML_MISSING_TEXT_ARE_NULL) && !attrnode->children)
+  if (BK_FLAG_ISCLEAR(flags, BKXML_MISSING_TEXT_ARE_NULL) && !attrnode->children)
     BK_RETURN(B, calloc(1, 1));
 
   if (!(str = (char *)xmlNodeListGetString(doc, attrnode->children, 0)))
