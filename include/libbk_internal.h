@@ -15,6 +15,15 @@
 #define _libbk_internal_h_
 
 
+/* b_general.c */
+struct bk_proctitle
+{
+  int		bp_argc;			/* Number of program arguments */
+  char		**bp_argv;			/* Program and arguments */
+  char		**bp_envp;			/* Environment */
+  bk_vptr	bp_title;			/* Original vector for overwriting */
+};
+
 
 /* b_config.h */
 struct bk_config

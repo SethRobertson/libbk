@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.2 2001/06/08 22:11:03 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.3 2001/06/18 13:56:51 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -49,15 +49,16 @@ extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfi
   if (!(B->bt_general->bg_debug = bk_debug_init(B)))
     goto error;
 
+  if (!(B->bt_general->bg_destroy = bk_funlist_init(B)))
+    goto error;
+
   if (!(B->bt_general->bg_reinit = bk_funlist_init(B)))
     goto error;
-  if (bk_funlist_insert(B,B->bt_general->bg_reinit,bk_reinit,B) < 0)
+
+  if (!(B->bt_general->bg_config = bk_config_init(B, configfile, 0)))
     goto error;
 
-  if (!(B->bt_general->bg_config = bk_config_init(B, configfile, 0)) < 0)
-    goto error;
-
-  if (bk_setProcTitle(argc, argv, envp, &B->bt_general->bg_program) < 0)
+  if (!(B->bt_general->bg_proctitle = bk_general_proctitle_init(argc, argv, envp, &B->bt_general->bg_program)))
     goto error;
 
  error:
@@ -65,8 +66,20 @@ extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfi
     {
       if (B->bt_general)
 	{
+	  if (B->bt_general->bg_destroy)
+	    {
+	      bk_funlist_call(B,B->bt_general->bg_destroy, 0);
+	      bk_funlist_destroy(B,B->bt_general->bg_destroy);
+	    }
+
+	  if (B->bt_general->bg_proctitle)
+	    bk_general_proctitle_destroy(B,B->bt_general->bg_proctitle);
+
 	  if (B->bt_general->bg_config)
 	    bk_config_destroy(B, B->bt_general->bg_config);
+
+	  if (B->bt_general->bg_reinit)
+	    bk_funlist_destroy(B,B->bt_general->bg_reinit);
 
 	  if (B->bt_general->bg_error)
 	    bk_error_destroy(B,B->bt_general->bg_error);

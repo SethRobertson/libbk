@@ -128,6 +128,7 @@ struct bk_funinfo
 
 /* b_general.c */
 extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility);
+extern void bk_general_setproctitle(bk_s B, char *);
 extern void bk_general_reinit(bk_s B);
 extern void bk_general_destroy(bk_s B);
 extern bk_s bk_general_thread_init(bk_s B, char *name);
