@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_realloc.c,v 1.4 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_realloc.c,v 1.5 2005/01/11 22:36:31 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -147,6 +147,7 @@ void *
 bk_malloc_wrapper(size_t size)
 {
   bk_vptr *vector = NULL;
+  bk_vptr *ovector = NULL;
 
   if (!buffer_pool && bk_malloc_wrap_init(0) < 0)
     goto error;
@@ -157,8 +158,24 @@ bk_malloc_wrapper(size_t size)
   if (!(vector->ptr = malloc(size)))
     goto error;
 
-  if (buffer_pool_insert_uniq(buffer_pool, vector, NULL) != DICT_OK)
-    goto error;
+  if (buffer_pool_insert_uniq(buffer_pool, vector, &ovector) != DICT_OK)
+  {
+    if (!ovector)
+      goto error;
+
+    /* 
+     * For some reason we have started to miss (evidently) some legimate
+     * free(3)'s. I have no idea why, but we take a positive view of uniq
+     * insert failures and simply nuke the (hopefull stale) vector and try
+     * again.
+     */
+    buffer_pool_delete(buffer_pool, ovector);
+
+    free(ovector);
+
+    if (buffer_pool_insert_uniq(buffer_pool, vector, &ovector) != DICT_OK)
+      goto error;
+  }
 
   vector->len = size;
   
