@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.11 2001/07/06 00:57:30 seth Exp $
+ * $Id: libbk.h,v 1.12 2001/07/07 13:41:14 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -23,10 +23,12 @@
 #define BK_ERR_NONE	-1
 #define BK_ERR_CRIT	LOG_CRIT
 #define BK_ERR_ERR	LOG_ERR
-#define BK_ERR_WARNING	LOG_WARNING
+#define BK_ERR_WARN	LOG_WARNING
 #define BK_ERR_NOTICE	LOG_NOTICE
 #define BK_ERR_DEBUG	LOG_DEBUG
 
+/* General constants */
+#define BK_SYSLOG_MAXLEN 256			/* Length of maximum user message we will syslog */
 
 /* General purpose macros */
 #define BK_FLAG_SET(var,bit) (var) |= (bit)
@@ -77,7 +79,7 @@ struct bk_general
 #define BK_GENERAL_CONFIG(B)	((B)->bt_general->bg_config)
 #define BK_GENERAL_PROGRAM(B)	((B)->bt_general->bg_program)
 #define BK_GENERAL_FLAGS(B)	((B)->bt_general->bg_flags)
-#define BK_GENERAL_FLAG_ISFUNON(B)    BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON)
+#define BK_GENERAL_FLAG_ISFUNON(B)   BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON)
 #define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON)
 #define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON)
 
@@ -155,7 +157,7 @@ struct bk_funinfo
 
 
 /* b_general.c */
-extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, int syslogthreshhold, bk_flags flags);
+extern bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, bk_flags flags);
 #define BK_GENERAL_NOPROCTITLE 1
 extern void bk_general_proctitle_set(bk_s B, char *);
 extern void bk_general_reinit(bk_s B);
@@ -166,8 +168,15 @@ extern int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int),
 extern int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
 extern int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
 extern int bk_general_destroy_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args);
-extern void bk_general_syslog(bk_s B, int level, char *format, ...) __attribute__ ((format (printf, 3, 4)));
+extern void bk_general_syslog(bk_s B, int level, bk_flags flags, char *format, ...) __attribute__ ((format (printf, 4, 5)));
+extern void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list args);
+#define BK_SYSLOG_FLAG_NOFUN 1			/* Don't want function name included */
+#define BK_SYSLOG_FLAG_NOLEVEL 2		/* Don't want error level included */
+extern const char *bk_general_errorstr(bk_s B, int level);
 
+
+
+/* b_config.c */
 extern struct bk_config *bk_config_init(bk_s B, char *filename, bk_flags flags);
 extern int bk_config_reinit(bk_s B, struct bk_config *config);
 extern void bk_config_destroy(bk_s B, struct bk_config *config);
@@ -180,10 +189,10 @@ extern char *bk_config_delete(bk_s B, struct bk_config *config, char *key);
 
 
 /* b_debug.c */
-extern struct bk_debug *bk_debug_init(bk_s B);
+extern struct bk_debug *bk_debug_init(bk_s B, bk_flags flags);
 extern void bk_debug_destroy(bk_s B, struct bk_debug *bd);
 extern void bk_debug_reinit(bk_s B, struct bk_debug *bd);
-extern u_int32_t bk_debug_query(bk_s B, struct bk_debug *bdinfo, const char *funname, const char *pkgname, const char *group, const char *program);
+extern u_int32_t bk_debug_query(bk_s B, struct bk_debug *bdinfo, const char *funname, const char *pkgname, const char *group, bk_flags flags);
 extern int bk_debug_set(bk_s B, struct bk_debug *bdinfo, const char *name, u_int32_t level);
 extern int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config, const char *program);
 extern void bk_debug_config(bk_s B, struct bk_debug *bdinfo, FILE *fh, int sysloglevel, bk_flags flags);
@@ -213,10 +222,10 @@ extern struct bk_funinfo *bk_fun_entry(bk_s B, const char *func, const char *pac
 extern void bk_fun_exit(bk_s B, struct bk_funinfo *fh);
 extern void bk_fun_reentry_i(bk_s B, struct bk_funinfo *fh);
 extern void bk_fun_trace(bk_s B, FILE *out, int sysloglevel, bk_flags flags);
-extern void bk_fun_set(bk_s B, bk_flags flags);
+extern void bk_fun_set(bk_s B, int state, bk_flags flags);
 #define BK_FUN_OFF	0			/* Turn off function tracing */
 #define BK_FUN_ON	1			/* Turn on function tracing */
-
+extern const char *bk_fun_funname(bk_s B, int ancestordepth, bk_flags flags);
 
 
 /* b_funlist.c */

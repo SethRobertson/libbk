@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fun.c,v 1.3 2001/07/05 15:19:11 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.4 2001/07/07 13:41:14 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -20,18 +20,19 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 
-#define funstack_create(o,k,f,e)       dll_create(o,k,f,e)
-#define funstack_destroy(h)            dll_destroy(h)
-#define funstack_insert(h,o)           dll_insert(h,o)
-#define funstack_insert_uniq(h,n,o)    dll_insert(h,n,o)
-#define funstack_search(h,k)           dll_search(h,k)
-#define funstack_delete(h,o)           dll_delete(h,o)
-#define funstack_minimum(h)            dll_minimum(h)
-#define funstack_maximum(h)            dll_maximum(h)
-#define funstack_successor(h,o)        dll_successor(h,o)
-#define funstack_predecessor(h,o)      dll_predecessor(h,o)
-#define funstack_iterate(h,d)          dll_iterate(h,d)
-#define funstack_nextobj(h)            dll_nextobj(h)
+#define funstack_create(o,k,f)		dll_create(o,k,f)
+#define funstack_destroy(h)		dll_destroy(h)
+#define funstack_insert(h,o)		dll_insert(h,o)
+#define funstack_insert_uniq(h,n,o)	dll_insert(h,n,o)
+#define funstack_search(h,k)		dll_search(h,k)
+#define funstack_delete(h,o)		dll_delete(h,o)
+#define funstack_minimum(h)		dll_minimum(h)
+#define funstack_maximum(h)		dll_maximum(h)
+#define funstack_successor(h,o)		dll_successor(h,o)
+#define funstack_predecessor(h,o)	dll_predecessor(h,o)
+#define funstack_iterate(h,d)		dll_iterate(h,d)
+#define funstack_nextobj(h)		dll_nextobj(h)
+#define funstack_error_reason(h,i)	dll_error_reason(h,i)
 
 
 
@@ -41,7 +42,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  */
 dict_h bk_fun_init(void)
 {
-  return(funstack_create(NULL, NULL, DICT_UNORDERED, NULL));
+  return(funstack_create(NULL, NULL, DICT_UNORDERED));
 }
 
 
@@ -130,7 +131,7 @@ void bk_fun_reentry_i(bk_s B, struct bk_funinfo *fh)
 {
   if (B && fh)
   {
-    fh->bf_debuglevel = bk_debug_query(B, BK_GENERAL_DEBUG(B), fh->bf_funname, fh->bf_pkgname, fh->bf_grpname, BK_GENERAL_PROGRAM(B));
+    fh->bf_debuglevel = bk_debug_query(B, BK_GENERAL_DEBUG(B), fh->bf_funname, fh->bf_pkgname, fh->bf_grpname, 0);
 
     funstack_insert(BK_BT_FUNSTACK(B), fh);
     BK_BT_CURFUN(B) = fh;
@@ -151,15 +152,41 @@ void bk_fun_trace(bk_s B, FILE *out, int sysloglevel, bk_flags flags)
     if (out)
       fprintf(out,"Stack trace: %s %s %s\n",cur->bf_funname, cur->bf_pkgname, cur->bf_grpname);
     if (sysloglevel > BK_ERR_NONE)
-      bk_general_syslog(B, sysloglevel, "Stack trace: %s %s %s\n",cur->bf_funname, cur->bf_pkgname, cur->bf_grpname);
+      bk_general_syslog(B, sysloglevel, BK_SYSLOG_FLAG_NOFUN|BK_SYSLOG_FLAG_NOLEVEL, "Stack trace: %s %s %s\n",cur->bf_funname, cur->bf_pkgname, cur->bf_grpname);
   }
 }
 
 
 
 /*
- * 
+ * Turn function tracing off and back on
  */
-void bk_fun_set(bk_s B, bk_flags flags)
+void bk_fun_set(bk_s B, int state, bk_flags flags)
 {
+  if (state == BK_FUN_OFF)
+    BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B),BK_BGFLAGS_FUNON);
+  else if (state == BK_FUN_ON)
+    BK_FLAG_SET(BK_GENERAL_FLAGS(B),BK_BGFLAGS_FUNON);
+  else
+    bk_error_printf(B, BK_ERR_ERR, "Invalid state argument: %d\n",state);
+}
+
+
+
+/*
+ * Discover the function name of my nth ancestor in the function stack
+ */
+const char *bk_fun_funname(bk_s B, int ancestordepth, bk_flags flags)
+{
+  struct bk_funinfo *cur = NULL;
+
+  if (!BK_GENERAL_FLAG_ISFUNON(B))
+    return(NULL);				/* No function tracing, no function name */
+
+  for(cur = (struct bk_funinfo *)funstack_minimum(BK_BT_FUNSTACK(B)); cur && ancestordepth--; cur = (struct bk_funinfo *)funstack_successor(BK_BT_FUNSTACK(B), cur)) ;
+
+  if (!cur)
+    return(NULL);				/* Don't have that many ancestors! */
+
+  return(cur->bf_funname);
 }

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.7 2001/07/04 19:16:39 seth Exp $
+ * $Id: libbk_internal.h,v 1.8 2001/07/07 13:41:14 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -48,9 +48,17 @@ struct bk_config_key
 /* b_debug.c */
 struct bk_debug
 {
+  dict_h	bd_leveldb;			/* Debugging levels by fun/grp/pkg/prg */
+  u_int32_t	bd_defaultlevel;		/* Default debugging level */
   FILE		*bd_fh;				/* Debugging info file handle */
-  u_char	bd_sysloglevel;			/* Debugging syslog level */
+  int		bd_sysloglevel;			/* Debugging syslog level */
   bk_flags	bd_flags;			/* Flags */
+};
+
+struct bk_debugnode
+{
+  char		*bd_name;			/* Name to debug */
+  u_int32_t	bd_level;			/* Level to debug at */
 };
 
 
@@ -58,9 +66,10 @@ struct bk_debug
 /* b_error.c */
 struct bk_error
 {
-  FILE		*be_fh;				/* Debugging info file handle */
-  u_char	be_sysloglevel;			/* Debugging syslog level */
-  dict_h	be_queue;			/* Queue of error messages */
+  FILE		*be_fh;				/* Error info file handle */
+  u_char	be_sysloglevel;			/* Error syslog level */
+  dict_h	be_hiqueue;			/* Queue of high priority error messages */
+  dict_h	be_lowqueue;			/* Queue of low priority error messages */
   u_short	be_cursize;			/* Current queue size */
   u_short	be_maxsize;			/* Maximum queue size */
   bk_flags	be_flags;			/* Flags */

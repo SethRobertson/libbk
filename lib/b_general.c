@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.6 2001/07/06 00:57:30 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.7 2001/07/07 13:41:14 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -31,7 +31,7 @@ static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_fl
 /*
  * Grand creation of libbk state structure
  */
-bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, int syslogthreshhold, bk_flags flags)
+bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int error_queue_length, int log_facility, bk_flags flags)
 {
   bk_s B;
 
@@ -42,10 +42,10 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int
     goto error;
   memset(BK_BT_GENERAL(B), 0, sizeof(*BK_BT_GENERAL(B)));
 
-  if (!(BK_GENERAL_ERROR(B) = bk_error_init(B, error_queue_length, NULL, log_facility, 0)))
+  if (!(BK_GENERAL_DEBUG(B) = bk_debug_init(B, 0)))
     goto error;
 
-  if (!(BK_GENERAL_DEBUG(B) = bk_debug_init(B)))
+  if (!(BK_GENERAL_ERROR(B) = bk_error_init(B, error_queue_length, NULL, log_facility, 0)))
     goto error;
 
   if (!(BK_GENERAL_DESTROY(B) = bk_funlist_init(B)))
@@ -61,7 +61,10 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, char *configfile, int
     goto error;
 
   if (log_facility && BK_GENERAL_PROGRAM(B))
+  {
     openlog(BK_GENERAL_PROGRAM(B), LOG_NDELAY|LOG_PID, log_facility);
+    BK_FLAG_SET(BK_GENERAL_FLAGS(B),BK_BGFLAGS_SYSLOGON);
+  }
 
   return(B);
 
@@ -181,7 +184,7 @@ bk_s bk_general_thread_init(bk_s B, char *name)
   if (!name)
   {
     if (B)
-      bk_error_printf(B, BK_ERR_WARNING, "Invalid argument\n");
+      bk_error_printf(B, BK_ERR_WARN, "Invalid argument\n");
     return(NULL);
   }
 
@@ -195,6 +198,10 @@ bk_s bk_general_thread_init(bk_s B, char *name)
 
   if (!(BK_BT_FUNSTACK(B1) = bk_fun_init()))
     goto error;
+
+  /* Preserve function tracing flag or turn on by default */
+  if (!B || (B && BK_GENERAL_FLAG_ISFUNON(B)))
+    BK_FLAG_SET(BK_GENERAL_FLAGS(B1), BK_BGFLAGS_FUNON);
 
   if (!(BK_BT_THREADNAME(B1) = strdup(name)))
     goto error;
@@ -253,6 +260,93 @@ void bk_general_proctitle_set(bk_s B, char *title)
 
   BK_VRETURN(B);
 }
+
+
+
+/*
+ * Syslog a message out to the system (if we were initialized)
+ *
+ * Note that %m is NOT supported
+ */
+void bk_general_syslog(bk_s B, int level, bk_flags flags, char *format, ...)
+{
+  va_list args;
+
+  va_start(args, format);
+  bk_general_vsyslog(B, level, flags, format, args);
+  va_end(args);
+
+  return;
+}
+
+
+
+/*
+ * Syslog a message out to the system (if we were initialized)
+ *
+ * Note that %m is NOT supported
+ */
+void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list args)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *buffer;
+  const char *parentname, *errorstr;
+  int len;
+
+  if (!BK_GENERAL_FLAG_ISSYSLOGON(B))
+    BK_VRETURN(B);
+
+  if (BK_FLAG_ISSET(flags, BK_SYSLOG_FLAG_NOLEVEL) || !(errorstr = bk_general_errorstr(B, level)))
+    errorstr = "";
+
+  if (BK_FLAG_ISSET(flags, BK_SYSLOG_FLAG_NOFUN) || !(parentname = bk_fun_funname(B, 1, 0)))
+    parentname = "";
+
+  if (!(buffer = (char *)alloca(BK_SYSLOG_MAXLEN)))
+  {
+    /*
+     * Potentially recursive
+     *
+     * bk_error_printf(B, BK_ERR_ERR, "Could not allocate storage for buffer to syslog\n");
+     */
+    BK_VRETURN(B);
+  }
+  vsnprintf(buffer,BK_SYSLOG_MAXLEN, format, args);
+
+  if (*errorstr == 0 && *parentname == 0)
+    syslog(level, "%s",buffer);
+  else if (*errorstr == 0)
+    syslog(level, "%s: %s",parentname,buffer);
+  else
+    syslog(level, "%s[%s]: %s",parentname,errorstr,buffer);
+
+  BK_VRETURN(B);
+}
+
+
+
+/*
+ * Decode error level to error string
+ */
+const char *bk_general_errorstr(bk_s B, int level)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *answer;
+
+  switch(level)
+  {
+  case BK_ERR_CRIT:	answer = "Critical"; break;
+  case BK_ERR_ERR:	answer = "Error"; break;
+  case BK_ERR_WARN:	answer = "Warning"; break;
+  case BK_ERR_NOTICE:	answer = "Notice"; break;
+  case BK_ERR_DEBUG:	answer = "Debug"; break;
+  case BK_ERR_NONE:	answer = ""; break;
+  default:		answer = "Unknown"; break;
+  }
+
+  BK_RETURN(B, answer);
+}
+
 
 
 /*
