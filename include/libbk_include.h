@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.14 2002/01/09 06:26:38 dupuy Exp $
+ * $Id: libbk_include.h,v 1.15 2002/01/11 10:06:05 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -101,7 +101,14 @@
 #include <net/if.h>
 #include <netinet/if_ether.h>
 #else  /* no struct ether_addr */
-#warning "Must include file which defines struct ether_addr"
+struct ether_addr
+{
+  u_int8_t ether_addr_octet[6];
+}
+#ifdef __GNUC__
+__attribute__ ((__packed__))
+#endif /* __GNUC__ */
+;
 #endif /* HAVE_NETINET_IF_ETHER_H */
 #endif /* HAVE_NET_ETHERNET_H */
 #endif /* !BK_MINGW */

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.7 2001/11/15 22:19:47 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.8 2002/01/11 10:06:05 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -34,7 +34,7 @@
 /*
  * Attempt to make things work on windows without cygwin
  */
-#if defined(_WIN32) && !defined(__CYGWIN32__)
+#ifdef BK_MINGW32
 typedef unsigned char u_int8_t;
 typedef unsigned short u_int16_t;
 typedef unsigned int u_int32_t;
@@ -59,7 +59,7 @@ typedef char *caddr_t;
 #define BYTE_ORDER 4321
 #define LITTLE_ENDIAN 4321
 #define BIG_ENDIAN 1234
-#endif /* _WIN32 && !__CYGWIN32__ */
+#endif /* BK_MINGW32 */
 
 #ifndef __SIZE_TYPE__
 #define __SIZE_TYPE__ size_t
@@ -73,5 +73,9 @@ typedef char *caddr_t;
 #	define BK_SET_SOCKADDR_LEN(B,s,l) do { ((struct sockaddr *)(s))->sa_len=(l); }while(0)
 #	define BK_GET_SOCKADDR_LEN(B,s,l) do { (l)=((struct sockaddr *)(s))->sa_len; }while(0)
 #endif 
+
+#if defined(AF_INET6) && defined(HAVE_inet_pton)
+#define HAVE_INET6
+#endif
 
 #endif /* _libbk_oscompat_h_ */

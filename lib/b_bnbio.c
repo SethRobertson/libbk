@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.3 2001/12/19 20:21:02 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.4 2002/01/11 10:06:05 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -336,7 +336,7 @@ bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, 
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
-quad_t
+u_int64_t
 bk_iohh_bnbio_tell(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");

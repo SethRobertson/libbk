@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.34 2001/12/19 20:21:02 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.35 2002/01/11 10:06:05 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3025,7 +3025,7 @@ int bk_ioh_stdwrfun(bk_s B, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE
     bk_vptr dbuf;
 
     dbuf.ptr = buf[0].iov_base;
-    dbuf.len = MIN(MIN(buf[0].iov_len, 32), (u_int)ret);
+    dbuf.len = MIN(MIN((u_int)buf[0].iov_len, 32U), (u_int)ret);
 
     bk_debug_printbuf_and(B, 0x20, "Buffer just wrote:", "\t", &dbuf);
   }

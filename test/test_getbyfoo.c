@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.12 2001/12/06 16:53:23 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.13 2002/01/11 10:06:05 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -332,10 +332,10 @@ host_callback(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *
 
       for(ia=(struct in_addr **)(h->h_addr_list); *ia; ia++)
       {
-	char s1[100];
-	printf("%s ", inet_ntop(h->h_addrtype, *ia, s1, 100));
+	printf("%s ", inet_ntoa(**ia));
       }
     }
+#ifdef HAVE_INET6
     else if (h->h_addrtype == AF_INET6)
     {
       struct in6_addr **ia;
@@ -347,6 +347,7 @@ host_callback(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *
 	printf("%s ", inet_ntop(h->h_addrtype, *ia, s1, 100));
       }
     }
+#endif
     printf("\n");
 
     if (state != BkGetHostByFooStateNetinfoErr)

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.22 2002/01/08 21:03:39 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.23 2002/01/11 10:06:05 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1190,7 +1190,7 @@ char *bk_encode_base64(bk_s B, const bk_vptr *src, const char *eolseq)
   /* allocate a result buffer */
   if (!(ret = BK_MALLOC_LEN(r, rlen)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory(%d) for result: %s\n", rlen, strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory(%d) for result: %s\n", (int) rlen, strerror(errno));
     BK_RETURN(B, NULL);
   }
 

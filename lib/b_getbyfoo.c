@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.16 2001/12/05 00:29:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.17 2002/01/11 10:06:05 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -552,11 +552,11 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
       /* 
        * <WARNING>
        * What do we do here/ Error or progress with a warning. Since
-       * it's overwhelmingly likey that the caller means AF_INET, we will
+       * it's overwhelmingly likely that the caller means AF_INET, we will
        * issue a warning and carry on.
        * </WARNING>
        */
-      bk_error_printf(B, BK_ERR_WARN, "Address family for ANY addres unset. Assuming AF_INET and forging on.\n");
+      bk_error_printf(B, BK_ERR_WARN, "Address family for ANY address unset. Assuming AF_INET and forging on.\n");
       family = AF_INET;
     }
       
@@ -583,7 +583,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
       break;
     }
   }
-  else if (inet_pton(AF_INET, name, &in_addr))
+  else if (inet_aton(name, &in_addr))
   {
     if (family) 
     {
@@ -593,13 +593,13 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
 	goto error;
       }
     }
-
     family = AF_INET; /* Yes this might be redundant. Leave me alone */
     len = sizeof(struct in_addr);
     BK_FLAG_SET(flags, 0x1);
     addr = &in_addr;
   }
-  else if (inet_pton(AF_INET6, name, &in6_addr))
+#ifdef HAVE_INET6
+  else if (inet_pton(AF_INET6, name, &in6_addr) > 0)
   {
     if (family) 
     {
@@ -615,6 +615,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
     len = sizeof(struct in6_addr);
     addr = &in6_addr;
   }
+#endif /* HAVE_INET6 */
 
   /* MUTEX_LOCK */
   if (BK_FLAG_ISCLEAR(user_flags, BK_GETHOSTBYFOO_FLAG_FQDN) && BK_FLAG_ISSET(flags, 0x1))
@@ -645,14 +646,23 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
   {
     if (family) 
     {
+#ifdef HAVE_INET6
       h = gethostbyname2(name, family);
+#else
+      if (family == AF_INET)
+	h = gethostbyname(name);
+      else
+	h = NULL;
+#endif
     }
     else
     {
-      if (!(h = gethostbyname2(name, AF_INET)))
+      if (!(h = gethostbyname(name)))
       {
+#ifdef HAVE_INET6
 	h = gethostbyname2(name, AF_INET6);
 	family = AF_INET6; /* Sure this gets set if h==NULL, so what? :-) */
+#endif
       }
       else
       {
@@ -834,7 +844,7 @@ bk_destroy_hostent(bk_s B, struct hostent *h)
     BK_VRETURN(B);
   }
 
-  if (h->h_name) free(h->h_name);
+  if (h->h_name) free((char *)h->h_name);
   
   if (h->h_aliases)
   {
@@ -928,12 +938,14 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
       for (count = 0,ia = (struct in_addr **)(h->h_addr_list); *ia; ia++)
 	count++;
     }
+#ifdef HAVE_INET6
     else if (h->h_addrtype == AF_INET6)
     {
       struct in6_addr **ia;
       for (count = 0,ia = (struct in6_addr **)(h->h_addr_list); *ia; ia++)
 	count++;
     }
+#endif
     else
     {
       bk_error_printf(B, BK_ERR_ERR, "Unknown address family: %d\n", h->h_addrtype);

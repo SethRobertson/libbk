@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.7 2001/12/05 00:29:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netaddr.c,v 1.8 2002/01/11 10:06:05 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -281,11 +281,13 @@ bk_netaddr_addrdup (bk_s B, bk_netaddr_type_e type, void *addr, bk_flags flags)
     bna->bna_len=sizeof(struct in_addr);
     break;
 
+#ifdef HAVE_INET6
   case BkNetinfoTypeInet6:
     bk_debug_printf_and(B, 1, "Copying INET6\n");
     memmove(&bna->bna_inet6, addr, sizeof(struct in6_addr));
     bna->bna_len=sizeof(struct in6_addr);
     break;
+#endif
 
   case BkNetinfoTypeLocal:
     bk_debug_printf_and(B, 1, "Copying LOCAL\n");
@@ -357,30 +359,36 @@ update_bna_pretty(bk_s B, struct bk_netaddr *bna)
   switch (bna->bna_type)
   {
   case BkNetinfoTypeInet:
-    if (!inet_ntop(AF_INET, &bna->bna_inet, scratch2, SCRATCHLEN2))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not convert ip addr to string: %s\n", strerror(errno));
-      goto error;
-    }
-    snprintf(scratch, SCRATCHLEN,"<AF_INET:%s>", scratch2);
+    snprintf(scratch, SCRATCHLEN, "<AF_INET,%%u.%u.%u.%u>",
+	     ((unsigned char *)&bna->bna_inet)[0],
+	     ((unsigned char *)&bna->bna_inet)[1],
+	     ((unsigned char *)&bna->bna_inet)[2],
+	     ((unsigned char *)&bna->bna_inet)[3]);
     break;
 
+#ifdef HAVE_INET6
   case BkNetinfoTypeInet6:
     if (!inet_ntop(AF_INET6, &bna->bna_inet6, scratch2, SCRATCHLEN2))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not convert ip6 addr to string: %s\n", strerror(errno));
       goto error;
     }
-    snprintf(scratch, SCRATCHLEN,"<AF_INET6:%s>", scratch2);
+    snprintf(scratch, SCRATCHLEN, "<AF_INET6,%s>", scratch2);
     break;
+#endif
 
   case BkNetinfoTypeLocal:
-    snprintf(scratch, SCRATCHLEN,"<AF_LOCAL:%s>", bna->bna_path);
+    snprintf(scratch, SCRATCHLEN, "<AF_LOCAL,%s>", bna->bna_path);
     break;
 
   case BkNetinfoTypeEther:
-    /* <TODO> Finish this  </TODO> */
-    snprintf(scratch, SCRATCHLEN,"<ETHER:%s>", "");
+    snprintf(scratch, SCRATCHLEN, "<AF_ETHER,%x:%x:%x:%x:%x:%x>",
+	     ((unsigned char *)&bna->bna_ether)[0],
+	     ((unsigned char *)&bna->bna_ether)[1],
+	     ((unsigned char *)&bna->bna_ether)[2],
+	     ((unsigned char *)&bna->bna_ether)[3],
+	     ((unsigned char *)&bna->bna_ether)[4],
+	     ((unsigned char *)&bna->bna_ether)[5]);
     break;
 
   default: 
@@ -486,9 +494,11 @@ bk_netaddr_af2nat(bk_s B, int af)
     type=BkNetinfoTypeInet;
     break;
 
+#ifdef AF_INET6
   case AF_INET6:
     type=BkNetinfoTypeInet6;
     break;
+#endif
 
   case AF_LOCAL:
     type=BkNetinfoTypeLocal;
@@ -526,9 +536,11 @@ bk_netaddr_nat2af(bk_s B, int type)
     af=AF_INET;
     break;
 
+#ifdef AF_INET6
   case BkNetinfoTypeInet6:
     af=AF_INET6;
     break;
+#endif
 
   case BkNetinfoTypeLocal:
     af=AF_LOCAL;

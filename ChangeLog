@@ -1,3 +1,27 @@
+2002-01-11  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h (bk_iohh_bnbio_tell): use u_int64_t, not BSD quad_t
+
+	* include/libbk_internal.h (struct bk_polling_io): use u_int64_t
+
+	* lib/b_bnbio.c (bk_iohh_bnbio_tell): return u_int64_t
+
+	* include/libbk_include.h (struct ether_addr): defined if none of the
+	possible include files are present
+
+	* include/libbk_oscompat.h: use BK_MINGW
+	(HAVE_INET6): #ifdef AF_INET6 and HAVE_inet_pton
+
+	* lib/b_getbyfoo.c (bk_gethostbyfoo, copy_hostent): #ifdef HAVE_INET6
+
+	* lib/b_netaddr.c (bk_netaddr_addrdup, update_bna_pretty): HAVE_INET6
+	(bk_netaddr_af2nat, bk_netaddr_nat2af): AF_INET6
+
+	* test/test_getbyfoo.c (host_callback): #ifdef HAVE_INET6
+
+	* lib/b_signal.c (bk_signal_set, bk_signal_set_alarm, bk_signal_reset):
+	(bk_signal_reset_alarm): use sigprocmask, not BSD sigblock/sigsetmask
+
 2002-01-09  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (BK_ENV_GWD): use BK_OR()

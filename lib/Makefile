@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.23 2002/01/02 20:01:51 jtt Exp $
+# $Id: Makefile,v 1.24 2002/01/11 10:06:05 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -63,4 +63,4 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 $(BK_LARGE_LIBSRC): $(GROUPTOP)/include/libbk_autoconf.h
 
 $(GROUPTOP)/include/libbk_autoconf.h: $(GROUPTOP)/$(PKGTOP)/bkmk/libbk_autoconf.h
-	cd $(@D) && $(LN_S) $< $(@F)
+	cd $(@D) && $(LN_S) -f $< $(@F)

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.11 2001/12/05 00:29:56 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.12 2002/01/11 10:06:05 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -28,7 +28,9 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 static int update_bni_pretty(bk_s B, struct bk_netinfo *bni);
 static int bni2sin(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_in *sin4, bk_flags flags);
+#ifdef HAVE_INET6
 static int bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_in6 *sin6, bk_flags flags);
+#endif
 static int bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_un *sun, bk_flags flags);
 
 
@@ -725,9 +727,11 @@ bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, b
     ret = bni2sin(B, bni, bna, (struct sockaddr_in *)sa, flags);
     break;
 
+#ifdef HAVE_INET6
   case AF_INET6:
     ret = bni2sin6(B, bni, bna, (struct sockaddr_in6 *)sa, flags);
     break;
+#endif
 
   case AF_LOCAL:
     ret = bni2un(B, bni, bna, (struct sockaddr_un *)sa, flags);
@@ -809,6 +813,7 @@ bni2sin(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_
 
 
 
+#ifdef HAVE_INET6
 /**
  * Convert a @a bk_netinfo to a struct sockaddr_in
  *	@param B BAKA thread/global state.
@@ -831,7 +836,7 @@ bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr
     BK_RETURN(B, -1);
   }
 
-  sin6->sin6_family = AF_INET;
+  sin6->sin6_family = AF_INET6;
 
   BK_SET_SOCKADDR_LEN(B,sin6,bna->bna_len);
   
@@ -860,6 +865,7 @@ bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr
   BK_RETURN(B,-1);
 
 }
+#endif /* HAVE_INET6 */
 
 
 

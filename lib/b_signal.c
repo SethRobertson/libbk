@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_signal.c,v 1.6 2002/01/09 06:25:39 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_signal.c,v 1.7 2002/01/11 10:06:05 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -136,17 +136,18 @@ bk_signal_mgmt(bk_s B, int sig, bk_sighandler_f new, bk_sighandler_f *old, bk_fl
 
 
 /**
- * Safely set up a signal handler. Unless @a
- * BK_SIGNAL_SET_SIGNAL_FLAG_FORCE is on, this function will abort if the
- * current signal handler for signo is not one of the accpeted defaults. It
- * returns an opaque thingy which should be destroyed by calling
- * bk_signal_reset(). <em>NB</em> This design of this function should make
- * it clear that this intended for temporary (or quick) alarms only (since
- * resetting is required). You may use it anyway you wish, of course, but
- * <i>caveat emptor</i>
+ * Safely set up a signal handler.
+ *
+ * Unless @a BK_SIGNAL_SET_SIGNAL_FLAG_FORCE is on, this function will
+ * abort if the current signal handler for signo is not one of the accepted
+ * defaults. It returns an opaque thingy which should be destroyed by
+ * calling bk_signal_reset(). <em>NB</em> This design of this function
+ * should make it clear that this is not intended for temporary (or quick)
+ * alarms only (since resetting is required). You may use it anyway you
+ * wish, of course, but <i>caveat emptor</i>
  * 
  * <TODO> Technically this function can be caught in infinite, stack
- * blowing recursion. This is *extraordiarily* unlikely and requires the
+ * blowing recursion. This is *extraordinarily* unlikely and requires the
  * continous loss of a race condition. We don't deal with this. </TODO>
  *
  *	@param B BAKA thread/global state.
@@ -160,8 +161,10 @@ void *
 bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
-  int oldmask=0;
   struct sigaction old;
+  sigset_t oldmask;
+  sigset_t newmask;
+  int setmask = 0;
   bk_sighandler_f old2;
   struct bk_signal_saved *bss;
   
@@ -173,7 +176,10 @@ bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags)
   }
 
   /* Block out alarm while figuring out what to do */
-  oldmask=sigblock(signo);
+  sigemptyset(&newmask);
+  sigaddset(&newmask, signo);
+  sigprocmask(SIG_BLOCK, &newmask, &oldmask);
+  setmask = 1;
 
   if (sigaction(signo, NULL, &old) < 0)
   {
@@ -194,8 +200,8 @@ bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags)
   memmove(&bss->bss_sigact, &old, sizeof(old));
 
   /* Release SIGALARM, just in case we've held one */
-  sigsetmask(oldmask);
-  oldmask=0;
+  sigprocmask(SIG_SETMASK, &oldmask, NULL);
+  setmask = 0;
   
   if (bk_signal_mgmt(B, signo, handler, &old2, flags)<0)
   {
@@ -217,14 +223,13 @@ bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags flags)
     /* Try again */
     BK_RETURN(B, bk_signal_set(B, signo, handler, flags));
   }
-
   
  done:
-  if (oldmask) sigsetmask(oldmask);
+  if (setmask) sigprocmask(SIG_SETMASK, &oldmask, NULL);
   BK_RETURN(B,bss);
 
  error:
-  if (oldmask) sigsetmask(oldmask);
+  if (setmask) sigprocmask(SIG_SETMASK, &oldmask, NULL);
   if (bss) bk_signal_reset(B, bss, 0);
   BK_RETURN(B,NULL);
 }
@@ -244,14 +249,19 @@ void *
 bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
-  int oldmask = 0;
+  int setmask = 0;
+  sigset_t oldmask;
+  sigset_t newmask;
   u_int oldtime = 0;
   struct bk_signal_saved *bss;
 
   /* Sigh... we have to block the signal for the whole time */
-  oldmask = sigblock(SIGALRM);
+  sigemptyset(&newmask);
+  sigaddset(&newmask, SIGALRM);
+  sigprocmask(SIG_BLOCK, &newmask, &oldmask);
+  setmask = 1;
 
-  /* Insoucient reuse of a flag here, but what the hell */
+  /* Insouciant reuse of a flag here, but what the hell */
   if ((oldtime=alarm(0)) && BK_FLAG_ISCLEAR(flags, BK_SIGNAL_SET_SIGNAL_FLAG_FORCE))
   {
     bk_error_printf(B, BK_ERR_ERR, "Pending alarm exists. Aborting this set\n");
@@ -266,17 +276,13 @@ bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags)
 
   alarm(secs);
 
-  sigsetmask(oldmask);
-  /* 
-   * Protect myself against future code expansinon which might neglect to
-   * reset oldmask
-   */
-  oldmask = 0;					
+  sigprocmask(SIG_SETMASK, &oldmask, NULL);
+  setmask = 0;					// protect against future code
 
   BK_RETURN(B,bss);
 
  error:
-  if (oldmask) sigsetmask(oldmask);
+  if (setmask) sigprocmask(SIG_SETMASK, &oldmask, NULL);
   if (oldtime) alarm(oldtime);
   BK_RETURN(B,NULL);
 }
@@ -297,7 +303,9 @@ bk_signal_reset(bk_s B, void *args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
   struct bk_signal_saved *bss=args;
-  int oldmask;
+  int setmask = 0;
+  sigset_t newmask;
+  sigset_t oldmask;
   bk_sighandler_f old;
 
   if (!bss)
@@ -312,7 +320,10 @@ bk_signal_reset(bk_s B, void *args, bk_flags flags)
     BK_RETURN(B,0);
   }
 
-  oldmask=sigblock(bss->bss_signal);
+  sigemptyset(&newmask);
+  sigaddset(&newmask, bss->bss_signal);
+  sigprocmask(SIG_BLOCK, &newmask, &oldmask);
+  setmask = 1;
 
   if (bk_signal_mgmt(B, bss->bss_signal, NULL, &old, 0) < 0)
   {
@@ -327,8 +338,8 @@ bk_signal_reset(bk_s B, void *args, bk_flags flags)
   }
 
   /* Release held signal */
-  sigsetmask(oldmask);
-  oldmask = 0;
+  sigprocmask(SIG_SETMASK, &oldmask, NULL);
+  setmask = 0;
 
   if (bk_signal_mgmt(B, bss->bss_signal, bss->bss_sigact.sa_handler, NULL, 0) < 0)
   {
@@ -339,7 +350,7 @@ bk_signal_reset(bk_s B, void *args, bk_flags flags)
   BK_RETURN(B,0);
   
  error:
-  if (oldmask) sigsetmask(oldmask);
+  if (setmask) sigprocmask(SIG_SETMASK, &oldmask, NULL);
   BK_RETURN(B,-1);
 }
 
@@ -355,7 +366,9 @@ int
 bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
-  int oldmask;
+  int setmask = 0;
+  sigset_t newmask;
+  sigset_t oldmask;
 
   if (!args)
   {
@@ -363,7 +376,10 @@ bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  oldmask = sigblock(SIGALRM);
+  sigemptyset(&newmask);
+  sigaddset(&newmask, SIGALRM);
+  sigprocmask(SIG_BLOCK, &newmask, &oldmask);
+  setmask = 1;
 
   if (bk_signal_reset(B, args, flags) <0)
   {
@@ -378,12 +394,13 @@ bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags)
    */
   alarm(0);
   
-  sigsetmask(oldmask);
+  sigprocmask(SIG_SETMASK, &oldmask, NULL);
+  setmask = 0;					// protect against future code
 
   BK_RETURN(B,0);
   
  error:
-  if (oldmask) sigsetmask(oldmask);
+  if (setmask) sigprocmask(SIG_SETMASK, &oldmask, NULL);
   BK_RETURN(B,-1);
 }
 
