@@ -1,3 +1,10 @@
+2002-02-22  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h (BK_STRINGIFY): expand argument into string form
+
+	* include/libbk_oscompat.h (BK_FUNCNAME): portable use of __func__
+	(ntohll, htonll): cast everything to u_int64_t before 32 bit shifts
+
 2002-02-20  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h: declare bk_ioh_print{,f}

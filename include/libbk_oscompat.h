@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.13 2002/02/12 00:46:24 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.14 2002/02/22 06:12:21 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -22,6 +22,16 @@
 #undef HAVE_INIT_PRAGMA
 #endif
 
+// Parentheses prevent string concatenation which __func__ may not support
+#ifdef HAVE__FUNC__
+# define BK_FUNCNAME (__func__)
+#elif defined(HAVE__PRETTY_FUNCTION__)
+# define BK_FUNCNAME (__PRETTY_FUNCTION__)
+#elif defined(HAVE__FUNCTION__)
+# define BK_FUNCNAME (__FUNCTION__)
+#else
+# define BK_FUNCNAME (__FILE__ ":" BK_STRINGIFY(__LINE__))
+#endif
 
 #ifdef HAVE_CONSTRUCTOR_ATTRIBUTE
 /**
@@ -153,8 +163,8 @@ typedef char *caddr_t;
 #  define ntohll(x) __bswap_64 (x)
 #  define htonll(x) __bswap_64 (x)
 # else  /* !bswap_64 */
-#  define ntohll(x) ((ntohl((x) & 0xffffffff) << 32) | ntohl((x) >> 32))
-#  define htonll(x) ((ntohl((x) & 0xffffffff) << 32) | ntohl((x) >> 32))
+#  define ntohll(x) (((u_int64_t)ntohl((u_int64_t)(x) & 0xffffffff) << 32) | ntohl((u_int64_t)(x) >> 32))
+#  define htonll(x) (((u_int64_t)ntohl((u_int64_t)(x) & 0xffffffff) << 32) | ntohl((u_int64_t)(x) >> 32))
 # endif
 #else
 #  // better hope ntohll is in library

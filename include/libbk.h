@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.115 2002/02/21 00:02:01 dupuy Exp $
+ * $Id: libbk.h,v 1.116 2002/02/22 06:12:21 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -37,14 +37,21 @@ struct bk_polling_io;
 
 
 
+/**
+ * Expand identifier or number into string constant form.
+ */
+#define BK_STRINGIFY(arg) BK_STRINGIFY2(arg)
+#define BK_STRINGIFY2(arg) #arg
+
+
 #if defined(__GNUC__) && !defined(__INSURE__)
 /**
  * Short-circuit OR for non-boolean values.  Returns first argument if nonzero,
  * else second argument.  (<em>Note:</em> may expand first arg multiple times).
  */
 #define BK_OR(a,b) ((a)?:(b))			
-#elif defined(__GNUC__)			// insure++ can handle this
-#define BK_OR(a,b) ({ typeof(a) x = (a); x = x ? x : (b); })
+//#elif defined(__GNUC__)			// insure++ can handle this
+//#define BK_OR(a,b) ({ typeof(a) x = (a); x = (x ? x : (b)); })
 #else
 #define BK_OR(a,b) ((a)?(a):(b))
 #endif /* !__GNUC__ */
@@ -130,9 +137,9 @@ struct bk_iohh_bnbio
  * Compare two version strucures (pointers).
  * 	@param a First version structure
  * 	@param b Second version structure
- *	@return <i>>0<i> if @a is greater than @b <br>
+ *	@return <i>positive<i> if @a is greater than @b <br>
  *	@return <i>0<i> if @a is equal to @b <br>
- *	@return <i><0<i> if @a is less than @b
+ *	@return <i>negative<i> if @a is less than @b
  */
 #define BK_VERSION_CMP(a,b) BK_OR((a)->bv_vers_major-(b)->bv_vers_major, \
 				  (a)->bv_vers_minor-(b)->bv_vers_minor)
@@ -143,9 +150,9 @@ struct bk_iohh_bnbio
  * Compare a version structure with a major number.
  * 	@param v The version structure
  * 	@param m The major number
- *	@return <i>>0<i> if @v is greater than @m <br>
+ *	@return <i>positive<i> if @v is greater than @m <br>
  *	@return <i>0<i> if @v is equal to @m <br>
- *	@return <i><0<i> if @v is less than @m
+ *	@return <i>negative<i> if @v is less than @m
  */
 #define BK_VERSION_CMP_MAJOR(v,m) ((a)->bv_vers_major-(m))
 
