@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.30 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.31 2004/08/10 15:56:47 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -50,7 +50,7 @@ struct bk_relay
 
 
 
-static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh, u_int state_flags);
+static void bk_relay_iohhandler(bk_s B, bk_vptr *data, void *opaque, struct bk_ioh *ioh, u_int state_flags);
 
 
 
@@ -148,10 +148,10 @@ int bk_relay_ioh(bk_s B, struct bk_ioh *ioh1, struct bk_ioh *ioh2, bk_relay_cb_f
  *	@param ioh IOH data/activity came in on
  *	@param state_flags Type of activity
  */
-static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_ioh *ioh, bk_ioh_status_e state_flags)
+static void bk_relay_iohhandler(bk_s B, bk_vptr *data, void *opaque, struct bk_ioh *ioh, bk_ioh_status_e state_flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"libbk");
-  struct bk_ioh *ioh_other;
+  struct bk_ioh *ioh_other, **ioh_mep;
   bk_flags *state_me, *state_him;
   struct bk_relay *relay = opaque;
   bk_vptr *newcopy = NULL;
@@ -166,6 +166,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
 
   if (relay->br_ioh1 == ioh)
   {
+    ioh_mep = &relay->br_ioh1;
     ioh_other = relay->br_ioh2;
     state_me = &relay->br_ioh1_state;
     state_him = &relay->br_ioh2_state;
@@ -173,6 +174,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   }
   else
   {						// We are just assuming here the other matches
+    ioh_mep = &relay->br_ioh2;
     ioh_other = relay->br_ioh1;
     state_me = &relay->br_ioh2_state;
     state_him = &relay->br_ioh1_state;
@@ -292,6 +294,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
 
   case BkIohStatusIohClosing:
     BK_FLAG_SET(*state_me, BR_IOH_CLOSED);
+    *ioh_mep = NULL;
     if (BK_FLAG_ISCLEAR(*state_me, BR_IOH_READCLOSE) ||
 	BK_FLAG_ISCLEAR(*state_him, BR_IOH_READCLOSE))
     {						// Other party may not be aware of severity yet. Close him anyway.
