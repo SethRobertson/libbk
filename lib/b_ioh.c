@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.38 2002/02/18 21:39:30 lindauer Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.39 2002/02/19 00:38:37 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3197,8 +3197,10 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
 
 
 /**
- * IOH coalescion routine for external users who need unified buffers w/optimizations
- * for simple cases.
+ * IOH coalescion routine for external users who need unified buffers
+ * w/optimizations for simple cases. NB @a data is <em>not</em> freed. This
+ * routine is written to the ioh read API and according to that API the ioh
+ * system frees the data it has read.
  *
  *	@param B BAKA global/thread state
  *	@param data NULL terminated array of vectored pointers--data is 'freed'
@@ -3207,7 +3209,7 @@ bk_ioh_seek(bk_s B, struct bk_ioh *ioh, off_t offset, int whence)
  *	@return <i>NULL</i> on call failure, allocation failure
  *	@return <br><i>new vptr</i> on success
  */
-bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags flags)
+bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_flags, bk_flags *out_flagsp)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_vptr *new = NULL;
@@ -3222,6 +3224,9 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags flags
     BK_RETURN(B, NULL);
   }
 
+  if (out_flagsp)
+    *out_flagsp = 0;
+
   if (curvptr && curvptr->ptr && curvptr->len > 0)
   {
     cbuf++;
@@ -3234,7 +3239,8 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags flags
     cdata += cur->len;
   }
 
-  if (cbuf > 1 || (curvptr && curvptr->ptr && curvptr->len > 0))
+  if (cbuf > 1 || (curvptr && curvptr->ptr && curvptr->len > 0) || 
+      BK_FLAG_ISSET(in_flags, BK_IOH_COALESCE_FLAG_MUST_COPY))
   {
     if (!BK_MALLOC(new) || !BK_MALLOC_LEN(new->ptr, cdata))
     {
@@ -3254,13 +3260,15 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags flags
     {
       memcpy(optr, cur->ptr, cur->len);
       optr += cur->len;
-      free(cur->ptr);
+      // NO FREE of cur->ptr (see above).
     }
-    free(data);
+    // NO FREE off data (see above).
   }
   else
   {
     new = data;
+    if (out_flagsp)
+      BK_FLAG_SET(*out_flagsp, BK_IOH_COALESCE_OUT_FLAG_NO_COPY);
   }
 
   BK_RETURN(B, new);

@@ -1,3 +1,12 @@
+2002-02-18  James Tanis  <jtt@saint.sysdetect.com>
+
+	* lib/b_relay.c (bk_relay_iohhandler): update to use new coalesce interface.
+
+	* lib/b_ioh.c (bk_ioh_coalesce): New flags to force (on input)
+	copies and (on output) to indicate whether a copy had not
+	happened. 
+	(bk_ioh_coalesce): Do *not* free input vptr (violation of IOH API).
+
 2002-02-11  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (BK_OR): improve doxygenation
