@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_errorstuff.c,v 1.10 2003/03/19 20:00:17 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: test_errorstuff.c,v 1.11 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -64,7 +64,7 @@ main(int argc, char **argv, char **envp)
   extern char *optarg;
   extern int optind;
   struct program_config Pconfig, *pconfig;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
@@ -77,7 +77,7 @@ main(int argc, char **argv, char **envp)
   };
 
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -148,7 +148,7 @@ main(int argc, char **argv, char **envp)
     usage(B);
     bk_exit(B,254);
   }
-    
+
   if (proginit(B, pconfig) < 0)
   {
     bk_die(B,254,stderr,"Could not perform program initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
@@ -188,7 +188,7 @@ int proginit(bk_s B, struct program_config *pconfig)
   if (BK_FLAG_ISSET(pconfig->pc_flags, PC_STDERR))
     fh = stderr;
 
-  bk_error_config(B, BK_GENERAL_ERROR(B), ERRORQUEUE_DEPTH, fh, sysloglevel, BK_ERR_WARN, 
+  bk_error_config(B, BK_GENERAL_ERROR(B), ERRORQUEUE_DEPTH, fh, sysloglevel, BK_ERR_WARN,
 		  BK_ERROR_CONFIG_FH | BK_ERROR_CONFIG_SYSLOGTHRESHOLD | BK_ERROR_CONFIG_HILO_PIVOT);
 
   BK_RETURN(B, 0);

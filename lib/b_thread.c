@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.5 2003/04/09 20:11:36 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.6 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -100,10 +100,7 @@ static void *bk_thread_continue(void *opaque);
 
 
 
-
 #ifdef BK_USING_PTHREADS
-
-
 /**
  * Thread safe counting initialization
  *
@@ -210,7 +207,7 @@ int bk_pthread_mutex_lock(bk_s B, struct bk_run *run, pthread_mutex_t *mutex, bk
       bk_run_once(B, run, BK_RUN_ONCE_FLAG_DONT_BLOCK);
     }
     else
- {
+    {
       bk_error_printf(B, BK_ERR_ERR, "Mutex lock acquisition failed: %s.\n", strerror(errno));
       goto error;
     }

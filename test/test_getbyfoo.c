@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.17 2003/03/19 20:00:17 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: test_getbyfoo.c,v 1.18 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -55,7 +55,7 @@ main(int argc, char **argv, char **envp)
   extern char *optarg;
   extern int optind;
   poptContext optCon=NULL;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"proto", 'p', POPT_ARG_STRING, &Global.gs_query, 'p', "Query protocols", "protostr" },
@@ -68,7 +68,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -123,7 +123,7 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B,254);
   }
-    
+
   if (proginit(B) < 0)
   {
     bk_die(B,254,stderr,"Could not perform program initialization\n",0);
@@ -169,8 +169,8 @@ void progrun(bk_s B)
 
   if (BK_FLAG_ISSET(Global.gs_flags, TESTGETBYFOO_FLAG_QUERY_PROTO))
   {
-    if (bk_getprotobyfoo(B, Global.gs_query, 
-			 BK_FLAG_ISCLEAR(Global.gs_flags, TESTGETBYFOO_FLAG_NO_COPYOUT)?&p:NULL, 
+    if (bk_getprotobyfoo(B, Global.gs_query,
+			 BK_FLAG_ISCLEAR(Global.gs_flags, TESTGETBYFOO_FLAG_NO_COPYOUT)?&p:NULL,
 			 bni,BK_GETPROTOBYFOO_FORCE_LOOKUP)<0)
     {
       fprintf(stderr, "Failed to query protocols\n");
@@ -194,7 +194,7 @@ void progrun(bk_s B)
       {
 	printf("NONE\n");
       }
-    
+
       bk_protoent_destroy(B,p);
     }
     else
@@ -206,7 +206,7 @@ void progrun(bk_s B)
   }
   else if (BK_FLAG_ISSET(Global.gs_flags, TESTGETBYFOO_FLAG_QUERY_SERV))
   {
-    if (bk_getservbyfoo(B, Global.gs_query, "tcp", 
+    if (bk_getservbyfoo(B, Global.gs_query, "tcp",
 			(BK_FLAG_ISCLEAR(Global.gs_flags, TESTGETBYFOO_FLAG_NO_COPYOUT)?&s:NULL),
 			bni, BK_GETSERVBYFOO_FORCE_LOOKUP)<0)
     {
@@ -232,11 +232,11 @@ void progrun(bk_s B)
       {
 	printf("NONE\n");
       }
-    
+
       bk_servent_destroy(B,s);
     }
     else
-    { 
+    {
       printf("Name: %s\n", bni->bni_bsi->bsi_servstr);
       printf("Number: %d\n", ntohs(bni->bni_bsi->bsi_port));
       printf("Protocol: tcp\n");
@@ -264,7 +264,7 @@ void progrun(bk_s B)
       printf("h is now %p\n", h);
     }
 
-    if (!(bk_gethostbyfoo(B, Global.gs_query, 0, 
+    if (!(bk_gethostbyfoo(B, Global.gs_query, 0,
 			  bni, run, host_callback, NULL,
 			  ((BK_FLAG_ISSET(Global.gs_flags,TESTGETBYFOO_FLAG_FQDN))?BK_GETHOSTBYFOO_FLAG_FQDN:0))))
     {
@@ -281,7 +281,7 @@ void progrun(bk_s B)
     }
     bk_run_run(B,run,0);
   }
-  
+
   if (bni)
   {
     printf("bni wound up: %s\n", bni->bni_pretty);
@@ -313,7 +313,7 @@ host_callback(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *
   if (BK_FLAG_ISCLEAR(Global.gs_flags, TESTGETBYFOO_FLAG_NO_COPYOUT))
   {
     printf("Name: %s\n", h->h_name);
-    
+
     if (h->h_aliases)
     {
       printf ("Aliases: ");
@@ -324,7 +324,7 @@ host_callback(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *
       printf("\n");
     }
     printf("Addrtype: %d\nLength: %d\n", h->h_addrtype, h->h_length);
-    
+
     printf("Addresses: ");
     if (h->h_addrtype == AF_INET)
     {
@@ -394,7 +394,7 @@ host_callback(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *
 	fprintf(stderr,"We had an error filling out the bni\n");
       }
   }
-  
+
   bk_run_set_run_over(B, run);
 
   BK_VRETURN(B);

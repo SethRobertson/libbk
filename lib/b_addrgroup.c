@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.32 2002/10/29 17:13:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.33 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -17,7 +17,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 
 /**
- * @file 
+ * @file
  *
  * Addrgroup.c: This file takes care of initializing the network for data
  * transmission. We try to support as many address families and protocol
@@ -63,7 +63,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 /**
- * State associated with network access tries. 
+ * State associated with network access tries.
  */
 struct addrgroup_state
 {
@@ -84,7 +84,7 @@ struct addrgroup_state
 
 
 static struct bk_addrgroup *bag_create(bk_s B);
-static void bag_destroy(bk_s B,struct bk_addrgroup *bag);
+static void bag_destroy(bk_s B, struct bk_addrgroup *bag);
 static struct addrgroup_state *as_create(bk_s B);
 static void as_destroy(bk_s B, struct addrgroup_state *as);
 static int net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remote, struct bk_addrgroup *bag);
@@ -112,6 +112,8 @@ static struct addrgroup_state *as_server_copy(bk_s B, struct addrgroup_state *oa
 /**
  * Create an @a bk_addrgroup structure
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
  *	@return a new @a bk_addrgroup on success.
@@ -127,23 +129,27 @@ bag_create(bk_s B)
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bag: %s\n", strerror(errno));
     goto error;
   }
-  
-  BK_RETURN(B,bag);
+
+  BK_RETURN(B, bag);
 
  error:
-  if (bag) bag_destroy(B,bag);
-  BK_RETURN(B,NULL);
+  if (bag) bag_destroy(B, bag);
+  BK_RETURN(B, NULL);
 }
 
 
 
 /**
  * Destroy a @a bk_addrgroup
+ *
+ * THREADS: MT-SAFE (assuming different bag)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bag The @a bk_addrgroup to destroy.
  */
 static void
-bag_destroy(bk_s B,struct bk_addrgroup *bag)
+bag_destroy(bk_s B, struct bk_addrgroup *bag)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -165,11 +171,14 @@ bag_destroy(bk_s B,struct bk_addrgroup *bag)
 /**
  * Public interface to destroy routine
  *
+ * THREADS: MT-SAFE (assuming different bag)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bag The @a bk_addrgroup to destroy.
  */
 void
-bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag)
+bk_addrgroup_destroy(bk_s B, struct bk_addrgroup *bag)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -179,7 +188,7 @@ bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag)
     BK_VRETURN(B);
   }
 
-  bag_destroy(B,bag);
+  bag_destroy(B, bag);
   BK_VRETURN(B);
 }
 
@@ -188,6 +197,8 @@ bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag)
 
 /**
  * Create an @a addrgroup_state
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@return <i>NULL</i> on failure.<br>
@@ -208,7 +219,7 @@ as_create(bk_s B)
   /* Point this at myself. It'll be updated later if necessary */
   as->as_server = as;
 
-  /* 
+  /*
    * We start out with SysError as the *default* state for the user
    * callback.  By this we simply mean that this is the state for which we
    * most likely have to *code* since it catches the majority of things
@@ -225,18 +236,21 @@ as_create(bk_s B)
     goto error;
   }
 
-  BK_RETURN(B,as);
+  BK_RETURN(B, as);
 
  error:
   if (as) as_destroy(B, as);
 
-  BK_RETURN(B,NULL);
+  BK_RETURN(B, NULL);
 }
 
 
 
 /**
  * Destroy a @a addrgroup_state.
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param as The addrgroup_state to destroy.
@@ -258,10 +272,10 @@ as_destroy(bk_s B, struct addrgroup_state *as)
     BK_VRETURN(B);
   }
   as->as_state = BkAddrGroupStateClosing;
- 
+
  if (as->as_bag)
   {
-    bag_destroy(B,as->as_bag);
+    bag_destroy(B, as->as_bag);
   }
 
   /* If the callback has not been called already, do so with flag */
@@ -273,7 +287,7 @@ as_destroy(bk_s B, struct addrgroup_state *as)
   if (as->as_eventh) bk_run_dequeue(B, as->as_run, as->as_eventh, 0);
 
   /* <WARNING> Is this correct??? </WARNING> */
-  net_close(B,as);
+  net_close(B, as);
   free(as);
   BK_VRETURN(B);
 }
@@ -298,6 +312,9 @@ as_destroy(bk_s B, struct addrgroup_state *as)
  * routine allocates a @a bk_addrgroup which the caller gets in the
  * callback and should destroy with @a bk_addrgroup_destroy().
  *
+ * THREADS: MT-SAFE (assuming local and remote are different)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param local @a bk_netinfo of the local side.
  *	@param remote @a bk_netinfo of the remote side.
@@ -318,10 +335,10 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
 
   if (!(local || remote) || !run)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (!(as = as_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create as\n");
@@ -337,13 +354,13 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
   as->as_backlog = backlog;
   as->as_user_flags = flags;
 
-  if (local && !(bag->bag_local = bk_netinfo_clone(B,local)))
+  if (local && !(bag->bag_local = bk_netinfo_clone(B, local)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not clone local netinfo\n");
     goto error;
   }
-  
-  if (remote && !(bag->bag_remote = bk_netinfo_clone(B,remote)))
+
+  if (remote && !(bag->bag_remote = bk_netinfo_clone(B, remote)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not clone remote netinfo\n");
     goto error;
@@ -389,6 +406,9 @@ bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_neti
 /**
  * Initialize the network in the AF_INET/AF_INET6 way.
  *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state.
  *	@return <i>-1</i> on failure<br>
@@ -403,10 +423,10 @@ do_net_init_af_inet(bk_s B, struct addrgroup_state *as)
 
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   bag = as->as_bag;
 
   switch (bag->bag_proto)
@@ -419,7 +439,7 @@ do_net_init_af_inet(bk_s B, struct addrgroup_state *as)
     ret = do_net_init_af_inet_udp(B, as);
     break;
 
-  default: 
+  default:
     bk_error_printf(B, BK_ERR_ERR, "Unknown INET protocol: %d\n", bag->bag_proto);
     goto error;
   }
@@ -436,6 +456,9 @@ do_net_init_af_inet(bk_s B, struct addrgroup_state *as)
 /**
  * Initialize TCP (connect or listen).
  *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state information.
  *	@return <i>-1</i> on failure.<br>
@@ -447,31 +470,34 @@ do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_addrgroup *bag;
   int ret;
-  
+
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   bag = as->as_bag;
 
   if (bag->bag_remote)
   {
-    ret = do_net_init_af_inet_tcp_connect(B,as);
+    ret = do_net_init_af_inet_tcp_connect(B, as);
   }
   else
   {
-    ret = do_net_init_af_inet_tcp_listen(B,as);
+    ret = do_net_init_af_inet_tcp_listen(B, as);
   }
 
-  BK_RETURN(B,ret);
+  BK_RETURN(B, ret);
 }
 
 
 
 /**
  * Open an AF_LOCAL connection
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
@@ -486,14 +512,14 @@ do_net_init_af_local(bk_s B, struct addrgroup_state *as)
 
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   bk_error_printf(B, BK_ERR_ERR, "Do not support local domain sockets quite yet...\n");
   ret = -1;					// Not quite ready yet
 
-  BK_RETURN(B,ret);
+  BK_RETURN(B, ret);
 }
 
 
@@ -501,6 +527,9 @@ do_net_init_af_local(bk_s B, struct addrgroup_state *as)
 
 /**
  * Open a udp network.
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
@@ -516,15 +545,15 @@ do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
 
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   bag = as->as_bag;
 
   if (bag->bag_remote)
   {
-    ret = do_net_init_af_inet_udp_connect(B,as);
+    ret = do_net_init_af_inet_udp_connect(B, as);
   }
   else
   {
@@ -557,7 +586,7 @@ do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
      * lets just do it.
      */
     bk_error_printf(B, BK_ERR_WARN, "UDP listening support is not quite ready for prime time, at least as far as IOHs are concerned\n");
-    ret = do_net_init_af_inet_udp_listen(B,as);
+    ret = do_net_init_af_inet_udp_listen(B, as);
   }
 
   BK_RETURN(B, ret);
@@ -567,6 +596,9 @@ do_net_init_af_inet_udp(bk_s B, struct addrgroup_state *as)
 
 /**
  * Start a udp connection
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
@@ -586,7 +618,7 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
 
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
@@ -594,9 +626,9 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
   local = bag->bag_local;
   remote = bag->bag_remote;
 
-  if (!(bna = bk_netinfo_advance_primary_address(B,remote)))
+  if (!(bna = bk_netinfo_advance_primary_address(B, remote)))
   {
-    /* 
+    /*
      * <WARNING>
      * If there are *no* addresses at all, do we return a useful error?
      * We probably return SysError which is about as good as we can do so
@@ -604,7 +636,7 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
      * </WARNING>
      */
     net_init_end(B, as);
-    /* 
+    /*
      * You might be tempted to return as->as_sock here since this
      * function may return or be called from things which may return
      * socket names. Do *not* be deceived! At this point in the code
@@ -625,9 +657,9 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
     bk_error_printf(B, BK_ERR_ERR, "Could not remote local sockaddr\n");
     goto error;
   }
-    
+
   /* af can be either AF_INET of AF_INET6 */
-  af = bk_netaddr_nat2af(B,bag->bag_type); 
+  af = bk_netaddr_nat2af(B, bag->bag_type);
 
   /* We *know* this is udp so we can assume SOCK_DGRAM */
   if ((s = socket(af, SOCK_DGRAM, bag->bag_proto)) < 0)
@@ -646,7 +678,7 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
       goto error;
     }
   }
-  
+
   if (local)
   {
     // Bind to local address
@@ -668,7 +700,7 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
   tcp_end(B, as);
 
   BK_RETURN(B, s);
-  
+
  error:
   net_close(B, as);
   BK_RETURN(B, -1);
@@ -678,6 +710,9 @@ do_net_init_af_inet_udp_connect(bk_s B, struct addrgroup_state *as)
 
 /**
  * Start a udp server socket (not really listen, but is parallel with TCP)
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
@@ -695,14 +730,14 @@ do_net_init_af_inet_udp_listen(bk_s B, struct addrgroup_state *as)
 
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   bag = as->as_bag;
 
   /* af can be either AF_INET of AF_INET6 */
-  af = bk_netaddr_nat2af(B,bag->bag_type); 
+  af = bk_netaddr_nat2af(B, bag->bag_type);
 
   /* We *know* this is udp so we can assume SOCK_DGRAM */
   if ((s = socket(af, SOCK_DGRAM, bag->bag_proto)) < 0)
@@ -739,7 +774,7 @@ do_net_init_af_inet_udp_listen(bk_s B, struct addrgroup_state *as)
   tcp_end(B, as);
 
   BK_RETURN(B, s);
-  
+
  error:
   net_close(B, as);
   BK_RETURN(B, -1);
@@ -749,6 +784,9 @@ do_net_init_af_inet_udp_listen(bk_s B, struct addrgroup_state *as)
 
 /**
  * Start a tcp connection
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
@@ -762,11 +800,11 @@ do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as)
 
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
-  BK_RETURN(B,tcp_connect_start(B, as));
+
+  BK_RETURN(B, tcp_connect_start(B, as));
 }
 
 
@@ -775,9 +813,11 @@ do_net_init_af_inet_tcp_connect(bk_s B, struct addrgroup_state *as)
  * Really get a tcp connection going. If there's no address to which to
  * attach, then just call the finish up function.
  *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
- *	@param state The state of the previous connect attempt.
  *	@return <i>-1</i> on failure.<br>
  *	@return a new socket on success.
  */
@@ -794,17 +834,17 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
 
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   bag = as->as_bag;
   local = bag->bag_local;
   remote = bag->bag_remote;
 
-  if (!(bna = bk_netinfo_advance_primary_address(B,remote)))
+  if (!(bna = bk_netinfo_advance_primary_address(B, remote)))
   {
-    /* 
+    /*
      * <WARNING>
      * If there are *no* addresses at all, do we return a useful error?
      * We probably return SysError which is about as good as we can do so
@@ -812,7 +852,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
      * </WARNING>
      */
     net_init_end(B, as);
-    /* 
+    /*
      * You might be tempted to return as->as_sock here since this
      * function may return or be called from things which may return
      * socket names. Do *not* be deceived! At this point in the code
@@ -825,7 +865,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
      * returns 'as' HAS BEEN DESTROYED. Now you *could* save as->as_sock
      * before calling tcp_end(), but why bother?
      */
-    BK_RETURN(B,0);
+    BK_RETURN(B, 0);
   }
 
   if (bk_netinfo_to_sockaddr(B, remote, bna, as->as_bag->bag_type, &sa, 0)<0)
@@ -833,9 +873,9 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
     bk_error_printf(B, BK_ERR_ERR, "Could not remote local sockaddr\n");
     goto error;
   }
-    
+
   /* af can be either AF_INET of AF_INET6 */
-  af = bk_netaddr_nat2af(B,bag->bag_type); 
+  af = bk_netaddr_nat2af(B, bag->bag_type);
 
   /* We *know* this is tcp so we can assume SOCK_STREAM */
   if ((s = socket(af, SOCK_STREAM, bag->bag_proto)) < 0)
@@ -850,7 +890,7 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
   if (bk_fileutils_modify_fd_flags(B, s, O_NONBLOCK, BkFileutilsModifyFdFlagsActionAdd) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not set O_NONBLOCK on socket: %s\n", strerror(errno));
-    /* 
+    /*
      * <WARNING>
      * Should this really be fatal? Well, given what a totally bizarre
      * situation you must be in for this to fail, jtt actually thinks this
@@ -907,19 +947,22 @@ tcp_connect_start(bk_s B, struct addrgroup_state *as)
   }
 
 
-  BK_RETURN(B,s);
-  
+  BK_RETURN(B, s);
+
  error:
   net_close(B, as);
-  as->as_state = bk_net_init_sys_error(B,errno);
-  tcp_connect_start(B,as);
-  BK_RETURN(B,-1);
+  as->as_state = bk_net_init_sys_error(B, errno);
+  tcp_connect_start(B, as);
+  BK_RETURN(B, -1);
 }
 
 
 
 /**
- * Open the local side of a socket. 
+ * Open the local side of a socket.
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
@@ -937,10 +980,10 @@ open_inet_local(bk_s B, struct addrgroup_state *as)
 
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   bag = as->as_bag;
   local = bag->bag_local;
   s = as->as_sock;
@@ -958,11 +1001,11 @@ open_inet_local(bk_s B, struct addrgroup_state *as)
     goto error;
   }
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 
  error:
   net_close(B, as);
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 }
 
 
@@ -970,6 +1013,9 @@ open_inet_local(bk_s B, struct addrgroup_state *as)
 /**
  * Completely finish up an successful inet "connection". Prepare the addrgroup for the
  * callback. Make the callback.
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
@@ -984,10 +1030,10 @@ tcp_end(bk_s B, struct addrgroup_state *as)
 
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   net_init_end(B, as);
 
   BK_VRETURN(B);
@@ -1001,13 +1047,16 @@ tcp_end(bk_s B, struct addrgroup_state *as)
  * state or no. No matter what happens the the user *must* get that
  * callback and we want to do the right thing with as.
  *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
  *	@param state The state to pass to the user.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
-static void 
+static void
 net_init_end(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -1038,9 +1087,9 @@ net_init_end(bk_s B, struct addrgroup_state *as)
       bag->bag_proto = as->as_bag->bag_proto;
       bag->bag_type = as->as_bag->bag_type;
 
-      if (!(bag->bag_local = bk_netinfo_from_socket(B,as->as_sock, bag->bag_proto, BkSocketSideLocal)))
+      if (!(bag->bag_local = bk_netinfo_from_socket(B, as->as_sock, bag->bag_proto, BkSocketSideLocal)))
       {
-	/* 
+	/*
 	 * This is an error since we should *always be able to do this, but
 	 * we cannot goto error in this function since we need to call the
 	 * callback.
@@ -1049,17 +1098,17 @@ net_init_end(bk_s B, struct addrgroup_state *as)
       }
       else
       {
-	bk_netinfo_set_primary_address(B,bag->bag_local,NULL);
+	bk_netinfo_set_primary_address(B, bag->bag_local, NULL);
       }
 
-      if (!(bag->bag_remote = bk_netinfo_from_socket(B,as->as_sock, bag->bag_proto, BkSocketSideRemote)))
+      if (!(bag->bag_remote = bk_netinfo_from_socket(B, as->as_sock, bag->bag_proto, BkSocketSideRemote)))
       {
 	// This is quite common in server case, so a WARN not an ERR
 	bk_error_printf(B, BK_ERR_WARN, "Could not generate remote side netinfo (possibly normal)\n");
       }
       else
       {
-	bk_netinfo_set_primary_address(B,bag->bag_remote,NULL);
+	bk_netinfo_set_primary_address(B, bag->bag_remote, NULL);
       }
     }
   }
@@ -1084,7 +1133,7 @@ net_init_end(bk_s B, struct addrgroup_state *as)
     }
   }
 
-  // Bag destroyed in "error" case. 
+  // Bag destroyed in "error" case.
 
   /* Figure out whether you should nuke this as or keep it */
   switch(as->as_state)
@@ -1094,7 +1143,7 @@ net_init_end(bk_s B, struct addrgroup_state *as)
   case BkAddrGroupStateLocalError:
   case BkAddrGroupStateConnected:
   case BkAddrGroupStateTimeout:
-    as_destroy(B,as);
+    as_destroy(B, as);
     break;
   case BkAddrGroupStateSocket:
   case BkAddrGroupStateReady:
@@ -1102,7 +1151,7 @@ net_init_end(bk_s B, struct addrgroup_state *as)
     break;
   }
 
-  if (bag) bk_addrgroup_destroy(B,bag);
+  if (bag) bk_addrgroup_destroy(B, bag);
   BK_VRETURN(B);
 }
 
@@ -1110,24 +1159,28 @@ net_init_end(bk_s B, struct addrgroup_state *as)
 
 /**
  * Convenience function for aborting a @a bk_net_init thread.
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
  *	@param state The state to pass to the user.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
-static void 
+static void
 net_init_abort(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  
+
   if (!as)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
 
-  net_init_end(B,as);
+  net_init_end(B, as);
 
   BK_VRETURN(B);
 }
@@ -1137,6 +1190,10 @@ net_init_abort(bk_s B, struct addrgroup_state *as)
 /**
  * Connect timeout function. The interface conforms to a standard BAKA
  * event API
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param run The run structure passed up.
  *	@param args The @a addrgroup_state structure.
@@ -1157,7 +1214,7 @@ tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval
 
   /* Make darn sure this is NULL in the case of emergency :-) */
   as->as_eventh = NULL;
-  
+
   bk_error_printf(B, BK_ERR_WARN, "Connection to %s timed out\n", as->as_bag->bag_remote->bni_pretty);
 
   net_close(B, as);
@@ -1178,9 +1235,15 @@ tcp_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval
  * the disposition of this connection is. If it's an error, check for
  * another address. If it's OK, head for the end
  *
+ * THREADS: MT-SAFE (assuming different as/args)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
+ *	@param run Baka run environment
+ *	@param fd File descriptor of activity
+ *	@param gottype Type of activity
+ *	@param args Private data
+ *	@param starttide Official Time of activity
  */
 static void
 tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
@@ -1207,7 +1270,7 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
     bk_error_printf(B, BK_ERR_ERR, "How did I get xctpready?\n");
     goto error;
   }
-  
+
   if (BK_FLAG_ISSET(gottype, BK_RUN_DESTROY))
   {
     // user-initiated process shutdown; not an error at all
@@ -1223,7 +1286,7 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
 
   if (BK_FLAG_ISSET(gottype, BK_RUN_CLOSE))
   {
-    // We're looping around in our own callbacks (most likely) 
+    // We're looping around in our own callbacks (most likely)
     BK_VRETURN(B);
   }
 
@@ -1240,14 +1303,14 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
     }
   }
   as->as_eventh = NULL;
-  
-  /* 
+
+  /*
    * No matter *what*, we need to withdraw the socket from bk_run since
    * we're either about to get a new socket (new connection attempt) or we
    * want to let the caller take over the socket with a "clean slate" as it
    * were.
    */
-  if (bk_run_close(B,as->as_run, as->as_sock, 0) < 0)
+  if (bk_run_close(B, as->as_run, as->as_sock, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not withdraw socket from run\n");
   }
@@ -1265,21 +1328,21 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
    * the confusion. 1st call and 2nd call refer to calls to connect(2)
    * *following* the return from select(2) (i.e. when we have idea of
    * what has happened to the socket.
-   * 
-   * 		Successful connection
-   * 		--------------------
+   *
+   *		Successful connection
+   *		--------------------
    *		1st Call		2nd call
-   * linux: 	Success (returns 0)	EISCONN
+   * linux:	Success (returns 0)	EISCONN
    * solaris:	EISCONN			EISCONN
    * openbsd:	EISCONN			EISCONN
    *
-   * 		RST connection
-   * 		---------------
+   *		RST connection
+   *		---------------
    *		1st Call		2nd call
-   * linux: 	ECONNREFUSED		EINPROGRESS
+   * linux:	ECONNREFUSED		EINPROGRESS
    * solaris:	ECONNREFUSED		EINPROGRESS
    * openbsd:	EINVALID		EINVALID
-   * 
+   *
    * For my money only *solaris* gets it right all the way the way
    * around. It, along with openbsd, properly returns EISCONN on the
    * first connect(2) following a successful connect unlike linux
@@ -1300,18 +1363,18 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
     // calls to bk_error_printf() can result in errno changing. Sigh...
     int connect_errno = errno;
 
-    bk_error_printf(B, BK_ERR_ERR, "Connect to %s failed: %s\n", bag->bag_remote->bni_pretty, strerror(errno)); 
-    net_close(B,as);
+    bk_error_printf(B, BK_ERR_ERR, "Connect to %s failed: %s\n", bag->bag_remote->bni_pretty, strerror(errno));
+    net_close(B, as);
 
     if (connect_errno == BK_SECOND_REFUSED_CONNECT_ERRNO)
       as->as_state = BkAddrGroupStateRemoteError;
     else
-      as->as_state = bk_net_init_sys_error(B,errno);
+      as->as_state = bk_net_init_sys_error(B, errno);
 
-    tcp_connect_start(B,as);
+    tcp_connect_start(B, as);
     BK_VRETURN(B);
   }
-  
+
   as->as_state = BkAddrGroupStateConnected;
   tcp_end(B, as);
 
@@ -1330,6 +1393,10 @@ tcp_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *ar
 
 /**
  * Open a tcp listener
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
  *	@return <i>-1</i> on failure.<br>
@@ -1347,14 +1414,14 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
 
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   bag = as->as_bag;
 
-  af = bk_netaddr_nat2af(B, bag->bag_type); 
-  
+  af = bk_netaddr_nat2af(B, bag->bag_type);
+
   if ((s = socket(af, SOCK_STREAM, bag->bag_proto)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));
@@ -1367,7 +1434,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
   if (bk_fileutils_modify_fd_flags(B, s, O_NONBLOCK, BkFileutilsModifyFdFlagsActionAdd) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not set O_NONBLOCK on socket: %s\n", strerror(errno));
-    /* 
+    /*
      * <WARNING>
      * Should this really be fatal? Well, given what a totally bizarre
      * situation you must be in for this to fail, jtt actually thinks this
@@ -1398,13 +1465,13 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
     bk_error_printf(B, BK_ERR_ERR, "Could not open the local side of the connection\n");
     goto error;
   }
-  
+
   if (listen(s, as->as_backlog) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "listen failed: %s\n", strerror(errno));
     goto error;
   }
-  
+
   as->as_state = BkAddrGroupStateReady;
 
   /* Put the socket in the select loop waiting for *write* to come ready */
@@ -1414,7 +1481,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
     goto error;
   }
 
-  /* 
+  /*
    * Inform the caller that we are now ready and waiting (or will be when
    * we return back to the to the select(2) loop. Fill out a bag if the
    * caller requested it.
@@ -1441,7 +1508,7 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
       }
       else
       {
-	bk_netinfo_set_primary_address(B,nbag->bag_local,NULL);
+	bk_netinfo_set_primary_address(B, nbag->bag_local, NULL);
       }
     }
 
@@ -1451,12 +1518,12 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
     if (ret < 0)
       goto error;
   }
-  
-  BK_RETURN(B,s);
+
+  BK_RETURN(B, s);
 
  error:
   net_close(B, as);
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 }
 
 
@@ -1465,12 +1532,15 @@ do_net_init_af_inet_tcp_listen(bk_s B, struct addrgroup_state *as)
  * Activity detected on a TCP listening socket. Try to accept the
  * connection and do the right thing (now what *is* the Right Thing..?)
  *
+ * THREADS: MT-SAFE (assuming different as/args)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param B BAKA thread/global state.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
-static void 
+static void
 tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -1481,7 +1551,7 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
 
   if (!run || !(as = args))
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
 
@@ -1496,7 +1566,7 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
     bk_error_printf(B, BK_ERR_ERR, "How did I get xctpready?\n");
     goto error;
   }
-  
+
   if (BK_FLAG_ISSET(gottype, BK_RUN_DESTROY))
   {
     // user-initiated process shutdown; not an error at all
@@ -1512,25 +1582,25 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
 
   if (BK_FLAG_ISSET(gottype, BK_RUN_CLOSE))
   {
-    // We're looping around in our own callbacks (most likely) 
+    // We're looping around in our own callbacks (most likely)
     BK_VRETURN(B);
   }
 
   if ((newfd = accept(as->as_sock, &sa, &len)) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "accept failed: %s\n",strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "accept failed: %s\n", strerror(errno));
     as->as_state = bk_net_init_sys_error(B, errno);
     goto error;
   }
 
-  if (!(nas = as_server_copy(B,as, newfd)))
+  if (!(nas = as_server_copy(B, as, newfd)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Couldn't create new addrgroup_state\n");
     goto error;
   }
-  
+
   nas->as_state = BkAddrGroupStateConnected;
-  
+
   tcp_end(B, nas);
   BK_VRETURN(B);
 
@@ -1548,6 +1618,9 @@ tcp_listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *arg
 /**
  * Close up tcp in the addrgroup way. Remove the socket from run and close
  * it up. Set the state to -1 so we wont try this again until we need to.
+ *
+ * THREADS: MT-SAFE (assuming different as)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param as @a addrgroup_state info.
@@ -1569,7 +1642,7 @@ net_close(bk_s B, struct addrgroup_state *as)
     BK_VRETURN(B);
   }
 
-  if (bk_run_close(B,as->as_run, as->as_sock, 0) < 0)
+  if (bk_run_close(B, as->as_run, as->as_sock, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not withdraw socket from run\n");
   }
@@ -1584,6 +1657,10 @@ net_close(bk_s B, struct addrgroup_state *as)
 /*
  * bk_net_init sanity checking. This code is exported here so that it
  * doesn't take up space in the main function.
+ *
+ * THREADS: MT-SAFE (assuming different bag)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param local @a bk_netinfo of the local side.
  *	@param remote @a bk_netinfo of the remote side.
@@ -1599,10 +1676,10 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
 
   if (!bag || (!local && !remote))
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   /* Just a bit of sanity checking */
   if (local && local->bni_bpi)
   {
@@ -1620,7 +1697,7 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
   }
 
   if (local && remote)
-  { 
+  {
     if (local->bni_bpi->bpi_proto != remote->bni_bpi->bpi_proto)
     {
       bk_error_printf(B, BK_ERR_ERR, "Mismatched protocols (%d != %d)\n",
@@ -1629,7 +1706,7 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
       goto error;
     }
   }
-    
+
   /*
    * Check on address family sanity, but this is more complicated than
    * above. If both netinfos have addresses then make sure that the
@@ -1665,11 +1742,11 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
     goto error;
   }
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B,-1);
-  
+  BK_RETURN(B, -1);
+
 }
 
 
@@ -1679,6 +1756,9 @@ net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remot
  * Take over a listening socket and handle its service. Despite it's name
  * this function must appear here so it can reference a static callback
  * routine. Oh well.
+ *
+ * THREADS: MT-SAFE (assuming s is not closed)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param run @a bk_run structure.
@@ -1694,11 +1774,11 @@ int
 bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct addrgroup_state *as = NULL; 
+  struct addrgroup_state *as = NULL;
 
   if (!callback)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
@@ -1721,25 +1801,28 @@ bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, char *securene
     bk_error_printf(B, BK_ERR_ERR, "Could not determine local address information\n");
     goto error;
   }
-  
+
   if (bk_run_handle(B, as->as_run, s, tcp_listen_activity, as, BK_RUN_WANTREAD, 0)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not configure socket's I/O handler\n");
     goto error;
   }
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 
  error:
-  if (as) as_destroy(B,as);
-  BK_RETURN(B,-1);
-  
+  if (as) as_destroy(B, as);
+  BK_RETURN(B, -1);
+
 }
 
 
 
 /**
  * Retrieve the socket from the server handle
+ *
+ * THREADS: MT-SAFE (assuming different as/server_handle)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param server_handle The handle supplied to the connect callbacks.
@@ -1754,11 +1837,11 @@ bk_addrgroup_get_server_socket(bk_s B, void *server_handle)
 
   if (!(as = server_handle))
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
-  BK_RETURN(B,as->as_sock);
+
+  BK_RETURN(B, as->as_sock);
 }
 
 
@@ -1766,6 +1849,9 @@ bk_addrgroup_get_server_socket(bk_s B, void *server_handle)
 
 /**
  * Shutdown a server referenced by the server handle.
+ *
+ * THREADS: MT-SAFE (assuming different as/server_handle)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param server_handle The handle supplied to the connect callbacks.
@@ -1780,19 +1866,23 @@ bk_addrgroup_server_close(bk_s B, void *server_handle)
 
   if (!as)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   as_destroy(B, as);
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 }
 
 
 
 
 /**
- * "Clone" a new connected @a addrgroup_state from the server 
+ * "Clone" a new connected @a addrgroup_state from the server
+ *
+ * THREADS: MT-SAFE (assuming different aas/s)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param oas Old @a addrgroup_state to copy.
  *	@param newfd Use this fd instead of the one from @a oas.
@@ -1808,7 +1898,7 @@ as_server_copy(bk_s B, struct addrgroup_state *oas , int s)
   if (!oas)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_RETURN(B,NULL);
+    BK_RETURN(B, NULL);
   }
 
   if (!(as = as_create(B)))
@@ -1826,27 +1916,30 @@ as_server_copy(bk_s B, struct addrgroup_state *oas , int s)
   /* Ignore eventh */
   as->as_run = oas->as_run;
   /* Why are we copying this? I don't know. Leave me alone */
-  as->as_backlog = oas->as_backlog; 
+  as->as_backlog = oas->as_backlog;
   as->as_user_flags = oas->as_user_flags;
   /* Actually point the server at the server */
   as->as_server = oas;
-  
-  BK_RETURN(B,as);
+
+  BK_RETURN(B, as);
 
  error:
-  if (as) as_destroy(B,as);
-  BK_RETURN(B,NULL);
+  if (as) as_destroy(B, as);
+  BK_RETURN(B, NULL);
 }
 
 
 
 /**
  * Return the correct bk_addrgroup_state_e error type based on errno.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param errno The errno value on which to base our computation.
  *	@return @a bk_addrgroup_state_e.
  */
-bk_addrgroup_state_e 
+bk_addrgroup_state_e
 bk_net_init_sys_error(bk_s B, int lerrno)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.34 2003/04/09 03:57:13 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.35 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -61,6 +61,8 @@ unsigned bk_zerouint = 0;
 // @}
 
 
+int bk_thread_safe_if_thread_ready = 0;		///< Convinience symbol for libbk routines to add thread safe to CLC if needed
+
 
 /**
  * Grand creation of libbk state structure.
@@ -96,6 +98,7 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
   if (BK_FLAG_ISSET(flags, BK_GENERAL_THREADREADY))
   {
     BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADREADY);
+    bk_thread_safe_if_thread_ready = DICT_THREADED_SAFE;
     fsm_threaded_makeready(FSM_PREFER_SAFE);
   }
 

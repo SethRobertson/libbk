@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.19 2003/04/07 18:43:06 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_bnbio.c,v 1.20 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -65,7 +65,7 @@ bk_iohh_bnbio_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
 
   if (!(BK_CALLOC(bib)))
   {
@@ -82,12 +82,12 @@ bk_iohh_bnbio_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
   bib->bib_flags = flags;
 
   BK_RETURN(B, bib);
-  
+
  error:
-  if (bib) 
+  if (bib)
     bk_iohh_bnbio_destroy(B, bib);
   BK_RETURN(B, NULL);
-  
+
 }
 
 
@@ -154,7 +154,7 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t ti
 
   // first, generate *some* form of useful information
   while (!bk_iohh_bnbio_is_timedout(B, bib) &&
-	 (!(is_canceled = bk_iohh_bnbio_is_canceled(B, bib, 0))) && 
+	 (!(is_canceled = bk_iohh_bnbio_is_canceled(B, bib, 0))) &&
 	 ((ret = bk_polling_io_read(B, bib->bib_bpi, datap, &status, 0)) == 1))
     /* void */;
 
@@ -194,7 +194,7 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t ti
     // Don't log anything here since error is sticky, and may not be new
     BK_RETURN(B, -1);
     break;
-    
+
 
   case BkIohStatusWriteAborted:
   case BkIohStatusWriteComplete:
@@ -222,7 +222,7 @@ bk_iohh_bnbio_read(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr **datap, time_t ti
     bk_error_printf(B, BK_ERR_ERR,"Unknown status: %d\n", status);
     break;
   }
-  
+
   BK_RETURN(B, 0);
 }
 
@@ -276,7 +276,7 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
     if (bk_polling_io_do_poll(B, bib->bib_bpi, &ddata, &status, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Blocking NBIO write poll failed\n");
-      BK_RETURN(B, -1);      
+      BK_RETURN(B, -1);
     }
 
     /*
@@ -299,7 +299,7 @@ bk_iohh_bnbio_write(bk_s B, struct bk_iohh_bnbio *bib, bk_vptr *data, bk_flags f
     // Don't log anything here since error is sticky, and may not be new
     BK_RETURN(B, 1);
 
-  BK_RETURN(B, 0);  
+  BK_RETURN(B, 0);
 }
 
 
@@ -328,7 +328,7 @@ bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, 
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (bk_ioh_seek(B, bib->bib_bpi->bpi_ioh, offset, whence) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not ioh seek\n");
@@ -337,11 +337,11 @@ bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, 
 
   while ((ret = bk_polling_io_do_poll(B, bib->bib_bpi, NULL, &status, 0)) == 1)
     /* void */;
-  
+
   if (ret < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Blocking NBIO seek poll failed\n");
-    BK_RETURN(B, -1);      
+    BK_RETURN(B, -1);
   }
 
   switch (status)
@@ -353,13 +353,13 @@ bk_iohh_bnbio_seek(bk_s B, struct bk_iohh_bnbio *bib, off_t offset, int whence, 
   case BkIohStatusIohSeekFailed:
     ret = -1;
     break;
-  default: 
+  default:
     bk_error_printf(B, BK_ERR_ERR, "Unexpected seek status: %d\n", status);
-    
+
   }
-    
+
   BK_RETURN(B, ret);
-  
+
  error:
   BK_RETURN(B, -1);
 }
@@ -387,7 +387,7 @@ bk_iohh_bnbio_tell(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
   }
 
   // <WARNING> LAYER VIOLATION </WARNING>
-  BK_RETURN(B, bib->bib_bpi->bpi_tell);  
+  BK_RETURN(B, bib->bib_bpi->bpi_tell);
 }
 
 
@@ -443,7 +443,7 @@ bk_iohh_bnbio_close(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
     // We're not lingering; the run loop is responsible for cleaning up
     bk_polling_io_close(B, bib->bib_bpi, 0);
   }
-  
+
   bib->bib_bpi = NULL;
   bk_iohh_bnbio_destroy(B, bib);
   BK_VRETURN(B);
@@ -485,11 +485,11 @@ bnbio_set_timeout(bk_s B, struct bk_iohh_bnbio *bib, time_t msecs, bk_flags flag
     bk_error_printf(B, BK_ERR_ERR, "Could not enqueue new bnbio timeout event\n");
     goto error;
   }
-      
-  BK_RETURN(B, 0);  
-  
+
+  BK_RETURN(B, 0);
+
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -514,11 +514,11 @@ bnbio_timeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *st
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   bib->bib_read_to_handle = NULL;
 
   BK_FLAG_SET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT);
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -543,7 +543,7 @@ bk_iohh_bnbio_is_timedout(bk_s B, struct bk_iohh_bnbio *bib)
     BK_RETURN(B, -1);
   }
 
-  BK_RETURN(B, BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT));  
+  BK_RETURN(B, BK_FLAG_ISSET(bib->bib_flags, BK_IOHH_BNBIO_FLAG_TIMEDOUT));
 }
 
 
@@ -567,7 +567,7 @@ bk_iohh_bnbio_cancel_register(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B, bk_polling_io_cancel_register(B, bib->bib_bpi, flags));  
+  BK_RETURN(B, bk_polling_io_cancel_register(B, bib->bib_bpi, flags));
 }
 
 
@@ -591,7 +591,7 @@ bk_iohh_bnbio_cancel_unregister(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flag
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B, bk_polling_io_cancel_unregister(B, bib->bib_bpi, flags));  
+  BK_RETURN(B, bk_polling_io_cancel_unregister(B, bib->bib_bpi, flags));
 }
 
 
@@ -616,8 +616,8 @@ bk_iohh_bnbio_is_canceled(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
-  BK_RETURN(B, bk_polling_io_is_canceled(B, bib->bib_bpi, 0));  
+
+  BK_RETURN(B, bk_polling_io_is_canceled(B, bib->bib_bpi, 0));
 }
 
 
@@ -641,7 +641,7 @@ bk_iohh_bnbio_cancel(bk_s B, struct bk_iohh_bnbio *bib, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  BK_RETURN(B, bk_polling_io_cancel(B, bib->bib_bpi, flags));  
+  BK_RETURN(B, bk_polling_io_cancel(B, bib->bib_bpi, flags));
 }
 
 
@@ -667,7 +667,7 @@ bk_iohh_bnbio_geterr(bk_s B, struct bk_iohh_bnbio *bib)
 
   if (!err)
     BK_RETURN(B, NULL);
-    
+
 
   BK_RETURN(B, strerror(err));
 }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_config.c,v 1.31 2003/03/30 04:19:03 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_config.c,v 1.32 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -22,14 +22,16 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * comprised of everything which follows the first instance of a key/value
  * separator character (by default, this is '=', whitespace, or ':').
  *
- * The format of these files is intended to be more-or-less compatible with the
+ * <TODO>Implement reconfig</TODO>
+ *
+ * The format of these files is intended to be not totally incompatible with the
  * java.util.Properties load/store file format described below.  Not all of
  * of the features supported by Properties.load are supported, but we attempt
  * to provide 99% compatibility with the canonical format written by
  * Properties.store.
  *
  * The BAKA config file facility also supports included config files with the
- * 	#include file.name 
+ *	#include file.name
  * directive (the particular token used for include can be changed from the
  * default "#include" in the BAKA config user preferences structure passed to
  * bk_configure_init.  Include loops are detected and quashed.  This
@@ -38,20 +40,33 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * Differences from the format written by Properties.store are:
  *
  * - \uxxxx unicode character escapes aren't supported [for control/8bit chars]
+ *    libbk sez just include them directly (NUL not supported) or use \ooo byte
+ *    encoding
  *
  * - maximum line length is 8192 characters
  *
  * Differences from format accepted by Properties.load are the above, plus:
- * 
+ *
  * - line terminator must be \n or \r\n (on MacOS, stdio converts \r, if used)
+ *   libbk only allows \n
  *
  * - ISO 8859-1 encoding is not explicitly specified (dependent on locale)
+ *   libbk does not explictly support non-default encodings, but the people who
+ *   use it could
  *
  * - line continuations with \ aren't supported
  *
  * - \a, \b, \f, \v are treated as ANSI C escapes (BEL, BS, FF, VT)
  *
  * - lines with no separator character generate a warning and are ignored
+ *   libbk sez these are symbols that are present with the null value.
+ *   Note that below in the "cheeses" example, it appears Java supports this as well.
+ */
+
+/*
+ * For no apparent reason, we will now discuss in detail what some
+ * random java routine does which is at most of interest to people
+ * attempting to construct bk_config files which may be compatible.
  *
  * Properties.store is specified as follows:
  *
@@ -100,15 +115,15 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * and the associated element value "Beauty":
  *
  * Truth = Beauty
- * 	Truth:Beauty
+ *	Truth:Beauty
  * Truth	:Beauty
  *
  *
  * As another example, the following three lines specify a single property:
  *
  * fruits			apple, banana, pear, \
- * 				cantaloupe, watermelon, \
- * 				kiwi, mango
+ *				cantaloupe, watermelon, \
+ *				kiwi, mango
  *
  * The key is "fruits" and the associated element is:
  *
@@ -149,7 +164,7 @@ struct bk_config
   bk_flags			bc_flags;	///< Everyone needs flags
   struct bk_config_fileinfo *	bc_bcf;		///< Files of conf data
   dict_h			bc_kv;		///< Hash of value dlls
-  struct bk_config_user_pref 	bc_bcup;	///< User prefrences
+  struct bk_config_user_pref	bc_bcup;	///< User prefrences
 };
 
 
@@ -159,7 +174,7 @@ struct bk_config
  */
 struct bk_config_fileinfo
 {
-  bk_flags	       		bcf_flags;	///< Everyone needs flags
+  bk_flags			bcf_flags;	///< Everyone needs flags
   char *			bcf_filename;	///< File of data
   dict_h			bcf_includes;	///< Included files
   struct bk_config_fileinfo *	bcf_insideof;	///< What file am I inside of
@@ -238,27 +253,27 @@ struct global_structure
  * to hide CLC choice.
  */
 // @{
-#define config_kv_create(o,k,f,a)	ht_create((o),(k),(f),(a))
-#define config_kv_destroy(h)		ht_destroy(h)
-#define config_kv_insert(h,o)		ht_insert((h),(o))
-#define config_kv_insert_uniq(h,n,o)	ht_insert_uniq((h),(n),(o))
-#define config_kv_append(h,o)		ht_append((h),(o))
-#define config_kv_append_uniq(h,n,o)	ht_append_uniq((h),(n),(o))
-#define config_kv_search(h,k)		ht_search((h),(k))
-#define config_kv_delete(h,o)		ht_delete((h),(o))
-#define config_kv_minimum(h)		ht_minimum(h)
-#define config_kv_maximum(h)		ht_maximum(h)
-#define config_kv_successor(h,o)	ht_successor((h),(o))
-#define config_kv_predecessor(h,o)	ht_predecessor((h),(o))
-#define config_kv_iterate(h,d)		ht_iterate((h),(d))
-#define config_kv_nextobj(h,i)		ht_nextobj((h),(i))
-#define config_kv_iterate_done(h,i)	ht_iterate_done((h),(i))
-#define config_kv_error_reason(h,i)	ht_error_reason((h),(i))
+#define config_kv_create(o,k,f,a)	bst_create((o),(k),(f))
+#define config_kv_destroy(h)		bst_destroy(h)
+#define config_kv_insert(h,o)		bst_insert((h),(o))
+#define config_kv_insert_uniq(h,n,o)	bst_insert_uniq((h),(n),(o))
+#define config_kv_append(h,o)		bst_append((h),(o))
+#define config_kv_append_uniq(h,n,o)	bst_append_uniq((h),(n),(o))
+#define config_kv_search(h,k)		bst_search((h),(k))
+#define config_kv_delete(h,o)		bst_delete((h),(o))
+#define config_kv_minimum(h)		bst_minimum(h)
+#define config_kv_maximum(h)		bst_maximum(h)
+#define config_kv_successor(h,o)	bst_successor((h),(o))
+#define config_kv_predecessor(h,o)	bst_predecessor((h),(o))
+#define config_kv_iterate(h,d)		bst_iterate((h),(d))
+#define config_kv_nextobj(h,i)		bst_nextobj((h),(i))
+#define config_kv_iterate_done(h,i)	bst_iterate_done((h),(i))
+#define config_kv_error_reason(h,i)	bst_error_reason((h),(i))
 static int kv_oo_cmp(void *bck1, void *bck2);
 static int kv_ko_cmp(void *a, void *bck2);
 static ht_val kv_obj_hash(void *bck);
 static ht_val kv_key_hash(void *a);
-static struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
+static const struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
 // @}
 
 
@@ -292,8 +307,11 @@ static int bcv_ko_cmp(void *a, void *bck2);
 
 
 /**
- * Initialize the config file subsystem. 
- *	@param B BAKA thread/global state 
+ * Initialize the config file subsystem.
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state
  *	@param filename The file from which to read the data.
  *	@param bcup BAKA configure user preferences (see libbk.h for fields)
  *	@param flags reserved for future use
@@ -315,21 +333,21 @@ bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, b
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (!BK_CALLOC(bc))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bc: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
   }
-  bk_debug_printf_and(B,128,"bc allocate: %p\n", bc);
+  bk_debug_printf_and(B, 128, "bc allocate: %p\n", bc);
 
   /* Create kv clc */
-  if (!(bc->bc_kv=config_kv_create(kv_oo_cmp, kv_ko_cmp, DICT_UNORDERED, &kv_args)))
+  if (!(bc->bc_kv=config_kv_create(kv_oo_cmp, kv_ko_cmp, DICT_UNORDERED|bk_thread_safe_if_thread_ready, &kv_args)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create config values clc\n");
     goto error;
   }
-  bk_debug_printf_and(B,128,"KV allocate: %p\n", bc->bc_kv);
+  bk_debug_printf_and(B, 128, "KV allocate: %p\n", bc->bc_kv);
 
 
   if (!(bcf=bcf_create(B, filename, NULL)))
@@ -340,7 +358,7 @@ bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, b
 
 
   bc->bc_bcf=bcf;
-  
+
   if (!bcup || !bcup->bcup_separators)
     separators=BK_CONFIG_SEPARATORS;
   else
@@ -367,7 +385,7 @@ bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, b
     include_tag=BK_CONFIG_INCLUDE_TAG;
   else
     include_tag=bcup->bcup_include_tag;
-    
+
   if (!(bc->bc_bcup.bcup_include_tag=strdup(include_tag)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate include_tag: %s\n", strerror(errno));
@@ -384,7 +402,7 @@ bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, b
     bk_error_printf(B, BK_ERR_WARN, "Could not load config from file: %s\n", filename);
     /* Non-fatal */
   }
-  
+
   BK_RETURN(B,bc);
 
  error:
@@ -396,7 +414,10 @@ bk_config_init(bk_s B, const char *filename, struct bk_config_user_pref *bcup, b
 
 /**
  * Destroy a config structure
- *	@param B BAKA thread/global state 
+ *
+ * THREADS: MT-SAFE (different obc)
+ *
+ *	@param B BAKA thread/global state
  *	@param obc The baka config structure to destroy. If NULL we destroy the version cached in the B structure.
  */
 void
@@ -427,7 +448,7 @@ bk_config_destroy(bk_s B, struct bk_config *obc)
 
   if (bc->bc_bcf) bcf_destroy(B, bc->bc_bcf);
 
-  /* 
+  /*
    * Do this before free(3) so that Insight (et al) will not complain about
    * "reference after free"
    */
@@ -449,7 +470,11 @@ bk_config_destroy(bk_s B, struct bk_config *obc)
  * the file, reads it in line by line, locates the separator, passes the
  * key/value on for insertion, locates included files, and calls itself
  * recursively when it finds one.
- *	@param B BAKA thread/global state 
+ *
+ * THREADS: REENTRANT (same bc)
+ * THREADS: MT-SAFE (different bc)
+ *
+ *	@param B BAKA thread/global state
  *	@param B bc The baka config strucuture to which the key/values pairs will be added.
  *	@param B bcf The file information.
  *	@return <i>0</i> on failure
@@ -475,7 +500,7 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
   if (!(fp = fopen(bcf->bcf_filename, "r")))
   {
     bk_error_printf(B, BK_ERR_WARN, "Could not open %s: %s\n", bcf->bcf_filename, strerror(errno));
-    ret=-1; 
+    ret=-1;
     goto done;
   }
 
@@ -486,12 +511,12 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
     ret = -1;
     goto done;
   }
-    
+
   // <WARNING>This isn't quite the correct use of the API, but what the hell</WARNING>
   if (check_for_double_include(B, bc, bc->bc_bcf, bcf) != 1)
   {
     bk_error_printf(B, BK_ERR_NOTICE, "Double include detected (quashed)\n");
-    /* 
+    /*
      * But this is not even a sort-of error. If we have already included
      * the file then we have all the keys and values so anything the user
      * might want will exist (we still return failure).
@@ -515,14 +540,14 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
 
     if (BK_STREQ(start,""))
     {
-      /* 
+      /*
        * Blank lines are perfectly OK -- as are lines with only white space
        * but we'll just issue the warning below for those.
        */
       continue;
     }
 
-    /* 
+    /*
      * The separator for the key value is the first non-escaped instance of one
      * of the separator chars.
      */
@@ -548,7 +573,7 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
 		      bcf->bcf_filename, lineno, start);
       continue;
     }
-    
+
     if (isspace(*rest))
     {
       *rest++ = '\0';				// terminate key
@@ -633,7 +658,11 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
  * ovalue. If @a ovalue is non-NULL, but @a value is NULL, then @a
  * olvalue is deleted from @a key. If deleting @a ovalue from @a key
  * would result in @a key being devoid of values, @a key is deleted.
- * 
+ *
+ * THREADS: MT-SAFE (assuming different bc)
+ * THREADS: MT-SAFE (assuming no ovalue)
+ * THREADS: EVIL (same bc + w/ovalue + worst case)
+ *
  *	@param B BAKA thread/global state.
  *	@param bc Configure structure.
  *	@param key Key to add or modify.
@@ -642,7 +671,7 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
  *	@param lineno Line in file where this value should be.
  *	@return <i>0</i> on success.
  *	@return <br><i>-1</i> on failure.
- * 
+ *
  */
 static int
 config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, const char *ovalue, u_int lineno)
@@ -658,7 +687,7 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (!(bck=config_kv_search(bc->bc_kv,(char *)key)))
   {
     if (!(bck=bck_create(B, key,0)))
@@ -696,7 +725,7 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
     }
 
     bk_debug_printf_and(B,1,"Added new value: %s ==> %s", bck->bck_key, value);
-    
+
   }
   else
   {
@@ -721,14 +750,14 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
       {
 	/* OK to free now */
 	if (hold) free (hold); /* hold should *always* be nonnull, but check*/
-	bk_debug_printf_and(B,1,"Replaced %s ==> %s with %s ", bck->bck_key, ovalue, value);
+	bk_debug_printf_and(B, 1, "Replaced %s ==> %s with %s ", bck->bck_key, ovalue, value);
       }
     }
     else
     {
       /* Delete value */
       config_values_delete(bck->bck_values, bcv);
-      bk_debug_printf_and(B,1,"Deleted %s ==> %s", bck->bck_key, value);
+      bk_debug_printf_and(B, 1, "Deleted %s ==> %s", bck->bck_key, value);
       bcv_destroy(B, bcv);
       if (!(config_values_minimum(bck->bck_values)))
       {
@@ -763,6 +792,8 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
 /**
  * Retrieve the configuration parameters of the config system.
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param ibc The baka config structure to use. If NULL, the structure
  *	is extracted from @a B.
@@ -776,7 +807,7 @@ int bk_config_get(bk_s B, struct bk_config *ibc, const char **filename, struct b
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_config *bc;
-  
+
   SET_CONFIG(bc, B, ibc);
 
   if (!bc)
@@ -789,7 +820,7 @@ int bk_config_get(bk_s B, struct bk_config *ibc, const char **filename, struct b
   {
     if (bc->bc_bcf)
       *filename = bc->bc_bcf->bcf_filename;
-    else	
+    else
       *filename = NULL;
   }
 
@@ -807,12 +838,15 @@ int bk_config_get(bk_s B, struct bk_config *ibc, const char **filename, struct b
 /**
  * Retrieve a value based on the key.  If @a ovalue is NULL, then get first
  * value, else get successor of @a ovalue.
+ *
+ * THREADS: MT-SAFE (as long as there is no reconfig or manual maintenance)
+ *
  *	@param B BAKA thread/global state.
  *	@param ibc The baka config structure to use. If NULL, the structure
  *	is extracted from @a B.
  *	@param key The key in question.
  *	@param ovalue The previous value or NULL (see above).
- *	@return <i>value string</i> (not copied) on success. 
+ *	@return <i>value string</i> (not copied) on success.
  *	@return <br><i>NULL</i> on failure.
  */
 char *
@@ -822,7 +856,7 @@ bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ov
   struct bk_config *bc;
   struct bk_config_key *bck;
   struct bk_config_value *bcv=NULL;
-  
+
   if (!key)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
@@ -830,7 +864,7 @@ bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ov
   }
 
   SET_CONFIG(bc, B, ibc);
-  
+
   if (!bc)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not locate config structure\n");
@@ -847,9 +881,9 @@ bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ov
   {
     if (!(bcv=config_values_minimum(bck->bck_values)))
     {
-      /* 
+      /*
        * An empty key (which can (only) happen if all its values have been
-       * deleted since we do not delete the key structure) should be 
+       * deleted since we do not delete the key structure) should be
        * portrayed as an non-existent key.
        */
       bk_error_printf(B, BK_ERR_WARN, "Could not locate key: %s\n", key);
@@ -877,13 +911,17 @@ bk_config_getnext(bk_s B, struct bk_config *ibc, const char *key, const char *ov
 
 /**
  * Delete a key and all its values.
+ *
+ * THREADS: EVIL (will cause other config routines to be evil as well,
+ *	since while the DS are safe, searched value used past config control)
+ *
  *	@param B BAKA thread/global state.
  *	@param ibc The baka config structure to use. If NULL, the structure
  *	is extracted from @a B.
  *	@return <i>-1</i> on call failure, failure to find key.
  *	@return <br><i>0</i> on success.
  */
-int 
+int
 bk_config_delete_key(bk_s B, struct bk_config *ibc, const char *key)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -895,7 +933,7 @@ bk_config_delete_key(bk_s B, struct bk_config *ibc, const char *key)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   SET_CONFIG(bc, B, ibc);
 
   if (!bc)
@@ -926,8 +964,11 @@ bk_config_delete_key(bk_s B, struct bk_config *ibc, const char *key)
 
 
 
-/** 
+/**
  * Create a fileinfo structure for filename.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param filename The filename to use.
  *	@param obcf The fileinfo for the file that @a filename is included in.
@@ -951,7 +992,7 @@ bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf)
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bcf: %s\n", strerror(errno));
     goto error;
   }
-  
+
   if (!(bcf->bcf_filename=strdup(filename)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not strdup filename: %s\n", strerror(errno));
@@ -967,7 +1008,7 @@ bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf)
     }
   }
 
-  if (!(bcf->bcf_includes=dll_create(NULL,NULL,DICT_UNORDERED)))
+  if (!(bcf->bcf_includes=dll_create(NULL,NULL,DICT_UNORDERED|bk_thread_safe_if_thread_ready)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create include file dll for bcf \"%s\"\n", filename);
     goto error;
@@ -982,8 +1023,11 @@ bcf_create(bk_s B, const char *filename, struct bk_config_fileinfo *obcf)
 
 
 
-/** 
- * Destroy a fileinfo 
+/**
+ * Destroy a fileinfo
+ *
+ * THREADS: MT-SAFE (assuming different bcf)
+ *
  *	@param B BAKA thread/global state.
  *	@param bck The fileinfo to destroy.
  */
@@ -1016,8 +1060,11 @@ bcf_destroy(bk_s B, struct bk_config_fileinfo *bcf)
 
 
 
-/** 
+/**
  * Create a key info structure.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param key Key name in string form.
  *	@param flags Flags to add to key (see code for valid flags).
@@ -1035,7 +1082,7 @@ bck_create(bk_s B, const char *key, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (!BK_CALLOC(bck))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bck: %s\n", strerror(errno));
@@ -1049,13 +1096,13 @@ bck_create(bk_s B, const char *key, bk_flags flags)
   }
 
   bck->bck_flags=flags;
-  
-  if (!(bck->bck_values=config_values_create(bcv_oo_cmp,bcv_ko_cmp, DICT_UNORDERED)))
+
+  if (!(bck->bck_values=config_values_create(bcv_oo_cmp,bcv_ko_cmp, DICT_UNORDERED|bk_thread_safe_if_thread_ready)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create values clc\n");
     goto error;
   }
-  
+
   BK_RETURN(B,bck);
 
  error:
@@ -1065,8 +1112,11 @@ bck_create(bk_s B, const char *key, bk_flags flags)
 
 
 
-/** 
+/**
  * Destroy a key structure.
+ *
+ * THREADS: MT-SAFE (assuming different bck)
+ *
  *	@param B BAKA thread/global state.
  *	@param bck The key to destroy.
  */
@@ -1081,7 +1131,7 @@ bck_destroy(bk_s B, struct bk_config_key *bck)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   if (bck->bck_key)
     free (bck->bck_key);
 
@@ -1093,14 +1143,17 @@ bck_destroy(bk_s B, struct bk_config_key *bck)
   }
 
   free(bck);
-  
+
   BK_VRETURN(B);
 }
 
 
 
-/** 
+/**
  * Create a values structure.
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param value The value to add
  *	@param lineno The line number within the file where this value
@@ -1137,7 +1190,7 @@ bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags)
   bcv->bcv_flags=flags;
 
   BK_RETURN(B, bcv);
-  
+
  error:
   if (bcv) bcv_destroy(B, bcv);
   BK_RETURN(B,NULL);
@@ -1145,8 +1198,11 @@ bcv_create(bk_s B, const char *value, u_int lineno, bk_flags flags)
 
 
 
-/** 
+/**
  * Destroy a values structure.
+ *
+ * THREADS: MT-SAFE (different bcv)
+ *
  *	@param B BAKA thread/global state.
  *	@param bcv The values structure to destroy.
  */
@@ -1160,10 +1216,10 @@ bcv_destroy(bk_s B, struct bk_config_value *bcv)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   if (bcv->bcv_value) free (bcv->bcv_value);
   free(bcv);
-  
+
   BK_VRETURN(B);
 }
 
@@ -1174,6 +1230,8 @@ bcv_destroy(bk_s B, struct bk_config_value *bcv)
  *
  * Note that the resulting file may not be a valid input for bk_config_init, if
  * escaped characters were used.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param ibc The baka config structure to use. If NULL, the structure
@@ -1230,7 +1288,9 @@ bk_config_print(bk_s B, struct bk_config *ibc, FILE *fp)
  * real as well as being reasonably safe from race conditions. Note this a
  * recursive function.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (different bc)
+ *
+ *	@param B BAKA thread/global state
  *	@param bc @a bk_config structure.
  *	@param cur_bcf File info of file against which we are checking.
  *	@param new_cvs File info for file we propose to include.
@@ -1257,7 +1317,7 @@ check_for_double_include(bk_s B, struct bk_config *bc, struct bk_config_fileinfo
     BK_RETURN(B,1);
   }
 
-  if (new_bcf->bcf_stat.st_dev == cur_bcf->bcf_stat.st_dev && 
+  if (new_bcf->bcf_stat.st_dev == cur_bcf->bcf_stat.st_dev &&
       new_bcf->bcf_stat.st_ino == cur_bcf->bcf_stat.st_ino)
   {
     bk_error_printf(B, BK_ERR_ERR, "%s is the same file as %s\n", new_bcf->bcf_filename, cur_bcf->bcf_filename);
@@ -1283,11 +1343,11 @@ check_for_double_include(bk_s B, struct bk_config *bc, struct bk_config_fileinfo
 static int kv_oo_cmp(void *bck1, void *bck2)
 {
   return(strcmp(((struct bk_config_key *)bck1)->bck_key, ((struct bk_config_key *)bck2)->bck_key));
-} 
+}
 static int kv_ko_cmp(void *a, void *bck)
 {
   return(strcmp((char *)a, ((struct bk_config_key *)bck)->bck_key));
-} 
+}
 static ht_val kv_obj_hash(void *bck)
 {
   return(bk_strhash(((struct bk_config_key *)bck)->bck_key, BK_STRHASH_NOMODULUS));
@@ -1305,8 +1365,8 @@ static ht_val kv_key_hash(void *a)
 static int bcv_oo_cmp(void *bcv1, void *bcv2)
 {
   return(((struct bk_config_value *)bcv1)->bcv_value - ((struct bk_config_value *)bcv2)->bcv_value);
-} 
+}
 static int bcv_ko_cmp(void *a, void *bcv)
 {
   return((char *)a - ((struct bk_config_value *)bcv)->bcv_value);
-} 
+}

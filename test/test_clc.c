@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_clc.c,v 1.1 2003/04/09 03:57:14 seth Exp $";
+static const char libbk__rcsid[] = "$Id: test_clc.c,v 1.2 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -71,6 +71,7 @@ struct global_structure
  */
 struct program_config
 {
+  int			pc_injectnum;		///< Number of items to inject
   int			pc_time;		///< Length of each phase
   enum clc_choice	pc_clc;			///< Valid CLC choices
   bk_flags		pc_clcflags;		///< Flags to test various features of CLC
@@ -129,11 +130,12 @@ main(int argc, char **argv, char **envp)
     {"clcflags", 0, POPT_ARG_STRING, NULL, 1, N_("Flags for CLC ([NOCOALESCE,UNIQUE_KEYS,UNORDERED,ORDERED,BALANCED_TREE,HT_STRICT_HINTS,THREADED_SAFE,THREADED_MEMORY])"), N_("flags") },
     {"clc", 'c', POPT_ARG_STRING, NULL, 'c', N_("CLC choice"), N_("DLL/BST/HT") },
     {"time", 't', POPT_ARG_INT, NULL, 't', N_("Seconds duration per phase"), N_("seconds") },
+    {"inject", 'i', POPT_ARG_INT, NULL, 'i', N_("Number of items to inject (Default by time)"), N_("items") },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_LOCAL0, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_LOCAL0, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -145,7 +147,7 @@ main(int argc, char **argv, char **envp)
   if (!(i18n_locale = BK_GWD(B, STD_LOCALEDIR_KEY, NULL)))
   {
     i18n_locale = i18n_localepath;
-    snprintf(i18n_localepath, sizeof(i18n_localepath), "%s/%s", BK_ENV_GWD(STD_LOCALEDIR_ENV,STD_LOCALEDIR_DEF), STD_LOCALEDIR_SUB);
+    snprintf(i18n_localepath, sizeof(i18n_localepath), "%s/%s", BK_ENV_GWD(B, STD_LOCALEDIR_ENV,STD_LOCALEDIR_DEF), STD_LOCALEDIR_SUB);
   }
   bindtextdomain(BK_GENERAL_PROGRAM(B), i18n_locale);
   textdomain(BK_GENERAL_PROGRAM(B));
@@ -226,6 +228,9 @@ main(int argc, char **argv, char **envp)
     case 't':					// time
       pc->pc_time = atoi(poptGetOptArg(optCon));
       break;
+    case 'i':					// inject
+      pc->pc_injectnum = atoi(poptGetOptArg(optCon));
+      break;
     case 'c':					// CLC choice
       if (bk_string_atosymbol(B, poptGetOptArg(optCon), &pc->pc_clc, clcconvlist, BK_STRING_ATOSYMBOL_CASEINSENSITIVE) != 0)
       {
@@ -298,8 +303,20 @@ static void progrun(bk_s B, struct program_config *pc, bk_flags flags)
   insertl = dll_create(NULL, NULL, DICT_UNORDERED);
 
   end = time(NULL)+pc->pc_time;
-  for (cnt = 0; time(NULL) < end; cnt += 2)
+  for (cnt = 0; 1; cnt += 2)
   {
+    if (pc->pc_injectnum)
+    {
+      if (cnt >= pc->pc_injectnum*2)
+	break;
+    }
+    else
+    {
+      if (time(NULL) < end)
+	break;
+    }
+
+
     if (!BK_MALLOC(ctest))
     {
       bk_error_printf(B, BK_ERR_ERR, "Allocate of ctest failed: %s\n", strerror(errno));

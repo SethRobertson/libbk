@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: testrandidea.c,v 1.7 2002/08/15 04:16:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: testrandidea.c,v 1.8 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -103,7 +103,7 @@ struct program_config
   u_int32_t		pc_testnum;		///< Generator type
   u_int32_t		pc_numusec;		///< Number of seconds
   u_int32_t		pc_loops;		///< Number of loops to generate
-  bk_flags 		pc_flags;		///< Flags are fun!
+  bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x1			///< Verbose output
 #define PC_BINARY	0x2			///< Binary output
 };
@@ -142,7 +142,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);

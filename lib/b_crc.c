@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_crc.c,v 1.2 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_crc.c,v 1.3 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,7 +24,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * This code is based on PNG sample implementation
  * http://www.libpng.org/pub/png/spec/PNG-CRCAppendix.html
  *
- * The table lookup technique was adapted from the algorithm described 
+ * The table lookup technique was adapted from the algorithm described
  * by Avram Perez, Byte-wise CRC Calculations, IEEE Micro 3, 40 (1983).
  */
 
@@ -121,12 +121,14 @@ static u_int32_t crc_table[256] =
 /**
  * Generate a 256-word table containing all CRC remainders for every possible
  * 8-bit byte.
+ *
+ * THREADS: EVIL
  */
 static void gen_crc_table(void)
 {
   unsigned long c;
   int n, k;
-   
+
   for (n = 0; n < 256; n++)
   {
     c = (unsigned long) n;
@@ -150,8 +152,10 @@ static void gen_crc_table(void)
  * used in protocol/format should be ones' complement of the last return value
  * (i.e. bk_crc32(m, len, crc) ^ 0xffffffffL).
  *
+ * THREADS: MT-SAFE
+ *
  *	@param crc CRC-32 return from previous data (0xffffffffL initially)
- * 	@param buf Pointer to data
+ *	@param buf Pointer to data
  *	@param len Length of data in buf that should have CRC-32 computed
  *	@return 32-bit <i>crc</i> of data
  */
@@ -159,7 +163,7 @@ u_int32_t bk_crc32(u_int32_t crc, void *buf, int len)
 {
   u_int32_t c = crc;
   int n;
-   
+
   for (n = 0; n < len; n++)
   {
     c = crc_table[(c ^ ((unsigned char *)buf)[n]) & 0xff] ^ (c >> 8);

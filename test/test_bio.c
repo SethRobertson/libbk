@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_bio.c,v 1.10 2003/03/25 22:01:45 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: test_bio.c,v 1.11 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -52,7 +52,7 @@ struct program_config
   int			pc_cntl;		///< Control the on demand function.
   struct bk_iohh_bnbio *pc_bib;
   struct bk_run *	pc_run;
-  bk_flags 		pc_flags;		///< Flags are fun!
+  bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x001			///< Verbose output.
   void *		pc_on_demand;		///< On demand handle.
   const char *		pc_check;
@@ -90,7 +90,7 @@ main(int argc, char **argv, char **envp)
   char i18n_localepath[_POSIX_PATH_MAX], *i18n_locale = NULL;
   struct program_config Pconfig, *pconfig = NULL;
   poptContext optCon = NULL;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', N_("Turn on debugging"), NULL },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', N_("Turn on verbose message"), NULL },
@@ -103,7 +103,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(NULL, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -113,7 +113,7 @@ main(int argc, char **argv, char **envp)
   // i18n stuff
   setlocale(LC_ALL, "");
   if (!(i18n_locale = BK_GWD(B, STD_LOCALEDIR_KEY, NULL)) && (i18n_locale = (char *)&i18n_localepath))
-    snprintf(i18n_localepath, sizeof(i18n_localepath), "%s/%s", BK_ENV_GWD(STD_LOCALEDIR_ENV,STD_LOCALEDIR_DEF), STD_LOCALEDIR_SUB);
+    snprintf(i18n_localepath, sizeof(i18n_localepath), "%s/%s", BK_ENV_GWD(B, STD_LOCALEDIR_ENV,STD_LOCALEDIR_DEF), STD_LOCALEDIR_SUB);
   bindtextdomain(BK_GENERAL_PROGRAM(B), i18n_locale);
   textdomain(BK_GENERAL_PROGRAM(B));
   for (c = 0; optionsTable[c].longName || optionsTable[c].shortName; c++)
@@ -138,7 +138,7 @@ main(int argc, char **argv, char **envp)
     {
     case 'd':					// debug
       bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, 0, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
-      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0); 				// Set up debugging, from config file
+      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);				// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       break;
     case 'v':					// verbose
@@ -185,7 +185,7 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B, 254);
   }
-    
+
   if (proginit(B, pconfig) < 0)
   {
     bk_die(B, 254, stderr, _("Could not perform program initialization\n"), BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
@@ -223,7 +223,7 @@ static int proginit(bk_s B, struct program_config *pconfig)
   if ((fd = open(pconfig->pc_input?pconfig->pc_input:"/usr/share/dict/words", O_RDONLY)) < 0)
   {
     perror("Could not open words");
-    BK_RETURN(B,-1);    
+    BK_RETURN(B,-1);
   }
 
   if (!(run = bk_run_init(B, 0)))
@@ -237,20 +237,20 @@ static int proginit(bk_s B, struct program_config *pconfig)
   if (!(ioh = bk_ioh_init(B, fd, fd, NULL, NULL, 0, 0, 0, run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     fprintf(stderr,"Could not create ioh structure\n");
-    BK_RETURN(B,-1);    
+    BK_RETURN(B,-1);
   }
 
   if (!(bib = bk_iohh_bnbio_create(B, ioh, 0)))
   {
     fprintf(stderr,"Could not creat blocking read structure\n");
-    BK_RETURN(B,-1);    
+    BK_RETURN(B,-1);
   }
   pconfig->pc_bib = bib;
 
   if (bk_run_on_demand_add(B, run, do_read, pconfig, &pconfig->pc_cntl, &pconfig->pc_on_demand, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "\n");
-    BK_RETURN(B,-1);    
+    BK_RETURN(B,-1);
   }
 
   pconfig->pc_cntl = 1;				// turn on on demand function.
@@ -260,7 +260,7 @@ static int proginit(bk_s B, struct program_config *pconfig)
     if ((pconfig->pc_check_fd = open(pconfig->pc_check, O_WRONLY | O_TRUNC | O_CREAT, 0600)) < 0 )
     {
       perror("opening check point file");
-      BK_RETURN(B,-1);      
+      BK_RETURN(B,-1);
     }
   }
 
@@ -269,7 +269,7 @@ static int proginit(bk_s B, struct program_config *pconfig)
     if ((pconfig->pc_output_fd = open(pconfig->pc_output, O_WRONLY | O_TRUNC | O_CREAT, 0600)) < 0 )
     {
       perror("opening output file");
-      BK_RETURN(B,-1);      
+      BK_RETURN(B,-1);
     }
   }
 
@@ -309,15 +309,15 @@ static void progrun(bk_s B, struct program_config *pconfig)
 
 /**
  * Callback type for on demand functions
- * 
- *	@param B BAKA thread/global state 
+ *
+ *	@param B BAKA thread/global state
  *	@param run The @a bk_run structure to use.
  *	@param opaque User args passed back.
  *	@param demand The flag which when raised causes this function to run.
  *	@param starttime The start time of the latest invokcation of @a bk_run_once.
  *	@param flags Flags for your enjoyment.
  */
-static int 
+static int
 do_read(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
@@ -332,7 +332,7 @@ do_read(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const st
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   while (!done)
   {
     printf("\ncmd> ");
@@ -340,7 +340,7 @@ do_read(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const st
 
     fgets(line, 1024, stdin);
     bk_string_rip(B, line, NULL, 0);
-    
+
 
     *demand = 0;
     if (BK_STREQ(line, "read") || BK_STREQ(line, "readall"))
@@ -359,7 +359,7 @@ do_read(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const st
 	  exit(1);
 	}
       }
-  
+
       if (!data)
       {
 	if (!ret)
@@ -392,7 +392,7 @@ do_read(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const st
       fflush(stdout);
       fgets(line, 1024, stdin);
 
-      
+
       if (BK_STRING_ATOU(B, line, &offset, 0) != 0)
       {
 	fprintf(stderr,"Bad integer: %s\n", line);

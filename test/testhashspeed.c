@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: testhashspeed.c,v 1.4 2002/08/15 04:16:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: testhashspeed.c,v 1.5 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -111,7 +111,7 @@ struct program_config
 {
   u_int32_t		pc_testnum;		///< Generator type
   u_int32_t		pc_loops;		///< Number of loops to generate
-  bk_flags 		pc_flags;		///< Flags are fun!
+  bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x1			///< Verbose output
 #define PC_BINARY	0x2			///< Binary output
 };
@@ -149,7 +149,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -316,7 +316,7 @@ unsigned char PADDING[64] = {
  * inline assembly code, we can speed this up a bit.
  */
 inline UINT4 ROTATE_LEFT(UINT4 x, int n)
-{   
+{
     asm("roll %2,%0" : "=d" (x) : "0" (x), "Ir" (n));
     return x;
 }
@@ -389,10 +389,10 @@ void MD5Update (MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen)
     /* transform if necessary */
     if (mdi == 0x40) {
       for (i = 0, ii = 0; i < 16; i++, ii += 4)
-        in[i] = (((UINT4)mdContext->in[ii+3]) << 24) |
-                (((UINT4)mdContext->in[ii+2]) << 16) |
-                (((UINT4)mdContext->in[ii+1]) << 8) |
-                ((UINT4)mdContext->in[ii]);
+	in[i] = (((UINT4)mdContext->in[ii+3]) << 24) |
+		(((UINT4)mdContext->in[ii+2]) << 16) |
+		(((UINT4)mdContext->in[ii+1]) << 8) |
+		((UINT4)mdContext->in[ii]);
       Transform (mdContext->buf, in);
       mdi = 0;
     }
@@ -424,9 +424,9 @@ void MD5Final (MD5_CTX *mdContext)
   /* append length in bits and transform */
   for (i = 0, ii = 0; i < 14; i++, ii += 4)
     in[i] = (((UINT4)mdContext->in[ii+3]) << 24) |
-            (((UINT4)mdContext->in[ii+2]) << 16) |
-            (((UINT4)mdContext->in[ii+1]) << 8) |
-            ((UINT4)mdContext->in[ii]);
+	    (((UINT4)mdContext->in[ii+2]) << 16) |
+	    (((UINT4)mdContext->in[ii+1]) << 8) |
+	    ((UINT4)mdContext->in[ii]);
   Transform (mdContext->buf, in);
 
   /* store buffer in digest */

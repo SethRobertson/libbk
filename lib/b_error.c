@@ -1,18 +1,18 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.37 2003/03/19 20:00:16 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.38 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001,2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
- * 
+ *
  * Copyright (c) 2001,2002 The Authors. All rights reserved.
- * 
+ *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- * 
+ *
  * Mail <projectbaka@baka.org> for further information
- * 
+ *
  * --Copyright LIBBK--
  */
 
@@ -45,11 +45,12 @@ struct bk_error_node
   const char    *ben_origmsg;			///< Message without fun name
   int		ben_repeat;			///< Number of times repeated
 };
+
+
+
 /**
  * Information about the general state of errors in the system
  */
-
-
 struct bk_error
 {
   FILE		*be_fh;				///< Error info file handle
@@ -112,7 +113,7 @@ static void bk_error_iclear_i(bk_s B, struct bk_error *beinfo, const char *mark,
  *
  * THREADS: MT-SAFE
  *
- *	@param B BAKA thread/global state 
+ *	@param B BAKA thread/global state
  *	@param queuelen The number of messages that will be kept in the each (high and low priority message) queue
  *	@param fh The stdio file handle to print error messages to when errors occur (typically for debugging)
  *	@param syslogthreshold The syslog level which high priority error messages will be logged at (BK_ERR_NONE to disable logging)
@@ -187,7 +188,7 @@ struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogt
  *
  * THREADS: REENTRANT
  *
- *	@param B BAKA thread/global state 
+ *	@param B BAKA thread/global state
  *	@param beinfo The error state structure.
  */
 void bk_error_destroy(bk_s B, struct bk_error *beinfo)
@@ -222,8 +223,8 @@ void bk_error_destroy(bk_s B, struct bk_error *beinfo)
  *
  * THREADS: THREAD_REENTRANT
  *
- *	@param B BAKA thread/global state 
- *	@param beinfo The error state structure. 
+ *	@param B BAKA thread/global state
+ *	@param beinfo The error state structure.
  *	@param queuelen The number of messages that will be kept in the each (high and low priority message) queue
  *	@param fh The stdio file handle to print error messages to when errors occur (typically for debugging)
  *	@param syslogthreshold The syslog level which high priority error messages will be logged at (NONE to disable logging)
@@ -274,13 +275,13 @@ void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *
  *
  * THREADS: REENTRANT
  *
- *	@param B BAKA thread/global state 
- *	@param beinfo The error state structure. 
+ *	@param B BAKA thread/global state
+ *	@param beinfo The error state structure.
  *	@param flags Reserved
  */
 void bk_error_irepeater_flush(bk_s B, struct bk_error *beinfo, bk_flags flags)
 {
-  struct bk_error_node *node = NULL;  
+  struct bk_error_node *node = NULL;
   const char *repeated_fmt = "Last message repeated %ld times\n";
   int sysloglevel;
 
@@ -362,9 +363,9 @@ void bk_error_irepeater_flush(bk_s B, struct bk_error *beinfo, bk_flags flags)
  *
  * THREADS: THREAD-REENTRANT
  *
- *	@param B BAKA thread/global state 
+ *	@param B BAKA thread/global state
  *	@param sysloglevel The BK_ERR level of important of this message
- *	@param beinfo The error state structure. 
+ *	@param beinfo The error state structure.
  *	@param buf The error string to print.
  */
 void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const char *buf)
@@ -473,7 +474,7 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
  *
  * @param B BAKA Thread/global state
  * @param sysloglevel The BK_ERR level of important of this message
- * @param beinfo The error state structure. 
+ * @param beinfo The error state structure.
  * @param node error node to enqueue
  * @param flags Reserved.
  * @return <i>0</i> on success
@@ -534,9 +535,9 @@ int bk_error_enqueue(bk_s B, int sysloglevel, struct bk_error *beinfo, struct bk
  *
  * THREADS: THREAD-REENTRANT
  *
- *	@param B BAKA thread/global state 
+ *	@param B BAKA thread/global state
  *	@param sysloglevel The BK_ERR level of important of this message
- *	@param beinfo The error state structure. 
+ *	@param beinfo The error state structure.
  *	@param format The error string to interpret in printf style.
  *	@param ... printf style arguments
  */
@@ -566,9 +567,9 @@ void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, const ch
  *
  * THREADS: THREAD-REENTRANT
  *
- *	@param B BAKA thread/global state 
+ *	@param B BAKA thread/global state
  *	@param sysloglevel The BK_ERR level of important of this message
- *	@param beinfo The error state structure. 
+ *	@param beinfo The error state structure.
  *	@param intro The description of the buffer or error that occured.
  *	@param prefix The leading characters in front of each line of error buffer output
  *	@param buf The raw data to be converted.
@@ -594,9 +595,9 @@ void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, const 
  *
  * THREADS: THREAD-REENTRANT
  *
- *	@param B BAKA thread/global state 
+ *	@param B BAKA thread/global state
  *	@param sysloglevel The BK_ERR level of important of this message
- *	@param beinfo The error state structure. 
+ *	@param beinfo The error state structure.
  *	@param format The error string to print in printf style.
  *	@param ap The printf arguments.
  */
@@ -609,7 +610,7 @@ void bk_error_ivprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, const c
     /* <KLUDGE>Invalid argument</KLUDGE> */
     return;
   }
-    
+
   vsnprintf(buf, sizeof(buf), format, ap);
   bk_error_iprint(B, sysloglevel, beinfo, buf);
 }
@@ -622,8 +623,8 @@ void bk_error_ivprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, const c
  *
  * THREADS: THREAD-REENTRANT
  *
- *	@param B BAKA thread/global state 
- *	@param beinfo The error state structure. 
+ *	@param B BAKA thread/global state
+ *	@param beinfo The error state structure.
  *	@param mark The constant pointer/key which represents a location in the error queue: only newer messages will be flushed.
  *	@param flags Future expansion
  */
@@ -724,8 +725,8 @@ void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
  *
  * THREADS: THREAD-REENTRANT
  *
- *	@param B BAKA thread/global state 
- *	@param beinfo The error state structure. 
+ *	@param B BAKA thread/global state
+ *	@param beinfo The error state structure.
  *	@param mark The constant pointer which represents a location in the error queue.
  *	@param flags Future expansion
  */
@@ -800,8 +801,8 @@ static struct bk_error_node *bk_error_marksearch(bk_s B, struct bk_error *beinfo
  *
  * THREADS: THREAD-REENTRANT
  *
- *	@param B BAKA thread/global state 
- *	@param beinfo The error state structure. 
+ *	@param B BAKA thread/global state
+ *	@param beinfo The error state structure.
  *	@param mark The constant pointer/key which represents a location in the error queue.
  *	@param flags Future expansion
  */
@@ -826,8 +827,8 @@ void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
  *
  * THREADS: REENTRANT
  *
- *	@param B BAKA thread/global state 
- *	@param beinfo The error state structure. 
+ *	@param B BAKA thread/global state
+ *	@param beinfo The error state structure.
  *	@param mark The constant pointer/key which represents a location in the error queue.
  *	@param flags Future expansion
  */
@@ -854,8 +855,8 @@ static void bk_error_iclear_i(bk_s B, struct bk_error *beinfo, const char *mark,
  *
  * THREADS: THREAD-REENTRANT
  *
- *	@param B BAKA thread/global state 
- *	@param beinfo The error state structure. 
+ *	@param B BAKA thread/global state
+ *	@param beinfo The error state structure.
  *	@param fh The stdio file handle to print the messages to
  *	@param mark The constant pointer/key which represents a location in the error queue: only newer messages will be printed.
  *	@param minimumlevel The minimum BK_ERR level for which to output error messages (BK_ERR_NONE will output all levels)
@@ -946,8 +947,8 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, const char *mark,
  *
  * THREADS: THREAD-REENTRANT
  *
- *	@param B BAKA thread/global state 
- *	@param beinfo The error state structure. 
+ *	@param B BAKA thread/global state
+ *	@param beinfo The error state structure.
  *	@param mark The constant pointer/key which represents a location in the error queue: only newer messages will be printed.
  *	@param minimumlevel The minimum BK_ERR level for which to output error messages (BK_ERR_NONE will output all levels)
  *	@param flags Error flags: BK_ERROR_FLAG_SYSLOG_FULL to duplicate
@@ -1152,7 +1153,7 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
     msg = node->ben_origmsg;
   else
     msg = node->ben_msg;
-  
+
   if (!msg)
     return;
 
@@ -1216,7 +1217,7 @@ static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *nod
     msg = node->ben_origmsg;
   else
     msg = node->ben_msg;
-  
+
   if (!msg)
     return;
 

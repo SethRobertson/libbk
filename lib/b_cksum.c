@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_cksum.c,v 1.7 2003/01/08 19:24:19 brian Exp $";
+static const char libbk__rcsid[] = "$Id: b_cksum.c,v 1.8 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -37,6 +37,8 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * code and should be modified for each CPU to be as fast as possible.
  *
  * This function is from Net4 BSD, and is NOT licensed under LGPL.
+ *
+ * THREADS: MT-SAFE
  *
  * 	@param m Null terminated array of vectored pointers to data
  *	@param len Length of data in m that should be checksummed

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.9 2003/01/20 23:37:22 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.10 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,12 +25,24 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 
+
+#ifdef BK_USING_PTHREADS
+static pthread_rwlock_t bkenvlock = PTHREAD_RWLOCK_INITIALIZER;	///< Lock on enviornment access
+#endif /* BK_USING_PTHREADS */
+
+
+
+
 /**
  * Create a pipe to a subprocess and duplicate various descriptors. If the
  * either of the copy in variables are NonNULL and set to -1, then the
  * approrpriate descriptor (as determined fileno()) will be assumed. If
  * either is both nonNULL and not -1, then <em>that</em> descriptor value
  * is used.
+ *
+ * <WARNING>Avoid use of this function for best windows compatibility</WARNING>
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param fdinp Copy in/out (though mostly out) input descriptor. Creates child --> parent pipe.
@@ -105,14 +117,14 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
       close(c2p[1]);
     }
     break;
-    
+
   default:
     // Parent
     if (fdinp)
     {
       // Child --> parent. Close parent side write. Return parent side read.
       close(c2p[1]);
-      
+
       if (fdinp && *fdinp == -1)
       {
 	*fdinp = c2p[0];
@@ -148,8 +160,8 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
     }
     break;
   }
-    
-  BK_RETURN(B,pid);  
+
+  BK_RETURN(B,pid);
 
  error:
   /*
@@ -165,14 +177,15 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
   close(c2p[0]);
   close(c2p[1]);
 
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
 
 
 
-
 /**
- * Exec a process. 
+ * Exec a process.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param proc The proces to exec.
@@ -202,7 +215,7 @@ bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags 
     else
       execptr = execvp;
   }
-  
+
   if (env)
   {
     if (execve(proc, args, env) < 0)
@@ -219,15 +232,15 @@ bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags 
       goto error;
     }
   }
-  
+
   /* NOTREACHED */
-  BK_RETURN(B,0);  
+  BK_RETURN(B,0);
 
  error:
 
   if (exec)
     free(exec);
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
 
 
@@ -235,6 +248,8 @@ bk_exec(bk_s B, const char *proc, char *const *args, char *const *env, bk_flags 
 
 /**
  * Exececute a process using a command line interface.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param cmd The command to execute.
@@ -254,15 +269,16 @@ bk_exec_cmd(bk_s B, const char *cmd, char *const *env, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  BK_RETURN(B,bk_exec_cmd_tokenize(B, cmd, env, 0, NULL, NULL, NULL, 0, flags));  
+  BK_RETURN(B,bk_exec_cmd_tokenize(B, cmd, env, 0, NULL, NULL, NULL, 0, flags));
 }
-
 
 
 
 /**
  * Execute a process using a command line interface. This function allows
  * control over the tokenizer.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param cmd The command to execute.
@@ -287,7 +303,7 @@ bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, con
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (!(args = bk_string_tokenize_split(B, cmd, limit, spliton, kvht_vardb, variabledb, tokenize_flags)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not tokenize string\n");
@@ -299,20 +315,22 @@ bk_exec_cmd_tokenize(bk_s B, const char *cmd, char *const *env, u_int limit, con
     bk_error_printf(B, BK_ERR_ERR, "exec failed: %s\n", strerror(errno));
     goto error;
   }
-  
+
   /* NOTREACHED */
   /* except for error */
 
  error:
   if (args)
     bk_string_tokenize_destroy(B, args);
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
 
 
 
 /**
  * Create a pipe to a process. NB child process does not return if successfull.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param fdinp Copy in/copy out (mostly latter) input descriptor
@@ -341,7 +359,7 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
     BK_RETURN(B, -1);
   }
 
-  /* 
+  /*
    * Technically this flag is not necessary. We could require proper
    * initialization of these pointers, but the general concensus is that
    * such an API is so cumbersome as to be broken. Hence the flag.
@@ -353,7 +371,7 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
     if (fdoutp)
       *fdoutp = -1;
   }
-  
+
   pid = bk_pipe_to_process(B, fdinp, fdoutp, 0);
 
   switch(pid)
@@ -362,7 +380,7 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
     bk_error_printf(B, BK_ERR_ERR, "Could not create pipes or new process\n");
     goto error;
     break;
-      
+
   case 0:
     if (BK_FLAG_ISSET(flags, BK_EXEC_FLAG_TOSS_STDERR) && stderr)
     {
@@ -398,7 +416,7 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
     break;
   }
 
-  BK_RETURN(B,pid);  
+  BK_RETURN(B,pid);
 
  error:
 
@@ -407,12 +425,12 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
   // If we set the fd's then close them
   if (BK_FLAG_ISCLEAR(flags, BK_EXEC_FLAG_USE_SUPPLIED_FDS))
   {
-    if (fdinp && *fdinp != -1) 
+    if (fdinp && *fdinp != -1)
       close(*fdinp);
-    if (fdoutp && *fdoutp != -1) 
+    if (fdoutp && *fdoutp != -1)
       close(*fdoutp);
   }
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
 }
 
 
@@ -420,6 +438,8 @@ bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, char *const *
 /**
  * Create a pipe to a subprocess using a command line argument with fine
  * control over the the tokenizer. NB: the child does not return.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param fdinp Copy in/out (though mostly out) input descriptor. Creates child --> parent pipe.
@@ -447,7 +467,7 @@ bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *
     BK_RETURN(B, -1);
   }
 
-  /* 
+  /*
    * Technically this flag is not necessary. We could require proper
    * initialization of these pointers, but the general concensus is that
    * such an API is so cumbersome as to be broken. Hence the flag.
@@ -459,7 +479,7 @@ bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *
     if (fdoutp)
       *fdoutp = -1;
   }
-  
+
   pid = bk_pipe_to_process(B, fdinp, fdoutp, 0);
 
   switch(pid)
@@ -468,7 +488,7 @@ bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *
     bk_error_printf(B, BK_ERR_ERR, "Could not create pipes or new process\n");
     goto error;
     break;
-      
+
   case 0:
     if (bk_exec_cmd_tokenize(B, cmd, env, limit, spliton, kvht_vardb, variabledb, tokenize_flags, flags) < 0)
     {
@@ -483,7 +503,7 @@ bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *
     break;
   }
 
-  BK_RETURN(B,pid);  
+  BK_RETURN(B,pid);
 
  error:
 
@@ -492,19 +512,21 @@ bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *
   // If we set the fd's then close them
   if (BK_FLAG_ISCLEAR(flags, BK_EXEC_FLAG_USE_SUPPLIED_FDS))
   {
-    if (fdinp && *fdinp != -1) 
+    if (fdinp && *fdinp != -1)
       close(*fdinp);
-    if (fdoutp && *fdoutp != -1) 
+    if (fdoutp && *fdoutp != -1)
       close(*fdoutp);
   }
-  BK_RETURN(B,-1);  
-  
+  BK_RETURN(B,-1);
+
 }
 
 
 
 /**
  * Create a pipe to a subprocess using a command line argument.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param fdinp Copy in/out (though mostly out) input descriptor. Creates child --> parent pipe.
@@ -519,7 +541,7 @@ pid_t
 bk_pipe_to_cmd(bk_s B, int *fdinp,int *fdoutp, const char *cmd, char *const *env, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  
+
   BK_RETURN(B, bk_pipe_to_cmd_tokenize(B, fdinp, fdoutp, cmd, env, 0, NULL, NULL, NULL, 0, flags));
 }
 
@@ -528,6 +550,8 @@ bk_pipe_to_cmd(bk_s B, int *fdinp,int *fdoutp, const char *cmd, char *const *env
 
 /**
  * Seach the (possibly supplied) path for the given process.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param proc The proces to search for.
@@ -553,10 +577,10 @@ bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags fl
   }
 
   proc_len = strlen(proc);
-  
+
   if (!path)
   {
-    if (!(p = getenv("PATH")))
+    if (!(p = (char *)bk_getenv(B, "PATH")))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not determine path\n");
       goto error;
@@ -572,13 +596,13 @@ bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags fl
     bk_error_printf(B, BK_ERR_ERR, "Could not make local copy of path\n");
     goto error;
   }
-    
+
   q = tmp_path;
   while(p = strchr(q, BK_PATH_SEPARATOR[0]))
   {
     *p++ = '\0';
     len = strlen(q) + proc_len + 2;
-    if (ret) 
+    if (ret)
       free(ret);
     if (!(ret = malloc(len)))
     {
@@ -590,7 +614,7 @@ bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags fl
     if (access(ret, mode) == 0)
     {
       free(tmp_path);
-      BK_RETURN(B,ret);      
+      BK_RETURN(B,ret);
     }
     q = p;
   }
@@ -602,7 +626,7 @@ bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags fl
 
   if (ret)
     free(ret);
-  BK_RETURN(B,NULL);  
+  BK_RETURN(B,NULL);
 }
 
 
@@ -624,6 +648,8 @@ bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags fl
  * source) if there is no "=" in the string. This (evidently) causes the
  * variable to be unset so it shouldn't matter if then gets freed.
  * </WARNING>
+ *
+ * THREADS: THREAD-REENTRANT (assuming all environment accesses are via bk_*env)
  *
  *	@param B BAKA thread/global state.
  *	@param key Environment variable name
@@ -654,17 +680,67 @@ bk_setenv_with_putenv(bk_s B, const char *key, const char *value, int overwrite)
   }
 
   snprintf(str, len, "%s=%s", key,value);
-  
-  if (putenv(str) < 0)
+
+#ifdef BK_USING_PTHREADS
+  if (pthread_rwlock_wrlock(&bkenvlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  len = putenv(str);
+
+#ifdef BK_USING_PTHREADS
+  if (pthread_rwlock_unlock(&bkenvlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  if (len < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not insert \'%s\' into environment: %s\n", str, strerror(errno));
     goto error;
   }
-  
-  BK_RETURN(B,0);  
-  
+
+  BK_RETURN(B,0);
+
  error:
   // Presumably it's OK to free the string if an error occured.
   if (str) free(str);
-  BK_RETURN(B,-1);  
+  BK_RETURN(B,-1);
+}
+
+
+
+/**
+ * Get an environment variable from the system
+ *
+ * THREADS: MT-SAFE (assuming all environment accesses are bk_ protected)
+ *
+ *	@param B BAKA thread/global state.
+ *	@param key Environment variable name
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>Variable</i> on success.
+ */
+const char *bk_getenv(bk_s B, const char *key)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *str = NULL;
+
+  if (!key)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+#ifdef BK_USING_PTHREADS
+  if (pthread_rwlock_rdlock(&bkenvlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  str = getenv(key);
+
+#ifdef BK_USING_PTHREADS
+  if (pthread_rwlock_unlock(&bkenvlock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B, str);
 }

@@ -29,6 +29,11 @@ The ultimate meaning is that libbk does not perform locking (fine
 grained or otherwise).
 
 
+* Solaris non-thread-safe libc functions
+
+egrep 'asctime|ctermid|ctime|fgetgrent|fgetpwent|fgetspent|gamma|getauclassent|getauclassnam|getauevent|getauevnam|getauevnum|getgrent|getgrgid|getgrnam|gethostbyaddr|gethostbyname|gethostent|getlogin|getnetbyaddr|getnetbyname|getnetent|getnetgrent|getprotobyname|getprotobynumber|getprotoent|getpwent|getpwnam|getpwuid|getrpcbyname|getrpcbynumber|getrpcent|getservbyname|getservbyport|getservent|getspent|getspnam|gmtime|lgamma|localtime|nis_sperror|rand\(|readdir|strtok|tmpnam\(|ttyname'
+
+
 * Documentation
 
 Please document using the termonology below.  The documentation style should,

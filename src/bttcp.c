@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.30 2002/08/15 04:16:26 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.31 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,8 +19,8 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  *
- * This file implements both ends of a bidirectional network pipe. 
- *	
+ * This file implements both ends of a bidirectional network pipe.
+ *
  * Note: UDP support generally only works in transmit mode.  To
  * receive you must "transmit" on both sides with inverse IP and port
  * combinations.  Multicast and broadcast support is transmit only.
@@ -31,7 +31,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 
-#define ERRORQUEUE_DEPTH 	32		///< Default depth
+#define ERRORQUEUE_DEPTH	32		///< Default depth
 #define DEFAULT_PROTO_STR	"tcp"		///< Default protocol
 #define DEFAULT_PORT_STR	"5001"		///< Default port
 #define ANY_PORT		"0"		///< Any port is OK
@@ -117,7 +117,7 @@ main(int argc, char **argv, char **envp)
   extern int optind;
   struct program_config Pconfig, *pc=NULL;
   poptContext optCon=NULL;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
@@ -140,7 +140,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_LOCAL0, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(NULL, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_LOCAL0, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -165,7 +165,7 @@ main(int argc, char **argv, char **envp)
     {
     case 'd':					// debug
       bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, 0, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
-      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0); 				// Set up debugging, from config file
+      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);				// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       break;
     case 'v':					// verbose
@@ -262,7 +262,7 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B, 254);
   }
-    
+
   if (proginit(B, pc) < 0)
   {
     bk_die(B, 254, stderr, "Could not perform program initialization\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
@@ -288,7 +288,7 @@ main(int argc, char **argv, char **envp)
  *	@return <i>0</i> Success
  *	@return <br><i>-1</i> Total terminal failure
  */
-static int 
+static int
 proginit(bk_s B, struct program_config *pc)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
@@ -298,10 +298,10 @@ proginit(bk_s B, struct program_config *pc)
     bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (!pc->pc_af)
     pc->pc_af = AF_INET;
-    
+
   if (!(pc->pc_run = bk_run_init(B, 0)))
   {
     fprintf(stderr,"Could not create run structure\n");
@@ -320,13 +320,13 @@ proginit(bk_s B, struct program_config *pc)
       bk_die(B, 1, stderr, "Could not start transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     break;
 
-  default: 
+  default:
     bk_error_printf(B, BK_ERR_ERR, "Unknown role: %d\n", pc->pc_role);
     bk_die(B, 1, stderr, "Unknown role\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     goto error;
     break;
   }
-  
+
   BK_RETURN(B, 0);
 
  error:
@@ -347,7 +347,7 @@ proginit(bk_s B, struct program_config *pc)
  *	@param <i>0</i> for normal conditions
  *	@param <br><i>-1</i> for terminal errors--note handler will be called again for shutdown/error notifications
  */
-static int 
+static int
 connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
@@ -479,7 +479,7 @@ relay_finish(bk_s B, void *args, u_int state)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   /* <TODO> Report statistics here </TODO> */
   bk_run_set_run_over(B,pc->pc_run);
   BK_VRETURN(B);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: genrand.c,v 1.6 2002/08/15 04:16:26 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: genrand.c,v 1.7 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -51,7 +51,7 @@ struct program_config
 {
   u_int			pc_bytes;		///< How much output
   u_int			pc_entropy;		///< Desired minimum entropy level
-  bk_flags 		pc_flags;		///< Flags are fun!
+  bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x001			///< Verbose output
 #define PC_MULTI	0x002			///< Ascii-output
 #define PC_HEX		0x004			///< Hex-output
@@ -82,7 +82,7 @@ main(int argc, char **argv, char **envp)
   char i18n_localepath[_POSIX_PATH_MAX], *i18n_locale = NULL;
   struct program_config Pconfig, *pconfig = NULL;
   poptContext optCon = NULL;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', N_("Turn on debugging"), NULL },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', N_("Turn on verbose message"), NULL },
@@ -96,7 +96,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_LOCAL0, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(NULL, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_LOCAL0, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -106,7 +106,7 @@ main(int argc, char **argv, char **envp)
   // i18n stuff
   setlocale(LC_ALL, "");
   if (!(i18n_locale = BK_GWD(B, STD_LOCALEDIR_KEY, NULL)) && (i18n_locale = (char *)&i18n_localepath))
-    snprintf(i18n_localepath, sizeof(i18n_localepath), "%s/%s", BK_ENV_GWD(STD_LOCALEDIR_ENV,STD_LOCALEDIR_DEF), STD_LOCALEDIR_SUB);
+    snprintf(i18n_localepath, sizeof(i18n_localepath), "%s/%s", BK_ENV_GWD(B, STD_LOCALEDIR_ENV,STD_LOCALEDIR_DEF), STD_LOCALEDIR_SUB);
   bindtextdomain(BK_GENERAL_PROGRAM(B), i18n_locale);
   textdomain(BK_GENERAL_PROGRAM(B));
   for (c = 0; optionsTable[c].longName || optionsTable[c].shortName; c++)
@@ -130,7 +130,7 @@ main(int argc, char **argv, char **envp)
     {
     case 'd':					// debug
       bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, 0, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
-      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0); 				// Set up debugging, from config file
+      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);				// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       break;
     case 'v':					// verbose

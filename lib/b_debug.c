@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.21 2003/03/19 00:10:35 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.22 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -99,7 +99,7 @@ static int bk_debug_setconfig_i(bk_s B, struct bk_debug *bdinfo, struct bk_confi
  *
  * THREADS: MT-SAFE
  *
- *	@param B BAKA thread/global state 
+ *	@param B BAKA thread/global state
  *	@param flags Flags for future expansion--saved through run structure.
  *	@return <i>NULL</i> on allocation failure.
  *	@return <br><i>Debug handle</i> on success
@@ -246,7 +246,7 @@ u_int32_t bk_debug_query(bk_s B, struct bk_debug *bdinfo, const char *funname, c
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_rwlock_unlock(&bdinfo->bd_rwlock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
-  
+
   return(ret);
 }
 
@@ -376,7 +376,7 @@ int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_rwlock_wrlock(&bdinfo->bd_rwlock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
-  
+
   ret = bk_debug_setconfig_i(B, bdinfo, config, program);
 
 #ifdef BK_USING_PTHREADS
@@ -529,7 +529,7 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, const char *buf)
 {
   const char *funname;
   int tmp;
-  
+
   if (!(funname = bk_fun_funname(B, 0, 0)))
   {
     bk_error_printf(B, BK_ERR_NOTICE, "%s: Cannot determine function name\n",
@@ -594,7 +594,7 @@ void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, const char *format, ...)
     bk_error_printf(B, BK_ERR_ERR, "%s: Invalid argument\n", BK_FUNCNAME);
     return;
   }
-    
+
   va_start(args, format);
   vsnprintf(buf,sizeof(buf),format,args);
   va_end(args);
@@ -656,7 +656,7 @@ void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, const char *format, va_l
     bk_error_printf(B, BK_ERR_ERR, "%s: Invalid argument\n", BK_FUNCNAME);
     return;
   }
-    
+
   vsnprintf(buf,sizeof(buf),format,ap);
   bk_debug_iprint(B, bdinfo, buf);
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_ioh.c,v 1.18 2002/08/15 04:16:27 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_ioh.c,v 1.19 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -48,7 +48,7 @@ struct global_structure
 struct program_config
 {
   struct bk_run	       *pc_run;			///< BAKA run environment
-  const char * 		pc_remhost;		///< The host to connect to
+  const char *		pc_remhost;		///< The host to connect to
   int			pc_port;		///< Port number to use
   int			pc_input_hint;		///< IOH input hint
   int			pc_input_max;		///< IOH input max
@@ -58,7 +58,7 @@ struct program_config
 #define PC_MODE_BLOCK	2			///< Block messaging mode for IOH
 #define PC_MODE_VECTOR	3			///< Vectored messaging mode for IOH
 #define PC_MODE_LINE	4			///< Line messaging mode for IOH
-  bk_flags 		pc_flags;		///< Flags are fun!
+  bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	1			///< Verbose output
 };
 
@@ -92,7 +92,7 @@ main(int argc, char **argv, char **envp)
   extern int optind;
   struct program_config Pconfig, *pconfig=NULL;
   poptContext optCon=NULL;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"port", 'p', POPT_ARG_INT, NULL, 'p', "Port to communicate over", NULL },
@@ -111,7 +111,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", CONFFILE), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", CONFFILE), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -190,7 +190,7 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B,254);
   }
-    
+
   if (proginit(B, pconfig) < 0)
   {
     bk_die(B,254,stderr,"Could not perform program initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
@@ -296,7 +296,7 @@ int proginit(bk_s B, struct program_config *pconfig)
  *
  *	@param B BAKA Thread/Global configuration
  *	@param run Run environment
- *	@param fd File descriptor the activity was received on	
+ *	@param fd File descriptor the activity was received on
  *	@param gottypes Activity that we received
  *	@param opaque Private data (really pconfig)
  *	@param starttime Time this event occured, sorta
@@ -471,5 +471,3 @@ static void address_resolved(bk_s B, struct program_config *pconfig, struct in_a
 
   BK_VRETURN(B);
 }
- 
- 

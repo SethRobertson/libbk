@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.17 2002/10/18 20:03:30 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.18 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -17,7 +17,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 
 /**
- * @file 
+ * @file
  * Stuff having to do with network information
  */
 
@@ -40,6 +40,8 @@ static int bna_ko_cmp(void *a, void *bck2);
 /**
  * Create a bk_netinfo struct
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@returns <i>NULL</i> on failure.<br>
  *	@returns the @a bk_netinfo on success.
@@ -56,7 +58,7 @@ bk_netinfo_create(bk_s B)
     goto error;
   }
 
-  if (!(bni->bni_addrs = netinfo_addrs_create(bna_oo_cmp, bna_ko_cmp, DICT_UNIQUE_KEYS)))
+  if (!(bni->bni_addrs = netinfo_addrs_create(bna_oo_cmp, bna_ko_cmp, DICT_UNIQUE_KEYS|bk_thread_safe_if_thread_ready)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create address list\n");
     goto error;
@@ -72,13 +74,16 @@ bk_netinfo_create(bk_s B)
 
  error:
   if (bni) bk_netinfo_destroy(B, bni);
-  BK_RETURN(B,NULL);
+  BK_RETURN(B, NULL);
 }
 
 
 
 /**
  * Destroy a baka netinfo struct.
+ *
+ * THREADS: MT-SAFE (assuming different bni)
+ *
  *	@param B BAKA thread/global state.
  *	@param bni The @a struct @netinfo to destroy.
  */
@@ -93,8 +98,8 @@ bk_netinfo_destroy(bk_s B, struct bk_netinfo *bni)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
-  /* 
+
+  /*
    * If we aborted during bni allocation this dict header may be NULL.
    * But that is the only case.
    */
@@ -107,7 +112,7 @@ bk_netinfo_destroy(bk_s B, struct bk_netinfo *bni)
     }
     netinfo_addrs_destroy(bni->bni_addrs);
   }
-  
+
   if (bni->bni_bsi) bk_servinfo_destroy(B, bni->bni_bsi);
   if (bni->bni_bpi) bk_protoinfo_destroy(B, bni->bni_bpi);
   if (bni->bni_pretty) free (bni->bni_pretty);
@@ -124,6 +129,9 @@ bk_netinfo_destroy(bk_s B, struct bk_netinfo *bni)
  * @a obna has <em>not</em> been supplied, then the error is fatal. Do
  * yourself a favor and supply @a obna. If the adress type does not match
  * the current type, the insertion is aborted.
+ *
+ * THREADS: MT-SAFE (assuming different bni or not obna)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param bni The @a netinfo in which to insert into the @a netaddr.
@@ -143,18 +151,18 @@ bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, str
 
   if (!bni || !ibna)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   if (obna)
     *obna  = NULL;			/* Initialize copyout */
 
-  if ((bna = netinfo_addrs_minimum(bni->bni_addrs)) && 
+  if ((bna = netinfo_addrs_minimum(bni->bni_addrs)) &&
       bna->bna_type != ibna->bna_type)
   {
     bk_error_printf(B, BK_ERR_ERR, "Baka netinfo structures do not support heterogenious address types (%d != %d)\n", bna->bna_type, ibna->bna_type);
-    BK_RETURN(B,1);
+    BK_RETURN(B, 1);
   }
 
   if (!netinfo_addrs_minimum(bni->bni_addrs))
@@ -171,7 +179,7 @@ bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, str
       BK_RETURN(B, 0);
     }
 
-    /* 
+    /*
      * NB: If there was an object clash and the user did not supply obna,
      * it's essentially a fatal error.
      */
@@ -189,14 +197,14 @@ bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, str
       goto error;
     }
   }
-  
+
   update_bni_pretty(B, bni);
 
-  BK_RETURN(B,0);
-  
+  BK_RETURN(B, 0);
+
  error:
-  BK_RETURN(B,-1);
-}  
+  BK_RETURN(B, -1);
+}
 
 
 
@@ -208,12 +216,15 @@ bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, str
  * know what you are doing or face the possibility of a memory leak. Don't
  * tempt fate, supply @a obna.
  *
+ * THREADS: MT-SAFE (assuming different bni)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bni The @a netinfo from which to delete the @a netaddr.
  *	@param bna The @a netaddr to delete.
  *	@returns <i>-1</i> on failure.<br>
  *	@returns <i>0</i> on success.
- */ 
+ */
 int
 bk_netinfo_delete_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, struct bk_netaddr **obna)
 {
@@ -222,7 +233,7 @@ bk_netinfo_delete_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, 
 
   if (!bni || !ibna)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
@@ -233,36 +244,40 @@ bk_netinfo_delete_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, 
   {
     bk_error_printf(B, BK_ERR_WARN, "Could not find address %s to delete\n", bna->bna_pretty);
     /* It's not fatal to not find something you were going to delete */
-    BK_RETURN(B,0);
+    BK_RETURN(B, 0);
   }
-  
+
   netinfo_addrs_delete(bni->bni_addrs, bna);
 
-  /* 
+  /*
    * If we're deleting one our primary or secondary addresses, make sure it
    * gets NULL'ed out.
    */
-   
+
   if (bna == bni->bni_addr)
     bni->bni_addr = NULL;
 
   if (bna == bni->bni_addr2)
     bni->bni_addr2 = NULL;
 
-  if (update_bni_pretty(B,bni) < 0)
+  if (update_bni_pretty(B, bni) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not update a bni pretty string: %s\n", strerror(errno));
     /* Whatever */
   }
-  
+
   if (obna) *obna = bna;
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 }
 
 
 
 /**
  * Update the pretty string of a @a netinfo.
+ *
+ * THREADS: MT-SAFE (assuming different bni)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bni The @a netinfo to update.
  *	@returns <i>-1</i> on failure. <br>
@@ -276,17 +291,17 @@ update_bni_pretty(bk_s B, struct bk_netinfo *bni)
 
   if (!bni)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (bni->bni_pretty)
     free (bni->bni_pretty);
   bni->bni_pretty = NULL;
 
-  snprintf(scratch,SCRATCHLEN, "[%s:%s:%s]", 
+  snprintf(scratch, SCRATCHLEN, "[%s:%s:%s]",
 	   (bni->bni_addr && bni->bni_addr->bna_pretty)?bni->bni_addr->bna_pretty:"NO_ADDDR",
-	   (bni->bni_bsi && bni->bni_bsi->bsi_servstr)?bni->bni_bsi->bsi_servstr:"NO_SERV", 
+	   (bni->bni_bsi && bni->bni_bsi->bsi_servstr)?bni->bni_bsi->bsi_servstr:"NO_SERV",
 	   (bni->bni_bpi && bni->bni_bpi->bpi_protostr)?bni->bni_bpi->bpi_protostr:"NO_PROTO");
 
   if (!(bni->bni_pretty = strdup(scratch)))
@@ -295,15 +310,15 @@ update_bni_pretty(bk_s B, struct bk_netinfo *bni)
     goto error;
   }
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 }
 
 
 
-/** 
+/**
  * Set the primary address for a @a netaddr. The meaning of <i>primary
  * address</i> depends whatever you, the caller, want it to be, though
  * logic should play a role. For instance when the @a netaddr refers to a
@@ -313,7 +328,15 @@ update_bni_pretty(bk_s B, struct bk_netinfo *bni)
  * network address (with the secondary address set to the netmask). It's
  * your call. However in order for there to be a useful "pretty string",
  * the primary address must be set.
-XXX documentation failure
+ *
+ * THREADS: MT-SAFE (assumming different bni)
+ * THREADS: REENTRANT
+ *
+ * @param B Baka thread/global enviornment
+ * @param bni The @a netinfo to update
+ * @param bna The address to update to (NULL for first)
+ * @return <i>-1</i> on call failure, missing address, other railure
+ * @return <br><i>0</i> on success
  */
 int
 bk_netinfo_set_primary_address(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna)
@@ -322,10 +345,10 @@ bk_netinfo_set_primary_address(bk_s B, struct bk_netinfo *bni, struct bk_netaddr
 
   if (!bni)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (bna)
   {
     bna = netinfo_addrs_search(bni->bni_addrs, bna);
@@ -342,23 +365,27 @@ bk_netinfo_set_primary_address(bk_s B, struct bk_netinfo *bni, struct bk_netaddr
   }
 
   bni->bni_addr = bna;
-    
+
   if (update_bni_pretty(B, bni)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not update bna pretty string\n");
     goto error;
   }
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 }
 
 
 
 /**
  * Reset the primary address.
+ *
+ * THREADS: MT-SAFE (assuming different bni)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
@@ -370,20 +397,24 @@ bk_netinfo_reset_primary_address(bk_s B, struct bk_netinfo *bni)
 
   if (!bni)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   bni->bni_addr = NULL;
   update_bni_pretty(B, bni);
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 }
 
 
 
 /**
  * Clone a @a netinfo structure.
+ *
+ * THREADS: MT-SAFE (assuming different obni)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bni The source @a netinfo.
  *	@return <i>NULL</i> on failure.<br>
@@ -401,11 +432,11 @@ bk_netinfo_clone (bk_s B, struct bk_netinfo *obni)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (!(nbni = bk_netinfo_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bni\n");
-    goto error;    
+    goto error;
   }
 
   nbni->bni_flags = obni->bni_flags;
@@ -414,13 +445,13 @@ bk_netinfo_clone (bk_s B, struct bk_netinfo *obni)
        obna;
        obna = netinfo_addrs_successor(obni->bni_addrs, obna))
   {
-    if (!(nbna = bk_netaddr_clone(B,obna)))
+    if (!(nbna = bk_netaddr_clone(B, obna)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not clone netaddr\n");
       goto error;
     }
 
-    if (bk_netinfo_add_addr(B,nbni,nbna,NULL)<0)
+    if (bk_netinfo_add_addr(B, nbni, nbna, NULL)<0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not insert netaddr into list\n");
       goto error;
@@ -429,36 +460,40 @@ bk_netinfo_clone (bk_s B, struct bk_netinfo *obni)
     if (obni->bni_addr == obna) nbni->bni_addr = nbna;
     if (obni->bni_addr2 == obna) nbni->bni_addr2 = nbna;
   }
-  
-  if (!(nbni->bni_bsi = bk_servinfo_clone(B,obni->bni_bsi)))
+
+  if (!(nbni->bni_bsi = bk_servinfo_clone(B, obni->bni_bsi)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not clone servinfo\n");
     goto error;
   }
 
-  if (!(nbni->bni_bpi = bk_protoinfo_clone(B,obni->bni_bpi)))
+  if (!(nbni->bni_bpi = bk_protoinfo_clone(B, obni->bni_bpi)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not clone protoinfo\n");
     goto error;
   }
 
-  if (update_bni_pretty(B,nbni)<0)
+  if (update_bni_pretty(B, nbni)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not update bni pretty string\n");
     goto error;
   }
 
-  BK_RETURN(B,nbni);
+  BK_RETURN(B, nbni);
 
  error:
   if (nbni) bk_netinfo_destroy(B, nbni);
-  BK_RETURN(B,nbni);
+  BK_RETURN(B, nbni);
 }
 
 
 
 /**
- * Update the servinfo part of netinfo based on a servent. 
+ * Update the servinfo part of netinfo based on a servent.
+ *
+ * THREADS: MT-SAFE (assuming different bni)
+ * THREADS: REENTRANT (otherwise)
+ *
  *	@param B BAKA thread/global state.
  *	@param bni The @a bk_netinfo to update.
  *	@param s The @a servent to copy.
@@ -469,10 +504,10 @@ int
 bk_netinfo_update_servent(bk_s B, struct bk_netinfo *bni, struct servent *s)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  
+
   if (!bni || !s)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
@@ -491,16 +526,19 @@ bk_netinfo_update_servent(bk_s B, struct bk_netinfo *bni, struct servent *s)
     goto error;
   }
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 }
 
 
 
 /**
- * Update the protoinfo part of netinfo based on a protoent. 
+ * Update the protoinfo part of netinfo based on a protoent.
+ *
+ * THREADS: MT-SAFE (assuming different bni)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param bni The @a bk_netinfo to update
@@ -512,15 +550,15 @@ int
 bk_netinfo_update_protoent(bk_s B, struct bk_netinfo *bni, struct protoent *p)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  
+
   if (!bni || !p)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   if (bni->bni_bpi)
-    bk_protoinfo_destroy(B,bni->bni_bpi);
+    bk_protoinfo_destroy(B, bni->bni_bpi);
 
   if (!(bni->bni_bpi = bk_protoinfo_protoentdup(B, p)))
   {
@@ -528,22 +566,25 @@ bk_netinfo_update_protoent(bk_s B, struct bk_netinfo *bni, struct protoent *p)
     goto error;
   }
 
-  if (update_bni_pretty(B,bni))
+  if (update_bni_pretty(B, bni))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not update bni pretty string\n");
     goto error;
   }
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 }
 
 
 
 /**
  * Update a @a bk_netinfo based on a hostent
+ *
+ * THREADS: MT-SAFE (assuming different bni)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param bni The @a bk_netinfo to update.
@@ -560,10 +601,10 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
 
   if (!bni || !h)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if ((type = bk_netaddr_af2nat(B, h->h_addrtype))<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not convert AF %d to netaddr type\n",
@@ -571,7 +612,7 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
     goto error;
   }
 
-  /* 
+  /*
    * NB: in both of the following loops, we take the following the
    * approach.  If we fail to allocate the bk_netaddr, we simply abort
    * leaving the bni in an incomplete, but nonetheless consistent state. If
@@ -598,7 +639,7 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
 	if (bk_netinfo_add_addr(B, bni, bna, NULL) < 0)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Could not insert bna\n");
-	  bk_netaddr_destroy(B,bna);		/* Must clean up */
+	  bk_netaddr_destroy(B, bna);		/* Must clean up */
 	}
       }
     }
@@ -625,7 +666,7 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
     }
     break;
 
-  default: 
+  default:
     bk_error_printf(B, BK_ERR_ERR, "Usupported address type: %d\n", h->h_addrtype);
     goto error;
     break;
@@ -638,10 +679,10 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
     goto error;
   }
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 }
 
 
@@ -649,12 +690,14 @@ bk_netinfo_update_hostent(bk_s B, struct bk_netinfo *bni, struct hostent *h)
 /**
  * Retrieve the primary address
  *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param bni The netinfo from which to retrieve address.
  *	@return <i>NULL</i> on failure.<br>
  *	@return @a bk_netaddr pointer on success.
- * 	@bug There is no way to tell the difference between an error and @a
- * 	bk_netinfo with no addresses inserted.
+ *	@bug There is no way to tell the difference between an error and @a
+ *	bk_netinfo with no addresses inserted.
  */
 struct bk_netaddr *
 bk_netinfo_get_addr(bk_s B, struct bk_netinfo *bni)
@@ -664,22 +707,24 @@ bk_netinfo_get_addr(bk_s B, struct bk_netinfo *bni)
 
   if (!bni)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (bni->bni_addr)
     bna = bni->bni_addr;
   else
     bna = netinfo_addrs_minimum(bni->bni_addrs);
 
-  BK_RETURN(B,bna);
+  BK_RETURN(B, bna);
 }
 
 
 
 /**
  * Convert a netinfo to a sockaddr.
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bni The @a bk_netinfo to use for the source.
@@ -700,16 +745,16 @@ bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, b
 
   if (!bni || !sa)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   if (!bna && !(bna = bk_netinfo_get_addr(B, bni)))
   {
     bk_error_printf(B, BK_ERR_WARN, "Could not determine bk_netaddr to use\n");
-    // XXX - fail here
+    BK_RETURN(B, -1);
   }
-  
+
   /* If type is not specified pull it out of the bna */
   if (type == BkNetinfoTypeUnknown)
   {
@@ -745,22 +790,25 @@ bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, b
     goto error;
     break;
   }
-  
+
   if (ret == -1)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not convert netinfo to sockaddr\n");
   }
-  
-  BK_RETURN(B,ret);
+
+  BK_RETURN(B, ret);
 
  error:
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 }
 
 
 
 /**
  * Convert a @a bk_netinfo to a struct sockaddr_in
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param bni The @a bk_netinfo to use for the source.
  *	@param bna The @a bk_netaddr to use for the source.
@@ -776,14 +824,14 @@ bni2sin(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_
 
   if (!bni || !sin4)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   sin4->sin_family = AF_INET;
 
-  BK_SET_SOCKADDR_LEN(B,sin4,bna->bna_len);
-  
+  BK_SET_SOCKADDR_LEN(B, sin4, bna->bna_len);
+
   if (!bna)
   {
     if (BK_FLAG_ISSET(flags, BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY))
@@ -798,19 +846,19 @@ bni2sin(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_
   }
   else
   {
-    /* 
+    /*
      * sigh.. use bna length instead of sin length 'cause bloody linux
      * doesn't support sockaddr length. What modern OS doesn't do this??!!?
      */
-    memmove(&(sin4->sin_addr),&(bna->bna_inet),bna->bna_len);
+    memmove(&(sin4->sin_addr), &(bna->bna_inet), bna->bna_len);
   }
 
   sin4->sin_port = bni->bni_bsi->bsi_port;
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 
 }
 
@@ -819,6 +867,9 @@ bni2sin(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_
 #ifdef HAVE_INET6
 /**
  * Convert a @a bk_netinfo to a struct sockaddr_in
+ *
+ * THREADS: MT-SAFE
+ *
  *	@param B BAKA thread/global state.
  *	@param bni The @a bk_netinfo to use for the source.
  *	@param bna The @a bk_netaddr to use for the source.
@@ -835,14 +886,14 @@ bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr
 
   if (!bni || !sin6)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   sin6->sin6_family = AF_INET6;
 
-  BK_SET_SOCKADDR_LEN(B,sin6,bna->bna_len);
-  
+  BK_SET_SOCKADDR_LEN(B, sin6, bna->bna_len);
+
   if (!bna)
   {
     if (BK_FLAG_ISSET(flags, BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY))
@@ -857,15 +908,15 @@ bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr
   }
   else
   {
-    memmove(&(sin6->sin6_addr),&(bna->bna_inet),bna->bna_len);
+    memmove(&(sin6->sin6_addr), &(bna->bna_inet), bna->bna_len);
   }
 
   sin6->sin6_port = bni->bni_bsi->bsi_port;
 
-  BK_RETURN(B,0);
+  BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B,-1);
+  BK_RETURN(B, -1);
 
 }
 #endif /* HAVE_INET6 */
@@ -874,6 +925,8 @@ bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr
 
 /**
  * Convert a @a bk_netinfo to a struct sockaddr_un
+ *
+ * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state.
  *	@param bni The @a bk_netinfo to use for the source.
@@ -891,17 +944,17 @@ bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_u
   /* Fuzzy ANY does not make sense in AF_LOCAL */
   if (!bni || !bna || !sunix)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   sunix->sun_family = AF_LOCAL;
-  
-  BK_SET_SOCKADDR_LEN(B,sunix,bna->bna_len);
 
-  snprintf(sunix->sun_path,sizeof(sunix->sun_path),"%s", bna->bna_path);
+  BK_SET_SOCKADDR_LEN(B, sunix, bna->bna_len);
 
-  BK_RETURN(B,0);
+  snprintf(sunix->sun_path, sizeof(sunix->sun_path), "%s", bna->bna_path);
+
+  BK_RETURN(B, 0);
 }
 
 
@@ -909,9 +962,12 @@ bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_u
 /**
  * Create a @a bk_netinfo from a sockaddr.
  *
+ * THREADS: MT-SAFE (assuming s is not closed)
+ *
  *	@param B BAKA thread/global state.
- *	@param sa The sockaddr from which to create the @a bk_netinfo
+ *	@param s The socket from which to create the @a bk_netinfo
  *	@param proto The protocol number.
+ *	@param side Want local or remote address
  *	@return <i>NULL</i> on failure.<br>
  *	@return an allocated @a bk_netinfo.
  */
@@ -928,7 +984,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
   socklen_t len;
   struct sockaddr sa;
 
-  memset(&sa,0,sizeof(sa));
+  memset(&sa, 0,sizeof(sa));
 
   switch (side)
   {
@@ -979,7 +1035,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 	bk_error_printf(B, BK_ERR_ERR, "Could not get socket type: %s\n", strerror(errno));
 	goto error;
       }
-      
+
       switch (type)
       {
       case SOCK_STREAM:
@@ -1003,21 +1059,21 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
     }
 
     sin4 = (struct sockaddr_in *)(&sa);
-    snprintf(scratch, 100,"%d", ntohs(sin4->sin_port));
+    snprintf(scratch, 100, "%d", ntohs(sin4->sin_port));
     if (bk_getservbyfoo(B, scratch, bni->bni_bpi->bpi_protostr, NULL, bni, 0)<0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
       goto error;
     }
 
-    /*BK_GET_SOCKADDR_LEN(B,sin4,len);*/
+    /*BK_GET_SOCKADDR_LEN(B, sin4, len);*/
     if (!(bna = bk_netaddr_user(B, netaddr_type, &(sin4->sin_addr), sizeof(sin4->sin_addr), 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
       goto error;
     }
     break;
-  
+
   case BkNetinfoTypeInet6:
     if (!proto)
     {
@@ -1030,7 +1086,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 	bk_error_printf(B, BK_ERR_ERR, "Could not get socket type: %s\n", strerror(errno));
 	goto error;
       }
-      
+
       switch (type)
       {
       case SOCK_STREAM:
@@ -1060,15 +1116,15 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
       bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
       goto error;
     }
-    
-    /*BK_GET_SOCKADDR_LEN(B,sin6,len);*/
-    if (!(bna = bk_netaddr_user(B, netaddr_type,&(sin6->sin6_addr), sizeof(sin6->sin6_addr), 0)))
+
+    /*BK_GET_SOCKADDR_LEN(B, sin6, len);*/
+    if (!(bna = bk_netaddr_user(B, netaddr_type, &(sin6->sin6_addr), sizeof(sin6->sin6_addr), 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
       goto error;
     }
     break;
-  
+
   case BkNetinfoTypeLocal:
     /* <TODO> Do this for local type </TODO>*/
 #if 0
@@ -1094,13 +1150,13 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 
   update_bni_pretty(B, bni);
 
-  BK_RETURN(B,bni);
+  BK_RETURN(B, bni);
 
  error:
   /* Despite appearences, this will *not* double free */
-  if (bna) bk_netaddr_destroy(B,bna);
-  if (bni) bk_netinfo_destroy(B,bni);
-  BK_RETURN(B,NULL);
+  if (bna) bk_netaddr_destroy(B, bna);
+  if (bni) bk_netinfo_destroy(B, bni);
+  BK_RETURN(B, NULL);
 }
 
 
@@ -1108,6 +1164,9 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 /**
  * Return the pretty printing string. NB This space is "static" as far a
  * the user is concerned, so I suppose this function is not reentrent.
+ *
+ * THREADS: MT-SAFE (assuming different bni)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param bni @a bk_netinfo to print out.
@@ -1124,9 +1183,9 @@ bk_netinfo_info(bk_s B, struct bk_netinfo *bni)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
-  update_bni_pretty(B,bni);
-  BK_RETURN(B,bni->bni_pretty);
+
+  update_bni_pretty(B, bni);
+  BK_RETURN(B, bni->bni_pretty);
 }
 
 
@@ -1135,6 +1194,9 @@ bk_netinfo_info(bk_s B, struct bk_netinfo *bni)
  * Set the primary address to the next address on the list. If the primary
  * address is currently unset, then set it to the first entry in the list
  * (assuming there is one).
+ *
+ * THREADS: MT-SAFE (assuming different bni)
+ * THREADS: REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
  *	@param bni The @a bk_netinfo on which to work
@@ -1152,10 +1214,10 @@ bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   if (!bni->bni_addr)
   {
-    if (bk_netinfo_set_primary_address(B,bni,NULL)<0)
+    if (bk_netinfo_set_primary_address(B, bni, NULL)<0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not set primary address on bni\n");
       goto error;
@@ -1163,7 +1225,7 @@ bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni)
   }
   else
   {
-    if ((bna=netinfo_addrs_successor(bni->bni_addrs,bni->bni_addr)))
+    if ((bna=netinfo_addrs_successor(bni->bni_addrs, bni->bni_addr)))
     {
       if (bk_netinfo_set_primary_address(B, bni, bna)<0)
       {
@@ -1175,13 +1237,13 @@ bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni)
     {
       /* Nobody left in list */
       bni->bni_addr=NULL;
-      update_bni_pretty(B,bni);
+      update_bni_pretty(B, bni);
     }
   }
-  BK_RETURN(B,bni->bni_addr);
+  BK_RETURN(B, bni->bni_addr);
 
  error:
-  BK_RETURN(B,NULL);
+  BK_RETURN(B, NULL);
 }
 
 
@@ -1189,16 +1251,19 @@ bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni)
 /*
  * CLC netaddr comparison routines. NB these are ==/!= only. We don't care
  * about sorting (wouldn't make too much sense anyway)
+ *
+ * THREADS: MT-SAFE
+ *
  */
 static int bna_oo_cmp(void *a, void *b)
 {
   struct bk_netaddr *bna1 = a, *bna2 = b;
   /* <WARNING> Should we require that bna_flags be equal too? </WARNING> */
-  return (!(bna1->bna_type == bna2->bna_type && 
+  return (!(bna1->bna_type == bna2->bna_type &&
 	    bna1->bna_len == bna2->bna_len &&
 	    memcmp(&(bna1->bna_addr), &(bna2->bna_addr), bna1->bna_len) == 0));
-} 
+}
 static int bna_ko_cmp(void *a, void *b)
 {
-  return(bna_oo_cmp(a,b));
-} 
+  return(bna_oo_cmp(a, b));
+}

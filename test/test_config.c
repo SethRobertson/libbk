@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_config.c,v 1.10 2003/03/29 14:48:26 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: test_config.c,v 1.11 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -31,7 +31,7 @@ struct global_structure
 {
   bk_flags	gs_flags;
 } Global;
-#define TESTCONFIG_FLAG_DISPLAY 	0x1
+#define TESTCONFIG_FLAG_DISPLAY	0x1
 
 
 int proginit(bk_s B);
@@ -49,7 +49,7 @@ main(int argc, char **argv, char **envp)
   extern char *optarg;
   extern int optind;
   poptContext optCon=NULL;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"show", 's', POPT_ARG_NONE, NULL, 's', "Show the current config file", NULL },
@@ -57,7 +57,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -96,7 +96,7 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B,254);
   }
-    
+
   if (proginit(B) < 0)
   {
     bk_die(B,254,stderr,"Could not perform program initialization\n",0);
@@ -143,5 +143,3 @@ void progrun(bk_s B, const char *extra)
 
   BK_VRETURN(B);
 }
-
-

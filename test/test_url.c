@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_url.c,v 1.16 2003/03/25 23:25:17 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: test_url.c,v 1.17 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -73,7 +73,7 @@ main(int argc, char **argv, char **envp)
   extern int optind;
   struct program_config Pconfig, *pconfig=NULL;
   poptContext optCon=NULL;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"vptr", 'v', POPT_ARG_NONE, NULL, 'v', "Use Vptr mode", NULL },
@@ -84,7 +84,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -138,7 +138,7 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B,254);
   }
-    
+
   if (proginit(B, pconfig) < 0)
   {
     bk_die(B,254,stderr,"Could not perform program initialization\n",0);
@@ -231,7 +231,7 @@ void progrun(bk_s B, struct program_config *pconfig)
       "baz",
       NULL
     };
-  
+
   while(fgets(inputline, 1024, stdin))
   {
     char *value;
@@ -240,8 +240,8 @@ void progrun(bk_s B, struct program_config *pconfig)
 
     if (BK_STREQ(inputline,"quit") || BK_STREQ(inputline,"exit"))
       BK_VRETURN(B);
-      
-    
+
+
     memset(scratch,0,sizeof(scratch));
     nextstart = 0;
     if (!(bu=bk_url_parse(B, inputline, pconfig->pc_parse_mode, BK_URL_FLAG_STRICT_PARSE)))
@@ -249,7 +249,7 @@ void progrun(bk_s B, struct program_config *pconfig)
       fprintf(stderr,"Could not convert url: %s\n", inputline);
       continue;
     }
-    
+
 
     printf("URL: %s\n",bu->bu_url);
     PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_scheme);
@@ -307,7 +307,7 @@ void progrun(bk_s B, struct program_config *pconfig)
     }
     PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_fragment);
     printf("\tFragment: %s\n", scratch);
-    
+
     frankenurl = bk_url_reconstruct(B, bu, BK_URL_FLAG_ALL, 0);
     printf("\treconstructed URL=%s\n", frankenurl);
     free(frankenurl);
@@ -315,6 +315,6 @@ void progrun(bk_s B, struct program_config *pconfig)
     bk_url_destroy(B, bu);
 
   }
-  
+
   BK_VRETURN(B);
 }

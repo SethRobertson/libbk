@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_child.c,v 1.4 2002/10/18 20:03:30 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_child.c,v 1.5 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -102,6 +102,8 @@ static struct ht_args childpidlist_args = { 127, 2, (ht_func)childpidlist_obj_ha
 /**
  * Create a child management structure
  *
+ * THREADS: MT-SAFE
+ *
  * @param B BAKA thread/global environment
  * @param flags Fun for the future
  */
@@ -116,13 +118,17 @@ struct bk_child *bk_child_icreate(bk_s B, bk_flags flags)
     BK_RETURN(B, NULL);
   }
 
-  if (!(bchild->bc_childidlist = childidlist_create((dict_function)childidlist_oo_cmp, (dict_function)childidlist_ko_cmp, 0, &childidlist_args)))
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_init(&bchild->bc_lock, NULL);
+#endif /* BK_USING_PTHREADS */
+
+  if (!(bchild->bc_childidlist = childidlist_create((dict_function)childidlist_oo_cmp, (dict_function)childidlist_ko_cmp, bk_thread_safe_if_thread_ready, &childidlist_args)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate child id management tracking list: %s\n", childidlist_error_reason(NULL, NULL));
-    goto error;	
+    goto error;
   }
 
-  if (!(bchild->bc_childpidlist = childpidlist_create((dict_function)childpidlist_oo_cmp, (dict_function)childpidlist_ko_cmp, 0, &childpidlist_args)))
+  if (!(bchild->bc_childpidlist = childpidlist_create((dict_function)childpidlist_oo_cmp, (dict_function)childpidlist_ko_cmp, bk_thread_safe_if_thread_ready, &childpidlist_args)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate child pid management tracking list: %s\n", childidlist_error_reason(NULL, NULL));
     goto error;
@@ -143,6 +149,9 @@ struct bk_child *bk_child_icreate(bk_s B, bk_flags flags)
 /**
  * Clean a child list
  *
+ * THREADS: MT-SAFE (assuming different bchild)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
  * @param B Baka thread/global environment
  * @param bchild Child management state
  * @param specialchild Special child who should not be closed (-1 if not special)
@@ -159,6 +168,12 @@ void bk_child_iclean(bk_s B, struct bk_child *bchild, int specialchild, bk_flags
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_lock(&bchild->bc_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+
   DICT_NUKE_CONTENTS(bchild->bc_childpidlist, childpidlist, bcc, bk_error_printf(B, BK_ERR_ERR, "Could not delete minimum bcc: %s\n", childpidlist_error_reason(bchild->bc_childpidlist, NULL)); break, /*naught*/);
 
   /*
@@ -171,6 +186,11 @@ void bk_child_iclean(bk_s B, struct bk_child *bchild, int specialchild, bk_flags
 
   DICT_NUKE_CONTENTS(bchild->bc_childidlist, childidlist, bcc, bk_error_printf(B, BK_ERR_ERR, "Could not delete minimum bcc: %s\n", childidlist_error_reason(bchild->bc_childidlist, NULL)); break, if (bcc->cc_id != specialchild) { if (bcc->cc_childcomm[0] >= 0) close(bcc->cc_childcomm[0]); if (bcc->cc_childcomm[1] >= 0) close(bcc->cc_childcomm[1]); if ((bcc->cc_childcomm[2] >= 0) && (bcc->cc_childcomm[2] != bcc->cc_childcomm[1])) close(bcc->cc_childcomm[2]); } free(bcc));
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_unlock(&bchild->bc_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_VRETURN(B);
 }
 
@@ -178,6 +198,9 @@ void bk_child_iclean(bk_s B, struct bk_child *bchild, int specialchild, bk_flags
 
 /**
  * Destroy a child list
+ *
+ * THREADS: MT-SAFE (assuming different bchild)
+ * THREADS: REENTRANT (otherwise)
  *
  * @param B Baka thread/global environment
  * @param bchild Child management state
@@ -196,6 +219,12 @@ void bk_child_idestroy(bk_s B, struct bk_child *bchild, bk_flags flags)
   bk_child_iclean(B, bchild, -1, flags);
   childidlist_destroy(bchild->bc_childidlist);
   childpidlist_destroy(bchild->bc_childpidlist);
+
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_destroy(&bchild->bc_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   free(bchild);
 
   BK_VRETURN(B);
@@ -205,6 +234,9 @@ void bk_child_idestroy(bk_s B, struct bk_child *bchild, bk_flags flags)
 
 /**
  * Start a child in various ways
+ *
+ * THREADS: MT-SAFE (assuming different bchild)
+ * THREADS: THREAD-REENTRANT (otherwise)
  *
  * @param B BAKA thread/global environment
  * @param bchild Child management state
@@ -236,17 +268,14 @@ int bk_child_istart(bk_s B, struct bk_child *bchild, void (*cc_callback)(bk_s B,
     BK_RETURN(B, -1);
   }
 
-  // Search for unused childid -- will spin forever if you have 2^31 forked children :-)
-  while (childidlist_search(bchild->bc_childidlist, &bchild->bc_nextchild))
-    if (++bchild->bc_nextchild < 0) bchild->bc_nextchild = 0;
-
-  bcc->cc_id = bchild->bc_nextchild++;
-  if (bchild->bc_nextchild < 0) bchild->bc_nextchild = 0;
   bcc->cc_childpid = 0;
   bcc->cc_callback = cc_callback;
   bcc->cc_opaque = cc_opaque;
   bcc->cc_statuscode = 0;
   bcc->cc_flags = BK_FLAG_ISSET(flags, BK_CHILD_NOTIFYSTOP)?CC_WANT_NOTIFYSTOP:0;
+  bcc->cc_childcomm[0] = -1;
+  bcc->cc_childcomm[1] = -1;
+  bcc->cc_childcomm[2] = -1;
 
   if (BK_FLAG_ISSET(flags, BK_CHILD_WANTRPIPE))
   {
@@ -278,18 +307,23 @@ int bk_child_istart(bk_s B, struct bk_child *bchild, void (*cc_callback)(bk_s B,
     fds2[1] = fds1[1];
   }
 
-  if (childidlist_insert(bchild->bc_childidlist, bcc) != DICT_OK)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not insert a validated childcomm id: %s\n", childidlist_error_reason(bchild->bc_childidlist, NULL));
-    goto error;
-  }
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_lock(&bchild->bc_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  // Search for unused childid -- will spin forever if you have 2^31 forked children :-)
+  while (childidlist_search(bchild->bc_childidlist, &bchild->bc_nextchild))
+    if (++bchild->bc_nextchild < 0) bchild->bc_nextchild = 1;
+
+  bcc->cc_id = bchild->bc_nextchild++;
+  if (bchild->bc_nextchild < 0) bchild->bc_nextchild = 1;
 
   if ((bcc->cc_childpid = fork()) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "No forking: %s\n", strerror(errno));
-    goto error;
+    goto lockerror;
   }
-
 
   if (fds)
     *fds = bcc->cc_childcomm;
@@ -299,44 +333,79 @@ int bk_child_istart(bk_s B, struct bk_child *bchild, void (*cc_callback)(bk_s B,
     if (childpidlist_insert(bchild->bc_childpidlist, bcc) != DICT_OK)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not insert a validated childcomm pid: %s\n", childpidlist_error_reason(bchild->bc_childpidlist, NULL));
-      goto error;
+      goto lockerror;
+    }
+
+    if (childidlist_insert(bchild->bc_childidlist, bcc) != DICT_OK)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not insert a validated childcomm id: %s\n", childidlist_error_reason(bchild->bc_childidlist, NULL));
+      goto lockerror;
     }
 
     bcc->cc_childcomm[0] = fds0[1];
     bcc->cc_childcomm[1] = fds1[0];
     bcc->cc_childcomm[2] = fds2[0];
-    if (fds0[0] < 0)
+    if (fds0[0] >= 0)
       close(fds0[0]);
-    if (fds1[1] < 0)
+    if (fds1[1] >= 0)
       close(fds1[1]);
     if (BK_FLAG_ISCLEAR(flags, BK_CHILD_WANTEASW))
     {
-      if (fds2[1] < 0)
+      if (fds2[1] >= 0)
 	close(fds2[1]);
     }
     fds0[0] = fds0[1] = -1;
     fds1[0] = fds1[1] = -1;
     fds2[0] = fds2[1] = -1;
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_unlock(&bchild->bc_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
     BK_RETURN(B, bcc->cc_id);
   }
   else
   {						// Child
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_unlock(&bchild->bc_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
+    // <TODO>Perhaps we should technially nuke all other children since they are not *our* children...</TODO>
+
+    bcc->cc_id = 0;
+    if (childidlist_insert(bchild->bc_childidlist, bcc) != DICT_OK)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not insert a validated childcomm id: %s\n", childidlist_error_reason(bchild->bc_childidlist, NULL));
+      goto lockerror;
+    }
+
     bcc->cc_childcomm[0] = fds0[0];
     bcc->cc_childcomm[1] = fds1[1];
     bcc->cc_childcomm[2] = fds2[1];
-    if (fds0[1] < 0)
+    if (fds0[1] >= 0)
       close(fds0[1]);
-    if (fds1[0] < 0)
+    if (fds1[0] >= 0)
       close(fds1[0]);
     if (BK_FLAG_ISCLEAR(flags, BK_CHILD_WANTEASW))
     {
-      if (fds2[0] < 0)
+      if (fds2[0] >= 0)
 	close(fds2[0]);
     }
     fds0[0] = fds0[1] = -1;
     fds1[0] = fds1[1] = -1;
     fds2[0] = fds2[1] = -1;
     BK_RETURN(B, 0);
+  }
+
+  if (0)
+  {
+  lockerror:
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_unlock(&bchild->bc_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
   }
 
  error:
@@ -370,6 +439,9 @@ int bk_child_istart(bk_s B, struct bk_child *bchild, void (*cc_callback)(bk_s B,
 /**
  * Handle SIGCHILD in sync signal handler
  *
+ * THREADS: MT-SAFE (assuming different bchild/opaque)
+ * THREADS: THREAD-REENTRANT (otherwise)
+ *
  * @param B BAKA thread/global environment
  * @param run Baka run enviornment
  * @param signum Signal we are handling
@@ -388,6 +460,11 @@ void bk_child_isigfun(bk_s B, struct bk_run *run, int signum, void *opaque)
     BK_VRETURN(B);
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_lock(&bchild->bc_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   while ((childpid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0)
   {
     struct bk_child_comm *bcc;
@@ -397,7 +474,7 @@ void bk_child_isigfun(bk_s B, struct bk_run *run, int signum, void *opaque)
       bk_error_printf(B, BK_ERR_WARN, "Could not find child in managed child list: %d\n", (int)childpid);
       continue;
     }
-    
+
     if (WIFSTOPPED(status))
     {
       if (BK_FLAG_ISSET(bcc->cc_flags, CC_WANT_NOTIFYSTOP))
@@ -422,15 +499,25 @@ void bk_child_isigfun(bk_s B, struct bk_run *run, int signum, void *opaque)
     }
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_unlock(&bchild->bc_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
   BK_VRETURN(B);
 }
 
 
-// XXX - implement external functions (handle B mgmt, run signal handler)
-// XXX - implement sigone/sigall functions
+// XXX - <TODO>implement external functions (handle B mgmt, run signal handler)</TODO>
+// XXX - <TODO>implement sigone/sigall functions</TODO>
 
 
 
+/*
+ * CLC comparison routines
+ *
+ * THREADS: REENTRANT
+ */
 static int childidlist_oo_cmp(struct bk_child_comm *a, struct bk_child_comm *b)
 {
   return (a->cc_id - b->cc_id);

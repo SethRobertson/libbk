@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: mmcat.c,v 1.7 2002/08/15 04:16:26 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: mmcat.c,v 1.8 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -48,7 +48,7 @@ struct program_config
   FILE		       *pc_input;		///< Input file handle
   FILE		       *pc_output;		///< Output file handle
   size_t		pc_size;		///< Buffer size to use
-  bk_flags 		pc_flags;		///< Flags are fun!
+  bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x1			///< Verbose output
 #define PC_ENCODE	0x2			///< Encoding (!present->decoding)
 };
@@ -81,7 +81,7 @@ main(int argc, char **argv, char **envp)
   extern int optind;
   struct program_config Pconfig, *pconfig=NULL;
   poptContext optCon=NULL;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", "debug" },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
@@ -93,7 +93,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_LOCAL0, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(NULL, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_LOCAL0, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -117,7 +117,7 @@ main(int argc, char **argv, char **envp)
     {
     case 'd':					// debug
       bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, 0, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
-      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0); 				// Set up debugging, from config file
+      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);				// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       break;
     case 'v':					// verbose
@@ -174,7 +174,7 @@ main(int argc, char **argv, char **envp)
       getopterr++;
     }
   }
-	
+
   if (c < -1 || getopterr)
   {
     if (c < -1)
@@ -184,7 +184,7 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B, 254);
   }
-    
+
   if (!BK_MALLOC_LEN(buf, pconfig->pc_size))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer of size %d: %s\n", pconfig->pc_size, strerror(errno));

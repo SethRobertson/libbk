@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_fun.c,v 1.6 2003/03/19 20:00:17 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: test_fun.c,v 1.7 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -65,7 +65,7 @@ main(int argc, char **argv, char **envp)
   poptContext optCon=NULL;
   const char *arg;
   int debugging = 0;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"syslog-level", 's', POPT_ARG_INT|POPT_ARGFLAG_OPTIONAL, NULL, 's', "Syslog level (default 0=debug)", NULL },
@@ -74,7 +74,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -89,7 +89,7 @@ main(int argc, char **argv, char **envp)
     {
     case 'd':
       bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, 0, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
-      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0); 				// Set up debugging, from config file
+      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);				// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       debugging = 1;
       break;
@@ -116,7 +116,7 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B,254);
   }
-    
+
   if (proginit(B) < 0)
   {
     bk_die(B,254,stderr,"Could not perform program initialization\n",0);
@@ -126,7 +126,7 @@ main(int argc, char **argv, char **envp)
 
   if (!debugging)
   {
-    bk_error_repeater_flush(B, 0);    
+    bk_error_repeater_flush(B, 0);
     bk_error_dump(B,stderr,NULL,BK_ERR_DEBUG,BK_ERR_NONE,0);
   }
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_locks.c,v 1.6 2003/01/20 23:37:22 seth Exp $";
+static const char libbk__rcsid[] = "$Id: test_locks.c,v 1.7 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -52,7 +52,7 @@ struct global_structure
  */
 struct program_config
 {
-  bk_flags 		pc_flags;		///< Flags are fun!
+  bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x001			///< Verbose output
   char *		pc_resource;		///< Resource to lock
 };
@@ -83,7 +83,7 @@ main(int argc, char **argv, char **envp)
   char i18n_localepath[_POSIX_PATH_MAX], *i18n_locale = NULL;
   struct program_config Pconfig, *pconfig = NULL;
   poptContext optCon = NULL;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', N_("Turn on debugging"), NULL },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', N_("Turn on verbose message"), NULL },
@@ -93,7 +93,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -103,7 +103,7 @@ main(int argc, char **argv, char **envp)
   // i18n stuff
   setlocale(LC_ALL, "");
   if (!(i18n_locale = BK_GWD(B, STD_LOCALEDIR_KEY, NULL)) && (i18n_locale = (char *)&i18n_localepath))
-    snprintf(i18n_localepath, sizeof(i18n_localepath), "%s/%s", BK_ENV_GWD(STD_LOCALEDIR_ENV,STD_LOCALEDIR_DEF), STD_LOCALEDIR_SUB);
+    snprintf(i18n_localepath, sizeof(i18n_localepath), "%s/%s", BK_ENV_GWD(B, STD_LOCALEDIR_ENV,STD_LOCALEDIR_DEF), STD_LOCALEDIR_SUB);
   bindtextdomain(BK_GENERAL_PROGRAM(B), i18n_locale);
   textdomain(BK_GENERAL_PROGRAM(B));
   for (c = 0; optionsTable[c].longName || optionsTable[c].shortName; c++)
@@ -130,7 +130,7 @@ main(int argc, char **argv, char **envp)
     {
     case 'd':					// debug
       bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, 0, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
-      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0); 				// Set up debugging, from config file
+      bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);				// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       break;
     case 'v':					// verbose
@@ -163,7 +163,7 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B, 254);
   }
-    
+
   if (proginit(B, pconfig) < 0)
   {
     bk_die(B, 254, stderr, _("Could not perform program initialization\n"), BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
@@ -226,7 +226,7 @@ static void progrun(bk_s B, struct program_config *pconfig)
   dict_h lock_list;
   struct lock_info *li;
   void *fl = NULL;
-  
+
 
   if (!pconfig)
   {
@@ -237,7 +237,7 @@ static void progrun(bk_s B, struct program_config *pconfig)
   if (!(lock_list = dll_create(NULL, NULL, DICT_UNORDERED)))
   {
     fprintf(stderr,"Could not create lock list\n");
-    BK_VRETURN(B);    
+    BK_VRETURN(B);
   }
 
   for(; !done; bk_string_tokenize_destroy(B, args))

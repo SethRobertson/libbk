@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.225 2003/04/09 03:57:11 seth Exp $
+ * $Id: libbk.h,v 1.226 2003/04/13 00:24:39 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -102,7 +102,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 
 
 #define BK_APP_CONF	"/etc/bk.conf"		///< Default configuration file name
-#define BK_ENV_GWD(e,d)	BK_OR(getenv(e),(d)) ///< Get an environmental variable with a default if it does not work
+#define BK_ENV_GWD(B, e,d)	BK_OR(bk_getenv(B, e),(d)) ///< Get an environmental variable with a default if it does not work
 #define BK_GWD(B,k,d) BK_OR(bk_config_getnext(B, NULL, (k), NULL),(d)) ///< Get a value from the config file, or return a default
 #define BK_SYSLOG_MAXLEN 256			///< Length of maximum user message we will syslog
 // BK_FLAG_{SET,CLEAR} are statement macros to prevent inadvertent use as tests
@@ -451,9 +451,12 @@ typedef enum
  */
 struct bk_child
 {
-  dict_h	bc_childidlist;			///< List of children by childid
-  dict_h	bc_childpidlist;		///< List of children by childpid
-  int		bc_nextchild;			///< Tracking of child ids
+  dict_h		bc_childidlist;		///< List of children by childid
+  dict_h		bc_childpidlist;	///< List of children by childpid
+  int			bc_nextchild;		///< Tracking of child ids
+#ifdef BK_USING_PTHREADS
+  pthread_mutex_t	bc_lock;		///< Lock on child management
+#endif /* BK_USING_PTHREADS */
 };
 
 
@@ -1332,6 +1335,7 @@ struct bk_symbol
 extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, struct bk_config_user_pref *bcup, int error_queue_length, int log_facility, bk_flags flags);
 #define BK_GENERAL_NOPROCTITLE 1		///< Specify that proctitle is not desired during general baka initialization
 #define BK_GENERAL_THREADREADY	0x2		///< Be ready for threading
+extern int bk_thread_safe_if_thread_ready;
 extern bk_s bk_general_thread_init(bk_s B, char *name);
 extern void bk_general_thread_destroy(bk_s B);
 extern void bk_general_proctitle_set(bk_s B, char *);
@@ -1908,6 +1912,7 @@ extern pid_t bk_pipe_to_exec(bk_s B, int *fdinp, int *fdoutp, const char *proc, 
 extern pid_t bk_pipe_to_cmd_tokenize(bk_s B, int *fdinp, int *fdoutp, const char *cmd, char *const *env, u_int limit, const char *spliton, const dict_h kvht_vardb, const char **variabledb, bk_flags tokenize_flags, bk_flags flags);
 extern pid_t bk_pipe_to_cmd(bk_s B, int *fdin,int *fdout, const char *cmd, char *const *env, bk_flags flags);
 extern int bk_setenv_with_putenv(bk_s B, const char *key, const char *value, int overwrite);
+extern const char *bk_getenv(bk_s B, const char *key);
 
 
 /* b_rand.c */

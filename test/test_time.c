@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_time.c,v 1.8 2003/03/17 22:22:15 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_time.c,v 1.9 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -74,7 +74,7 @@ main(int argc, char **argv, char **envp)
   extern int optind;
   struct program_config Pconfig, *pconfig=NULL;
   poptContext optCon=NULL;
-  const struct poptOption optionsTable[] = 
+  const struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"notz", 0, POPT_ARG_NONE, NULL, 1, "Don't print T or Z in iso format", NULL},
@@ -82,7 +82,7 @@ main(int argc, char **argv, char **envp)
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -125,7 +125,7 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B,254);
   }
-    
+
   if (proginit(B, pconfig) < 0)
   {
     bk_die(B,254,stderr,"Could not perform program initialization\n",0);
@@ -225,7 +225,7 @@ void progrun(bk_s B, struct program_config *pconfig)
 
     if (BK_STREQ(inputline,"quit") || BK_STREQ(inputline,"exit"))
       BK_VRETURN(B);
-      
+
     if (inputline[0] == ' ')
     {
       fprintf(stdout, "should be same or similar to%s\n", inputline);
@@ -278,6 +278,6 @@ void progrun(bk_s B, struct program_config *pconfig)
       }
   }
   while(fgets(inputline, 1024, stdin));
-  
+
   BK_VRETURN(B);
 }

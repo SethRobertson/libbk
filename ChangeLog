@@ -1,3 +1,33 @@
+2003-04-12  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* include/libbk.h (BK_ENV_GWD): Use lock protected getenv
+
+	* lib/b_exec.c (bk_getenv): Create lock protected getenv
+
+	* lib/b_exec.c: Specify thread state.
+
+2003-04-10  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_crc.c: Specify thread state.
+
+	* lib/b_config.c: Specify thread state.
+
+	* lib/b_cksum.c: Specify thread state.
+
+	* lib/b_child.c: Specify thread state.  Do cleanup to bring closer
+	to working (really, not yet operational)
+
+	* test/diskspeed.c: Seth's stupid disk throughput tester
+
+	* lib/b_bits.c: Specify thread state
+	* lib/b_addrgroup.c: Specify thread state
+	* lib/b_netinfo.c: Specify thread state
+
+2003-04-09  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_thread.c (bk_pthread_mutex_lock): Accidentially deleted
+	old contents of b_thread.c
+
 2003-04-08  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* include/libbk.h (bk_general_thread_create): What people call to

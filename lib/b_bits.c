@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_bits.c,v 1.10 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_bits.c,v 1.11 2003/04/13 00:24:39 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -34,7 +34,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  *
  * Pretty dumb and simple, but clean
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state
  *	@param size Size of bitfield.
  *	@param flags Fun for the future.
  *	@return <i>NULL</i> on allocation failure.
@@ -63,7 +65,10 @@ char *bk_bits_create(bk_s B, size_t size, bk_flags flags)
 /**
  * Destroy the bitfield
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (for different base)
+ * THREADS: REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
  *	@param base The created bitfield
  */
 void bk_bits_destroy(bk_s B, char *base)
@@ -88,7 +93,10 @@ void bk_bits_destroy(bk_s B, char *base)
  * which should be freed with free(3). Remember that you still may
  * need to destroy the bitfield you are converting.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (assuming different base)
+ * THREADS: REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
  *	@param base The bitfield we are converting to ascii format
  *	@param size The size of the bitfield in question
  *	@param flags Fun for the future.
@@ -133,7 +141,7 @@ char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
 
     if ((int)(size -= 8) < 0)
       byte &= (0xff >> -size);			/* clear unused bits from MSB down */
-      
+
     tmp = snprintf(cur, len, "%02x", (u_char)byte);
     if (tmp < 0 || tmp >= len)
     {
@@ -163,7 +171,10 @@ char *bk_bits_save(bk_s B, char *base, size_t size, bk_flags flags)
  * the size is rounded up to the nearest octet--a 7 bit bitfield will
  * be returned, here, as an 8 bit bitfield.
  *
- *	@param B BAKA thread/global state 
+ * THREADS: MT-SAFE (assuming different saved)
+ * THREADS: REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state
  *	@param saved The ascii data previously created by @a bk_bits_save
  *	@param size The size of the bitfield in question
  *	@param flags Fun for the future.
@@ -244,6 +255,7 @@ char *bk_bits_restore(bk_s B, char *saved, size_t *size, bk_flags flags)
  * contain the number of ones among these sixty-four bit positions in
  * the original n. That is what we wanted to compute.
  *
+ * THREADS: MT-SAFE
  *
  * @param B BAKA Thread/global environment
  * @param word The word whose bits you wish to count

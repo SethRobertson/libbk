@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.12 2003/03/19 00:10:35 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: test_stringconv.c,v 1.13 2003/04/13 00:24:40 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -50,7 +50,7 @@ int proginit(bk_s B, struct program_config *pconfig);
 void progrun(bk_s B, struct program_config *pconfig);
 
 
-char *prompts[] = 
+char *prompts[] =
 {
   "String to unsigned 32 bit integer conversion.  Please enter number:  ",
   "String to signed 32 bit integer conversion.  Please enter number:  ",
@@ -73,7 +73,7 @@ main(int argc, char **argv, char **envp)
   extern int optind;
   struct program_config Pconfig, *pconfig;
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD("BK_ENV_CONF_APP", BK_APP_CONF), NULL, 64, LOG_USER, 0)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(B, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, 64, LOG_USER, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -89,7 +89,7 @@ main(int argc, char **argv, char **envp)
     usage(B);
     bk_exit(B,254);
   }
-    
+
   printf("Enter END to end each section's input.\n");
 
   if (proginit(B, pconfig) < 0)
