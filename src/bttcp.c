@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.49 2004/06/16 00:00:04 seth Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.50 2004/06/21 02:02:52 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -462,9 +462,6 @@ proginit(bk_s B, struct program_config *pc)
     BK_RETURN(B, -1);
   }
 
-  // SIGPIPE is just annoying
-  bk_signal(B, SIGPIPE, SIG_IGN, BK_RUN_SIGNAL_RESTART);
-
   if (!pc->pc_af)
     pc->pc_af = AF_INET;
 
@@ -473,6 +470,10 @@ proginit(bk_s B, struct program_config *pc)
     fprintf(stderr,"Could not create run structure\n");
     goto error;
   }
+
+  // SIGPIPE is just annoying
+  bk_signal(B, SIGPIPE, SIG_IGN, BK_RUN_SIGNAL_RESTART);
+  bk_signal(B, SIGCHLD, bk_reaper, BK_RUN_SIGNAL_RESTART);
 
   if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
   {
