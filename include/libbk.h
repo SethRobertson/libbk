@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.128 2002/03/21 05:12:03 seth Exp $
+ * $Id: libbk.h,v 1.129 2002/03/21 16:38:48 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -186,13 +186,13 @@ struct bk_iohh_bnbio
 #define BK_DEBUG_KEY "debug"			///< The default key to look up debugging levels in the configuration file
 #define BK_DEBUG_DEFAULTLEVEL "*DEFAULT*"	///< The name of the default "function" which will set the debug level of all functions
 #define bk_debug_and(B,l) (BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B) && (BK_BT_CURFUN(B)->bf_debuglevel & (l))) ///< Test to see if this function has a particular per-function debugging bit set
-#define bk_debug_vprintf_and(B,l,f,ap) (bk_debug_and(B,l)?bk_debug_vprintf(B,f,ap):1) ///< Perform a debugging vprintf if a particular per-function debugging bit is set
-#define bk_debug_printf_and(B,l,f,args...) (bk_debug_and(B,l)?bk_debug_printf(B,f,##args):1) ///< Perform a debugging printf if a particular per-function debugging bit is set
-#define bk_debug_printbuf_and(B,l,i,p,v) (bk_debug_and(B,l)?bk_debug_printbuf(B,i,p,v):1) ///< Perform a debugging printbuf if a particular per-function debugging bit is set
-#define bk_debug_print(B,s) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprint(B,BK_GENERAL_DEBUG(B),s):1) ///< Perform a debugging print if debugging is enabled
-#define bk_debug_printf(B,f,args...) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprintf(B,BK_GENERAL_DEBUG(B),f,##args):1) ///< Perform a debugging printf if debugging is enabled
-#define bk_debug_vprintf(B,f,ap) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_ivprintf(B,BK_GENERAL_DEBUG(B),f,ap):1) ///< Perform a debugging vprintf if debugging is enabled
-#define bk_debug_printbuf(B,i,p,v) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprintbuf(B,BK_GENERAL_DEBUG(B),i,p,v):1) ///< Perform a debugging printbuf if debugging is enabled
+#define bk_debug_vprintf_and(B,l,f,ap) (bk_debug_and((B),(l))?bk_debug_vprintf((B),(f),(ap)):1) ///< Perform a debugging vprintf if a particular per-function debugging bit is set
+#define bk_debug_printf_and(B,l,f,args...) (bk_debug_and((B),(l))?bk_debug_printf(B,(f),##args):1) ///< Perform a debugging printf if a particular per-function debugging bit is set
+#define bk_debug_printbuf_and(B,l,i,p,v) (bk_debug_and(B,l)?bk_debug_printbuf((B),(i),(p),(v)):1) ///< Perform a debugging printbuf if a particular per-function debugging bit is set
+#define bk_debug_print(B,s) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprint(B,BK_GENERAL_DEBUG(B),(s)):1) ///< Perform a debugging print if debugging is enabled
+#define bk_debug_printf(B,f,args...) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprintf(B,BK_GENERAL_DEBUG(B),(f),##args):1) ///< Perform a debugging printf if debugging is enabled
+#define bk_debug_vprintf(B,f,ap) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_ivprintf(B,BK_GENERAL_DEBUG(B),(f),(ap)):1) ///< Perform a debugging vprintf if debugging is enabled
+#define bk_debug_printbuf(B,i,p,v) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprintbuf(B,BK_GENERAL_DEBUG(B),(i),(p),(v)):1) ///< Perform a debugging printbuf if debugging is enabled
 // @}
 
 
@@ -203,14 +203,14 @@ struct bk_iohh_bnbio
  * to use the bk_general error queue.
  */
 // @{
-#define bk_error_print(B,l,s) bk_error_iprint(B,l,BK_GENERAL_ERROR(B),s) ///< Print an error message
-#define bk_error_printf(B,l,f,args...) bk_error_iprintf(B,l,BK_GENERAL_ERROR(B),f,##args) ///< Print an error message in printf-style format
-#define bk_error_vprintf(B,l,f,ap) bk_error_ivprintf(B,l,BK_GENERAL_ERROR(B),f,ap) ///< Print an error message in printf-style format
-#define bk_error_printbuf(B,l,i,p,v) bk_error_iprintbuf(B,l,BK_GENERAL_ERROR(B),i,p,v) ///< Print an error message along with a binary buffer
-#define bk_error_dump(B,f,m,M,s,F) bk_error_idump(B,BK_GENERAL_ERROR(B),f,m,M,s,F) ///< Dump the error queues to a certain file handle, syslog level, with various filtering options
-#define bk_error_mark(B,m,F) bk_error_idump(B,BK_GENERAL_ERROR(B),m,F) ///< Mark a particular location in the error queue for future reference
-#define bk_error_clear(B,m,F) bk_error_iclear(B,BK_GENERAL_ERROR(B),m,F) ///< Delete a previously inserted mark
-#define bk_error_flush(B,m,F) bk_error_iflush(B,BK_GENERAL_ERROR(B),m,F) ///< Flush the error queue, from a mark if desired.
+#define bk_error_print(B,l,s) bk_error_iprint((B),(l),BK_GENERAL_ERROR(B),(s)) ///< Print an error message
+#define bk_error_printf(B,l,f,args...) bk_error_iprintf((B),(l),BK_GENERAL_ERROR(B),(f),##args) ///< Print an error message in printf-style format
+#define bk_error_vprintf(B,l,f,ap) bk_error_ivprintf((B),(l),BK_GENERAL_ERROR(B),(f),(ap)) ///< Print an error message in printf-style format
+#define bk_error_printbuf(B,l,i,p,v) bk_error_iprintbuf((B),(l),BK_GENERAL_ERROR(B),(i),(p),(v)) ///< Print an error message along with a binary buffer
+#define bk_error_dump(B,f,m,M,s,F) bk_error_idump((B),BK_GENERAL_ERROR(B),(f),(m),(M),(s),(F)) ///< Dump the error queues to a certain file handle, syslog level, with various filtering options
+#define bk_error_mark(B,m,F) bk_error_idump((B),BK_GENERAL_ERROR(B),(m),(F)) ///< Mark a particular location in the error queue for future reference
+#define bk_error_clear(B,m,F) bk_error_iclear((B),BK_GENERAL_ERROR(B),(m),(F)) ///< Delete a previously inserted mark
+#define bk_error_flush(B,m,F) bk_error_iflush((B),BK_GENERAL_ERROR(B),(m),(F)) ///< Flush the error queue, from a mark if desired.
 // @}
 
 
