@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Make.include,v 1.1 2001/06/18 20:09:51 seth Exp $
+# $Id: Make.include,v 1.2 2001/07/08 23:20:20 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -16,4 +16,4 @@
 #
 GROUP_INCS=-I$(GROUPTOP)/include
 GROUP_LDS=-L$(GROUPTOP)/lib
-GROUP_LIBS=-llibbk
+#GROUP_LIBS=-llibbk

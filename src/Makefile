@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.4 2001/06/18 21:59:44 seth Exp $
+# $Id: Makefile,v 1.5 2001/07/08 23:20:20 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -14,10 +14,12 @@
 #
 # libbk Makefile
 #
-#BK_SIMPLE_PROGS=foo
+
+BK_SIMPLE_PROGS=proto
 
 GROUPTOP=..
 GROUPSUBDIR=src
+
 ##################################################
 ## BEGIN BKSTANDARD MAKEFILE
 -include ./Make.preinclude

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.13 2001/07/08 04:49:47 jtt Exp $
+ * $Id: libbk.h,v 1.14 2001/07/08 23:20:20 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -26,6 +26,12 @@
 #define BK_ERR_WARN	LOG_WARNING
 #define BK_ERR_NOTICE	LOG_NOTICE
 #define BK_ERR_DEBUG	LOG_DEBUG
+
+
+/* Very generic (should not be used) application configuration file */
+#define BK_APP_CONF	"/etc/bk.conf"
+
+#define BK_ENV_GWD(e,d)		((char *)(getenv(e) || d))
 
 /* General constants */
 #define BK_SYSLOG_MAXLEN 256			/* Length of maximum user message we will syslog */
