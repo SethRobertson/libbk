@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.2 2003/07/04 21:08:05 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.3 2003/09/24 20:56:54 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -62,12 +62,15 @@ static void reopen(char *tty);
 static int child(int argc, char **argv, int optint);
 
 
-int cfiles = 0;			/* Close all files > 2 */
-int Cfiles = 0;			/* Close all files */
-int cdir = 0;			/* Chdir to / */
-int env = 0;			/* Bail on environmental variables */
-int b_umask = 0;		/* Bail on umask */
-char *newenviron[] = { "PATH=/bin:/usr/bin:/usr/sbin:/sbin:.", NULL };
+static int cfiles = 0;			/* Close all files > 2 */
+static int Cfiles = 0;			/* Close all files */
+static int cdir = 0;			/* Chdir to / */
+static int env = 0;			/* Bail on environmental variables */
+static int b_umask = 0;		/* Bail on umask */
+static char *newenviron[] = { "PATH=/bin:/usr/bin:/usr/sbin:/sbin:.", NULL };
+static char *outstream = NULL;
+static int append = 0;
+static int quiet = 0;
 
 
 
@@ -90,13 +93,17 @@ main(int argc, char **argv, char **envp)
   int c;			/* getopt option */
 
   /* Lets process arguments! */
-  while ((c=getopt(argc, argv, "+cCdDeup:")) != EOF)
+  while ((c=getopt(argc, argv, "+cCdDeup:s:aq")) != EOF)
     switch (c)
     {
+    case 'a':
+      append = 1;
+      break;
     case 'c':
       cfiles = 1;
       break;
     case 'C':
+      // NB: This option overrides 's' (see below).
       Cfiles = 1;
       break;
     case 'd':
@@ -124,6 +131,11 @@ main(int argc, char **argv, char **envp)
 	fprintf(stderr,"Bad Priority! (0-19)\n");
 	error = 1;
       }
+      break;
+    case 'q':
+      quiet=1;
+    case 's':
+      outstream = optarg;
       break;
     case '?':
       error = 1;
@@ -161,7 +173,8 @@ main(int argc, char **argv, char **envp)
       break;
 
     default:			/* Parent */
-      (void) fprintf (stderr, "[%d]\n", pid);
+      if (!quiet)
+	(void) fprintf (stderr, "[%d]\n", pid);
       exit (0);
       break;
     }
@@ -183,6 +196,8 @@ static int child(int argc, char **argv, int optint)
   int tablesize;
 #ifdef RLIMIT_NOFILE
   struct rlimit lim;
+  char *new_outstream;
+  int flags;
 
   getrlimit(RLIMIT_NOFILE,&lim);
   tablesize = lim.rlim_cur;
@@ -301,9 +316,28 @@ static int child(int argc, char **argv, int optint)
     {
       int newfd;
       (void)close(fd);	/* Close the file (stdin)*/
+      
+      if ((fd == fileno(stdout)) || (fd == fileno(stderr)))
+      {
+	flags = O_WRONLY | O_CREAT;
 
-      /* Open /dev/null for input */
-      if((newfd = open ("/dev/null", O_RDWR)) == -1)
+	// Switch output to /dev/null unless user asked otherwise.
+	if (outstream)
+	  new_outstream = outstream;
+	else
+	  new_outstream = _PATH_DEVNULL;
+	
+	if (append)
+	  flags |= O_APPEND;
+      }
+      else
+      {
+	// Switch input to /dev/null;
+	new_outstream = _PATH_DEVNULL;
+	flags = O_RDONLY;
+      }
+
+      if((newfd = open (new_outstream, flags)) == -1)
       {
 	reopen(tty);
 	perror("open");
