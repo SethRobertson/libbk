@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.5 2001/11/18 20:14:45 seth Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.6 2001/11/18 20:22:23 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,6 +25,9 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 #define ERRORQUEUE_DEPTH 32			///< Default depth
+#define DEFAULT_PROTO_STR	"tcp"		///< Default protocol
+#define DEFAULT_PORT_STR	"5001"		///< Default port
+#define ANY_PORT		"0"		///< Any port is OK
 
 
 
@@ -37,24 +40,31 @@ struct global_structure
 } Global;
 
 
-#define DEFAULT_PROTO_STR	"tcp"
-#define DEFAULT_PORT_STR	"5001"
-#define ANY_PORT		"0"
 
+/**
+ * An enumeration defining the roles we can play (transmit, receive, etc)
+ */
 typedef enum
 {
-  BTTCP_ROLE_TRANSMIT=1,
-  BTTCP_ROLE_RECEIVE
+  BTTCP_ROLE_TRANSMIT=1,			///< We are transmitter (connect)
+  BTTCP_ROLE_RECEIVE				///< We are receiver (accept)
 } bttcp_role_t;
 
+
+
+/**
+ * The state of our progress to a fully connected state
+ */
 typedef enum
 {
-  BDTTCP_INIT_STATE_RESOLVE_START=0,
-  BDTTCP_INIT_STATE_RESOLVE_REMOTE,
-  BDTTCP_INIT_STATE_RESOLVE_LOCAL,
-  BDTTCP_INIT_STATE_CONNECT,
-  BDTTCP_INIT_STATE_DONE,
+  BDTTCP_INIT_STATE_RESOLVE_START=0,		///< Initial
+  BDTTCP_INIT_STATE_RESOLVE_REMOTE,		///< Attempting to resolve remote hostname
+  BDTTCP_INIT_STATE_RESOLVE_LOCAL,		///< Attempting to resolve local hostname
+  BDTTCP_INIT_STATE_CONNECT,			///< Attempting to perform async() connect
+  BDTTCP_INIT_STATE_DONE,			///< Fully connected--done with state engine
 } bttcp_init_state_t;
+
+
 
 /**
  * Information about basic program runtime configuration
@@ -79,7 +89,6 @@ struct program_config
   int			pc_af;			///< Address family.
   long			pc_timeout;		///< Connection timeout
 };
-
 
 
 
