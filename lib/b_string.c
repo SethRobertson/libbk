@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.26 2002/02/11 20:15:43 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.27 2002/02/19 16:25:25 lindauer Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -519,13 +519,16 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
   }
 
   /* Go over all characters in source string */
-  for(curloc = src; ; curloc++)
+  for(; ; curloc++)
   {
     if (INSTATE(S_SPLIT))
     {
       /* Are we still looking at a seperator? */
       if (strchr(spliton, *curloc) && LIMITNOTREACHED)
       {
+	/* Is that separator a NULL? */
+	if (!*curloc)
+	  break;
 	/* Are multiple seperators the same? */
 	if (BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_MULTISPLIT))
 	  continue;
