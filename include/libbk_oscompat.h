@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.37 2003/01/31 19:46:39 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.38 2003/04/16 14:43:26 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -211,12 +211,12 @@ struct timespec
 #endif /* !HAVE_SA_LEN_MACRO */
 #endif /* !HAVE_SOCKADDR_SA_LEN */
 
+#ifdef HAVE_NETINET_ETHER_H
+#include <net/if.h>
+#include <netinet/ether.h>
+#else
 #ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>
-#else
-#ifdef HAVE_NETINET_IF_ETHER_H
-#include <net/if.h>
-#include <netinet/if_ether.h>
 #else  /* no struct ether_addr */
 struct ether_addr
 {
@@ -226,7 +226,7 @@ struct ether_addr
 __attribute__ ((__packed__))
 #endif /* __GNUC__ */
 ;
-#endif /* HAVE_NETINET_IF_ETHER_H */
+#endif /* HAVE_NETINET_ETHER_H */
 #endif /* HAVE_NET_ETHERNET_H */
 
 /*

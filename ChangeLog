@@ -1,3 +1,7 @@
+2003-04-16  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk_oscompat.h: get ether stuff from netinet/ether.h
+
 2003-04-12  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* include/libbk.h (BK_ENV_GWD): Use lock protected getenv
