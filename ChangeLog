@@ -1,8 +1,3 @@
-2002-0507  Brian Lindauer <lindauer@sysd.com>
-
-	* lib/b_netutils.c: return -2 from start_service_verbose when
-	error is that host or port couldn't be resolved.
-
 2002-05-07  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* include/libbk.h: BK_SWAP macro for swaping two values of any type.

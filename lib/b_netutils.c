@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.14 2002/05/07 20:09:01 lindauer Exp $";
+static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.15 2002/05/07 21:06:23 lindauer Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -303,8 +303,7 @@ bk_parse_endpt_no_defaults(bk_s B, char *urlstr, char **hostname, char **servist
  *	@param args User args for @a callback.
  *	@param backlog Server @a listen(2) backlog
  *	@param flags Flags for future use.
- *	@return <i>-1</i> on general failure.<br>
- *	@return <i>-2</i> on failure to resolve host & port<br>
+ *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
@@ -317,7 +316,6 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
   struct bk_netinfo *bni = NULL;
   struct start_service_state *sss = NULL;
   void *ghbf_info;
-  int err_retval = -1;                          // return value
 
   if (!run || !callback)
   {
@@ -355,7 +353,6 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
   if (bk_getservbyfoo(B, servstr, protostr, NULL, bni, 0)<0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not set the service information\n");
-    err_retval = -2;
     goto error;
   }
 
@@ -396,7 +393,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, char *url, char *d
   if (protostr) free(protostr);
   if (bni) bk_netinfo_destroy(B, bni);
   if (sss) sss_destroy(B, sss);
-  BK_RETURN(B,err_retval);
+  BK_RETURN(B,-1);
   
 }
 
