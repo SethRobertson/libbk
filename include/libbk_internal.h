@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.35 2003/04/07 18:43:06 jtt Exp $
+ * $Id: libbk_internal.h,v 1.36 2003/04/19 06:50:07 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -98,14 +98,14 @@ struct bk_ioh
 
 
 /**
- * All the state which the on demand I/O  subsytem requires.
+ * All the state which the on demand I/O subsytem requires.
  */
 struct bk_polling_io
 {
   bk_flags		bpi_flags;		///< Everyone needs flags.
 #define BPI_FLAG_CLOSING		0x1	///< We are closing down bpi.
-#define BPI_FLAG_READ_DEAD		0x2	///< Our read side is in permement ruins.
-#define BPI_FLAG_WRITE_DEAD		0x4	///< Our write side is in permement ruins.
+#define BPI_FLAG_READ_DEAD		0x2	///< Read side is finished.
+#define BPI_FLAG_WRITE_DEAD		0x4	///< Write side is finished.
 #define BPI_FLAG_SAW_EOF		0x8	///< We have seen EOF.
 #define BPI_FLAG_DONT_DESTROY		0x10	///< Tell io hander not destroy bpi.
 #define BPI_FLAG_IOH_DEAD		0x20	///< Bpi not destroyed, ioh was
@@ -117,7 +117,8 @@ struct bk_polling_io
 };
 
 
-#define POLLING_IOH_RUN(bpi)  ((bpi)->bpi_ioh->ioh_run)
+#define POLLING_IOH_RUN(bpi)	((bpi)->bpi_ioh->ioh_run)
+#define POLLING_IOH_FDOUT(bpi)	((bpi)->bpi_ioh->ioh_fdout)
 
 
 /* FRIENDLY FUNCTIONS */

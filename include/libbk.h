@@ -1,9 +1,9 @@
 /*
- * $Id: libbk.h,v 1.227 2003/04/16 23:39:53 seth Exp $
+ * $Id: libbk.h,v 1.228 2003/04/19 06:50:07 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
- * Copyright (c) 2001,2002 The Authors. All rights reserved.
+ * Copyright (c) 2001-2003 The Authors. All rights reserved.
  *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
@@ -179,9 +179,10 @@ struct bk_version
 struct bk_iohh_bnbio
 {
   bk_flags			bib_flags;	///< Everyone needs flags.
-#define BK_IOHH_BNBIO_FLAG_LINGER	0x1	///< Linger on close untill all write data flushed.
+#define BK_IOHH_BNBIO_FLAG_LINGER	0x1	///< Linger on close until all write data flushed.
 #define BK_IOHH_BNBIO_FLAG_SYNC		0x2	///< Linger on write until write completes.
 #define BK_IOHH_BNBIO_FLAG_NO_LINGER	0x4	///< Turn off LINGER or SYNC.
+#define BK_IOHH_BNBIO_FLAG_FLUSH	0x8	///< Start writing all blocked data.
 #define BK_IOHH_BNBIO_FLAG_TIMEDOUT	0x10	///< This bnbio has timed out (not set by user).
   time_t			bib_read_to;	/// Timeout for reading.
   // Not implementing write timeout 'till we know we need them (space considerations).
@@ -1537,8 +1538,6 @@ extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f h
 #define BK_IOH_LINE		0x10		///< Line oriented reads, for bk_ioh
 #define BK_IOH_WRITE_ALL	0x20		///< Write all available data when doing a write, for bk_ioh
 #define BK_IOH_FOLLOW		0x40		///< Put the ioh in "follow" mode (read past EOF).
-#define BK_IOH_WRITE_DEFER	0x80		///< Don't write until queue full
-#define BK_IOH_WRITE_BUFFERED	(BK_IOH_WRITE_DEFER|BK_IOH_WRITE_ALL)
 #define BK_IOH_NO_HANDLER	0x8000		///< Suppress stupid warning
 
 #if 0
