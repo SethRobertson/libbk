@@ -1,3 +1,7 @@
+2002-10-16  Seth Robertson  <seth@yeah.baka.org>
+
+	* include/libbk_oscompat.h: Define in_addr_t if needed.
+
 2002-10-14  James Tanis  <jtt@hawking.sysdetect.com>
 
 	* include/libbk_net.h (BAKA_TCPHDR_LENIENT_FLAGMASK): Define this
