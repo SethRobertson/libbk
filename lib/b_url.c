@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_url.c,v 1.28 2002/10/18 20:03:30 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_url.c,v 1.29 2002/10/21 03:36:20 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001,2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -553,7 +553,7 @@ bk_url_unescape_len(bk_s B, const char *component, size_t len)
 
   for (copy = expanded; *component && len--; copy++, component++)
   {
-    if (*component == '%' && isxdigit((int)component[1]) && isxdigit((int)component[2]))
+    if (*component == '%' && isxdigit(component[1]) && isxdigit(component[2]))
     {
       char convert[3];
       int val;

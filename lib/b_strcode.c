@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.4 2002/10/18 20:03:30 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.5 2002/10/21 03:36:20 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -252,7 +252,7 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
 
     do
     {
-      unsigned char uc = index_64[(int)*str++];
+      unsigned char uc = index_64[*str++];
       if (uc != INVALID)
 	c[i++] = uc;
 
@@ -345,7 +345,7 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
      * non-printables they wish to permit. NEWLINEs and TABs for instance make
      * sense, but Ctrl-A perhaps does not.</TODO>
      */
-    if (!isprint((int)c) && BK_FLAG_ISCLEAR(flags, BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT))
+    if (!isprint(c) && BK_FLAG_ISCLEAR(flags, BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT))
     {
       char scratch[100];
       snprintf(scratch, 100,  "#x%x", c);

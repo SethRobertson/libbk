@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.66 2002/10/18 20:03:30 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.67 2002/10/21 03:36:20 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -319,7 +319,7 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
       else
 	c = ((char *)buf->ptr)[addrbyte];
 
-      snprintf(cur,curlen,"%c",isprint((int)c)?c:'.');
+      snprintf(cur,curlen,"%c",isprint(c)?c:'.');
       curlen -= strlen(cur); cur += strlen(cur);
     }
     strcpy(cur,"\n"); curlen -= strlen(cur); cur += strlen(cur);
@@ -837,7 +837,7 @@ char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags f
 
   for(;*src;src++)
   {
-    if (*src == '\\' || strchr(needquote, *src) || BK_FLAG_ISSET(flags, BK_STRING_QUOTE_NONPRINT)?!isprint((int)(*src)):0)
+    if (*src == '\\' || strchr(needquote, *src) || BK_FLAG_ISSET(flags, BK_STRING_QUOTE_NONPRINT)?!isprint(*src):0)
     {						/* Must convert to octal  */
       snprintf(scratch,sizeof(scratch),"\\0%o",(u_char)*src);
       if (!(ret = bk_memx_get(B, outputx, strlen(scratch), NULL, BK_MEMX_GETNEW)))
@@ -1142,11 +1142,11 @@ bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2)
 
   for (i1 = i2 = 0; i1 < len1 && i2 < len2; )
   {
-    if (isspace((int)s1[i1]) && isspace((int)s2[i2]))
+    if (isspace(s1[i1]) && isspace(s2[i2]))
     {
-      while (++i2 < len2 && isspace((int)s2[i2]))
+      while (++i2 < len2 && isspace(s2[i2]))
 	;
-      while (++i1 < len1 && isspace((int)s1[i1]))
+      while (++i1 < len1 && isspace(s1[i1]))
 	;
     }
     else if ((res = s1[i1] - s2[i2]) || s1[i1] == '\0')

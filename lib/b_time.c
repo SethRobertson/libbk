@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.11 2002/10/18 20:03:30 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_time.c,v 1.12 2002/10/21 03:36:20 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -367,7 +367,7 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
     case ',':
       if (!precision				// decimal not already seen
 	  && *fraction != '-' && *fraction != '+'
-	  && !isspace((int)(*fraction)))		// strtoul takes these, not us
+	  && !isspace(*fraction))		// strtoul takes these, not us
       {
 	char *end;
 
