@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.13 2003/06/03 21:52:01 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.14 2003/06/05 20:14:48 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -812,7 +812,7 @@ static void bk_thread_unlock(void *opaque)
 
 static int btl_oo_cmp(struct bk_threadnode *a, struct bk_threadnode *b)
 {
-  int ret = a->btn_B - a->btn_B;
+  int ret = a->btn_B - b->btn_B;
   if (ret) return(ret);
   // DICT_UNIQUE_KEYS should prevent this from ever executing, but just in case
   return (a - b);
