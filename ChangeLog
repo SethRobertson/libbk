@@ -1,3 +1,9 @@
+2002-07-12  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_error.c (be_error_time): fit timestamp in space provided
+	(be_error_output): use shorter timestamps, limit program name size
+	(be_error_append): use shorter timestamps, limit program name size
+
 2002-07-08  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_crc.c: computation of CRC-32

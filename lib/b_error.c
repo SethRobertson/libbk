@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.22 2002/06/19 21:39:23 dupuy Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.23 2002/07/12 07:20:34 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -766,13 +766,15 @@ char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, char *mark, int minimum
  * Translate error time into formatted string
  *
  *	@param node The error node
- *	@param timestr [out] char buffer (must be at least 20 bytes long)
+ *	@param timestr [out] char buffer
  *	@param size of time
  */
 static void be_error_time(struct bk_error_node *node, char *timestr, size_t max)
 {
-  int tmp;
   struct tm *tm;
+  const char *pat = "%y-%m-%d %H:%M:%S ";
+  int tmp;
+  int len;
 
   timestr[0] = '\0';				// don't leave trash in string
 
@@ -780,7 +782,38 @@ static void be_error_time(struct bk_error_node *node, char *timestr, size_t max)
   {
     tm = localtime(&node->ben_time);
 
-    if ((tmp = strftime(timestr, max, "%Y-%m-%d %H:%M:%S ", tm)) != 20)
+    switch (max)
+    {
+    case 4: case 5: case 6:
+      len = 3;
+      break;
+    case 7: case 8: case 9:
+      len = 6;
+      break;
+    case 10: case 11: case 12:
+      len = 9;
+      break;
+    case 13: case 14: case 15:
+      len = 12;
+      break;
+    case 16: case 17: case 18:
+      len = 15;
+      break;
+    case 19: case 20:
+      len = 18;
+      break;
+    default:
+      len = 0;
+    }
+    if (max > 20)
+    {
+      pat = "%Y-%m-%d %H:%M:%S ";		// full ISO timestamp
+      len = 20;
+    }
+    else
+      pat += 18 - len;				// truncate from left
+
+    if ((tmp = strftime(timestr, max, pat, tm)) != len)
       timestr[0] = '\0';			// timestamp hosed; nuke it
   }
 }
@@ -802,7 +835,7 @@ static void be_error_time(struct bk_error_node *node, char *timestr, size_t max)
  */
 static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_node *node, bk_flags flags)
 {
-  char timeprefix[40];
+  char timeprefix[20];
   char fullprefix[40];
   const char *msg;
   int syslogflags = BK_SYSLOG_FLAG_NOFUN|BK_SYSLOG_FLAG_NOLEVEL;
@@ -818,10 +851,10 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
   if (!msg)
     return;
 
-  be_error_time(node, timeprefix, 40);
+  be_error_time(node, timeprefix, sizeof(timeprefix));
 
   if (BK_GENERAL_PROGRAM(B))
-    snprintf(fullprefix, sizeof(fullprefix), "%s%s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
+    snprintf(fullprefix, sizeof(fullprefix), "%s%.14s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
   else
     snprintf(fullprefix, sizeof(fullprefix), "%s[%d]", timeprefix, getpid());
 
@@ -863,7 +896,7 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
  */
 static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *node, bk_flags flags)
 {
-  char timeprefix[40];
+  char timeprefix[20];				// enough for yy-mm-dd HH:MM:SS
   char fullprefix[40];
   const char *msg;
   u_int32_t addedlength;
@@ -879,12 +912,12 @@ static void be_error_append(bk_s B, bk_alloc_ptr *str, struct bk_error_node *nod
   if (!msg)
     return;
 
-  be_error_time(node, timeprefix, 40);
+  be_error_time(node, timeprefix, sizeof(timeprefix));
 
   if (BK_GENERAL_PROGRAM(B))
-    snprintf(fullprefix, sizeof(fullprefix), "%s%s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
+    snprintf(fullprefix, sizeof(fullprefix), "%s%.14s[%d]", timeprefix, (char *)BK_GENERAL_PROGRAM(B), getpid());
   else
-    snprintf(fullprefix, sizeof(fullprefix), "%s", timeprefix);
+    snprintf(fullprefix, sizeof(fullprefix), "%s[%d]", timeprefix, getpid());
 
   fullprefix[sizeof(fullprefix)-1] = 0;		// Ensure terminating NUL
 
