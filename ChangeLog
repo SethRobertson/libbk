@@ -1,3 +1,8 @@
+2004-12-23  James Tanis  <jtt@hawking.sysdetect.com>
+
+	* lib/b_time.c (bk_time_iso_parse): Allow for silent failure if
+	the user requests.
+
 2004-12-22  Seth Robertson  <seth@blue.sysdetect.com>
 
 	* lib/b_debug.c (bk_debug_iprint): If you enable bk_debug_iprint

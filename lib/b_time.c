@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_time.c,v 1.20 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_time.c,v 1.21 2004/12/23 21:16:03 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -371,7 +371,8 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
    */
   if (!(fraction = strptime(string, "%Y-%m-%dT%H:%M:%S", &t)))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Invalid return when parsing text format: %s\n", string);
+      if (BK_FLAG_ISSET(flags, BK_TIME_FORMAT_NO_ERROR))
+	bk_error_printf(B, BK_ERR_ERR, "Invalid return when parsing text format: %s\n", string);
       BK_RETURN(B, -1);
     }
 #else
@@ -383,7 +384,8 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
 	       (u_int *) &t.tm_min, (u_int *) &t.tm_sec, &len) < 7
 	|| (sep != 'T' && sep != ' '))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Invalid return when parsing text format: %s\n", string);
+      if (BK_FLAG_ISSET(flags, BK_TIME_FORMAT_NO_ERROR))
+	bk_error_printf(B, BK_ERR_ERR, "Invalid return when parsing text format: %s\n", string);
       BK_RETURN(B, -1);
     }
 
