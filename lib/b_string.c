@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.103 2004/03/25 10:59:31 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.104 2004/03/26 09:03:22 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1805,7 +1805,7 @@ bk_string_registry_init(bk_s B)
 
  error:
   if (bsr)
-    bk_string_registry_destroy(B, (bk_str_registry_t)bsr);
+    bk_string_registry_destroy(B, bsr);
   BK_RETURN(B,NULL);
 }
 
@@ -1820,10 +1820,9 @@ bk_string_registry_init(bk_s B)
  *	@param bsr The registry to fully destroy.
  */
 void
-bk_string_registry_destroy(bk_s B, bk_str_registry_t handle)
+bk_string_registry_destroy(bk_s B, bk_str_registry_t bsr)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   u_int cnt;
 
   if (!bsr)
@@ -1955,10 +1954,9 @@ bsre_destroy(bk_s B, struct bk_str_registry_element *bsre)
  *	@return <i>positive</i> on success.
  */
 bk_str_id_t
-bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags)
+bk_string_registry_idbystr(bk_s B, bk_str_registry_t bsr, const char *str, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre = NULL;
   u_int cnt;
 
@@ -1994,10 +1992,9 @@ bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk
  *	@return <i>0</i> on success.
  */
 int
-bk_string_registry_delete_str(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags)
+bk_string_registry_delete_str(bk_s B, bk_str_registry_t bsr, const char *str, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre;
   u_int cnt;
 
@@ -2014,7 +2011,7 @@ bk_string_registry_delete_str(bk_s B, bk_str_registry_t handle, const char *str,
       break;
   }
 
-  BK_RETURN(B,bk_string_registry_delete_id(B, handle, cnt, flags));
+  BK_RETURN(B,bk_string_registry_delete_id(B, bsr, cnt, flags));
 }
 
 
@@ -2030,14 +2027,13 @@ bk_string_registry_delete_str(bk_s B, bk_str_registry_t handle, const char *str,
  *	@return <i>0</i> on success.
  */
 int
-bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags)
+bk_string_registry_delete_id(bk_s B, bk_str_registry_t bsr, bk_str_id_t id, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre;
-  bk_str_id_t ret;
+  int ret;
 
-  if (!handle || !id) // id == 0 is reserved and never assigned.
+  if (!bsr || !id) // id == 0 is reserved and never assigned.
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
@@ -2056,7 +2052,7 @@ bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, b
 
   BK_SIMPLE_UNLOCK(B, &bsre->bsre_lock);
 
-  if (ret)
+  if (ret > 0)
   {
     /* Someone is still using this, so we're done */
     BK_RETURN(B,0);
@@ -2070,7 +2066,7 @@ bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, b
 
   bsr->bsr_registry[id] = NULL;
   /*
-   * If we're acutally deleting the entry with the highest index then we
+   * If we're actually deleting the entry with the highest index then we
    * actually "recover" the space (by descrementing next_index). We *only*
    * special case the top index for two reasons: 1) it's easy to recover
    * this space ("recovering" an index less then the highest can only be
@@ -2122,12 +2118,12 @@ bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, b
  *	@return <i>positive</i> on success.
  */
 bk_str_id_t
-bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_str_id_t id, bk_flags flags)
+bk_string_registry_insert(bk_s B, bk_str_registry_t bsr, const char *str, bk_str_id_t id, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre = NULL;
   int locked = 0;
+  int forced = BK_FLAG_ISSET(flags, BK_STR_REGISTRY_FLAG_FORCE);
 
   if (!bsr || !(str || id))
   {
@@ -2138,26 +2134,38 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
   BK_SIMPLE_LOCK(B, &bsr->bsr_lock);
   locked = 1;
 
-  // if forced and non-zero id, set next index to one more than that
-  if (id && BK_FLAG_ISSET(flags, BK_STR_REGISTRY_FLAG_FORCE))
+  // if forced and non-zero id, set next index to one more than max(id,next)
+  if ((id >= bsr->bsr_next_index) && forced)
+  {
+    u_int i = bsr->bsr_next_index;
+
     bsr->bsr_next_index = id + 1;
 
+    while (i < bsr->bsr_registrysz && i <= id)
+      bsr->bsr_registry[i++] = NULL;
+  }
+
   /*
-   * Assuming that we're not just updating an existing node and charging
-   * right ahead with allocating more space for an insert if needed may be
-   * touch aggressive, but it results in at *most* one extra realloc(3).
+   * Assuming that we're not just updating an existing node and charging right
+   * ahead with allocating more space for an insert if needed may be a touch
+   * aggressive, but it results in at *most* one extra realloc(3).
    */
   if (bsr->bsr_next_index >= bsr->bsr_registrysz)
   {
     struct bk_str_registry_element **tmp;
+    u_int i = bsr->bsr_registrysz;
+
+    bsr->bsr_registrysz = bsr->bsr_next_index + 1024;
     if (!(tmp = realloc(bsr->bsr_registry, sizeof(*bsr->bsr_registry)
-			* (bsr->bsr_next_index + 1024))))
+			* (bsr->bsr_registrysz))))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not expand string registry: %s\n", strerror(errno));
       goto error;
     }
     bsr->bsr_registry = tmp;
-    bsr->bsr_registrysz = bsr->bsr_next_index + 1024;
+
+    while (i < bsr->bsr_next_index)
+      bsr->bsr_registry[i++] = NULL;
   }
 
   if (!id)
@@ -2165,7 +2173,7 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
     u_int cnt;
 
     // search for existing entry (unless forced)
-    if (BK_FLAG_ISCLEAR(flags, BK_STR_REGISTRY_FLAG_FORCE))
+    if (!forced)
     {
       for(cnt = 0; cnt < bsr->bsr_next_index; cnt++)
       {
@@ -2191,15 +2199,14 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
       bk_debug_printf_and(B, 1, "%d ==> %s\n", bsre->bsre_id, bsre->bsre_str);
     }
   }
-  else if (id >= bsr->bsr_next_index ||
-	   (!(bsre = bsr->bsr_registry[id]) &&
-	    BK_FLAG_ISCLEAR(flags, BK_STR_REGISTRY_FLAG_FORCE)))
+  else if (id >= bsr->bsr_next_index || (!forced &&
+					 !(bsre = bsr->bsr_registry[id])))
   {
     bk_error_printf(B, BK_ERR_ERR, "Registry object %d does not exist or has been deleted\n", id);
     BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
     BK_RETURN(B,0);
   }
-  else if (BK_FLAG_ISSET(flags, BK_STR_REGISTRY_FLAG_FORCE))
+  else if (forced)
   {
     if (!(bsre = bsre_create(B, str, flags)))
     {
@@ -2208,7 +2215,6 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
     }
     bsre->bsre_id = id;
     bsr->bsr_registry[id] = bsre;
-    bsr->bsr_next_index++;
 
     bk_debug_printf_and(B, 1, "%d ==> %s\n", bsre->bsre_id, bsre->bsre_str);
   }
@@ -2222,6 +2228,13 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
   bsre->bsre_ref++;
 
   BK_SIMPLE_UNLOCK(B, &bsre->bsre_lock);
+
+  if (str && !BK_STREQ(str, bsre->bsre_str))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Registry id %d ==> %s (not %s!)\n",
+		    bsre->bsre_id, bsre->bsre_str, str);
+    goto error;
+  }
 
   BK_RETURN(B,bsre->bsre_id);
 
@@ -2255,10 +2268,9 @@ bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_
  *	@return <i>saved string</i> on success.
  */
 const char *
-bk_string_registry_register_by_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags)
+bk_string_registry_register_by_id(bk_s B, bk_str_registry_t bsr, bk_str_id_t id, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre = NULL;
 
   if (!bsr || !id)

@@ -1,3 +1,11 @@
+2004-03-26  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h: bk_struct_registry_t as opaque struct, not void *
+	[using void * prevents gcc from finding bugs, requires extra casts]
+	
+	* lib/b_string.c (bk_string_registry_insert): zero out unused entries;
+	don't reduce next_index on forced insert; verify string match on lookup
+
 2004-03-25  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_string.c (bk_string_registry_insert): support for

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.276 2004/03/25 10:59:30 dupuy Exp $
+ * $Id: libbk.h,v 1.277 2004/03/26 09:03:20 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1297,7 +1297,7 @@ typedef struct
  * Abstracted type of the value returned by the string registry.
  */
 typedef u_int32_t bk_str_id_t;
-typedef void *bk_str_registry_t;
+typedef struct bk_str_registry *bk_str_registry_t;
 
 
 /**
