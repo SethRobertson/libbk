@@ -1,3 +1,8 @@
+2002-04-25 Brian Lindauer <lindauer@sysd.com>
+
+	* lib/b_error.c: added bk_error_istrdump to dump errors to string
+	* include/libbk.h: same
+	
 2002-04-18  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* include/libbk_net.h: Internal version of common network headers (struct ip, etc)
