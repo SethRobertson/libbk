@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.91 2001/12/21 21:28:44 jtt Exp $
+ * $Id: libbk.h,v 1.92 2001/12/21 22:12:31 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1035,9 +1035,9 @@ extern void bk_exit(bk_s B, u_char retcode);
 
 
 /* b_string.c */
-extern u_int bk_strhash(char *a, bk_flags flags);
+extern u_int bk_strhash(const char *a, bk_flags flags);
 #define BK_STRHASH_NOMODULUS	0x01		///< Do not perform modulus of hash by a large prime
-extern char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, void *variabledb, bk_flags flags);
+extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const void *variabledb, bk_flags flags);
 #define BK_WHITESPACE					" \t\r\n" ///< General definition of horizonal and vertical whitespace
 #define BK_VWHITESPACE					"\r\n" ///< General definition of vertical whitespace
 #define BK_HWHITESPACE					" \t" ///< General definition of horizontal whitespace
@@ -1055,20 +1055,20 @@ extern char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spl
 #define BK_STRING_TOKENIZE_NORMAL	(BK_STRING_TOKENIZE_MULTISPLIT|BK_STRING_TOKENIZE_DOUBLEQUOTE)
 #define BK_STRING_TOKENIZE_CONFIG	(BK_STRING_TOKENIZE_DOUBLEQUOTE)
 extern void bk_string_tokenize_destroy(bk_s B, char **tokenized);
-extern char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_flags flags);
-extern int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags);
-extern int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags);
-extern int bk_string_atoull(bk_s B, char *string, u_int64_t *value, bk_flags flags);
-extern int bk_string_atoill(bk_s B, char *string, int64_t *value, bk_flags flags);
-extern char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags);
-extern char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags);
+extern char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk_vptr *buf, bk_flags flags);
+extern int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags);
+extern int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags);
+extern int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flags);
+extern int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags);
+extern char *bk_string_rip(bk_s B, char *string, const char *terminators, bk_flags flags);
+extern char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags flags);
 #define BK_STRING_QUOTE_NONPRINT	0x01	///< During bk_string_quote: Quote non-printable
 #define BK_STRING_QUOTE_NULLOK		0x02	///< During bk_string_quote: Output NULL
 #define BK_NULLSTR			"NULL"  ///< During bk_string_quote: String rep of NULL
-char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags);
-extern int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags);
-extern ssize_t bk_strnlen(bk_s B, char *s, ssize_t max);
-extern char *bk_encode_base64(bk_s B, bk_vptr *str, char *eolseq);
+char *bk_string_flagtoa(bk_s B, const bk_flags src, bk_flags flags);
+extern int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, bk_flags flags);
+extern ssize_t bk_strnlen(bk_s B, const char *s, ssize_t max);
+extern char *bk_encode_base64(bk_s B, const bk_vptr *str, const char *eolseq);
 extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
 extern char *bk_strndup(bk_s B, const char *s, u_int len);
 

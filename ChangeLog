@@ -1,3 +1,7 @@
+2001-12-21  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_string.c: constifying
+
 2001-12-21  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_url.c: Brand new rfc2396 compliant url parsing code.

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.19 2001/12/11 21:59:02 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.20 2001/12/21 22:12:31 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -50,7 +50,7 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))	///< Check to see if the limit on numbers of tokens has been reached or not.  Yes, limit>1 and limit-- will always have the same truth value
 
 
-static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sign, bk_flags flags);
+static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, int *sign, bk_flags flags);
 
 
 
@@ -70,7 +70,7 @@ static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sig
  *	@return <i>hash</i> of number
  */
 u_int 
-bk_strhash(char *a, bk_flags flags)
+bk_strhash(const char *a, bk_flags flags)
 {
   const u_int M = (unsigned)37U;		/* Multiplier */
   const u_int P = (unsigned)2147486459U;	/* Arbitrary large prime */
@@ -106,7 +106,7 @@ bk_strhash(char *a, bk_flags flags)
  *	@return <i>NULL</i> on callfailure, allocation failure, size failure, etc
  *	@return <br><i>string</i> representing the buffer on success
  */
-char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_flags flags)
+char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk_vptr *buf, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   const u_int bytesperline = 16;		// Must be multiple of bytes per group--the maximum number of source bytes displayed on one output line
@@ -211,7 +211,7 @@ char *bk_string_printbuf(bk_s B, char *intro, char *prefix, bk_vptr *buf, bk_fla
  *	@return <br><i>0</i> on success
  *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
  */
-int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags)
+int bk_string_atou(bk_s B, const char *string, u_int32_t *value, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
@@ -245,7 +245,7 @@ int bk_string_atou(bk_s B, char *string, u_int32_t *value, bk_flags flags)
  *	@return <br><i>0</i> on success
  *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
  */
-int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags)
+int bk_string_atoi(bk_s B, const char *string, int32_t *value, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
@@ -279,7 +279,7 @@ int bk_string_atoi(bk_s B, char *string, int32_t *value, bk_flags flags)
  *	@return <br><i>0</i> on success
  *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
  */
-int bk_string_atoull(bk_s B, char *string, u_int64_t *value, bk_flags flags)
+int bk_string_atoull(bk_s B, const char *string, u_int64_t *value, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
@@ -312,7 +312,7 @@ int bk_string_atoull(bk_s B, char *string, u_int64_t *value, bk_flags flags)
  *	@return <br><i>0</i> on success
  *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
  */
-int bk_string_atoill(bk_s B, char *string, int64_t *value, bk_flags flags)
+int bk_string_atoill(bk_s B, const char *string, int64_t *value, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
@@ -347,7 +347,7 @@ int bk_string_atoill(bk_s B, char *string, int64_t *value, bk_flags flags)
  *	@return <br><i>0</i> on success
  *	@return <br><i>>0</i> on non-null terminated number--best effort number conversion still performed
  */
-static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sign, bk_flags flags)
+static int bk_string_atoull_int(bk_s B, const char *string, u_int64_t *value, int *sign, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   signed char decode[256];
@@ -486,14 +486,15 @@ static int bk_string_atoull_int(bk_s B, char *string, u_int64_t *value, int *sig
  *	@return <i>NULL</i> on call failure, allocation failure, other failure
  *	@return <br><i>null terminated array of token strings</i> on success.
  */
-char **bk_string_tokenize_split(bk_s B, char *src, u_int limit, char *spliton, void *variabledb, bk_flags flags)
+char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const void *variabledb, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char **ret;
-  char *curloc = src;
+  const char *curloc = src;
   int tmp;
   u_int toklen, state = S_BASE;
-  char *startseq = NULL, *token;
+  const char *startseq = NULL;
+  char *token;
   u_char newchar;
   struct bk_memx *tokenx, *splitx = NULL;
 
@@ -871,7 +872,7 @@ void bk_string_tokenize_destroy(bk_s B, char **tokenized)
  *	@return <i>NULL</i> on failure
  *	@return <br><i>modified string</i> on success
  */
-char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags)
+char *bk_string_rip(bk_s B, char *string, const char *terminators, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -904,7 +905,7 @@ char *bk_string_rip(bk_s B, char *string, char *terminators, bk_flags flags)
  *	@return <i>NULL</i> on call failure, allocation failure, other failure
  *	@return <br><i>quoted src</i> on success (you must free)
  */
-char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags)
+char *bk_string_quote(bk_s B, const char *src, const char *needquote, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *ret = NULL;
@@ -990,7 +991,7 @@ char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags)
  *	@return <i>NULL</i> on allocation failure
  *	@return <br><i>string</i> on success (you must free)
  */
-char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags)
+char *bk_string_flagtoa(bk_s B, const bk_flags src, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *ret;
@@ -1020,7 +1021,7 @@ char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags)
  *	@return <br><i>0</i> on success
  *	@return <br>Copy-out <i>dst</i>
  */
-int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags)
+int bk_string_atoflag(bk_s B, const char *src, bk_flags *dst, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -1053,7 +1054,7 @@ int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags)
  * 	@bugs Does not return the same type as @a strlen(3). See description.
  */
 ssize_t /* this is not an error. See description */
-bk_strnlen(bk_s B, char *s, ssize_t max)
+bk_strnlen(bk_s B, const char *s, ssize_t max)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   ssize_t c=0;
@@ -1145,12 +1146,12 @@ static unsigned char index_64[256] = {
  *	@return <i>NULL</i> on error
  *	@return <br><i>encoded string</i> on success which caller must free
  */
-char *bk_encode_base64(bk_s B, bk_vptr *src, char *eolseq)
+char *bk_encode_base64(bk_s B, const bk_vptr *src, const char *eolseq)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *str;					/* string to encode */
   ssize_t len;					/* length of the string */
-  char *eol;					/* the end-of-line sequence to use */
+  const char *eol;				/* the end-of-line sequence to use */
   ssize_t eollen;				/* length of the EOL sequence */
   char *r, *ret;				/* result string */
   ssize_t rlen;					/* length of result string */
@@ -1198,8 +1199,8 @@ char *bk_encode_base64(bk_s B, bk_vptr *src, char *eolseq)
   {
     if (chunk == (MAX_LINE/4))
     {
-      char *c = eol;
-      char *e = eol + eollen;
+      const char *c = eol;
+      const char *e = eol + eollen;
       while (c < e)
 	*r++ = *c++;
       chunk = 0;
@@ -1230,8 +1231,8 @@ char *bk_encode_base64(bk_s B, bk_vptr *src, char *eolseq)
 
   if (rlen)
   {						/* append eol to the result string */
-    char *c = eol;
-    char *e = eol + eollen;
+    const char *c = eol;
+    const char *e = eol + eollen;
     while (c < e)
       *r++ = *c++;
   }
