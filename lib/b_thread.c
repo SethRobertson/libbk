@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.12 2003/06/03 21:03:08 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.13 2003/06/03 21:52:01 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -133,7 +133,9 @@ static void bk_thread_unlock(void *opaque);
 int bk_atomic_add_init(bk_s B, struct bk_atomic_cntr *bac, int start, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+#ifdef BK_USING_PTHREADS
   int ret;
+#endif /* BK_USING_PTHREADS */
 
   if (!bac)
   {
@@ -172,7 +174,10 @@ int bk_atomic_add_init(bk_s B, struct bk_atomic_cntr *bac, int start, bk_flags f
 int bk_atomic_addition(bk_s B, struct bk_atomic_cntr *bac, int delta, int *result, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int ret, myresult;
+  int myresult;
+#ifdef BK_USING_PTHREADS
+  int ret;
+#endif /* BK_USING_PTHREADS */
 
   if (!bac)
   {

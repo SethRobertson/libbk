@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.82 2003/06/03 21:03:08 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.83 2003/06/03 21:52:00 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -456,10 +456,12 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
       bk_run_close(B, curioh->ioh_run, curioh->ioh_fdin, 0);
     if (curioh->ioh_fdout >= 0 && curioh->ioh_fdin != curioh->ioh_fdout)
       bk_run_close(B, curioh->ioh_run, curioh->ioh_fdout, 0);
+#ifdef BK_USING_PTHREADS
     if (pthread_mutex_destroy(&curioh->ioh_lock) != 0)
       abort();
     if (pthread_cond_destroy(&curioh->ioh_cond) != 0)
       abort();
+#endif /* BK_USING_PTHREADS */
     free(curioh);
   }
   BK_RETURN(B, NULL);

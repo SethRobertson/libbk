@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.239 2003/06/03 21:03:07 seth Exp $
+ * $Id: libbk.h,v 1.240 2003/06/03 21:52:00 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1049,7 +1049,6 @@ struct bk_netinfo
 
 
 
-#ifdef BK_USING_PTHREADS
 /**
  * Atomic counter -- an integer with a lock for protection.
  *
@@ -1057,11 +1056,12 @@ struct bk_netinfo
  */
 struct bk_atomic_cntr
 {
+#ifdef BK_USING_PTHREADS
   pthread_mutex_t	bac_lock;		///< Lock to make this atomic
+#endif /* BK_USING_PTHREADS */
   int			bac_cntr;		///< Counter that we protect
 };
 
-#endif /* BK_USING_PTHREADS */
 
 
 

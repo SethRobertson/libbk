@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.86 2003/06/03 21:14:14 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.87 2003/06/03 21:52:01 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1759,7 +1759,9 @@ bsre_create(bk_s B, const char *str, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bsre: %s\n", strerror(errno));
     goto error;
   }
+#ifdef BK_USING_PTHREADS
   pthread_mutex_init(&bsre->bsre_lock, NULL);
+#endif /* BK_USING_PTHREADS */
 
   if (BK_FLAG_ISSET(flags, BK_STR_REGISTRY_FLAG_COPY_STR))
   {

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.46 2003/05/15 03:15:23 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.47 2003/06/03 21:52:01 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -211,10 +211,14 @@ static struct bk_run_func *brfn_alloc(bk_s B);
 static void brfn_destroy(bk_s B, struct bk_run_func *brf);
 static struct bk_run_ondemand_func *brof_alloc(bk_s B);
 static void brof_destroy(bk_s B, struct bk_run_ondemand_func *brof);
+#ifdef BK_USING_PTHREADS
 static void *bk_run_runevent_thread(bk_s B, void *opaque);
+#endif /* BK_USING_PTHREADS */
 static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, struct timeval *starttime, bk_flags eventflags, bk_flags flags);
 static void bk_run_runfd(bk_s B, struct bk_run *run, int fd, u_int gottypes, bk_fd_handler_t fun, void *opaque, struct timeval *starttime, bk_flags flags);
+#ifdef BK_USING_PTHREADS
 static void *bk_run_runfd_thread(bk_s B, void *opaque);
+#endif /* BK_USING_PTHREADS */
 
 
 
@@ -1379,7 +1383,9 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   // Are there any I/O events pending?
   if (ret > 0 )
   {
+#ifdef BK_USING_PTHREADS
     int islocked = 0;
+#endif /* BK_USING_PTHREADS */
 
     for (x=0; ret > 0 && x < run->br_selectn; x++)
     {
@@ -1729,8 +1735,8 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
     abort();
-#endif /* BK_USING_PTHREADS */
  again:
+#endif /* BK_USING_PTHREADS */
   if (!(curfda = fdassoc_search(run->br_fdassoc, &fd)))
   {
     bk_debug_printf_and(B,4,"Double close protection kicked in\n");
@@ -1987,7 +1993,11 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
 #endif /* BK_USING_PTHREADS */
 
   (*brec->brec_event)(B, run, brec->brec_opaque, starttime, flags);
+#ifdef BK_USING_PTHREADS
   bk_debug_printf_and(B, 16, "Function %p (locked by %d) returned\n", brec->brec_event, (int)brec->brec_userid);
+#else /* BK_USING_PTHREADS */
+  bk_debug_printf_and(B, 16, "Function %p (locked but threads not defined) returned\n", brec->brec_event);
+#endif /* BK_USING_PTHREADS */
 
 #ifdef BK_USING_PTHREADS
   // Special handling due to partial deletion
@@ -2388,9 +2398,9 @@ bk_run_poll_remove(bk_s B, struct bk_run *run, void *handle)
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
     abort();
+ again:
 #endif /* BK_USING_PTHREADS */
 
- again:
   if (!(brf=brfl_search(run->br_poll_funcs, handle)))
   {
     bk_error_printf(B, BK_ERR_WARN, "Handle %p not found in delete\n", handle);
@@ -2529,9 +2539,9 @@ bk_run_idle_remove(bk_s B, struct bk_run *run, void *handle)
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
     abort();
+ again:
 #endif /* BK_USING_PTHREADS */
 
- again:
   if (!(brfn=brfl_search(run->br_idle_funcs, handle)))
   {
     bk_error_printf(B, BK_ERR_WARN, "Handle %p not found in delete\n", handle);
@@ -2737,9 +2747,9 @@ bk_run_on_demand_remove(bk_s B, struct bk_run *run, void *handle)
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
     abort();
+ again:
 #endif /* BK_USING_PTHREADS */
 
- again:
   if (!(brof=brfl_search(run->br_ondemand_funcs, handle)))
   {
     bk_error_printf(B, BK_ERR_WARN, "Handle %p not found in delete\n", handle);
