@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.287 2004/04/29 22:32:23 jtt Exp $
+ * $Id: libbk.h,v 1.288 2004/05/04 14:27:23 brian Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -283,17 +283,17 @@ struct bk_general
   pthread_mutex_t	bg_wrmutex;		///< Lock on writing of general structure <TODO>Verify that readers either get old or new value--otherwise this needs to be a rdwr lock and all hell starts breaking loose</TODO>
 #endif /* BK_USING_PTHREADS */
 };
-#define BK_GENERAL_ERROR(B)	((B)?(B)->bt_general->bg_error:(struct bk_error *)bk_nullptr) ///< Access the bk_general error queue
-#define BK_GENERAL_DEBUG(B)	((B)?(B)->bt_general->bg_debug:(struct bk_debug *)bk_nullptr) ///< Access the bk_general debug queue
-#define BK_GENERAL_CHILD(B)	((B)?(B)->bt_general->bg_child:(struct bk_child *)bk_nullptr) ///< Access the bk_general debug queue
-#define BK_GENERAL_REINIT(B)	((B)?(B)->bt_general->bg_reinit:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general reinit list
-#define BK_GENERAL_DESTROY(B)	((B)?(B)->bt_general->bg_destroy:(struct bk_funlist *)bk_nullptr) ///< Access the bk_general destruction list
-#define BK_GENERAL_TLIST(B)	((B)?(B)->bt_general->bg_tlist:(struct bk_threadlist *)bk_nullptr) ///< Access the bk_general thread list
-#define BK_GENERAL_PROCTITLE(B) ((B)?(B)->bt_general->bg_proctitle:(struct bk_proctitle *)bk_nullptr) ///< Access the bk_general process title state
-#define BK_GENERAL_FUNSTATFILE(B) ((B)?(B)->bt_general->bg_funstatfile:(char *)bk_nullptr) ///< Access the bk_general function statistics output filename
-#define BK_GENERAL_CONFIG(B)	((B)?(B)->bt_general->bg_config:(struct bk_config *)bk_nullptr) ///< Access the bk_general config info
-#define BK_GENERAL_PROGRAM(B)	((B)?(B)->bt_general->bg_program:(char *)bk_nullptr) ///< Access the bk_general program name
-#define BK_GENERAL_FLAGS(B)	((B)?(B)->bt_general->bg_flags:bk_zerouint) ///< Access the bk_general flags
+#define BK_GENERAL_ERROR(B)	(*((B) ? &((B)->bt_general->bg_error): (struct bk_error **)&bk_nullptr)) ///< Access the bk_general error queue
+#define BK_GENERAL_DEBUG(B)	(*((B) ? &((B)->bt_general->bg_debug):(struct bk_debug **)&bk_nullptr)) ///< Access the bk_general debug queue
+#define BK_GENERAL_CHILD(B)	(*((B) ? &((B)->bt_general->bg_child):(struct bk_child **)&bk_nullptr)) ///< Access the bk_general debug queue
+#define BK_GENERAL_REINIT(B)	(*((B) ? &((B)->bt_general->bg_reinit):(struct bk_funlist **)&bk_nullptr)) ///< Access the bk_general reinit list
+#define BK_GENERAL_DESTROY(B)	(*((B) ? &((B)->bt_general->bg_destroy):(struct bk_funlist **)&bk_nullptr)) ///< Access the bk_general destruction list
+#define BK_GENERAL_TLIST(B)	(*((B) ? &((B)->bt_general->bg_tlist):(struct bk_threadlist **)&bk_nullptr)) ///< Access the bk_general thread list
+#define BK_GENERAL_PROCTITLE(B) (*((B) ? &((B)->bt_general->bg_proctitle):(struct bk_proctitle **)&bk_nullptr)) ///< Access the bk_general process title state
+#define BK_GENERAL_FUNSTATFILE(B) (*((B) ? &((B)->bt_general->bg_funstatfile):(char **)&bk_nullptr)) ///< Access the bk_general function statistics output filename
+#define BK_GENERAL_CONFIG(B)	(*((B) ? &((B)->bt_general->bg_config):(struct bk_config **)&bk_nullptr)) ///< Access the bk_general config info
+#define BK_GENERAL_PROGRAM(B)	(*((B) ? &((B)->bt_general->bg_program):(char **)&bk_nullptr)) ///< Access the bk_general program name
+#define BK_GENERAL_FLAGS(B)	(*((B) ? &((B)->bt_general->bg_flags):(unsigned *)bk_zerouint)) ///< Access the bk_general flags
 #define BK_GENERAL_WRMUTEX(B)	((B)->bt_general->bg_wrmutex) ///< Access to wrmutex (only if threading is on)
 #define BK_GENERAL_FLAG_ISFUNON(B)   BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON) ///< Is function tracing on?
 #define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON) ///< Is debugging on?
@@ -385,7 +385,7 @@ typedef struct __bk_thread
   struct bk_stat_list  *bt_funstats;		///< Function performance stats
   bk_flags		bt_flags;		///< Flags for the future
 } *bk_s;
-#define BK_BT_FUNSTATS(B) ((B)?(B)->bt_funstats:(struct bk_stat_list *)bk_nullptr) ///< Access the bk_general function statistics state
+#define BK_BT_FUNSTATS(B) (*((B) ? &((B)->bt_funstats):(struct bk_stat_list **)&bk_nullptr)) ///< Access the bk_general function statistics state
 #define BK_BT_ISFUNSTATSON(B) (BK_GENERAL_FUNSTATFILE(B) && BK_BT_FUNSTATS(B)) ///< Is fun stats on?
 #define BK_BT_FUNSTACK(B)	((B)->bt_funstack)   ///< Access the function stack
 #define BK_BT_CURFUN(B)		((B)->bt_curfun)     ///< Access the current function
