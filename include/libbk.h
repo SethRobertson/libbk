@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.291 2004/06/07 17:01:58 jtt Exp $
+ * $Id: libbk.h,v 1.292 2004/06/07 21:51:23 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -43,6 +43,12 @@ struct bk_stat_list;
 struct bk_stat_node;
 struct bk_threadlist;
 struct bk_threadnode;
+
+
+#ifdef __INSURE__
+#undef SIG_IGN
+#define SIG_IGN bk_sig_ign
+#endif /* __INSURE__ */
 
 
 
@@ -1894,6 +1900,11 @@ extern void *bk_signal_set(bk_s B, int signo, bk_sighandler_f handler, bk_flags 
 extern void *bk_signal_set_alarm(bk_s B, u_int secs, bk_sighandler_f handler, bk_flags flags);
 extern int bk_signal_reset(bk_s B, void *args, bk_flags flags);
 extern int bk_signal_reset_alarm(bk_s B, void *args, bk_flags flags);
+#ifdef __INSURE__
+void bk_sig_ign(int signal);
+#endif /* __INSURE__ */
+
+
 
 
 /**

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.67 2004/06/07 17:01:57 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.68 2004/06/07 21:51:22 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -601,7 +601,14 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
 
   if (!handler || (ptr2uint_t)handler == (ptr2uint_t)SIG_IGN || (ptr2uint_t)handler == (ptr2uint_t)SIG_DFL)
   {							// Disabling signal
+#ifdef __INSURE__
+    if ((ptr2uint_t)handler == (ptr2uint_t)SIG_IGN)
+      act.sa_handler = SIG_IGN;
+    else
+      act.sa_handler = (void *)handler;
+#else /* __INSURE__ */    
     act.sa_handler = (void *)handler;
+#endif /* __INSURE__ */
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
   }

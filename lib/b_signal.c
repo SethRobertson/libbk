@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_signal.c,v 1.11 2003/06/17 06:07:16 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_signal.c,v 1.12 2004/06/07 21:51:22 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -555,3 +555,17 @@ bss_destroy(bk_s B, struct bk_signal_saved *bss)
   free(bss);
   BK_VRETURN(B);
 }
+
+
+#ifdef __INSURE__
+/* 
+ * Insure gets really irritated with ((__sighandler_t)1) (which doesn't
+ * bother gcc at all), so we shut it up by make SIG_IGN not *really*
+ * ignored, but rather handled by a function which does nothing.
+ */
+void
+bk_sig_ign(int signal)
+{
+  return;
+}
+#endif /* __INSURE__ */
