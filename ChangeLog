@@ -5,6 +5,11 @@
 
 2003-12-29  Seth Robertson  <seth@buscemi.sysdetect.com>
 
+	* lib/b_exec.c (bk_pipe_to_process): openpty for pty requirements,
+	allow stderr to dup to stdout.
+
+	* lib/Makefile (LT_LDLIBS): Additional library requirements.
+
 	* lib/b_relay.c (bk_relay_iohhandler): Allow user callback to
 	modify outgoing buffer, not discarding buffer.
 	(bk_relay_iohhandler): Carpe Data -- seize the data instead of

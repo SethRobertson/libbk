@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.43 2003/12/30 00:29:19 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.44 2003/12/30 05:27:22 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -74,19 +74,23 @@ struct program_config
 {
   bttcp_role_e		pc_role;		///< What role do I play?
   bk_flags		pc_flags;		///< Everyone needs flags.
-#define BTTCP_FLAG_SHUTTING_DOWN_SERVER	0x0001	///< We're shutting down a server
-#define PC_VERBOSE			0x0002	///< Verbose output
-#define PC_MULTICAST			0x0004	///< Multicast allowed
-#define PC_BROADCAST			0x0008	///< Broadcast allowed
-#define PC_MULTICAST_LOOP		0x0010	///< Multicast loopback
-#define PC_MULTICAST_NOMEMBERSHIP	0x0020	///< Multicast w/o membership
-#define PC_CLOSE_AFTER_ONE		0x0040	///< Close relay after one side closed
-#define PC_SSL				0x0080	///< Want SSL
-#define PC_NODELAY			0x0100	///< Set nodelay socket buffer option
-#define PC_KEEPALIVE			0x0200	///< Set keepalive preference
-#define PC_SERVER			0x0400	///< Server mode
-#define PC_EXECUTE			0x0800  ///< Execute command instead of stdio
-#define PC_EXECUTE_STDERR		0x1000  ///< Dup cmd stderr to stdout
+#define BTTCP_FLAG_SHUTTING_DOWN_SERVER	0x00001	///< We're shutting down a server
+#define PC_VERBOSE			0x00002	///< Verbose output
+#define PC_MULTICAST			0x00004	///< Multicast allowed
+#define PC_BROADCAST			0x00008	///< Broadcast allowed
+#define PC_MULTICAST_LOOP		0x00010	///< Multicast loopback
+#define PC_MULTICAST_NOMEMBERSHIP	0x00020	///< Multicast w/o membership
+#define PC_CLOSE_AFTER_ONE		0x00040	///< Close relay after one side closed
+#define PC_SSL				0x00080	///< Want SSL
+#define PC_NODELAY			0x00100	///< Set nodelay socket buffer option
+#define PC_KEEPALIVE			0x00200	///< Set keepalive preference
+#define PC_SERVER			0x00400	///< Server mode
+#define PC_EXECUTE			0x00800 ///< Execute command instead of stdio
+#define PC_EXECUTE_STDERR		0x01000 ///< Dup cmd stderr to stdout
+#define PC_EXECUTE_PTY			0x02000 ///< Run cmd in a pty
+#define PC_RAW				0x04000 ///< Run in raw mode
+#define PC_RESTORE_TERMIN		0x08000 ///< Reset input termio mode
+#define PC_RESTORE_TERMOUT		0x10000 ///< Reset output termio mode
   u_int			pc_multicast_ttl;	///< Multicast ttl
   char *		pc_proto;		///< What protocol to use
   char *		pc_remoteurl;		///< Remote "url".
@@ -102,6 +106,11 @@ struct program_config
   int			pc_len;			///< Input size hints
   int			pc_sockbuf;		///< Socket buffer size
   int			pc_fdin;		///< Input fd for artificial EOF (HACK)
+  pid_t			pc_childid;		///< Child PID if exec
+  struct termios	pc_termioin;		///< Original Termio stdin
+  struct termios	pc_termioout;		///< Original Termio stdout
+  int			pc_dupstdin;		///< Duplicate copy of stdin for restoring termios
+  int			pc_dupstdout;		///< Duplicate copy of stdout for restoring termios
   u_quad_t		pc_translimit;		///< Transmit limit
   struct bk_relay_ioh_stats	pc_stats;	///< Statistics about relay
   struct timeval	pc_start;		///< Starting time
@@ -181,6 +190,8 @@ main(int argc, char **argv, char **envp)
     {"transmit-limit", 0, POPT_ARG_STRING, NULL, 22, "Limit maximum transmit size", "bytes"},
     {"execute", 0, POPT_ARG_NONE, NULL, 23, "Execute program and argument after '--'", NULL },
     {"execute-with-stderr", 0, POPT_ARG_NONE, NULL, 24, "Execute program and argument after w/stderr on stdout '--'", NULL },
+    {"execute-in-pty", 0, POPT_ARG_NONE, NULL, 25, "Execute program in a pty", NULL },
+    {"raw", 0, POPT_ARG_NONE, NULL, 26, "No buffer, no tty", NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -382,6 +393,14 @@ main(int argc, char **argv, char **envp)
 
     case 24:
       BK_FLAG_SET(pc->pc_flags, PC_EXECUTE|PC_EXECUTE_STDERR);
+      break;
+
+    case 25:
+      BK_FLAG_SET(pc->pc_flags, PC_EXECUTE|PC_EXECUTE_PTY);
+      break;
+
+    case 26:
+      BK_FLAG_SET(pc->pc_flags, PC_RAW);
       break;
     }
   }
@@ -696,12 +715,47 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 
   if (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE))
   {
-    if (bk_pipe_to_exec(B, &infd, &outfd, *pc->pc_args, pc->pc_args, NULL, BK_EXEC_FLAG_CLOSE_CHILD_DESC|BK_EXEC_FLAG_SEARCH_PATH|(BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE_STDERR)?BK_EXEC_FLAG_STDERR_ON_STDOUT:0)) < 0)
+    if ((pc->pc_childid = bk_pipe_to_exec(B, &infd, &outfd, *pc->pc_args, pc->pc_args, NULL, (BK_EXEC_FLAG_CLOSE_CHILD_DESC|BK_EXEC_FLAG_SEARCH_PATH|
+											      (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE_STDERR)?BK_EXEC_FLAG_STDERR_ON_STDOUT:0)|
+											      (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE_PTY)?BK_EXEC_FLAG_USE_PTY:0)))) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not execute/pipe\n");
       goto error;
     }
   }
+
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_RAW))
+  {
+    if (isatty(infd))
+    {
+      struct termios curios;
+      tcgetattr(infd, &curios);
+      memcpy(&pc->pc_termioin, &curios, sizeof(curios));
+      cfmakeraw(&curios);
+      tcsetattr(infd, TCSANOW, &curios);
+      tcsetattr(infd, TCSANOW, &curios);
+      if (infd == fileno(stdin))
+      {
+	BK_FLAG_SET(pc->pc_flags, PC_RESTORE_TERMIN);
+	pc->pc_dupstdin = dup(infd);
+      }
+    }
+    if (isatty(outfd))
+    {
+      struct termios curios;
+      tcgetattr(outfd, &curios);
+      memcpy(&pc->pc_termioout, &curios, sizeof(curios));
+      cfmakeraw(&curios);
+      tcsetattr(outfd, TCSANOW, &curios);
+      tcsetattr(outfd, TCSANOW, &curios);
+      if (outfd == fileno(stdout))
+      {
+	BK_FLAG_SET(pc->pc_flags, PC_RESTORE_TERMOUT);
+	pc->pc_dupstdout = dup(outfd);
+      }
+    }
+  }
+
 
   pc->pc_fdin = infd;
   if (!(std_ioh = bk_ioh_init(B, infd, outfd, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
@@ -826,6 +880,23 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
 
     fprintf(stderr, "%s%s: %lld bytes received in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[0].birs_writebytes, delta.tv_sec, delta.tv_usec, speedin);
     fprintf(stderr, "%s%s: %lld bytes transmitted in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", pc->pc_stats.side[1].birs_writebytes, delta.tv_sec, delta.tv_usec, speedout);
+  }
+
+  if (pc->pc_childid > 0)
+    kill(-pc->pc_childid, SIGTERM);
+
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_RESTORE_TERMOUT))
+  {
+    tcsetattr(pc->pc_dupstdout, TCSANOW, &pc->pc_termioout);
+    tcsetattr(pc->pc_dupstdout, TCSANOW, &pc->pc_termioout);
+    tcsetattr(pc->pc_dupstdout, TCSANOW, &pc->pc_termioout);
+  }
+
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_RESTORE_TERMIN))
+  {
+    tcsetattr(pc->pc_dupstdin, TCSANOW, &pc->pc_termioin);
+    tcsetattr(pc->pc_dupstdin, TCSANOW, &pc->pc_termioin);
+    tcsetattr(pc->pc_dupstdin, TCSANOW, &pc->pc_termioin);
   }
 
   bk_run_set_run_over(B,pc->pc_run);

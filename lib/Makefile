@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.47 2003/12/05 00:02:47 zz Exp $
+# $Id: Makefile,v 1.48 2003/12/30 05:27:21 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -61,7 +61,7 @@ BK_LARGE_LIBSRC=				\
 		b_vptr.c			\
 # Line eater fodder -- leave
 
-LT_LDLIBS=-ldict -lfsma -lpqueue $(BK_LIBM) $(PTHREAD_LIBS)
+LT_LDLIBS=-lutil -ldict -lfsma -lpqueue $(BK_LIBM) $(PTHREAD_LIBS)
 
 GROUPTOP=..
 GROUPSUBDIR=lib
