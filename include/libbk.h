@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.90 2001/12/20 21:03:13 jtt Exp $
+ * $Id: libbk.h,v 1.91 2001/12/21 21:28:44 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -253,22 +253,6 @@ typedef struct __bk_thread
 
 
 #define BK_URL_FILE_STR	"file"			///< String to use use for url protocol if it's a bare path
-
-/**
- * Baka internal representation of a URL. The char *'s are all NULL
- * terminated strings for convenience.
- */
-struct bk_url
-{
-  bk_flags		bu_flags;		///< Everyone needs flags.
-  char *		bu_proto;		///< Protocol specification
-  char *		bu_host;		///< Host specification
-  char *		bu_serv;		///< Service specification
-  char *		bu_path;		///< Path specification
-};
-
-
-
 
 /**
  * Type for on demand functions
@@ -739,6 +723,79 @@ static int bna_ko_cmp(void *a, void *bck2);
 // @}
 
 
+/**
+ * @name URI support
+ */
+// @{
+
+union bk_url_element_u
+{
+  struct bk_vptr	bue_vptr;		///< vptr version.
+  char *		bue_str;		///< string version.
+};
+
+
+/**
+ * Modes of URL parsing
+ */
+typedef enum
+{
+  BkUrlParseVptr=0,				///< Translate URl to VPT's pointing into URL
+  BkUrlParseVptrCopy,				///< As above but make private copy of URL.
+  BkUrlParseStrNULL,				///< Make knwn elements strings. NULL for unknown.
+  BkUrlParseStrEmpty,				///< Make knwn elements strings. "" for unknown.
+} bk_url_parse_mode_e;
+
+
+/**
+ * Baka internal representation of a URL. The char *'s are all NULL
+ * terminated strings for convenience.
+ */
+struct bk_url
+{
+  bk_flags			bu_flags;	///< Everyone needs flags.
+#define BK_URL_FLAG_SCHEME		0x1	///< Scheme section set.
+#define BK_URL_FLAG_AUTHORITY		0x2	///< Authority section set.
+#define BK_URL_FLAG_PATH		0x4	///< Path section set.
+#define BK_URL_FLAG_QUERY		0x8	///< Query section set.
+#define BK_URL_FLAG_FRAGMENT		0x10	///< Fragment section set.
+#define BK_URL_FLAG_HOST		0x20	///< Fragment section set.
+#define BK_URL_FLAG_SERV		0x40	///< Fragment section set.
+#define BK_URL_FLAG_STRICT_PARSE	0x80	///< Don't do BAKA fuzzy logic.
+  bk_url_parse_mode_e		bu_mode;	///< Mode of URL
+  char *			bu_url;		///< Original URL
+  union bk_url_element_u	bu_scheme;	///< Sheme specification
+  union bk_url_element_u	bu_authority;	///< Authority specification
+  union bk_url_element_u	bu_path;	///< Path specification
+  union bk_url_element_u	bu_query;	///< Path specification
+  union bk_url_element_u	bu_fragment;	///< Fragment specification
+  union bk_url_element_u	bu_host;	///< Host (auth subset) specification
+  union bk_url_element_u	bu_serv;	///< Service (auth. subset) specification
+};
+
+#define BK_URL_IS_VPTR(bu) ((bu)->bu_mode == BkUrlParseVptr || (bu)->bu_mode == BkUrlParseVptrCopy)
+#define BK_URL_DATA(bu, element) ((BK_URL_IS_VPTR(bu))?((char *)(element).bue_vptr.ptr):((char *)(element).bue_str))
+#define BK_URL_LEN(bu, element) ((BK_URL_IS_VPTR(bu))?(element).bue_vptr.len:strlen((element).bue_str))
+
+#define BK_URL_SCHEME_DATA(bu) (BK_URL_DATA((bu),(bu)->bu_scheme))
+#define BK_URL_SCHEME_LEN(bu) (BK_URL_LEN((bu),(bu)->bu_scheme))
+
+#define BK_URL_AUTHORITY_DATA(bu) (BK_URL_DATA((bu),(bu)->bu_authority))
+#define BK_URL_AUTHORITY_LEN(bu) (BK_URL_LEN((bu),(bu)->bu_authority))
+
+#define BK_URL_PATH_DATA(bu) (BK_URL_DATA((bu),(bu)->bu_path))
+#define BK_URL_PATH_LEN(bu) (BK_URL_LEN((bu),(bu)->bu_path))
+
+#define BK_URL_QUERY_DATA(bu) (BK_URL_DATA((bu),(bu)->bu_query))
+#define BK_URL_QUERY_LEN(bu) (BK_URL_LEN((bu),(bu)->bu_query))
+
+#define BK_URL_FRAGMENT_DATA(bu) (BK_URL_DATA((bu),(bu)->bu_fragment))
+#define BK_URL_FRAGMENT_LEN(bu) (BK_URL_LEN((bu),(bu)->bu_fragment))
+
+// @}
+
+
+
 
 /* b_general.c */
 extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, struct bk_config_user_pref *bcup, int error_queue_length, int log_facility, bk_flags flags);
@@ -1106,7 +1163,7 @@ extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
 extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
 
 /* b_url.c */
-struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_flags flags);
+struct bk_url *bk_url_parse(bk_s B, const char *url_in, bk_url_parse_mode_e mode, bk_flags flags);
 #define BK_URL_BARE_PATH_IS_FILE	0x1	///< Treat bare path as protocol "file"
 struct bk_url *bk_url_create(bk_s B);
 void bk_url_destroy(bk_s B, struct bk_url *bu);

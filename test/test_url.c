@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: test_url.c,v 1.6 2001/12/11 21:59:02 jtt Exp $";
+static char libbk__rcsid[] = "$Id: test_url.c,v 1.7 2001/12/21 21:28:44 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -42,6 +42,7 @@ struct global_structure
  */
 struct program_config
 {
+  bk_url_parse_mode_e pc_parse_mode;
 };
 
 
@@ -74,6 +75,10 @@ main(int argc, char **argv, char **envp)
   const struct poptOption optionsTable[] = 
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
+    {"vptr", 'v', POPT_ARG_NONE, NULL, 'v', "Use Vptr mode", NULL },
+    {"vptr-cpoy", 'c', POPT_ARG_NONE, NULL, 'c', "Use Vptr Copy mode", NULL },
+    {"str-null", 'n', POPT_ARG_NONE, NULL, 'n', "Use string NULL mode", NULL },
+    {"str-empty", 'e', POPT_ARG_NONE, NULL, 'e', "Use string empty mode", NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -102,6 +107,18 @@ main(int argc, char **argv, char **envp)
       bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, 0, BK_ERR_DEBUG, BK_ERROR_CONFIG_FH);	// Enable output of all error logs
       bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);					// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
+      break;
+    case 'v':
+      pconfig->pc_parse_mode = BkUrlParseVptr;
+      break;
+    case 'c':
+      pconfig->pc_parse_mode = BkUrlParseVptrCopy;
+      break;
+    case 'n':
+      pconfig->pc_parse_mode = BkUrlParseStrNULL;
+      break;
+    case 'e':
+      pconfig->pc_parse_mode = BkUrlParseStrEmpty;
       break;
     default:
       getopterr++;
@@ -153,6 +170,21 @@ int proginit(bk_s B, struct program_config *pconfig)
   BK_RETURN(B, 0);
 }
 
+#define PRINT_ELEMENT(scratch, size, bu, element)				\
+do {										\
+  if (BK_URL_DATA((bu),(element)))						\
+  {										\
+    snprintf((scratch), MIN((size),(BK_URL_LEN((bu),(element))+1)), "%s",  	\
+			    BK_URL_DATA((bu),(element)));			\
+  }										\
+  else										\
+  {										\
+    snprintf((scratch),(size),"Not Found");					\
+  }										\
+} while (0)
+
+
+
 
 
 /**
@@ -166,7 +198,7 @@ int proginit(bk_s B, struct program_config *pconfig)
 void progrun(bk_s B, struct program_config *pconfig)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
-  char outputline[1024];
+  char scratch[1024];
   char inputline[1024];
   struct bk_url *bu;
   u_int nextstart;
@@ -178,39 +210,32 @@ void progrun(bk_s B, struct program_config *pconfig)
     if (BK_STREQ(inputline,"quit") || BK_STREQ(inputline,"exit"))
       BK_VRETURN(B);
       
-
-    memset(outputline,0,1024);
+    
+    memset(scratch,0,sizeof(scratch));
     nextstart = 0;
-    if (!(bu=bk_url_parse(B, inputline, BK_URL_BARE_PATH_IS_FILE)))
+    if (!(bu=bk_url_parse(B, inputline, pconfig->pc_parse_mode, BK_URL_BARE_PATH_IS_FILE)))
     {
       fprintf(stderr,"Could not convert url: %s\n", inputline);
       continue;
     }
-
-    if (bu->bu_proto)
-    {
-      snprintf(outputline, 1024, "%s://", bu->bu_proto);
-      nextstart = strlen(outputline);
-    }
-
-    if (bu->bu_host)
-    {
-      snprintf(outputline + nextstart, 1024 - nextstart, "%s", bu->bu_host);
-      nextstart = strlen(outputline);
-    }
-
-    if (bu->bu_serv)
-    {
-      snprintf(outputline + nextstart, 1024 - nextstart, ":%s", bu->bu_serv);
-      nextstart = strlen(outputline);
-    }
     
-    if (bu->bu_path)
-    {
-      snprintf(outputline + nextstart, 1024 - nextstart, "%s", bu->bu_path);
-    }
 
-    printf("%-20s %-20s > %s ** %s ** %s ** %s\n", inputline, outputline,  bu->bu_proto?bu->bu_proto:"", bu->bu_host?bu->bu_host:"", bu->bu_serv?bu->bu_serv:"", bu->bu_path?bu->bu_path:"");
+    printf("URL: %s\n",bu->bu_url);
+    PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_scheme);
+    printf("\tScheme: %s\n", scratch);
+    PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_authority);
+    printf("\tAuthority: %s\n", scratch);
+    PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_host);
+    printf("\t\tHost: %s\n", scratch);
+    PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_serv);
+    printf("\t\tServ: %s\n", scratch);
+    PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_path);
+    printf("\tPath: %s\n", scratch);
+    PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_query);
+    printf("\tQuery: %s\n", scratch);
+    PRINT_ELEMENT(scratch, sizeof(scratch), bu, bu->bu_fragment);
+    printf("\tFragment: %s\n", scratch);
+
   }
   
   BK_VRETURN(B);
