@@ -1,3 +1,8 @@
+2002-11-14  Brian Lindauer  <lindauer@malkmus.sysdetect.com>
+
+	* lib/b_fileutils.c (bk_fileutils_is_true_pipe): Added function to
+	test whether a file descriptor points at a true pipe.
+
 2002-11-14  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* lib/b_ioh.c (bk_ioh_fdctl): implement SO_LINGER correctly

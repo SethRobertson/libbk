@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.11 2002/10/18 20:03:30 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.12 2002/11/14 22:02:46 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -738,3 +738,56 @@ bk_fileutils_match_extension(bk_s B, const char *path, const char * const *exts)
 
   BK_RETURN(B,0);  
 }
+
+
+
+/**
+ * Determines whether a file descriptor is a true (anonymous) pipe.
+ * Anonymous pipes on Linux and FreeBSD have 0 device numbers, 
+ * while named pipes have non-zero numbers.  On Solaris, the device
+ * must be broken into major and minor numbers to get the correct
+ * result.
+ *
+ * @param B Baka Thread/global state
+ * @param fd The file descriptor
+ * @param flags Reserved
+ * @return <i>1</i> if the fd is a true pipe
+ * @return <i>0</i> if the fd is not a true pipe
+ * @return <i>-1</i> on system or other error
+ */
+int
+bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "netpcap");
+  struct stat st;
+#if (defined makedev && defined NODEV)
+  int i = 8 * sizeof(long long);
+  unsigned long long major = (unsigned long long) -1;
+  unsigned long long minor_mask;
+#endif // defined mkdev && defined NODEV
+
+  if (fstat(fd, &st) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Failed to get file status: %s\n", strerror(errno));
+    goto error;
+  }
+
+#if (defined makedev && defined NODEV)
+  while ((minor_mask = makedev(major, 0)) == NODEV && i--)
+    major &= ~(1 << i);
+
+  if (minor_mask == NODEV)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "makedev error: %s\n", strerror(errno));
+    goto error;
+  }
+
+  BK_RETURN(B, !(st.st_dev & ~minor_mask));
+#else
+  BK_RETURN(B, !st.st_dev);
+#endif // defined mkdev && defined NODEV
+
+ error:
+  BK_RETURN(B, -1);
+}
+

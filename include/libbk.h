@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.187 2002/11/11 22:53:58 jtt Exp $
+ * $Id: libbk.h,v 1.188 2002/11/14 22:02:46 lindauer Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1671,6 +1671,8 @@ extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils
 extern void *bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type, const char *admin_ext, const char *lock_ext, int *held, bk_flags flags);
 extern int bk_file_unlock(bk_s B, void *opaque, bk_flags flags);
 extern int bk_fileutils_match_extension(bk_s B, const char *path, const char * const *exts);
+extern int bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags);
+
 
 
 /* b_addrgroup.c */
