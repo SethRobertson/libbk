@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.179 2002/09/28 23:25:29 seth Exp $
+ * $Id: libbk.h,v 1.180 2002/09/29 16:26:09 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -810,12 +810,6 @@ do {						\
 #define BK_NSECTOUSEC(x) ((x)*1000000/1000000000) ///< Conver nano to micro
 // @}
 
-
-/*
- * time_t may be a long, unsigned long, or even a struct(!); this really
- * needs to be defined in a system-dependent way (and renamed!)
- */
-#define BK_ARMAGEDDON	ULONG_MAX		///< The End of All Things.
 
 /** @brief Special symbol which means resolve to "any" address. */
 #define BK_ADDR_ANY "bk_addr_any"
