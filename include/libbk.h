@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.247 2003/06/20 18:19:24 jtt Exp $
+ * $Id: libbk.h,v 1.248 2003/06/24 21:33:00 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -301,6 +301,27 @@ struct bk_general
 #define BK_GENERAL_FLAG_ISTHREADREADY(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADREADY) ///< Is threading on?
 #define bk_general_thread_create(B, name, start, opaque, flags) bk_thread_create(B, BK_GENERAL_TLIST(B), name, start, opaque, flags)
 // @}
+
+#ifdef BK_USING_PTHREADS						
+#define BK_SIMPLE_LOCK(B, lockp)					\
+do {									\
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(lockp) != 0)	\
+    abort();								\
+} while(0)
+#else /* BK_USING_PTHREADS */						
+#define BK_SIMPLE_LOCK(B, lockp) do {} while(0)
+#endif /* BK_USING_PTHREADS */						
+
+
+#ifdef BK_USING_PTHREADS							
+#define BK_SIMPLE_UNLOCK(B, lockp)						\
+do {										\
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(lockp) != 0)	\
+    abort();									\
+} while(0)
+#else /* BK_USING_PTHREADS */							
+#define BK_SIMPLE_UNLOCK(B, lockp) do {} while(0)
+#endif /* BK_USING_PTHREADS */							
 
 
 /**
@@ -1298,24 +1319,6 @@ struct bk_symbol
 
 
 
-#define bsr_create(o,k,f)	dll_create((o),(k),(f))
-#define bsr_destroy(h)		dll_destroy(h)
-#define bsr_insert(h,o)		dll_insert((h),(o))
-#define bsr_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
-#define bsr_append(h,o)		dll_append((h),(o))
-#define bsr_append_uniq(h,n,o)	dll_append_uniq((h),(n),(o))
-#define bsr_search(h,k)		dll_search((h),(k))
-#define bsr_delete(h,o)		dll_delete((h),(o))
-#define bsr_minimum(h)		dll_minimum(h)
-#define bsr_maximum(h)		dll_maximum(h)
-#define bsr_successor(h,o)	dll_successor((h),(o))
-#define bsr_predecessor(h,o)	dll_predecessor((h),(o))
-#define bsr_iterate(h,d)	dll_iterate((h),(d))
-#define bsr_nextobj(h,i)	dll_nextobj((h),(i))
-#define bsr_iterate_done(h,i)	dll_iterate_done((h),(i))
-#define bsr_error_reason(h,i)	dll_error_reason((h),(i))
-
-
 /* b_general.c */
 extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, struct bk_config_user_pref *bcup, int error_queue_length, int log_facility, bk_flags flags);
 #define BK_GENERAL_NOPROCTITLE 1		///< Specify that proctitle is not desired during general baka initialization
@@ -1732,9 +1735,10 @@ extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
 extern void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset);
 extern bk_str_registry_t bk_string_registry_init(bk_s B);
 extern void bk_string_registry_destroy(bk_s B, bk_str_registry_t handle);
-extern bk_str_id_t bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags);
+extern bk_str_id_t bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_str_id_t id, bk_flags flags);
 #define BK_STR_REGISTRY_FLAG_COPY_STR	0x1	///< strdup(3) this string instead of just copying the pointer.
-extern int bk_string_registry_delete(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags);
+extern int bk_string_registry_delete_str(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags);
+extern int bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags);
 extern bk_str_id_t bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags);
 extern const char *bk_string_registry_strbyid(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags);
 extern char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **envdb, bk_flags flags);

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_inline.h,v 1.6 2003/06/19 18:25:59 jtt Exp $
+ * $Id: libbk_inline.h,v 1.7 2003/06/24 21:33:00 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -28,14 +28,17 @@
  * significant performance gains. The limitations on the use are that we
  * only support unordered lists without either unique keys or searching
  * available (ie in CLC speak there are no object-object or key-object
- * compares). Thus this is useful only when you need only insert/delete and
+ * compares). Thus this is possible when you need only insert/delete and
  * iteratate. But this covers a surprising number of cases. BAKA dll's also
  * have the drawback in that it gains some its performance at the cost of
  * intruding on your datastructures. You *must* have the first two fields
- * of DS be pointers which will form the links in the opposing directions.
+ * of DS be pointers which will form the links in the opposing
+ * directions. Finally they suffer from the fact that you can only include
+ * any given object in (exactly) one list; if you need to insert it in more
+ * than one than you have to use normal CLC dll's for all but one.
  *
  * You make BAKA dll's look "just like" CLC dll's via the usual #define
- * trickery.
+ * trickery. Indeed you should.
  *
  * For performance and API reasons these functions are intionally *not*
  * BAKAfied. In addition we maintain *full* CLCL compatibility in the sense

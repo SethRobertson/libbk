@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.90 2003/06/23 23:25:15 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.91 2003/06/24 21:33:00 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -29,17 +29,18 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 char **environ;
 
 
-
 /**
  * @name bk_str_registry
  * This the container for the registry.
  */
 struct bk_str_registry
 {
-  bk_flags		bsr_flags;		///< EVeryone needs flags. (NB Shares flags space with bk_str_registry_element
-  dict_h		bsr_repository;		///< The repository of strings.
+  bk_flags				bsr_flags; ///< EVeryone needs flags. (NB Shares flags space with bk_str_registry_element
+  struct bk_str_registry_element **	bsr_registry; ///< Array of registry items.
+  u_int 				bsr_next_index;	///< The next registry index to assign.
+  u_int					bsr_registrysz;	///< The current allocated size of the registry.
 #ifdef BK_USING_PTHREADS
-  pthread_mutex_t	bsr_inslock;		///< Insert lock
+  pthread_mutex_t			bsr_lock; ///< Insert lock
 #endif /* BK_USING_PTHREADS */
 };
 
@@ -88,7 +89,6 @@ struct bk_str_registry_element
  */
 #define LIMITNOTREACHED	(!limit || (limit > 1 && limit--))
 
-static ht_val bsr_oo_cmp(struct bk_str_registry_element *a, struct bk_str_registry_element *b);
 static struct bk_str_registry_element *bsre_create(bk_s B, const char *str, bk_flags flags);
 static void bsre_destroy(bk_s B, struct bk_str_registry_element *bsre);
 
@@ -1712,11 +1712,15 @@ bk_string_registry_init(bk_s B)
     goto error;
   }
 
-  if (!(bsr->bsr_repository = bsr_create((int(*)(dict_obj, dict_obj))bsr_oo_cmp, NULL, DICT_ORDERED|bk_thread_safe_if_thread_ready)))
+  if (!(BK_MALLOC_LEN(bsr->bsr_registry, (sizeof(*bsr->bsr_registry) * 1024))))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create string registry repository: %s\n", bsr_error_reason(NULL, NULL));
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate initial chunk for string registry: %s\n", strerror(errno));
     goto error;
   }
+  bsr->bsr_registrysz = 1024;
+  // We purposefully leave 0 unregistered. We *could* program around this, but why bother?
+  bsr->bsr_next_index = 1;
+  bsr->bsr_registry[0] = NULL;
 
   BK_RETURN(B,bsr);
 
@@ -1741,24 +1745,24 @@ bk_string_registry_destroy(bk_s B, bk_str_registry_t handle)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
-  struct bk_str_registry_element *bsre;
+  u_int cnt;
 
   if (!bsr)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_VRETURN(B);
   }
-
-  while(bsre = bsr_minimum(bsr->bsr_repository))
+  
+  if (bsr->bsr_registry)
   {
-    if (bsr_delete(bsr->bsr_repository, bsre) != DICT_OK)
+    for(cnt = 0; cnt < bsr->bsr_next_index; cnt++)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not delete element from string registry during destroy\n");
-      break;
+      if (bsr->bsr_registry[cnt])
+	bsre_destroy(B, bsr->bsr_registry[cnt]);
     }
-    bsre_destroy(B, bsre);
+
+    free(bsr->bsr_registry);
   }
-  bsr_destroy(bsr->bsr_repository);
 
   free(bsr);
   BK_VRETURN(B);
@@ -1876,7 +1880,8 @@ bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
-  struct bk_str_registry_element *bsre;
+  struct bk_str_registry_element *bsre = NULL;
+  u_int cnt;
 
   if (!bsr || !str)
   {
@@ -1884,11 +1889,10 @@ bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk
     BK_RETURN(B, 0);
   }
 
-  for(bsre = bsr_minimum(bsr->bsr_repository);
-      bsre;
-      bsre = bsr_successor(bsr->bsr_repository, bsre))
+  for(cnt = 0; cnt < bsr->bsr_next_index; cnt++)
   {
-    if (BK_STREQ(bsre->bsre_str, str))
+    bsre = bsr->bsr_registry[cnt];
+    if (bsre && BK_STREQ(bsre->bsre_str, str))
       break;
   }
 
@@ -1904,18 +1908,19 @@ bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, const char *str, bk
  * THREADS: THREAD-REENTRANT (otherwise)
  *
  *	@param B BAKA thread/global state.
+ *	@param handle The handle on the registry.
  *	@param str The string to delete.
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_string_registry_delete(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags)
+bk_string_registry_delete_str(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre;
-  int ret;
+  u_int cnt;
 
   if (!bsr || !str)
   {
@@ -1923,32 +1928,55 @@ bk_string_registry_delete(bk_s B, bk_str_registry_t handle, const char *str, bk_
     BK_RETURN(B, -1);
   }
 
-  for(bsre = bsr_minimum(bsr->bsr_repository);
-      bsre;
-      bsre = bsr_successor(bsr->bsr_repository, bsre))
+  for(cnt = 0; cnt < bsr->bsr_next_index; cnt++)
   {
-    if (BK_STREQ(bsre->bsre_str, str))
+    bsre = bsr->bsr_registry[cnt];
+    if (bsre && BK_STREQ(bsre->bsre_str, str))
       break;
   }
 
-  if (!bsre)
+  BK_RETURN(B,bk_string_registry_delete_id(B, handle, cnt, flags));
+}
+
+  
+
+
+/**
+ * Delete a registry object via its id.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param handle The handle on the registry.
+ *	@param id The index of the entry to delete
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_string_registry_delete_id(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
+  struct bk_str_registry_element *bsre;
+  bk_str_id_t ret;
+
+  if (!handle || !id) // id == 0 is reserved and never assigned.
   {
-    bk_error_printf(B, BK_ERR_WARN, "Could not locate string to delete in string registry\n");
-    // We call this success.
-    BK_RETURN(B,0);
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
   }
 
-#ifdef BK_USING_PTHREADS
-  if (pthread_mutex_lock(&bsre->bsre_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  if (id >= bsr->bsr_next_index || !(bsre = bsr->bsr_registry[id]))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Registry element %d either does not exist or has already been deleted\n", id);
+    // We call this success.
+    BK_RETURN(B,0);    
+  }
+
+  BK_SIMPLE_LOCK(B, &bsre->bsre_lock);
 
   ret = --bsre->bsre_ref;
 
-#ifdef BK_USING_PTHREADS
-  if (pthread_mutex_unlock(&bsre->bsre_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_UNLOCK(B, &bsre->bsre_lock);
 
   if (ret)
   {
@@ -1956,17 +1984,33 @@ bk_string_registry_delete(bk_s B, bk_str_registry_t handle, const char *str, bk_
     BK_RETURN(B,0);
   }
 
-  if (bsr_delete(bsr->bsr_repository, bsre) != DICT_OK)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not delete string registry element from repository\n");
-    goto error;
-  }
-
   bsre_destroy(B, bsre);
-  BK_RETURN(B,0);
+  
+  BK_SIMPLE_LOCK(B, &bsr->bsr_lock);
+  
+  bsr->bsr_registry[id] = NULL;
+  /*
+   * If we're acutally deleting the entry with the highest index then we
+   * actually "recover" the space (by descrementing next_index). We *only*
+   * special case the top index for two reasons: 1) it's easy to recover
+   * this space ("recovering" an index less then the highest can only be
+   * done by a search at insert time) and 2) it (more or less) covers the
+   * "common" case where an object was registered during its creation but
+   * then, owing to some chance, has its creation rolled back. This is the
+   * most likely cause of a delete occuring before the total destruction of
+   * the registry.
+   *
+   * And actually while we're at it we pick up any deleted entries which
+   * happen to be adjacent to the end. Why not?
+   */
 
- error:
-  BK_RETURN(B,-1);
+  if (id == bsr->bsr_next_index-1)
+    while (!bsr->bsr_registry[id--])
+      bsr->bsr_next_index--;
+
+  BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
+
+  BK_RETURN(B,0);
 }
 
 
@@ -1987,111 +2031,93 @@ bk_string_registry_delete(bk_s B, bk_str_registry_t handle, const char *str, bk_
  *	@return <i>positive</i> on success.
  */
 bk_str_id_t
-bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_flags flags)
+bk_string_registry_insert(bk_s B, bk_str_registry_t handle, const char *str, bk_str_id_t id, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_str_registry *bsr = (struct bk_str_registry *)handle;
   struct bk_str_registry_element *bsre = NULL;
-  bk_str_id_t id = 0;
-  bk_str_id_t tmp = 1;
-  int inserted = 0;
-  int list_empty = 1;
+  int locked = 0;
 
-  if (!bsr || !str)
+  if (!bsr || !(str || id))
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, 0);
   }
 
-#ifdef BK_USING_PTHREADS
-  if (pthread_mutex_lock(&bsr->bsr_inslock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_LOCK(B, &bsr->bsr_lock);
+  locked = 1;
 
-  for(bsre = bsr_minimum(bsr->bsr_repository);
-      bsre;
-      bsre = bsr_successor(bsr->bsr_repository, bsre))
+  /*
+   * Assuming that we're not just updating an existing node and chaging
+   * right ahead with allocating more space for an insert if needed may be
+   * touch aggressive, but it results in at *most* one extra realloc(3).
+   */
+  if (bsr->bsr_next_index == bsr->bsr_registrysz)
   {
-    list_empty = 0;
-
-    if (BK_STREQ(bsre->bsre_str, str))
-      break;
-
-    if (id == 0)
+    struct bk_str_registry_element **tmp;
+    if (!(tmp = realloc(bsr->bsr_registry, sizeof(*bsr->bsr_registry) * (bsr->bsr_registrysz + 1024))))
     {
-      if (tmp != bsre->bsre_id)
-      {
-	// We've located the next ID (just in case this is an insert).
-	id = tmp;
-      }
-      else
-      {
-	tmp++;
-      }
+      bk_error_printf(B, BK_ERR_ERR, "Could not expand string registry: %s\n", strerror(errno));
+      goto error;
     }
+    bsr->bsr_registry = tmp;
+    bsr->bsr_registrysz += 1024;
   }
 
-#ifdef BK_USING_PTHREADS
-  if (pthread_mutex_unlock(&bsr->bsr_inslock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
-
-  if (!id && tmp)
-    id = tmp;
-
-  if (!bsre)
+  if (!id)
   {
-    if (id == 0 && !list_empty)
+    u_int cnt;
+    for(cnt = 0; cnt < bsr->bsr_next_index; cnt++)
     {
-      // We've used up all the available ID's (!!) Must return error.
-      bk_error_printf(B, BK_ERR_ERR, "No more available ID's in the string registry. Insert aborted\n");
-      goto error;
+      bsre = bsr->bsr_registry[cnt];
+      if (bsre && BK_STREQ(str, bsre->bsre_str))
+	break;
     }
-
-
-    if (!(bsre = bsre_create(B, str, flags)))
+    
+    if (cnt == bsr->bsr_next_index)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not create string registry element\n");
-      goto error;
+      if (!(bsre = bsre_create(B, str, flags)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not create string registry element\n");
+	goto error;
+      }
+      bsre->bsre_id = bsr->bsr_next_index;
+      bsr->bsr_registry[bsr->bsr_next_index] = bsre;
+      bsr->bsr_next_index++;
     }
-
-    bsre->bsre_id = id;
-
-    if (bsr_append(bsr->bsr_repository, bsre) != DICT_OK)
-    {
-      bk_error_printf(B, BK_ERR_ERR,
-		      "Could not insert string into registry: %s\n",
-		      bsr_error_reason(bsr->bsr_repository, NULL));
-      goto error;
-    }
-    inserted = 1;
   }
+  else if (id >= bsr->bsr_next_index || !(bsre = bsr->bsr_registry[id]))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Registry object %d does not exist or has been deleted\n", id);
+    BK_RETURN(B,0);      
+  }
+  
+  BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
+  locked = 0;
 
-#ifdef BK_USING_PTHREADS
-  if (pthread_mutex_lock(&bsre->bsre_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+
+  BK_SIMPLE_LOCK(B, &bsre->bsre_lock);
 
   bsre->bsre_ref++;
 
-#ifdef BK_USING_PTHREADS
-  if (pthread_mutex_unlock(&bsre->bsre_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_UNLOCK(B, &bsre->bsre_lock);
+
 
   BK_RETURN(B,bsre->bsre_id);
 
  error:
   if (bsre)
   {
-    if (inserted && bsr_delete(bsr->bsr_repository, bsre) != DICT_OK)
-    {
-      bk_error_printf(B, BK_ERR_ERR,
-		      "Could not delete new string from registry: %s\n",
-		      bsr_error_reason(bsr->bsr_repository, NULL));
-    }
-    bsre_destroy(B, bsre);
+    // If we've inserted id, do a full delete, otherwise just nuke the bsre element.
+    if (bsre->bsre_id)
+      bk_string_registry_delete_id(B, bsr, bsre->bsre_id, 0);
+    else
+      bsre_destroy(B, bsre);
   }
+
+  if (locked)
+    BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
+
   BK_RETURN(B,0);
 }
 
@@ -2120,26 +2146,21 @@ bk_string_registry_strbyid(bk_s B, bk_str_registry_t handle, bk_str_id_t id, bk_
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
+  
+  BK_SIMPLE_LOCK(B, &bsr->bsr_lock);
 
-  for(bsre = bsr_minimum(bsr->bsr_repository);
-      bsre;
-      bsre = bsr_successor(bsr->bsr_repository, bsre))
+  if ((id >= bsr->bsr_next_index) || (!(bsre = bsr->bsr_registry[id])))
   {
-    if (bsre->bsre_id == id)
-      break;
-  }
-
-  if (!bsre)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not locate ID %d in string registry\n", id);
+    bk_error_printf(B, BK_ERR_ERR, "String registry object %d does not exist or has already been deleted\n", id);
+    BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
     BK_RETURN(B,NULL);
   }
-  BK_RETURN(B,bsre->bsre_str);
-}
 
-static ht_val bsr_oo_cmp(struct bk_str_registry_element *a, struct bk_str_registry_element *b)
-{
-  return(a->bsre_id - b->bsre_id);
+  BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
+
+  // <WARNING> DANGER WILL ROBINSON!! This string might get deleted beneath us.
+
+  BK_RETURN(B,bsre->bsre_str);
 }
 
 

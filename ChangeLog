@@ -1,3 +1,8 @@
+2003-06-24  James Tanis  <jtt@hawking.sysdetect.com>
+
+	* lib/b_string.c: Convert registry to use array as DS, no dll. Why
+	didn't I think of this before?
+
 2003-06-20  James Tanis  <jtt@austin.sysdetect.com>
 
 	* lib/b_pollio.c (polling_io_ioh_handler): Avoid calling
