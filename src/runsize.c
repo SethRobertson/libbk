@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: runsize.c,v 1.2 2004/06/04 02:50:11 seth Exp $";
+static const char libbk__rcsid[] = "$Id: runsize.c,v 1.3 2004/06/07 09:11:09 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -54,6 +54,8 @@ struct program_config
   bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x001			///< Verbose output
 #define PC_SUBST	0x002			///< Want substitution
+#define PC_WAIT		0x004			///< Wait for confirmation
+#define PC_QUIET	0x008			///< Do not print sizing
 };
 
 
@@ -80,6 +82,7 @@ main(int argc, char **argv, char **envp)
   pid_t childpid = 0;
   int verbose_level = 0;
   int status, counter = 0;
+  u_int offset = 0;
   int infd = -1;
   char i18n_localepath[_POSIX_PATH_MAX];
   char *i18n_locale;
@@ -93,7 +96,9 @@ main(int argc, char **argv, char **envp)
     {"seatbelts", 0, POPT_ARG_NONE, NULL, 0x1001, N_("Enable function tracing"), NULL },
     {"profiling", 0, POPT_ARG_STRING, NULL, 0x1002, N_("Enable and write profiling data"), N_("filename") },
 
+    {"wait", 'w', POPT_ARG_NONE, NULL, 'w', N_("Wait for user confirmation when calling subprocess"), NULL },
     {"size", 's', POPT_ARG_STRING, NULL, 's', N_("Number of bytes for a particular program"), N_("bytes") },
+    {"quiet", 'q', POPT_ARG_NONE, NULL, 'q', N_("Do not print output byte information"), NULL },
     {"counter", 'c', POPT_ARG_NONE, NULL, 'c', N_("Want counter %d substitution"), NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
@@ -204,6 +209,10 @@ main(int argc, char **argv, char **envp)
       BK_FLAG_SET(pc->pc_flags, PC_SUBST);
       break;
 
+    case 'w':					// Counter substitution
+      BK_FLAG_SET(pc->pc_flags, PC_WAIT);
+      break;
+
     case 's':					// size
       {
 	double size = bk_string_demagnify(B, poptGetOptArg(optCon), 0);
@@ -241,7 +250,6 @@ main(int argc, char **argv, char **envp)
     u_quad_t diff;
     u_int readsize;
     int deferred_open = 0;
-    u_int offset = 0;
 
     if (cur >= pc->pc_size)
     {
@@ -280,6 +288,27 @@ main(int argc, char **argv, char **envp)
 	bk_error_printf(B, BK_ERR_NOTICE, "%d Exited with status %d\n", childpid, status);
       }
 
+      if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_QUIET) && counter)
+      {
+	double size = offset;
+	char *mag = bk_string_magnitude(B, size, 3, "B", NULL, 0, BK_STRING_MAGNITUDE_POWER10);
+	printf("Group %d output-ed %u or around %s bytes\n", counter, offset, mag);
+	if (mag) free(mag);
+      }
+
+      if (BK_FLAG_ISSET(pc->pc_flags, PC_WAIT))
+      {
+	char buf1[MAXSIZE];
+	FILE *tty = fopen("/dev/tty","r");
+
+	fprintf(stderr,"Ready to execute %s for group %d.  Please press return.\n", argv[0], counter+1);
+	if (!tty || !fgets(buf1, sizeof(buf1), tty))
+	{
+	  fprintf(stderr,"Cannot read: %s\n", strerror(errno));
+	}
+	fclose(tty);
+      }
+
       if (BK_FLAG_ISSET(pc->pc_flags, PC_SUBST))
       {
 	if (!BK_MALLOC_LEN(dupargv, sizeof(char *)*argc))
@@ -287,15 +316,15 @@ main(int argc, char **argv, char **envp)
 	  bk_error_printf(B, BK_ERR_ERR, "Malloc failed: %s\n", strerror(errno));
 	  bk_die(B, 254, stderr, _("Memory failed\n"), BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 	}
-	for(retcode = 0; argv[retcode]; retcode++)
+	for(c = 0; argv[c]; c++)
 	{
-	  if (!(dupargv[retcode] = bk_string_alloc_sprintf(B, 0, 0, argv[retcode], counter)))
+	  if (!(dupargv[c] = bk_string_alloc_sprintf(B, 0, 0, argv[c], counter)))
 	  {
 	    bk_error_printf(B, BK_ERR_ERR, "alloc sprintf failed: %s\n", strerror(errno));
 	    bk_die(B, 254, stderr, _("Memory failed\n"), BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 	  }
 	}
-	dupargv[retcode] = NULL;
+	dupargv[c] = NULL;
 	counter++;
       }
 
@@ -308,8 +337,8 @@ main(int argc, char **argv, char **envp)
       deferred_open = 0;
       if (BK_FLAG_ISSET(pc->pc_flags, PC_SUBST))
       {
-	for(retcode = 0; dupargv[retcode]; retcode++)
-	  free(dupargv[retcode]);
+	for(c = 0; dupargv[c]; c++)
+	  free(dupargv[c]);
 	free(dupargv);
       }
     }
@@ -328,6 +357,14 @@ main(int argc, char **argv, char **envp)
       bk_error_printf(B, BK_ERR_ERR, "Write error: %s\n", strerror(errno));
       bk_die(B, 254, stderr, _("Write failed\n"), BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     }
+  }
+
+  if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_QUIET) && counter)
+  {
+    double size = offset;
+    char *mag = bk_string_magnitude(B, size, 3, "B", NULL, 0, BK_STRING_MAGNITUDE_POWER10);
+    printf("Group %d output-ed %u or around %s bytes\n", counter, offset, mag);
+    if (mag) free(mag);
   }
   if (infd >= 0)
     close(infd);
