@@ -1,3 +1,9 @@
+2003-06-30  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_exec.c (bk_pipe_to_exec): using BK_GWD for /dev/null path is
+	far more likely to be used by hacker to redirect to /etc/passwd than
+	to ever be needed by a sysadmin who is not totally psychotic
+	
 2003-06-27  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* src/bk_daemon.c: Add old daemonizing program to starting libbk

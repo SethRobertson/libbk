@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.95 2003/06/26 21:14:07 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.96 2003/06/30 23:41:51 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -441,10 +441,10 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
     }
     else
     {
-      if (BK_STRING_ATOI(B, BK_GWD(B, "bk_follow_pause", "1"),
+      if (BK_STRING_ATOI(B, BK_GWD(B, "read_follow_pause", "1"),
 			 &curioh->ioh_follow_pause, 0) < 0)
       {
-	bk_error_printf(B, BK_ERR_ERR, "bk_follow_pause not a valid integer\n");
+	bk_error_printf(B, BK_ERR_ERR, "invalid read_follow_pause\n");
 	goto error;
       }
       check_follow(B, curioh, 0);
