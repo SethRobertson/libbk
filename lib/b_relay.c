@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_relay.c,v 1.13 2002/01/21 03:11:08 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_relay.c,v 1.14 2002/01/21 17:39:30 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -156,7 +156,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   case BkIohStatusIncompleteRead:
   case BkIohStatusReadComplete:
     // Coalesce into one buffer for output
-    if (!(newcopy = bk_ioh_coalesce(B, data, NUL, 0)))
+    if (!(newcopy = bk_ioh_coalesce(B, data, NULL, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
       goto error;
