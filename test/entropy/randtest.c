@@ -42,7 +42,7 @@ double log2(double x);
 static int mp, sccfirst;
 static unsigned int monte[MONTEN];
 static long inmont, mcount;
-static double a, cexp, incirc, montex, montey, montepi,
+static double a, cntexp, incirc, montex, montey, montepi,
 	      scc, sccun, sccu0, scclast, scct1, scct2, scct3,
 	      ent, chisq, datasum;
 
@@ -159,11 +159,11 @@ void rt_end(double *r_ent, double *r_chisq, double *r_mean,
     /* Scan bins and calculate probability for each bin and
        Chi-Square distribution */
 
-    cexp = totalc / (binary ? 2.0 : 256.0);  /* Expected count per bin */
+    cntexp = totalc / (binary ? 2.0 : 256.0);  /* Expected count per bin */
     for (i = 0; i < (binary ? 2 : 256); i++) {
        prob[i] = (double) ccount[i] / totalc;
-       a = ccount[i] - cexp;
-       chisq = chisq + (a * a) / cexp;
+       a = ccount[i] - cntexp;
+       chisq = chisq + (a * a) / cntexp;
        datasum += ((double) i) * ccount[i];
     }
 

@@ -1,3 +1,7 @@
+2004-12-01  Brian Lindauer  <lindauer@nicks.sysdetect.com>
+
+	* test/entropy/randtest.c (rt_end): Don't shadow new builtin cexp function.
+
 2004-11-22    <jbl@localhost.localdomain>
 
 	* include/libbk.h (BK_STRCMP): Added BK_STRCMP.
