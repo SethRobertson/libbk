@@ -5,3 +5,5 @@ include
 	- Files of common interest to many source files
 lib
 	- Main core of the system
+Makefile
+	- Control of how to compile and build the system.
