@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_search.c,v 1.15 2004/09/27 15:03:41 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_search.c,v 1.16 2004/12/14 23:44:58 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -235,7 +235,7 @@ bkxml_attrnode_valbyname(bk_s B, xmlNodePtr node, const char *findname, bk_flags
 
   if (!(attr = bkxml_attrsearch(B, node, findname, flags)))
   {
-    bk_error_printf(B, BK_ERR_WARN, "Could not locate attribute: %s\n", findname);
+    bk_error_printf(B, BK_ERR_NOTICE, "Could not locate attribute: %s\n", findname);
     BK_RETURN(B,NULL);    
   }
   
