@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.9 2001/11/15 19:52:15 seth Exp $
+ * $Id: libbk_include.h,v 1.10 2001/11/16 21:30:03 brian Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -29,6 +29,7 @@
 #include <memory.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <libintl.h>
 #include <limits.h>
 #include <popt.h>
 #include <assert.h>
