@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.102 2003/12/01 23:55:25 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.103 2003/12/09 23:11:12 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -913,16 +913,19 @@ void bk_ioh_shutdown(bk_s B, struct bk_ioh *ioh, int how, bk_flags flags)
       BK_FLAG_SET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT);
   }
 
+#if 0
+  /*
+   * <TODO>ioh_readallowed is pointless here, since it has no effect if
+   * SHUTDOWN_INPUT or ERROR_INPUT are set.  Figure out what, if anything,
+   * should be done here, or just remove the useless code entirely</TODO>
+   */
   if (ioh->ioh_fdin >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT|IOH_FLAGS_ERROR_INPUT))
   {
-    /*
-     * <TODO>ioh_readallowed is probably not wanted here, since it has no
-     * effect if SHUTDOWN_INPUT or ERROR_INPUT are set.  figure out what, if
-     * anything, should be done here</TODO>
-     */
-    // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0); // Clear read
+    // Clear read
+    // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0);
     bk_ioh_readallowed(B, ioh, 0, IOH_FLAG_ALREADYLOCKED);
   }
+#endif
 
   if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
     bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdout, 0, BK_RUN_WANTWRITE, 0); // Clear write
@@ -1041,7 +1044,8 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
 
   if (ioh->ioh_fdin < 0 || BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_INPUT | IOH_FLAGS_ERROR_INPUT | IOH_FLAGS_SHUTDOWN_DESTROYING))
   {
-    bk_error_printf(B, BK_ERR_WARN, "You cannot manipulate the read desirability if input is technically impossible\n");
+    bk_error_printf(B, BK_ERR_WARN, "Cannot enable/disable read on ioh after"
+		    " error or shutdown\n");
     BK_RETURN(B,-1);
   }
 
