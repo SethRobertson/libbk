@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.15 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.16 2002/07/23 02:56:29 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -391,7 +391,7 @@ void bk_debug_config(bk_s B, struct bk_debug *bdinfo, FILE *fh, int sysloglevel,
  *	@param bdinfo Debug handle
  *	@param buf The string to use as debugging information
  */
-void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf)
+void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, const char *buf)
 {
   const char *funname;
   int tmp;
@@ -445,7 +445,7 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf)
  *	@param ... The printf-style arguments
  *	@see bk_debug_iprint
  */
-void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, char *format, ...)
+void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, const char *format, ...)
 {
   va_list args;
   char buf[MAXDEBUGLINE];
@@ -477,7 +477,7 @@ void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, char *format, ...)
  *	@param buf The vectored binary data to be printed
  *	@see bk_debug_iprint
  */
-void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, char *intro, char *prefix, bk_vptr *buf)
+void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, const char *intro, const char *prefix, const bk_vptr *buf)
 {
   char *out;
 
@@ -504,7 +504,7 @@ void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, char *intro, char *pref
  *	@param ap The varargs arguments for the "printf"
  *	@see bk_debug_iprint
  */
-void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, char *format, va_list ap)
+void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, const char *format, va_list ap)
 {
   char buf[MAXDEBUGLINE];
 

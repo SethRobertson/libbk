@@ -1,3 +1,15 @@
+2002-07-22  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* include/libbk.h (BK_STRING_ATOD_FLAG_ALLOW_INF, NAN): new flags,
+	add const to some debug, error print arguments
+	
+	* lib/b_string.c (bk_string_atod, bk_string_atof): allow infinity or
+	not-a-number if you ask for it with flags
+	
+	* lib/b_debug.c (bk_debug_*print*): add const to some arguments
+
+	* lib/b_error.c (bk_error_*print*): add const to some arguments
+
 2002-07-19  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_string.c (bk_strhash): Import new hash function.  Perl and

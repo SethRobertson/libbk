@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.45 2002/07/19 18:48:43 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.46 2002/07/23 02:56:29 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2104,7 +2104,8 @@ bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags)
  *	@param B BAKA thread/global state.
  *	@param string The input string to convert.
  *	@param value The converted value (only valid if return value is 0).
- *	@param flags Flags for future use.
+ *	@param flags BK_STRING_ATOD_FLAG_ALLOW_INF to accept infinite values,
+ *	BK_STRING_ATOD_FLAG_ALLOW_NAN to accept not-a-number values.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
@@ -2114,47 +2115,84 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   double tmp;
   char *end = NULL;
+  int err;
   int ret = 0;
   
   if (!string || !value)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
   
-  // Just make sure this is set.
-  *value = 0.0;
-
   // Set errno, just to be sure.
   errno = 0;
   tmp = strtod(string, &end);
+  err = errno;
   
   if (tmp == 0.0)
   {
-  // Potential error has occured. See strtod man page for expmanations
-    if (!end || string == end || errno)
+    // check for inf/nan unrecognized by libc strtod()
+    if (string == end && !BK_FLAG_ISCLEAR(flags, BK_STRING_ATOF_FLAG_ALLOW_INF|
+					  BK_STRING_ATOF_FLAG_ALLOW_NAN))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Conversion from string to double failed\n");
-      ret = -1;
+      double sign = 1.0;
+
+      switch (string[0])
+      {
+      case '-':
+	sign = -1.0;
+	/* FALLTHROUGH */
+      case '+':
+	string++;
+      }
+      if (BK_FLAG_ISSET(flags, BK_STRING_ATOF_FLAG_ALLOW_INF)
+	  && (!strcasecmp(string, "inf") || !strcasecmp(string, "infinity")))
+      {
+	*value = sign * INFINITY;
+	err = 0;				// prevent error check below
+	end = (char *) string + 1;
+      }
+      else if (BK_FLAG_ISSET(flags, BK_STRING_ATOF_FLAG_ALLOW_NAN)
+	       && !strncasecmp(string, "nan", 3))
+      {
+	*value = NAN;
+	err = 0;				// prevent error check below
+	end = (char *) string + 1;
+      }
     }
+
+    // potential error has occured. See strtod man page for explanations
+    if (!end || string == end || err == ERANGE)
+      ret = -1;
   }
-  else if ((tmp == HUGE_VAL || tmp == -HUGE_VAL) && errno)
+  else if ((tmp == HUGE_VAL || tmp == -HUGE_VAL) && err == ERANGE)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Conversion from string to double failed\n");
     ret = -1;
   }
-  else if (isinf(tmp) || isnan(tmp))
+  /*
+   * The glibc strod recognizes "inf"/"nan" (with any upper/lower combination)
+   * but most C libraries will not, however we check for it on all platforms.
+   */
+  else if ((BK_FLAG_ISCLEAR(flags, BK_STRING_ATOF_FLAG_ALLOW_INF) && isinf(tmp))
+	   || (BK_FLAG_ISCLEAR(flags, BK_STRING_ATOF_FLAG_ALLOW_NAN) && isnan(tmp)))
   {
-    /*
-     * It's unclear to jtt that we need this; it's unclear to seth that
-     * we don't. We err on the side of safety (and portability :-))
-     */
-    bk_error_printf(B, BK_ERR_ERR, "Conversion from string to double failed\n");
     ret = -1;
   }
   else
   {
     *value = tmp;
+  }
+
+  if (ret)
+  {
+    const char *errmsg;
+
+    if (err == ERANGE)
+      errmsg = "%s exceeds range of double precision\n";
+    else
+      errmsg = "%s is not a valid floating point number\n";
+
+    bk_error_printf(B, BK_ERR_ERR, errmsg, string);
   }
 
   BK_RETURN(B,ret);
@@ -2169,7 +2207,8 @@ bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags)
  *	@param B BAKA thread/global state.
  *	@param string The input string to convert.
  *	@param value The converted value (only valid if return value is 0).
- *	@param flags Flags for future use.
+ *	@param flags BK_STRING_ATOF_FLAG_ALLOW_INF to accept infinite values,
+ *	BK_STRING_ATOF_FLAG_ALLOW_NAN to accept not-a-number values.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
@@ -2182,18 +2221,25 @@ bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
 
   if (!string || !value)
   {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
   if ((ret = bk_string_atod(B, string, &tmp, flags)) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not convert string to float\n");
+    // bk_string_atod generated an error already, we can shut up
     ret = -1;
+  }
+  else if (isinf(tmp) || isnan(tmp))
+  {
+    // if bk_string_atod returned these, the flags say they are OK
+    *value = tmp;
   }
   else if (tmp < -FLT_MAX || tmp > FLT_MAX
 	   || (tmp != 0.0 && tmp < FLT_MIN && tmp > -FLT_MIN))
   {
+    bk_error_printf(B, BK_ERR_ERR, "%s exceeds range of single precision\n",
+		    string);
     ret = -1;
   }
   else

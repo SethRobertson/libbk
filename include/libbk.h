@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.156 2002/07/19 18:50:10 seth Exp $
+ * $Id: libbk.h,v 1.157 2002/07/23 02:56:28 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1111,10 +1111,10 @@ extern u_int32_t bk_debug_query(bk_s B, struct bk_debug *bdinfo, const char *fun
 extern int bk_debug_set(bk_s B, struct bk_debug *bdinfo, const char *name, u_int32_t level);
 extern int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config, const char *program);
 extern void bk_debug_config(bk_s B, struct bk_debug *bdinfo, FILE *fh, int sysloglevel, bk_flags flags);
-extern void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf);
-extern void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, char *format, ...) __attribute__ ((format (printf, 3, 4)));
-extern void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo,  char *intro, char *prefix, bk_vptr *buf);
-extern void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, char *format, va_list ap);
+extern void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, const char *buf);
+extern void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, const char *format, ...) __attribute__ ((format (printf, 3, 4)));
+extern void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, const char *intro, const char *prefix, const bk_vptr *buf);
+extern void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, const char *format, va_list ap);
 
 
 
@@ -1133,12 +1133,12 @@ extern void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen,
 extern void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 extern void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
 extern void bk_error_imark(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
-extern void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf);
-extern void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *format, ...) __attribute__ ((format (printf, 4,5)));
-extern void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *intro, char *prefix, bk_vptr *buf);
-extern void bk_error_ivprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *format, va_list ap);
-extern void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int minimumlevel, int sysloglevel, bk_flags flags);
-extern char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, char *mark, int minimumlevel, bk_flags flags);
+extern void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const char *buf);
+extern void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, const char *format, ...) __attribute__ ((format (printf, 4,5)));
+extern void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, const char *intro, const char *prefix, const bk_vptr *buf);
+extern void bk_error_ivprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, const char *format, va_list ap);
+extern void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, const char *mark, int minimumlevel, int sysloglevel, bk_flags flags);
+extern char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, const char *mark, int minimumlevel, bk_flags flags);
 
 
 
@@ -1364,7 +1364,11 @@ extern int bk_vstr_cat(bk_s B,  bk_flags flags, bk_vstr *dest, const char *src_f
 #define BK_VSTR_CAT_FLAG_STINGY_MEMORY		0x1 ///< Take more time; use less memory
 extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags);
 extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags);
+#define BK_STRING_ATOD_FLAG_ALLOW_INF 0x1
+#define BK_STRING_ATOD_FLAG_ALLOW_NAN 0x2
 extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags);
+#define BK_STRING_ATOF_FLAG_ALLOW_INF BK_STRING_ATOD_FLAG_ALLOW_INF
+#define BK_STRING_ATOF_FLAG_ALLOW_NAN BK_STRING_ATOD_FLAG_ALLOW_NAN
 extern void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset);
 
 

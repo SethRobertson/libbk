@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_error.c,v 1.24 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_error.c,v 1.25 2002/07/23 02:56:29 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -240,7 +240,7 @@ void bk_error_config(bk_s B, struct bk_error *beinfo, u_int16_t queuelen, FILE *
  *	@param beinfo The error state structure. 
  *	@param buf The error string to print.
  */
-void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf)
+void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const char *buf)
 {
   const char *funname;
   time_t curtime = time(NULL);
@@ -334,7 +334,7 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, char *buf
  *	@param format The error string to interpret in printf style.
  *	@param ... printf style arguments
  */
-void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *format, ...)
+void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, const char *format, ...)
 {
   va_list args;
   char buf[MAXERRORLINE];
@@ -365,7 +365,7 @@ void bk_error_iprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *fo
  *	@param prefix The leading characters in front of each line of error buffer output
  *	@param buf The raw data to be converted.
  */
-void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *intro, char *prefix, bk_vptr *buf)
+void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, const char *intro, const char *prefix, const bk_vptr *buf)
 {
   char *out;
 
@@ -389,7 +389,7 @@ void bk_error_iprintbuf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *
  *	@param format The error string to print in printf style.
  *	@param ap The printf arguments.
  */
-void bk_error_ivprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, char *format, va_list ap)
+void bk_error_ivprintf(bk_s B, int sysloglevel, struct bk_error *beinfo, const char *format, va_list ap)
 {
   char buf[MAXERRORLINE];
 
@@ -594,7 +594,7 @@ void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
  *	non-syslogged errors, BK_ERROR_FLAG_NO_FUN to only include original
  *	error message (no fun info).
  */
-void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int minimumlevel, int sysloglevel, bk_flags flags)
+void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, const char *mark, int minimumlevel, int sysloglevel, bk_flags flags)
 {
   struct bk_error_node *hi, *lo, *cur, *marknode;
 
@@ -669,7 +669,7 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int m
  *	error message (no fun info).
  *	@return <i>malloc'd string</i> on success (caller must free)<br><i>NULL</i> on error
  */
-char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, char *mark, int minimumlevel, bk_flags flags)
+char *bk_error_istrdump(bk_s B, struct bk_error *beinfo, const char *mark, int minimumlevel, bk_flags flags)
 {
   struct bk_error_node *hi, *lo, *cur, *marknode;
   struct bk_alloc_ptr *str = NULL;
