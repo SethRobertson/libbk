@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.62 2001/11/20 19:56:13 jtt Exp $
+ * $Id: libbk.h,v 1.63 2001/11/20 21:07:24 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -182,20 +182,6 @@ typedef enum
 
 
 /**
- * Possible reasons why a server callback may be called
- */
-typedef enum
-{
-  BK_SERVER_READY,				///< We are ready to accept, here is server reference
-  BK_SERVER_NEWCONNECTION,			///< Here is the new connection
-  BK_SERVER_CLOSE,				///< We are closing down
-  BK_SERVER_FAILED,				///< Could not create the server socket
-} bk_server_state_t;
-
-
-
-
-/**
  * Actions permitted in modifying fd flags
  */
 typedef enum 
@@ -227,13 +213,15 @@ typedef enum
  */
 typedef enum
 {
-  BK_ADDRGROUP_RESULT_OK=0,			///< Connection OK.
-  BK_ADDRGROUP_RESULT_DESTROYED,		///< We're being nuked.
-  BK_ADDRGROUP_RESULT_TIMEOUT,			///< Connection timedout.
-  BK_ADDRGROUP_RESULT_WIRE_ERROR,		///< Connection got an error off the wire.
-  BK_ADDRGROUP_RESULT_BAD_ADDRESS,		///< Something's wrong with the addresses in use.
-  BK_ADDRGROUP_RESULT_ABORT,			///< We've aborted for some reason
-} bk_addrgroup_result_t;
+  BK_ADDRGROUP_STATE_NULL=0,			///< Doesn't match any other state.
+  BK_ADDRGROUP_STATE_TIMEOUT,			///< Connection timedout.
+  BK_ADDRGROUP_STATE_WIRE_ERROR,		///< Connection got an error off the wire.
+  BK_ADDRGROUP_STATE_BAD_ADDRESS,		///< Something's wrong with the addresses in use.
+  BK_ADDRGROUP_STATE_ABORT,			///< We've aborted for some reason
+  BK_ADDRGROUP_STATE_NEWCONNECTION,		///< Here's a new connection
+  BK_ADDRGROUP_STATE_READY,			///< Server ready.
+  BK_ADDRGROUP_STATE_CLOSING,			///< We're closing.
+} bk_addrgroup_state_t;
 
 
 
@@ -252,7 +240,7 @@ typedef void (*bk_fd_handler_t)(bk_s B, struct bk_run *run, int fd, u_int gottyp
  * bogus owing to the fact that server listens (which aren't tehcnically
  * associations) and unconnected udp use this structure too. 
  */
-typedef void (*bk_bag_callback_t)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_result_t result);
+typedef void (*bk_bag_callback_t)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_t state);
 
 struct bk_addrgroup
 {
@@ -275,7 +263,7 @@ struct bk_addrgroup
 
 
 #define BK_ADDRGROUP_FLAG_DIVIDE_TIMEOUT	0x1 ///< Timeout should be divided among all addresses
-#define BK_ADDRGROUP_FLAG_WANT_ADDRGROUP	0x2 ///< I want a filled out addrgroup on my callback
+#define BK_ADDRGROUP_FLAG_WANT_ADDRGROUP	0x2 ///< I want a filled out addrgroup on my callback. If you take this you want it on both newconnection and server ready. You must destroy with bk_addrgroup_destroy()
 
 
 // @}
@@ -865,9 +853,11 @@ extern int bk_fileutils_modify_fd_flags(bk_s B, int fd, long flags, bk_fileutils
 extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_t callback, void *args, int backlog);
 void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
 
+#if 0
 /* b_server.c */
 typedef void (*bk_server_cb)(bk_s B, int newsock, void *opaque, bk_server_state_t state, struct bk_server_info *server);
 extern int bk_server_bind_fd(bk_s B, int servfd, char *securenets, bk_server_cb callback, void *opaque, bk_flags flags);
 extern int bk_server_bind(bk_s B, const char *servspec, char *securenets, bk_server_cb callback, void *opaque, bk_flags flags);
+#endif
 
 #endif /* _BK_h_ */

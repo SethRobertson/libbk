@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.9 2001/11/20 19:56:13 jtt Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.10 2001/11/20 21:07:24 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -558,7 +558,7 @@ local_name(bk_s B, struct bk_run *run, struct hostent **h, struct bk_netinfo *bn
  *	@return <i>0</i> on success.
  */
 static void 
-connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_result_t result)
+connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_t state)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
   struct program_config *pc;
@@ -570,27 +570,33 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     BK_VRETURN(B);
   }
 
-  switch (result)
+  switch (state)
   {
-  case BK_ADDRGROUP_RESULT_OK:
+  case BK_ADDRGROUP_STATE_READY:
+    fprintf(stderr,"Ready and waiting\n");
+    BK_VRETURN(B);
     break;
-  case BK_ADDRGROUP_RESULT_ABORT:
-  case BK_ADDRGROUP_RESULT_DESTROYED:
+  case BK_ADDRGROUP_STATE_NEWCONNECTION:
+    break;
+  case BK_ADDRGROUP_STATE_ABORT:
+  case BK_ADDRGROUP_STATE_CLOSING:
     fprintf(stderr,"Software shutdown during connection setup\n");
     break;
-  case BK_ADDRGROUP_RESULT_TIMEOUT:
+  case BK_ADDRGROUP_STATE_TIMEOUT:
     fprintf(stderr,"Connection timedout\n");
     break;
-  case BK_ADDRGROUP_RESULT_WIRE_ERROR:
+  case BK_ADDRGROUP_STATE_WIRE_ERROR:
     fprintf(stderr,"I/O Error\n");
     break;
-  case BK_ADDRGROUP_RESULT_BAD_ADDRESS:
+  case BK_ADDRGROUP_STATE_BAD_ADDRESS:
     fprintf(stderr,"Bad address\n");
+    break;
+  case BK_ADDRGROUP_STATE_NULL:
     break;
   }
 
 
-  if (result != BK_ADDRGROUP_RESULT_OK)
+  if (state != BK_ADDRGROUP_STATE_NEWCONNECTION)
   {
     goto error;
   }

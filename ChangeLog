@@ -1,3 +1,9 @@
+2001-11-20  James Tanis  <jtt@winwood.sysdetect.com>
+
+	* lib/b_addrgroup.c (do_net_init_af_inet_tcp_listen): Call back on
+	server ready.
+	Convert everybody to use state.
+
 2001-11-20  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_config.c (bk_config_get): Provide method to access config
