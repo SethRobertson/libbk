@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_string.c,v 1.89 2003/06/17 06:07:17 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_string.c,v 1.90 2003/06/23 23:25:15 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,6 +23,11 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+
+// uninit data declaration of environ to suppress libtool link warnings on BSD
+char **environ;
+
 
 
 /**
