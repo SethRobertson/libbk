@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.250 2003/07/02 02:28:03 seth Exp $
+ * $Id: libbk.h,v 1.251 2003/07/03 23:39:59 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1473,6 +1473,7 @@ extern int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags fla
 extern int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags);
 extern int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags);
 #define BK_RUN_ONCE_FLAG_DONT_BLOCK		0x1 ///<  Execute run once without blocking in select(2).
+#define BK_RUN_ONCE_FLAG_BLOCK			0x2 ///<  Execute run once normally (ie pause in select(2)). This option is mostly for callers of bk_run_once() to use themselves.
 extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, void *opaque, u_int wanttypes, bk_flags flags);
 // handler flags passed to bk_run_handle/poll_add/idle_add/on_demand/add
 #define BK_RUN_HANDLE_TIME			0x01 ///< user handler wants current time
