@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.55 2002/05/15 02:21:33 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.56 2002/05/16 22:32:04 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -495,7 +495,6 @@ int bk_ioh_write(bk_s B, struct bk_ioh *ioh, bk_vptr *data, bk_flags flags)
   if (!ioh || !data)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    if (ioh) CALL_BACK(B, ioh, data, BkIohStatusWriteAborted);
     BK_RETURN(B, -1);
   }
 
@@ -3313,7 +3312,7 @@ bk_vptr *bk_ioh_coalesce(bk_s B, bk_vptr *data, bk_vptr *curvptr, bk_flags in_fl
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate data during coalescing of %d bytes: %s\n", cdata, strerror(errno));
       goto error;
     }
-    new->len = cdata;
+    new->len = cdata + nulldata;
     optr = new->ptr;
 
     if (curvptr && curvptr->ptr && curvptr->len > 0)    
