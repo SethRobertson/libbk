@@ -1,4 +1,4 @@
-#!/bin/perl
+#!/usr/bin/perl
 #
 #
 # Add stats tables produced by baka statistics, produce a combined

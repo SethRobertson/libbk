@@ -1,4 +1,4 @@
-#!/bin/perl
+#!/usr/bin/perl
 #
 # Compare two stats tables produced by baka statistics, produce a
 # combined output file with relative order positions and percentage
