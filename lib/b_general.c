@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_general.c,v 1.16 2001/11/02 23:13:03 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_general.c,v 1.17 2001/11/06 20:31:14 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -19,17 +19,30 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
+/**
+ * @file
+ * The BAKA Thread/global state manipulation routines, providing basic, common, core libbk functionality
+ */
 
-extern char **environ;				/* Some morons (e.g. linux) do not define */
+
+
+extern char **environ;				/**< Some morons (e.g. linux) do not define the environment */
+
 
 
 static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***argv, char ***envp, char **program, bk_flags flags);
 static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_flags flags);
 
 
+/**
+ * @name Global NULL/zero values for macros to return when ``B'' is not defined
+ * (should be const, but this is not allowed in this context)
+ */
+// @{
 void *bk_nullptr = NULL;
 int bk_zeroint = 0;
 unsigned bk_zerouint = 0;
+// @}
 
 
 
@@ -88,8 +101,10 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
 
 
 
-/*
+/**
  * Destroy libbk state (generally not a good idea :-)
+ *
+ *	@param B BAKA Thread/global state
  */
 void bk_general_destroy(bk_s B)
 {
@@ -128,8 +143,10 @@ void bk_general_destroy(bk_s B)
 
 
 
-/*
- * Go through reinitialization
+/**
+ * Go through reinitialization of core BAKA routines and anyone else who has registered for reinit() services
+ *
+ *	@param B BAKA Thread/global information
  */
 void bk_general_reinit(bk_s B)
 {
@@ -143,8 +160,13 @@ void bk_general_reinit(bk_s B)
 
 
 
-/*
+/**
  * Add to the reinitialization database
+ *
+ *	@param B BAKA Thread/global information
+ *	@param bf_fun Function to be called on reinit
+ *	@param args Opaque argument to function
+ *	@see bk_funlist_insert
  */
 int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
@@ -154,8 +176,13 @@ int bk_general_reinit_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *
 
 
 
-/*
+/**
  * Remove from the reinitialization database
+ *
+ *	@param B BAKA Thread/global information
+ *	@param bf_fun Function to be deleted
+ *	@param args Argument to function to be deleted
+ *	@see bk_funlist_delete
  */
 int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
@@ -165,8 +192,13 @@ int bk_general_reinit_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *
 
 
 
-/*
+/**
  * Add to the destruction database
+ *
+ *	@param B BAKA Thread/global information
+ *	@param bf_fun Function to be called on reinit
+ *	@param args Opaque argument to function
+ *	@see bk_funlist_insert
  */
 int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
@@ -176,8 +208,13 @@ int bk_general_destroy_insert(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void 
 
 
 
-/*
+/**
  * Remove from the reinitialization database
+ *
+ *	@param B BAKA Thread/global information
+ *	@param bf_fun Function to be deleted
+ *	@param args Argument to function to be deleted
+ *	@see bk_funlist_delete
  */
 int bk_general_destroy_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void *args)
 {
@@ -187,8 +224,13 @@ int bk_general_destroy_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void 
 
 
 
-/*
+/**
  * Set up the per-thread information
+ *
+ *	@param B BAKA Thread/global information
+ *	@param name Name of thread
+ *	@return <i>NULL</i> on call failure, allocation failure, other failure
+ *	@return <br><i>Baka thread state</i> on success
  */
 bk_s bk_general_thread_init(bk_s B, char *name)
 {
@@ -231,8 +273,10 @@ bk_s bk_general_thread_init(bk_s B, char *name)
 
 
 
-/*
+/**
  * Destroy per-thread information
+ *
+ *	@param B BAKA Thread/global state
  */
 void bk_general_thread_destroy(bk_s B)
 {
@@ -251,8 +295,11 @@ void bk_general_thread_destroy(bk_s B)
 
 
 
-/*
+/**
  * Set the process title (if possible)
+ *
+ *	@param B BAKA Thread/global state
+ *	@param title The process title we want
  */
 void bk_general_proctitle_set(bk_s B, char *title)
 {
@@ -276,10 +323,17 @@ void bk_general_proctitle_set(bk_s B, char *title)
 
 
 
-/*
+/**
  * Syslog a message out to the system (if we were initialized)
  *
- * Note that %m is NOT supported
+ * Note that %m (strerror(errno)) is NOT supported
+ *
+ *	@param B BAKA Thread/global state
+ *	@param level The syslog level we wish to use
+ *	@param flags What additional data is logged
+ *	@param format The printf-style format of the message
+ *	@param ... The printf-style arguments
+ *	@see bk_general_vsyslog
  */
 void bk_general_syslog(bk_s B, int level, bk_flags flags, char *format, ...)
 {
@@ -294,10 +348,16 @@ void bk_general_syslog(bk_s B, int level, bk_flags flags, char *format, ...)
 
 
 
-/*
+/**
  * Syslog a message out to the system (if we were initialized)
  *
- * Note that %m is NOT supported
+ * Note that %m (strerror(errno)) is NOT supported
+ *
+ *	@param B BAKA Thread/global state
+ *	@param level The syslog level we wish to use
+ *	@param flags What added information to syslog (BK_SYSLOG_FLAG_NOLEVEL--error level to character string not desired; BK_SYSLOG_FLAG_NOFUN--function name not desired)
+ *	@param format The printf-style format of the message
+ *	@param ... The printf-style arguments
  */
 void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list args)
 {
@@ -340,8 +400,12 @@ void bk_general_vsyslog(bk_s B, int level, bk_flags flags, char *format, va_list
 
 
 
-/*
+/**
  * Decode error level to error string
+ *
+ *	@param B BAKA Thread/state information
+ *	@param level The baka log level to decode
+ *	@return <i>Error level string</i> which was found ("Unknown" if not known)
  */
 const char *bk_general_errorstr(bk_s B, int level)
 {
@@ -364,8 +428,15 @@ const char *bk_general_errorstr(bk_s B, int level)
 
 
 
-/*
- * Configure debugging
+/**
+ * Configure debugging on or off, and specify debugging destination.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param fh File handle to send debugging info to (NULL to disable)
+ *	@param sysloglevel The system log level to log debugging info at (BK_ERR_NONE to disable)
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> on call failure
+ *	@return <br><i>0</i> on success
  */
 int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags)
 {
@@ -392,8 +463,21 @@ int bk_general_debug_config(bk_s B, FILE *fh, int sysloglevel, bk_flags flags)
 
 
 
-/*
- * Initialize process title information & process name
+/**
+ * Initialize process title information & process name.
+ *
+ * Argv/envp is copied and original argv/envp is reset to new copies so that original memory can be reused
+ * for process title stuff.  Also sets the program name.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param argc The number of argument to the program
+ *	@param argv Pointer to @a argv from @a main() which will be modified/replicated
+ *	@param envp Pointer to @a ergv from @a main() which will be modified/replicated
+ *	@param program Copy-out program name
+ *	@param flags Fun for the future
+ *	@return <i>NULL</i> on allocation failure
+ *	@return <br><i>process title handle</i> on success
+ *	@return <br>@a argv @a envp @a program as copy-out
  */
 static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***argv, char ***envp, char **program, bk_flags flags)
 {
@@ -493,13 +577,17 @@ static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***
 
 
 
-/*
+/**
  * Destroy process title information
  *
  * N.B. Normally processes feel free to keep items like argv pointers
  * around for long periods of time--after all main() is not going to exit.
  * However, once you destroy, the (changed after proctitle_init) argv pointers
  * will be invalid.  Sigh.  Same with environment.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param PT Process title handle
+ *	@param flags Fun for the future
  */
 static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *PT, bk_flags flags)
 {

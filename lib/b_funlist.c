@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_funlist.c,v 1.2 2001/11/05 20:53:06 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_funlist.c,v 1.3 2001/11/06 20:31:14 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,10 +16,22 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
+/**
+ * @file
+ * These functions provide general list of callbacks which can be executed.
+ */
+
 #include <libbk.h>
 #include "libbk_internal.h"
 
 
+
+/**
+ * @name Defines: funlist_clc
+ * List of functions to call CLC definitions
+ * to hide CLC choice.
+ */
+// @{
 #define funlist_create(o,k,f,a)			dll_create(o,k,f)
 #define funlist_destroy(h)			dll_destroy(h)
 #define funlist_insert(h,o)			dll_insert(h,o)
@@ -36,11 +48,17 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define funlist_nextobj(h,i)			dll_nextobj(h,i)
 #define funlist_iterate_done(h,i)		dll_iterate_done(h,i)
 #define funlist_error_reason(h,i)		dll_error_reason(h,i)
+// @}
 
 
 
-/*
+/**
  * Create the function list
+ *
+ *	@param B BAKA Thread/global state
+ *	@param flags Fun for the future
+ *	@return <i>NULL</i> on allocation failure
+ *	@return <br><i>Function list handle</i> on success
  */
 struct bk_funlist *bk_funlist_init(bk_s B, bk_flags flags)
 {
@@ -73,8 +91,11 @@ struct bk_funlist *bk_funlist_init(bk_s B, bk_flags flags)
 
 
 
-/*
+/**
  * Get rid of the function list and its contents
+ *
+ *	@param B BAKA Thread/global state
+ *	@param funlist The function list handle
  */
 void bk_funlist_destroy(bk_s B, struct bk_funlist *funlist)
 {
@@ -96,8 +117,13 @@ void bk_funlist_destroy(bk_s B, struct bk_funlist *funlist)
 
 
 
-/*
+/**
  * Call all functions in the function list
+ *
+ *	@param B BAKA Thread/global state
+ *	@param funlist The function list handle
+ *	@param aux The auxiliary data argument to the functions
+ *	@param flags Fun for the future
  */
 void bk_funlist_call(bk_s B, struct bk_funlist *funlist, u_int aux, bk_flags flags)
 {
@@ -121,8 +147,16 @@ void bk_funlist_call(bk_s B, struct bk_funlist *funlist, u_int aux, bk_flags fla
 
 
 
-/*
+/**
  * Add a function to the end of the function list
+ *
+ *	@param B BAKA Thread/global state
+ *	@param funlist The function list handle
+ *	@param bf_fun The function to insert into the list
+ *	@param args The opaque arguments for the function
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> on call failure, allocation failure, clc failure
+ *	@return <br><i>0</i> on success
  */
 int bk_funlist_insert(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(bk_s, void *, u_int), void *args, bk_flags flags)
 {
@@ -159,12 +193,17 @@ int bk_funlist_insert(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(bk_s, v
 
 
 
-/*
+/**
  * Get rid of the first function on the list which has the same fun/args
  *
- * -1 = error
- * 0 = deleted
- * 1 = notfound
+ *	@param B BAKA Thread/global state
+ *	@param funlist Function list handle
+ *	@param bf_fun the function we are looking for
+ *	@param args The opaque arguments for the function we are looking for
+ *	@param flags Fun for the future
+ *	@return -1 on call failure, CLC delete failure
+ *	@return 0 on successful deletion
+ *	@return 1 if @a bf_fun/args could not be found
  */
 int bk_funlist_delete(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(bk_s, void *, u_int), void *args, bk_flags flags)
 {

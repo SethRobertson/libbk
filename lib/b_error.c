@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_error.c,v 1.8 2001/11/05 20:53:06 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_error.c,v 1.9 2001/11/06 20:31:14 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,12 +16,29 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
+/**
+ * @file
+ * The baka error functionality, producing error logs to allow
+ * error reporting without assumptions about the consumer or
+ * destination of these logs.  baka errors are generally not expected
+ * to be used for end-user reporting of errors.
+ */
+
 #include <libbk.h>
 #include "libbk_internal.h"
 
 
+
 #define MAXERRORLINE 8192
 
+
+
+/**
+ * @name Defines: errq_clc
+ * Lists of error messages CLC definitions
+ * to hide CLC choice.
+ */
+// @{
 #define errq_create(o,k,f,a)		dll_create(o,k,f)
 #define errq_destroy(h)			dll_destroy(h)
 #define errq_insert(h,o)		dll_insert(h,o)
@@ -38,6 +55,8 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define errq_nextobj(h,i)		dll_nextobj(h,i)
 #define errq_iterate_done(h,i)		dll_iterate_done(h,i)
 #define errq_error_reason(h,i)		dll_error_reason(h,i)
+// @}
+
 
 
 static struct bk_error_node *bk_error_marksearch(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags);
@@ -54,8 +73,8 @@ static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_n
  *	@param fh The stdio file handle to print error messages to when errors occur (typically for debugging)
  *	@param syslogthreshhold The syslog level which high priority error messages will be logged at (BK_ERR_NONE to disable logging)
  *	@param flags Flags for future expansion--saved through run structure.
- *	@return NULL on call failure, allocation failure, or other fatal error.
- *	@return The initialized error structure if successful.
+ *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
+ *	@return <br><i>Error structure</i> if successful, which has been initialized.
  */
 struct bk_error *bk_error_init(bk_s B, u_int16_t queuelen, FILE *fh, int syslogthreshhold, bk_flags flags)
 {
@@ -409,7 +428,7 @@ void bk_error_iflush(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
 
 
 
-/*
+/**
  * Mark a position in the error queues for future reference.  The mark is a constant
  * pointer--the same value will be used for any other mark usage.  This allows you to
  * only see "recent" errors.
@@ -447,8 +466,15 @@ void bk_error_imark(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags 
 
 
 
-/*
- * Search for mark 
+/**
+ * Search for mark which has been placed in the mark queue.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param beinfo Error handle
+ *	@param mark Constant pointer to search for in mark queue
+ *	@param flags Fun for the future
+ *	@return <i>NULL</i> if mark could not be found
+ *	@return <br><i>node</i> giving mark "location" information representing the first occurance of the mark
  */
 static struct bk_error_node *bk_error_marksearch(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags flags)
 {
@@ -470,6 +496,7 @@ static struct bk_error_node *bk_error_marksearch(bk_s B, struct bk_error *beinfo
 
 /**
  * Clear an existing mark in the error queues.
+ *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
  *	@param mark The constant pointer which represents a location in the error queue.
@@ -494,6 +521,7 @@ void bk_error_iclear(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags
  * Dump (print) error queues to a file or syslog.  You may filter for
  * recent log message or log messages of a certain level of
  * importance.
+ *
  *	@param B BAKA thread/global state 
  *	@param beinfo The error state structure. 
  *	@param fh The stdio file handle to print the messages to
@@ -557,8 +585,13 @@ void bk_error_idump(bk_s B, struct bk_error *beinfo, FILE *fh, char *mark, int m
 
 
 
-/*
- * Syslog level conversions
+/**
+ * Syslog level to printable character conversions.
+ *
+ * Convert the BK_ERR levels into printable character for automated filtering priority.
+ *
+ *	@param sysloglevel The BK_ERR level we wish a character for
+ *	@return <i>character</i> representing the error level--'?' if unknown
  */
 static char bk_error_sysloglevel_char(int sysloglevel)
 {
@@ -575,8 +608,14 @@ static char bk_error_sysloglevel_char(int sysloglevel)
 
 
 
-/*
- * Output a error node to file handle or syslog
+/**
+ * Output a error node to file handle or syslog.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param fh The file handle to output the error node to (NULL to disable)
+ *	@param sysloglevel The system log level to log the error message at (BK_ERR_NONE to disable)
+ *	@param node The error node--message, time, etc to log
+ *	@param flags Control whether you want FULL or abbreviated (default) logging
  */
 static void be_error_output(bk_s B, FILE *fh, int sysloglevel, struct bk_error_node *node, bk_flags flags)
 {

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_debug.c,v 1.9 2001/11/05 20:53:06 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_debug.c,v 1.10 2001/11/06 20:31:14 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,11 +16,26 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
+/**
+ * @file
+ * The baka debug functionality, which allows per-function, file, group, package debugging.
+ */
+
 #include <libbk.h>
 #include "libbk_internal.h"
 
+
+
 #define MAXDEBUGLINE 8192
 
+
+
+/**
+ * @name Defines: debug_clc
+ * Stored debug levels association CLC definitions
+ * to hide CLC choice.
+ */
+// @{
 #define debug_create(o,k,f,a)		ht_create(o,k,f,a)
 #define debug_destroy(h)		ht_destroy(h)
 #define debug_insert(h,o)		ht_insert(h,o)
@@ -43,11 +58,16 @@ static int debug_ko_cmp(char *a, struct bk_debugnode *b);
 static unsigned int debug_obj_hash(struct bk_debugnode *b);
 static unsigned int debug_key_hash(char *a);
 static struct ht_args debug_args = { 127, 2, (ht_func)debug_obj_hash, (ht_func)debug_key_hash };
+// @}
 
 
 
-/*
+/**
  * Initialize the debugging structures (don't actually attempt to start debugging)
+ *	@param B BAKA thread/global state 
+ *	@param flags Flags for future expansion--saved through run structure.
+ *	@return <i>NULL</i> on allocation failure.
+ *	@return <br><i>Debug handle</i> on success
  */
 struct bk_debug *bk_debug_init(bk_s B, bk_flags flags)
 {
@@ -69,8 +89,11 @@ struct bk_debug *bk_debug_init(bk_s B, bk_flags flags)
 
 
 
-/*
- * Get rid of all debugging memory
+/**
+ * Get rid of all debugging memory.
+ *
+ *	@param B BAKA thread/global state
+ *	@param bd Baka debug handle
  */
 void bk_debug_destroy(bk_s B, struct bk_debug *bd)
 {
@@ -90,12 +113,15 @@ void bk_debug_destroy(bk_s B, struct bk_debug *bd)
 
 
 
-/*
+/**
  * Reinitialize debugging
- *  -- reset the debugging database from the most recent config file
- *  -- reset the per-function debug levels
+ *  <BR>-- reset the debugging database from the most recent config file
+ *  <BR>-- reset the per-function debug levels
  *
  * Assumes that all debug entries are from default configuration file.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bd Baka debug handle
  */
 void bk_debug_reinit(bk_s B, struct bk_debug *bd)
 {
@@ -112,8 +138,16 @@ void bk_debug_reinit(bk_s B, struct bk_debug *bd)
 
 
 
-/*
+/**
  * Discovery what the debug level is for the current function/package/group/program
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bdinfo Debug handle
+ *	@param funname Function name we should look for
+ *	@param pkgname Package name we should look for
+ *	@param grp Group name we should look for
+ *	@param flags Fun for the future
+ *	@return <i>debug level</i> found for this particular function/package/group or the default debug level
  */
 u_int32_t bk_debug_query(bk_s B, struct bk_debug *bdinfo, const char *funname, const char *pkgname, const char *grp, bk_flags flags)
 {
@@ -121,7 +155,7 @@ u_int32_t bk_debug_query(bk_s B, struct bk_debug *bdinfo, const char *funname, c
 
   if (!bdinfo)
   {
-    bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Invalid arguments\n");
+    bk_error_printf(B, BK_ERR_WARN, __FUNCTION__ ": Invalid arguments\n");
     return(0);
   }
 
@@ -139,12 +173,20 @@ u_int32_t bk_debug_query(bk_s B, struct bk_debug *bdinfo, const char *funname, c
 
 
 
-/*
+/**
  * Set an individual debug level
  *
  * N.B. Calling this function externally may be temporary--a reinit will flush
  * *ALL* items including manually set items (even if it didn't the config
  * file would override the manual items).
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bdinfo Debug handle
+ *	@param name Name of function/group/package element to set to a particular debug @a level
+ *	@param level The debug level we wish returned when queried.
+ *	@see bk_debug_config
+ *	@return <i>-1</i> on call failure, initialization failure, allocation failure, other error
+ *	@return <BR><i>0</i> on success
  */
 int bk_debug_set(bk_s B, struct bk_debug *bdinfo, const char *name, u_int32_t level)
 {
@@ -209,9 +251,17 @@ int bk_debug_set(bk_s B, struct bk_debug *bdinfo, const char *name, u_int32_t le
 
 
 
-/*
- * Set debugging levels from the config file.  Return number of non-fatal errors
- * (or -1 for fatal error).
+/**
+ * Set debugging levels from the config file.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bdinfo Debug handle
+ *	@param config The config structure to use to source the debugging information
+ *	@param program The name of the program to disambiguate debugging configuration for different programs
+ *	@see bk_debug_config
+ *	@return <i>-1</i> on call failure
+ *	@return <br><i>0</i> on total success
+ *	@return <br><i>>0</i> on partial success--returning the number of non-fatal errors (misformatted debug lines)
  */
 int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config, const char *program)
 {
@@ -270,9 +320,18 @@ int bk_debug_setconfig(bk_s B, struct bk_debug *bdinfo, struct bk_config *config
 
 
 
-/*
- * Set some debug configuration information -- note you MUST do this before
- * set'ing or setconfig'ing the actual debug levels.
+/**
+ * Set some debug configuration information.
+ *
+ * Note you MUST do this before set'ing or setconfig'ing the actual debug levels.
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bdinfo Debug handle
+ *	@param fh The file handle to output debug messages as they occur (NULL to disable)
+ *	@param sysloglevel The system log level to output debug messages (BK_ERR_NONE to disable)
+ *	@param flags Fun for the future
+ *	@see bk_debug_set
+ *	@see bk_debug_setconfig
  */
 void bk_debug_config(bk_s B, struct bk_debug *bdinfo, FILE *fh, int sysloglevel, bk_flags flags)
 {
@@ -297,9 +356,14 @@ void bk_debug_config(bk_s B, struct bk_debug *bdinfo, FILE *fh, int sysloglevel,
 
 
 
-/*
- * Internal--simple print function
- * MM/DD HH:MM:SS: program[pid]: function: 
+/**
+ * Simple debug print function (normally used through macro)
+ *
+ * Produced format: "MM/DD HH:MM:SS: program[pid]: function: buf"
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bdinfo Debug handle
+ *	@param buf The string to use as debugging information
  */
 void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf)
 {
@@ -324,7 +388,7 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf)
     time_t curtime = time(NULL);
     struct tm *tm = localtime(&curtime);
 
-    /* XXX - this check should really be done with assert */
+    /* <WARNING>this check should really be done with assert</WARNING> */
     if ((tmp = strftime(timeprefix, sizeof(timeprefix), "%m/%d %H:%M:%S", tm)) != 14)
     {
       bk_error_printf(B, BK_ERR_ERR, __FUNCTION__ ": Somehow strftime produced %d bytes instead of the expected 14\n",tmp);
@@ -346,8 +410,14 @@ void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, char *buf)
 
 
 
-/*
- * Debugging print via varargs
+/**
+ * Debugging print via varargs (normally used through macro)
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bdinfo Debug handle
+ *	@param format The printf-style string to use as debugging information
+ *	@param ... The printf-style arguments
+ *	@see bk_debug_iprint
  */
 void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, char *format, ...)
 {
@@ -371,8 +441,15 @@ void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, char *format, ...)
 
 
 
-/*
- * Print a buffer
+/**
+ * Debugging print of binary data (normally used through macro)
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bdinfo Debug handle
+ *	@param intro The description of the issue or the binary data
+ *	@param prefix The data placed in front of every line of ascii data representation
+ *	@param buf The vectored binary data to be printed
+ *	@see bk_debug_iprint
  */
 void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, char *intro, char *prefix, bk_vptr *buf)
 {
@@ -390,8 +467,14 @@ void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, char *intro, char *pref
 
 
 
-/*
- * Debugging print prevectored
+/**
+ * Debugging print of varags data already vararged (normally used through macro)
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bdinfo Debug handle
+ *	@param format The printf-style string of debugging information
+ *	@param ap The varargs arguments for the "printf"
+ *	@see bk_debug_iprint
  */
 void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, char *format, va_list ap)
 {
@@ -411,21 +494,26 @@ void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, char *format, va_list ap
 
 
 
-/*
- * CLC functions for debug queue
- */
+
+/** CLC helper functions and structures for debug_clc */
 static int debug_oo_cmp(struct bk_debugnode *a, struct bk_debugnode *b)
 {
   return(strcmp(a->bd_name, b->bd_name));
 }
+
+/** CLC helper functions and structures for debug_clc */
 static int debug_ko_cmp(char *a, struct bk_debugnode *b)
 {
   return(strcmp(a,b->bd_name));
 }
+
+/** CLC helper functions and structures for debug_clc */
 static unsigned int debug_obj_hash(struct bk_debugnode *a)
 {
   return(bk_strhash(a->bd_name, BK_STRHASH_NOMODULUS));
 }
+
+/** CLC helper functions and structures for debug_clc */
 static unsigned int debug_key_hash(char *a)
 {
   return(bk_strhash(a, BK_STRHASH_NOMODULUS));

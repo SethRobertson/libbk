@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fun.c,v 1.10 2001/11/05 20:53:06 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.11 2001/11/06 20:31:14 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -16,10 +16,23 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * --Copyright LIBBK--
  */
 
+/**
+ * @file
+ * These functions provide a Function tracing/stack, and provide function name
+ * information for debugging/error message, and provide per-function debug levels.
+ */
+
 #include <libbk.h>
 #include "libbk_internal.h"
 
 
+
+/**
+ * @name Defines: funstack_clc
+ * Stack of functions currently called CLC definitions
+ * to hide CLC choice.
+ */
+// @{
 #define funstack_create(o,k,f)		dll_create((o),(k),(f))
 #define funstack_destroy(h)		dll_destroy(h)
 #define funstack_insert(h,o)		dll_insert((h),(o))
@@ -36,12 +49,16 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
 #define funstack_nextobj(h,i)		dll_nextobj(h,i)
 #define funstack_iterate_done(h,i)	dll_iterate_done(h,i)
 #define funstack_error_reason(h,i)	dll_error_reason((h),(i))
+// @}
 
 
 
 
-/*
+/**
  * Initialize the function stack
+ *
+ *	@return <i>NULL</i> on allocation (or other CLC) failure
+ *	@return <br><i>Function stack</i> on success
  */
 dict_h bk_fun_init(void)
 {
@@ -50,8 +67,10 @@ dict_h bk_fun_init(void)
 
 
 
-/*
+/**
  * Destroy the function stack
+ *
+ *	@param funstack The stack of functions currently called
  */
 void bk_fun_destroy(dict_h funstack)
 {
@@ -63,8 +82,15 @@ void bk_fun_destroy(dict_h funstack)
 
 
 
-/*
+/**
  * Entering a function--record infomation
+ *
+ *	@param B BAKA Thread/global state
+ *	@param func The name of the function we are in
+ *	@param package The name of the package we are in (typically filename)
+ *	@param grp The name of the group we are in (typically library)
+ *	@return <i>NULL</i> if function tracing is not enabled, or on allocation failure
+ *	@return <br><i>encoded function info</i> on success
  */
 struct bk_funinfo *bk_fun_entry(bk_s B, const char *func, const char *package, const char *grp)
 {
@@ -95,8 +121,11 @@ struct bk_funinfo *bk_fun_entry(bk_s B, const char *func, const char *package, c
 
 
 
-/*
+/**
  * The current function has gone away--clean it (and any stale children) up
+ *
+ *	@param B BAKA Thread/global state
+ *	@param fh Encoded function information produced by a @a bk_fun_entry which has exited
  */
 void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
 {
@@ -134,9 +163,13 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
 
 
 
-/*
+/**
  * This is an function for main to virtually re-enter BK_ENTRY after B
- * is initialized (or perform initial entry from bk_fun_entry).
+ * is initialized.  This is required since @a bk_fun_init() cannot be
+ * called before @a bk_fun_entry is called.
+ *
+ *	@param B BAKA Thread/global state information
+ *	@param fh Function trace produced by a previous @a bk_fun_entry
  */
 void bk_fun_reentry_i(bk_s B, struct bk_funinfo *fh)
 {
@@ -154,8 +187,13 @@ void bk_fun_reentry_i(bk_s B, struct bk_funinfo *fh)
 
 
 
-/*
+/**
  * Dump the function stack, showing where we all are
+ *
+ *	@param B BAKA Thread/global state
+ *	@param out File handle to output data on (NULL to disable)
+ *	@param sysloglevel System log level to dump function stack (BK_ERR_NONE to disable)
+ *	@param flags Fun for the future
  */
 void bk_fun_trace(bk_s B, FILE *out, int sysloglevel, bk_flags flags)
 {
@@ -172,8 +210,12 @@ void bk_fun_trace(bk_s B, FILE *out, int sysloglevel, bk_flags flags)
 
 
 
-/*
+/**
  * Turn function tracing off and back on
+ *
+ *	@param B BAKA Thread/global state
+ *	@param state BK_FUN_ON to enable tracing, BK_FUN_OFF to disable
+ *	@param flags Fun for the future
  */
 void bk_fun_set(bk_s B, int state, bk_flags flags)
 {
@@ -193,9 +235,14 @@ void bk_fun_set(bk_s B, int state, bk_flags flags)
 
 
 
-/*
+/**
  * Reset the debug levels on all currently entered functions
  * (Presumably debug levels have changed)
+ *
+ *	@param B BAKA Thread/global state
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> Call failure
+ *	@return <br><i>0</i> on success (or if debugging is disabled)
  */
 int bk_fun_reset_debug(bk_s B, bk_flags flags)
 {
@@ -220,8 +267,14 @@ int bk_fun_reset_debug(bk_s B, bk_flags flags)
 
 
 
-/*
+/**
  * Discover the function name of my nth ancestor in the function stack
+ *
+ *	@param B BAKA Thread/global state
+ *	@param ancestordepth The degree of ancestry that you wish to know about
+ *	@param flags Fun for the future
+ *	@return <i>NULL</i> if function tracing is diabled or if there are not that many ancestors
+ *	@return <br><i>Function name string</i> on success.
  */
 const char *bk_fun_funname(bk_s B, int ancestordepth, bk_flags flags)
 {
