@@ -1,3 +1,7 @@
+2001-09-10  Seth Robertson  <seth@yeah.baka.org>
+
+	* include/libbk.h: BK_RETURN no longer coredump on !B
+
 2001-09-08  Seth Robertson  <seth@yeah.baka.org>
 
 	* lib/b_bits.c: Bit operations created

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.27 2001/09/08 19:13:50 seth Exp $
+ * $Id: libbk.h,v 1.28 2001/09/10 14:49:42 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -173,7 +173,7 @@ typedef struct __bk_thread
 #define BK_RETURN(B, retval)			\
 do {						\
   int save_errno = errno;			\
-  if (!(B) || BK_GENERAL_FLAG_ISFUNON(B))	\
+  if ((B) && BK_GENERAL_FLAG_ISFUNON(B))	\
     bk_fun_exit((B), __bk_funinfo);		\
   errno = save_errno;				\
   return retval;				\
@@ -185,7 +185,7 @@ do {						\
 do {						\
   typeof(retval) myretval = (retval);		\
   int save_errno = errno;			\
-  if (!(B) || BK_GENERAL_FLAG_ISFUNON(B))	\
+  if ((B) && BK_GENERAL_FLAG_ISFUNON(B))	\
     bk_fun_exit((B), __bk_funinfo);		\
   errno = save_errno;				\
   return myretval;				\
@@ -196,7 +196,7 @@ do {						\
 #define BK_VRETURN(B)				\
 do {						\
   int save_errno = errno;			\
-  if (!(B) || BK_GENERAL_FLAG_ISFUNON(B))		\
+  if ((B) && BK_GENERAL_FLAG_ISFUNON(B))		\
     bk_fun_exit((B), __bk_funinfo);		\
   errno = save_errno;				\
   return;					\
