@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.18 2001/11/18 20:14:45 seth Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.19 2001/11/20 00:04:46 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -79,8 +79,9 @@ main(int argc, char **argv, char **envp)
   const struct poptOption optionsTable[] = 
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
-    {"person", 'p', POPT_ARG_STRING, NULL, 'p', "Set the person to greet", "person" },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
+    {"no-seatbelts", 0, POPT_ARG_NONE, NULL, 0x1000, "Sealtbelts off & speed up", NULL },
+    {"person", 'p', POPT_ARG_STRING, NULL, 'p', "Set the person to greet", "person" },
     {"long-arg-only", 0, POPT_ARG_NONE, NULL, 1, "An example of a long argument without a shortcut", NULL },
     {NULL, 's', POPT_ARG_NONE, NULL, 2, "An example of a short argument without a longcut", NULL },
     POPT_AUTOHELP
@@ -112,12 +113,15 @@ main(int argc, char **argv, char **envp)
       bk_general_debug_config(B, stderr, BK_ERR_NONE, 0);					// Set up debugging, from config file
       bk_debug_printf(B, "Debugging on\n");
       break;
-    case 'p':
-      pconfig->pc_person = poptGetOptArg(optCon);
-      break;
     case 'v':
       BK_FLAG_SET(pconfig->pc_flags, PC_VERBOSE);
       bk_error_config(B, BK_GENERAL_ERROR(B), ERRORQUEUE_DEPTH, stderr, BK_ERR_NONE, BK_ERR_ERR, 0);
+      break;
+    case 0x1000:
+      BK_FLAG_CLEAR(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
+      break;
+    case 'p':
+      pconfig->pc_person = poptGetOptArg(optCon);
       break;
     case 1:
       printf("You specificed the long-arg-only option\n");
