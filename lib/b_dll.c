@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_dll.c,v 1.1 2004/05/04 14:40:39 brian Exp $";
+static const char libbk__rcsid[] = "$Id: b_dll.c,v 1.2 2004/06/09 19:32:54 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -98,5 +98,5 @@ bk_dll_insert_internal(struct bk_generic_dll_handle *gdh, struct bk_generic_dll_
     }
   }
   
-  return(DICT_OK);
+  return(ret);
 }
