@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.6 2004/04/26 20:40:11 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.7 2004/05/06 21:50:16 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -92,7 +92,7 @@ main(int argc, char **argv, char **envp)
   int priority = 15;		/* default priority to set */
   int error = 0;		/* Error on getopt? */
   int c;			/* getopt option */
-  
+
 
   /* Lets process arguments! */
   while ((c=getopt(argc, argv, "+NcCdDeup:s:aq")) != EOF)
@@ -333,15 +333,16 @@ static int child(int argc, char **argv, int optint)
 	fprintf(stderr, "Could not open %s: %s\n", _PATH_DEVNULL, strerror(errno));
 	exit(2);
       }
-    
+
 
       if (dup2(dev_null_fd, fd) < 0)
       {
 	perror("dup2 of stdin");
 	exit(2);
       }
-    
-      close(dev_null_fd);
+
+      if (dev_null_fd != fd)
+	close(dev_null_fd);
     }
 
     if ((dev_null_fd = open(_PATH_DEVNULL, O_WRONLY)) < 0)
@@ -349,7 +350,7 @@ static int child(int argc, char **argv, int optint)
       fprintf(stderr, "Could not open %s: %s\n", _PATH_DEVNULL, strerror(errno));
       exit(2);
     }
-    
+
     fd = fileno(stdout);
 
     if ((fcntl(fd, F_GETFL, &fd_flags) < 0) && (errno == EBADF))
@@ -360,7 +361,7 @@ static int child(int argc, char **argv, int optint)
 	exit(2);
       }
     }
-    
+
     fd = fileno(stderr);
 
     if ((fcntl(fd, F_GETFL, &fd_flags) < 0) && (errno == EBADF))
@@ -372,7 +373,8 @@ static int child(int argc, char **argv, int optint)
       }
     }
 
-    close(fd);
+    if (dev_null_fd != fd)
+      close(dev_null_fd);
   }
 
 
@@ -382,7 +384,7 @@ static int child(int argc, char **argv, int optint)
     {
       int newfd;
       (void)close(fd);	/* Close the file (stdin)*/
-      
+
       if ((fd == fileno(stdout)) || (fd == fileno(stderr)))
       {
 	flags = O_WRONLY | O_CREAT;
@@ -392,7 +394,7 @@ static int child(int argc, char **argv, int optint)
 	  new_outstream = outstream;
 	else
 	  new_outstream = _PATH_DEVNULL;
-	
+
 	if (append)
 	  flags |= O_APPEND;
       }
