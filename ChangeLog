@@ -1,3 +1,8 @@
+2003-11-14  James Tanis  <jtt@pearl.sysdetect.com>
+
+	* xml/b_search.c (bkxml_attrnode_valbyname): Convenience function
+	to extract a attribute value by name.
+
 2003-10-28  James Tanis  <jtt@pearl.sysdetect.com>
 
 	* xml/b_search.c (bkxml_attrnode_data): Make libxml to xml escape

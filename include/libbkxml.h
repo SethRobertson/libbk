@@ -1,5 +1,5 @@
 /*
- * $Id: libbkxml.h,v 1.6 2003/09/17 01:19:51 jtt Exp $
+ * $Id: libbkxml.h,v 1.7 2003/11/15 00:51:58 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -26,12 +26,13 @@
 extern int bkxml_nodesearch(bk_s B, xmlNodePtr node, xmlNodePtr *last, xmlNodePtr *found, xmlElementType findtype, u_char *findname, int depth, bk_flags flags);
 #define BKXML_DONT_FIND_THIS_NODE	0x01	///< Don't attempt to look for the findname in the node being handed in
 #define BKXML_BREADTH			0x02	///< Perform a breadth-first search
-extern xmlAttrPtr bkxml_attrsearch(bk_s B, xmlNodePtr node, char *findname, bk_flags flags);
+extern xmlAttrPtr bkxml_attrsearch(bk_s B, xmlNodePtr node, const char *findname, bk_flags flags);
 extern char *bkxml_attrnode_data(bk_s B, xmlDocPtr doc, xmlNodePtr node, bk_flags flags);
 #define BKXML_MISSING_TEXT_ARE_NULL	0x1	///< Missing text for attribute is null (default empty string)
 #define BKXML_EXPAND_VARS		0x2	///< Expand environment variables
 extern xmlDocPtr bkxml_minimize_doc(bk_s B, xmlDocPtr input, bk_flags flags);
 extern int bkxml_md5_doc(bk_s B, xmlDocPtr input, char **digestp, char **min_textp, bk_flags flags);
+extern char *bkxml_attrnode_valbyname(bk_s B, xmlNodePtr node, const char *findname, bk_flags flags);
 
 
 #endif /* _LIBBKXML_h_ */

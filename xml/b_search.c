@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_search.c,v 1.8 2003/10/29 00:16:43 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_search.c,v 1.9 2003/11/15 00:51:57 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -141,7 +141,7 @@ int bkxml_nodesearch(bk_s B, xmlNodePtr node, xmlNodePtr *last, xmlNodePtr *foun
  *	@return <i>NULL</i> on call failure, search failure
  *	@return <br><i>attr pointer</i> if the attribute was found
  */
-xmlAttrPtr bkxml_attrsearch(bk_s B, xmlNodePtr node, char *findname, bk_flags flags)
+xmlAttrPtr bkxml_attrsearch(bk_s B, xmlNodePtr node, const char *findname, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkxml");
   xmlAttrPtr attr;
@@ -210,4 +210,31 @@ char *bkxml_attrnode_data(bk_s B, xmlDocPtr doc, xmlNodePtr attrnode, bk_flags f
     free(str);
 
   BK_RETURN(B, NULL);
+}
+
+
+
+/**
+ * Search for an attrnode by name and return its value.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param node The XML node to start the search
+ *	@param findname The name of the element we are searching for--any if blank
+ *	@param flags fun for the future
+ *	@return <i>NULL</i> on call failure, search failure
+ *	@return attribute <i>string</i> on success.
+ */
+char *
+bkxml_attrnode_valbyname(bk_s B, xmlNodePtr node, const char *findname, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkxml");
+  xmlAttrPtr attr;
+
+  if (!(attr = bkxml_attrsearch(B, node, findname, flags)))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Could not locate attribute: %s\n", findname);
+    BK_RETURN(B,NULL);    
+  }
+  
+  BK_RETURN(B, bkxml_attrnode_data(B, NULL, (xmlNodePtr)attr, 0));  
 }
