@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.24 2003/10/16 23:11:32 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.25 2003/10/20 16:33:12 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -168,8 +168,13 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
       goto error;
     }
 
+    bk_debug_printf_and(B,128,"Reading data\n");
+
     if (relay->br_callback)
+    {
+      bk_debug_printf_and(B,64,"Making relay callback\n");
       (*relay->br_callback)(B, relay->br_opaque, ioh, ioh_other, data, 0);
+    }
 
     if ((ret = bk_ioh_write(B, ioh_other, newcopy, 0)) != 0)
     {
