@@ -1,3 +1,8 @@
+2004-10-27  James Tanis  <jtt@fry.sysdetect.com>
+
+	* lib/b_config.c (config_manage): Null values should be
+	OK.
+
 2004-10-25  James Tanis  <jtt@fry.sysdetect.com>
 
 	* lib/b_string.c (bk_string_tokenize_split): Return an empty array

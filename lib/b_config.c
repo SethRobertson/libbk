@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_config.c,v 1.39 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_config.c,v 1.40 2004/10/27 15:59:24 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -672,11 +672,16 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
   int flags=0;
   int ret=0;
 
-  if (!bc || !key || (!value && !ovalue))
+  if (!bc || !key)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
+
+  // Null values should be OK and result simply in the key being ignored.
+  // <TODO> There should be a way to enter the empty string, but that's a parsing issue, not a management one </TODO>
+  if (!value && !ovalue)
+    BK_RETURN(B, 0);    
 
   if (!(bck=config_kv_search(bc->bc_kv,(char *)key)))
   {
