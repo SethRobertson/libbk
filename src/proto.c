@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: proto.c,v 1.8 2001/11/05 21:24:23 jtt Exp $";
+static char libbk__rcsid[] = "$Id: proto.c,v 1.9 2001/11/05 21:29:21 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -66,6 +66,8 @@ main(int argc, char **argv, char **envp)
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"person", 'p', POPT_ARG_STRING, NULL, 'p', "Turn on debugging", NULL },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
+    {"long-arg-only", 0, POPT_ARG_NONE, NULL, 1, "An example of a long argument without a shortcut", NULL },
+    {NULL, 's', POPT_ARG_NONE, NULL, 2, "An example of a short argument without a longcut", NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -100,6 +102,12 @@ main(int argc, char **argv, char **envp)
     case 'v':
       BK_FLAG_SET(pconfig->pc_flags, PC_VERBOSE);
       bk_error_config(B, BK_GENERAL_ERROR(B), ERRORQUEUE_DEPTH, stderr, BK_ERR_NONE, BK_ERR_ERR, 0);
+      break;
+    case 1:
+      printf("You specificed the long-arg-only option\n");
+      break;
+    case 2:
+      printf("You specificed the short only option\n");
       break;
     default:
       getopterr++;
