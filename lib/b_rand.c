@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_rand.c,v 1.4 2002/07/16 22:03:44 jtt Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.5 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++

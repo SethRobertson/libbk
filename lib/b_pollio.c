@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_pollio.c,v 1.11 2002/04/26 19:24:27 jtt Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.12 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -217,7 +217,6 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
   struct bk_polling_io *bpi = args;
   struct polling_io_data *pid = NULL;
   u_int data_cnt = 0;
-  u_int cnt;
   bk_vptr *ndata = NULL;
   char *p;
   int size = 0;

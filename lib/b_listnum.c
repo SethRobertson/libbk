@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_listnum.c,v 1.4 2002/05/06 17:41:54 jtt Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: b_listnum.c,v 1.5 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -63,7 +63,7 @@ static int listnum_oo_cmp(struct bk_listnum_head *a, struct bk_listnum_head *b);
 static int listnum_ko_cmp(int *a, struct bk_listnum_head *b);
 static ht_val listnum_obj_hash(struct bk_listnum_head *a);
 static ht_val listnum_key_hash(int *a);
-static struct ht_args listnum_args = { 512, 1, (ht_func)listnum_obj_hash, (ht_func)listnum_key_hash };
+static const struct ht_args listnum_args = { 512, 1, (ht_func)listnum_obj_hash, (ht_func)listnum_key_hash };
 // @}
 
 

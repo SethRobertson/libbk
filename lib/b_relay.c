@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_relay.c,v 1.16 2002/04/26 08:12:04 seth Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.17 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -129,7 +129,6 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   struct bk_ioh *ioh_other;
   bk_flags *state_me, *state_him;
   struct bk_relay *relay = opaque;
-  u_int cnt, size = 0;
   bk_vptr *newcopy = NULL;
   int ret;
 

@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_run.c,v 1.24 2002/06/21 22:50:47 seth Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.25 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -879,7 +879,6 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     int f;
     int s=getdtablesize();
     char *p;
-    int offset;
     struct bk_memx *bm=bk_memx_create(B, 1, 128, 128, 0);
     char scratch[1024];
 

@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_signal.c,v 1.7 2002/01/11 10:06:05 dupuy Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: b_signal.c,v 1.8 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -346,6 +346,8 @@ bk_signal_reset(bk_s B, void *args, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Could not reset signo action\n");
     goto error;
   }
+
+  bss_destroy(B, bss);
 
   BK_RETURN(B,0);
   

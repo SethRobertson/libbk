@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netutils.c,v 1.16 2002/05/13 21:51:22 seth Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.17 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -719,9 +719,12 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run,
     goto error;
   }
 
-  // <TODO>ghbf_info needs to be returned, though some other structure (other than sss) to user at some point, so that make_conn_preconn_cancel can do something, when it is written</TODO>
-    
- done:
+  /*
+   * <TODO>ghbf_info needs to be returned, though some other structure (other
+   * than sss) to user at some point, so that make_conn_preconn_cancel can do
+   * something, when it is written.</TODO>
+   */
+
   if (rhoststr) free(rhoststr);
   if (rservstr) free(rservstr);
   if (rprotostr) free(rprotostr);

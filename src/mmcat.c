@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: mmcat.c,v 1.5 2001/11/30 00:33:08 seth Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: mmcat.c,v 1.6 2002/07/18 22:52:45 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -212,7 +212,6 @@ main(int argc, char **argv, char **envp)
   else
   {
     bk_vptr *tmp;
-    int ret;
 
     while (fgets(buf, pconfig->pc_size, pconfig->pc_input))
     {

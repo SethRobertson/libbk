@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.153 2002/07/09 01:05:44 dupuy Exp $
+ * $Id: libbk.h,v 1.154 2002/07/18 22:52:42 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -909,8 +909,6 @@ struct bk_netinfo
 #define netinfo_addrs_nextobj(h,i)		dll_nextobj((h),(i))
 #define netinfo_addrs_iterate_done(h,i)		dll_iterate_done((h),(i))
 #define netinfo_addrs_error_reason(h,i)		dll_error_reason((h),(i))
-static int bna_oo_cmp(void *bck1, void *bck2);
-static int bna_ko_cmp(void *a, void *bck2);
 // @}
 
 

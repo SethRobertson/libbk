@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.59 2002/06/14 20:37:05 jtt Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.60 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -2446,9 +2446,8 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret = 0;
   struct bk_ioh_data *bid;
-  u_int32_t room, needed, size = 0;
+  u_int32_t needed, size = 0;
   dict_iter iter;
-  u_int32_t lengthfromwire = 0;
   int cnt = 0;
 
   if (!ioh)

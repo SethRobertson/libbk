@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_config.c,v 1.26 2001/12/06 16:53:23 jtt Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: b_config.c,v 1.27 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -374,8 +374,6 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
   while(fgets(line, LINELEN, fp))
   {
     char *key=line, *value;
-    struct bk_config_key *bck=NULL;
-    struct bk_config_value *bcv=NULL;
 
     lineno++;
 

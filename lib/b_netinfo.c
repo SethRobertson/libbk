@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.14 2002/06/26 05:18:10 dupuy Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.15 2002/07/18 22:52:44 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -33,6 +33,8 @@ static int bni2sin6(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, stru
 #endif
 static int bni2un(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, struct sockaddr_un *sun, bk_flags flags);
 
+static int bna_oo_cmp(void *bck1, void *bck2);
+static int bna_ko_cmp(void *a, void *bck2);
 
 
 /**
@@ -916,14 +918,12 @@ struct bk_netinfo *
 bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int ret;
   struct bk_netinfo *bni = NULL;
   struct bk_netaddr *bna = NULL;
   char scratch[100];
   bk_netaddr_type_e netaddr_type;
   struct sockaddr_in *sin4 = NULL;
   struct sockaddr_in6 *sin6 = NULL;
-  struct sockaddr_un *sun = NULL;
   socklen_t len;
   struct sockaddr sa;
 

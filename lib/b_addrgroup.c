@@ -1,7 +1,7 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.26 2002/06/26 05:18:10 dupuy Exp $";
-static char libbk__copyright[] = "Copyright (c) 2001";
-static char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.27 2002/07/18 22:52:43 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2001";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -88,8 +88,6 @@ static void bag_destroy(bk_s B,struct bk_addrgroup *bag);
 static struct addrgroup_state *as_create(bk_s B);
 static void as_destroy(bk_s B, struct addrgroup_state *as);
 static int net_init_check_sanity(bk_s B, struct bk_netinfo *local, struct bk_netinfo *remote, struct bk_addrgroup *bag);
-static void net_init_finish(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, struct timeval startime);
-static void connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags);
 static int do_net_init_af_inet(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_local(bk_s B, struct addrgroup_state *as);
 static int do_net_init_af_inet_tcp(bk_s B, struct addrgroup_state *as);
