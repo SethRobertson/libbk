@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_fun.c,v 1.8 2001/08/30 19:57:32 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_fun.c,v 1.9 2001/09/11 03:35:09 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -99,6 +99,15 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
 {
   struct bk_funinfo *cur = NULL;
 
+  if (!fh)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    return;
+  }
+
+  if (!B)
+    goto freeme;
+
   for(cur = (struct bk_funinfo *)funstack_minimum(BK_BT_FUNSTACK(B)); cur && cur != fh; cur = (struct bk_funinfo *)funstack_successor(BK_BT_FUNSTACK(B), cur)) ;
 
   if (cur)
@@ -115,6 +124,8 @@ void bk_fun_exit(bk_s B, struct bk_funinfo *fh)
   else
   {
     bk_error_printf(B, BK_ERR_ERR,"Could not find function to exit: %s\n",fh->bf_funname);
+  freeme:
+    free(fh);
   }
 }
 
