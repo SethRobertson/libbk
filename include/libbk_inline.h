@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_inline.h,v 1.5 2003/06/17 06:07:16 seth Exp $
+ * $Id: libbk_inline.h,v 1.6 2003/06/19 18:25:59 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -38,7 +38,14 @@
  * trickery.
  *
  * For performance and API reasons these functions are intionally *not*
- * BAKAfied.
+ * BAKAfied. In addition we maintain *full* CLCL compatibility in the sense
+ * that we also do not check arguments and therefore NULL args cause core
+ * dumps. The reason for this is simple. In functions which basically do
+ * nothing but but return an offset into its argument, checking for NULL
+ * adds *considerable* overhead (probably close to doubling the
+ * time). Since one of the primary purposes of these routines is for them
+ * to be as fast as possible, we avoid the overhead of arg checking (and as
+ * I noted above coincidently become core-dump compatible with CLCL
  */
 
 typedef void *		bk_dll_h;		///< Opaque handle to "generic" baka dll.
@@ -101,9 +108,7 @@ bk_dll_create(void)
   struct bk_generic_dll_header *gdh = NULL;
  
   if (!(gdh = calloc(1, sizeof(*gdh))))
-  {
     goto error;
-  }
 
   return((bk_dll_h)gdh); 
  
@@ -147,20 +152,13 @@ bk_dll_insert(bk_dll_h header, void *obj)
   struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
   struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
 
-  if (!gdh || !gde)
-    return(DICT_ERR);
- 
   gde->gde_prev = NULL;
   gde->gde_next = gdh->gdh_head;
 
   if (gdh->gdh_head)
-  {
     gdh->gdh_head->gde_prev = gde;
-  }
   else
-  {
     gdh->gdh_tail = gde;
-  }
 
   gdh->gdh_head = gde;
 
@@ -186,20 +184,13 @@ bk_dll_append(bk_dll_h header, void *obj)
   struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
   struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
 
-  if (!gdh || !gde)
-    return(DICT_ERR);
- 
   gde->gde_next = NULL;
   gde->gde_prev = gdh->gdh_tail;
 
   if (gdh->gdh_tail)
-  {
     gdh->gdh_tail->gde_next = gde;
-  }
   else
-  {
     gdh->gdh_head = gde;
-  }
 
   gdh->gdh_tail = gde;
 
@@ -223,9 +214,6 @@ bk_dll_delete(bk_dll_h header, void *obj)
 {
   struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
   struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
-
-  if (!gdh || !gde)
-    return(DICT_ERR);
 
   if (gde->gde_next)
     gde->gde_next->gde_prev = gde->gde_prev;
@@ -257,9 +245,6 @@ bk_dll_minimum(bk_dll_h header)
 {
   struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
  
-  if (!gdh)
-    return(NULL);
-
   return(gdh->gdh_head);
 }
 
@@ -278,9 +263,6 @@ bk_dll_maximum(bk_dll_h header)
 {
   struct bk_generic_dll_header *gdh = (struct bk_generic_dll_header *)header;
  
-  if (!gdh)
-    return(NULL);
-
   return(gdh->gdh_tail);
 }
 
@@ -302,9 +284,6 @@ bk_dll_successor(bk_dll_h header, void *obj)
 {
   struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
  
-  if (!gde)
-    return(NULL);
-
   return(gde->gde_next);
 }
 
@@ -325,9 +304,6 @@ bk_dll_predecessor(bk_dll_h header, void *obj)
 {
   struct bk_generic_dll_element *gde = (struct bk_generic_dll_element *)obj;
  
-  if (!gde)
-    return(NULL);
-
   return(gde->gde_prev);
 }
 
