@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.46 2004/07/08 04:40:15 lindauer Exp $
+ * $Id: libbk_oscompat.h,v 1.47 2004/07/12 18:07:43 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -53,7 +53,22 @@ typedef uint32_t in_addr_t;
 #define BK_RHS(expr) ({expr;})			// force GCC to forbid it also
 #endif /* __GNUC__ && !__INSURE__ */
 
+// This should always work
+#define USING_LT_DLOPEN
+
 #ifndef BK_NO_USER_SHARED_LIBS
+/* USING_LT_DLOPEN is hardcoded true (see #define above)
+ * You can therefore ignore all of the following cruft 
+ * which only remains in case we encounter a 
+ * ltdl-unsupported system later.
+ */
+#ifdef USING_LT_DLOPEN 
+#define BK_INIT_FUN(mod) \
+ void mod ## _init (void)
+
+#define BK_FINISH_FUN(mod) \
+ void mod ## _finish (void)
+#else
 #ifdef HAVE_CONSTRUCTOR_ATTRIBUTE
 /**
  * Define an initialization function.
@@ -122,6 +137,7 @@ asm (".long	" #mod "_finish"); void mod ## _finish (void)
 #endif /* !HAVE_INSURE */
 #endif /* !HAVE_INIT_PRAGMA */
 #endif /* !HAVE_CONSTRUCTOR_ATTRIBUTE */
+#endif /* !USING_LT_DLOPEN */
 #else
 
 /* We don't want shared libs at all here */
