@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.1 2004/04/06 21:15:48 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.2 2004/04/06 23:32:25 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -50,45 +50,9 @@ struct bk_ring_directory
 
 
 
-/**
- * Private state for the "standard" ring directory implementation
- */
-struct bk_ringdir_standard
-{
-  bk_flags	brs_flags;			///< Everyone needs flags.
-  int		brs_fd;				///< Currently active fd
-  const char *	brs_chkpnt_filename;		///< Name of checkpoint file.
-  const char *	brs_cur_filename;		///< Current filename (for sanity check).
-};
-
-
 static struct bk_ring_directory *brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *pattern, struct bk_ringdir_callbacks *callbacks, bk_flags flags);
 static void brd_destroy(bk_s B, struct bk_ring_directory *brd);
 static const char *create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags);
-
-static void *standard_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, bk_flags flags);
-static void standard_destroy(bk_s B, void *opaque, const char *directory, bk_flags flags);
-static off_t standard_get_size(bk_s B, void *opaque, const char *filename, bk_flags flags);
-static int standard_open(bk_s B, void *opaque, const char *filename, bk_flags flags);
-static int standard_close(bk_s B, void *opaque, const char *filename, bk_flags flags);
-static int standard_unlink(bk_s B, void *opaque, const char *filename, bk_flags flags);
-static int standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, bk_flags flags);
-
-
-
-/**
- * Callback definition for "standard" ring directory implementation
- */
-struct bk_ringdir_callbacks bk_ringdir_standard_callbacks = 
-{
-  standard_init,
-  standard_destroy,
-  standard_get_size,
-  standard_open,
-  standard_close,
-  standard_unlink,
-  standard_chkpnt,
-};
 
 
 
@@ -105,7 +69,6 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ring_directory *brd = NULL;
-  int finished;
 
   if (!directory || !rotate_size || !max_num_files || !callbacks)
   {
@@ -162,17 +125,6 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
     bk_error_printf(B, BK_ERR_ERR, "Could not copy file name pattern: %s\n", strerror(errno));
     goto error;
   }
-
-  // Nuke all trailing slashes
-  do
-  {
-    finished = 1;
-    if (brd->brd_directory[strlen(directory)-1] != '\\')
-    {
-      ((char *)brd->brd_directory)[strlen(directory)-1] = '\0';
-      finished = 0;
-    }
-  } while(!finished);
 
   if (!(brd->brd_path = bk_string_alloc_sprintf(B, 0, 0, "%s%s", brd->brd_directory, pattern)))
   {
@@ -240,7 +192,7 @@ brd_destroy(bk_s B, struct bk_ring_directory *brd)
  *	@param B BAKA thread/global state.
  *	@param flags Flags for future use.
  *	@return <i>NULL</i> on failure.<br>
- *	@return a new @a bk_rindir_t on success.
+ *	@return a new @a bk_ringdir_t on success.
  */
 bk_ringdir_t
 bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, struct bk_ringdir_callbacks *callbacks, bk_flags flags)
@@ -457,11 +409,25 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
       goto error;
     }
 
+    if ((*brd->brd_brc.brc_unlink)(B, brd->brd_opaque, brd->brd_cur_filename, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not unlink %s\n", brd->brd_cur_filename);
+      goto error;
+    }
+
     if ((*brd->brd_brc.brc_open)(B, brd->brd_opaque, brd->brd_cur_filename, 0))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open %s\n", brd->brd_cur_filename);
       goto error;
     }
+
+    if (BK_FLAG_ISCLEAR(brd->brd_flags,BK_RINGDIR_FLAG_NO_CHECKPOINT) &&
+	((*brd->brd_brc.brc_chkpnt)(B, brd->brd_opaque, BkRingDirChkpntActionChkpnt, brd->brd_directory, brd->brd_pattern, &brd->brd_cur_file_num, 0) < 0))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Failed to checkpoint\n");
+      goto error;
+    }
+
   }
   
   BK_RETURN(B,0);  
@@ -482,7 +448,7 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
  *	@return @a private_data on success.
  */
 void *
-bk_rindir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags)
+bk_ringdir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
@@ -560,8 +526,8 @@ create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags)
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>private_data</i> on success.
  */
-static void *
-standard_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, bk_flags flags)
+void *
+bk_ringdir_standard_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = NULL;
@@ -570,11 +536,16 @@ standard_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_nu
   int created_directory = 1;
   bk_flags destroy_flags = 0;
 
-
   if (!directory || !file_name_pattern)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, NULL);
+  }
+
+  if (directory[strlen(directory)-1] != '/')
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Unix directory name must end in '\\'. Sorry...\n");
+    goto error;
   }
   
   if (!BK_CALLOC(brs))
@@ -637,7 +608,7 @@ standard_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_nu
     {
       directory = NULL;
     }
-    standard_destroy(B, brs, directory, destroy_flags);
+    bk_ringdir_standard_destroy(B, brs, directory, destroy_flags);
   }
   
   BK_RETURN(B,NULL);  
@@ -657,8 +628,8 @@ standard_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_nu
  * caller is requesting that you destroy the directory. You are not
  * obliged to honor this, but it's a good idea.
  */
-static void
-standard_destroy(bk_s B, void *opaque, const char *directory, bk_flags flags)
+void
+bk_ringdir_standard_destroy(bk_s B, void *opaque, const char *directory, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)opaque;
@@ -706,8 +677,8 @@ standard_destroy(bk_s B, void *opaque, const char *directory, bk_flags flags)
  *	@return <i>BK_RINGDIR_GET_SIZE_ERROR</i> on failure.<br>
  *	@return <i>non-negative</i> on success.
  */
-static off_t
-standard_get_size(bk_s B, void *opaque, const char *filename, bk_flags flags)
+off_t
+bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)opaque;
@@ -748,8 +719,8 @@ standard_get_size(bk_s B, void *opaque, const char *filename, bk_flags flags)
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
-static int
-standard_open(bk_s B, void *opaque, const char *filename, bk_flags flags)
+int
+bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)opaque;
@@ -767,7 +738,7 @@ standard_open(bk_s B, void *opaque, const char *filename, bk_flags flags)
     open_flags |= O_CREAT | O_TRUNC;
   
 
-  if ((brs->brs_fd = open(filename, open_flags)) < 0)
+  if ((brs->brs_fd = open(filename, open_flags, 0777)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not open %s for writing: %s\n", filename, strerror(errno));
     goto error;
@@ -782,7 +753,7 @@ standard_open(bk_s B, void *opaque, const char *filename, bk_flags flags)
   BK_RETURN(B,0);  
 
  error:
-  standard_close(B, brs, filename, 0);
+  bk_ringdir_standard_close(B, brs, filename, 0);
   BK_RETURN(B,-1);  
 }
 
@@ -798,8 +769,8 @@ standard_open(bk_s B, void *opaque, const char *filename, bk_flags flags)
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
-static int
-standard_close(bk_s B, void *opaque, const char *filename, bk_flags flags)
+int
+bk_ringdir_standard_close(bk_s B, void *opaque, const char *filename, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)opaque;
@@ -839,8 +810,8 @@ standard_close(bk_s B, void *opaque, const char *filename, bk_flags flags)
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
-static int
-standard_unlink(bk_s B, void *opaque, const char *filename, bk_flags flags)
+int
+bk_ringdir_standard_unlink(bk_s B, void *opaque, const char *filename, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)opaque;
@@ -851,7 +822,7 @@ standard_unlink(bk_s B, void *opaque, const char *filename, bk_flags flags)
     BK_RETURN(B, -1);
   }
   
-  if (unlink(filename))
+  if ((unlink(filename) < 0) && errno != ENOENT )
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not unlink %s: %s\n", filename, strerror(errno));
     goto error;
@@ -890,8 +861,8 @@ standard_unlink(bk_s B, void *opaque, const char *filename, bk_flags flags)
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
-static int
-standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, bk_flags flags)
+int
+bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)opaque;
@@ -911,7 +882,7 @@ standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, con
   case BkRingDirChkpntActionChkpnt:
     value = htonl(*valuep);
 
-    if ((fd = open(brs->brs_chkpnt_filename, O_WRONLY)) < 0)
+    if ((fd = open(brs->brs_chkpnt_filename, O_WRONLY|O_CREAT, 0777)) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open %s for reading: %s\n", brs->brs_chkpnt_filename, strerror(errno));
       goto error;
@@ -920,7 +891,7 @@ standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, con
     len = sizeof(value);
     do 
     {
-      if ((ret = write(fd, ((char *)&value)+sizeof(value)-len, len)))
+      if ((ret = write(fd, ((char *)&value)+sizeof(value)-len, len)) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Failed to read out check value: %s\n", strerror(errno));
 	goto error;

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.278 2004/04/06 21:15:47 jtt Exp $
+ * $Id: libbk.h,v 1.279 2004/04/06 23:32:24 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2260,9 +2260,6 @@ struct bk_ringdir_callbacks
 };
 
 
-extern struct bk_ringdir_callbacks bk_ringdir_standard_callbacks;
-
-
 /* There is only one set of flags for all of the ring directory functions */
 #define BK_RINGDIR_FLAG_DO_NOT_CREATE		0x1 ///< Do not create directory if it doesn't exist
 #define BK_RINGDIR_FLAG_NUKE_DIR_ON_DESTROY	0x2 ///< Empty directory during destroy. Ask callback to nuke it.
@@ -2279,7 +2276,29 @@ extern struct bk_ringdir_callbacks bk_ringdir_standard_callbacks;
 extern bk_ringdir_t bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, struct bk_ringdir_callbacks *callbacks, bk_flags flags);
 extern void bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern int bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags);
-extern void *bk_rindir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags);
+extern void *bk_ringdir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags);
+
+/**
+
+ * Private state for the "standard" ring directory implementation. This has to be externalized so that folks who use the standard callbacks can 
+
+ */
+struct bk_ringdir_standard
+{
+  bk_flags	brs_flags;			///< Everyone needs flags.
+  int		brs_fd;				///< Currently active fd
+  const char *	brs_chkpnt_filename;		///< Name of checkpoint file.
+  const char *	brs_cur_filename;		///< Current filename (for sanity check).
+  void *	brs_private;			///< Private data for those who are only using some of the standard callbacks.
+};
+
+extern void *bk_ringdir_standard_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, bk_flags flags);
+extern void bk_ringdir_standard_destroy(bk_s B, void *opaque, const char *directory, bk_flags flags);
+extern off_t bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flags flags);
+extern int bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, bk_flags flags);
+extern int bk_ringdir_standard_close(bk_s B, void *opaque, const char *filename, bk_flags flags);
+extern int bk_ringdir_standard_unlink(bk_s B, void *opaque, const char *filename, bk_flags flags);
+extern int bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, bk_flags flags);
 
 
 #endif /* _BK_h_ */
