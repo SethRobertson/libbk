@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.30 2002/10/18 20:03:30 jtt Exp $
+ * $Id: libbk_oscompat.h,v 1.31 2002/10/18 21:18:29 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -37,12 +37,6 @@
 # define BK_FUNCNAME (__FILE__ ":" BK_STRINGIFY(__LINE__))
 # define HAVE__FILE_LINE
 #endif
-
-#ifndef HAVE_U_INT_T_TYPEDEFS
-typedef uint16_t u_int16_t;
-typedef uint32_t u_int32_t;
-typedef uint64_t u_int64_t;
-#endif /* HAVE_U_INT_T_TYPEDEFS */
 
 #ifndef HAVE_IN_ADDR_T
 typedef uint32_t in_addr_t;
