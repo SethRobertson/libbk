@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.53 2002/05/14 21:32:21 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.54 2002/05/15 01:01:37 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1147,7 +1147,7 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
   // Time for reading
   if (ret >= 0 && BK_FLAG_ISSET(gottypes, BK_RUN_READREADY|BK_RUN_USERFLAG1))
   {
-    if (BK_FLAG_ISCLEAR(gottypes, BK_RUN_USERFLAG1))
+    if (BK_FLAG_ISSET(gottypes, BK_RUN_USERFLAG1))
       goto processonly;
 
     // Ask each algorithm to specify how many bytes it wants
