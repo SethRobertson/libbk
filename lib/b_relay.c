@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.19 2003/05/09 19:02:19 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.20 2003/05/15 19:46:53 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -233,6 +233,10 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr data[], void *opaque, struct bk_
   case BkIohStatusIohSeekSuccess:
   case BkIohStatusIohSeekFailed:
     bk_error_printf(B, BK_ERR_ERR, "I got seek notification. How could this happen\n");
+    BK_VRETURN(B);
+
+  case BkIohStatusNoStatus:
+    bk_error_printf(B, BK_ERR_ERR, "Uninitialized status\n");
     BK_VRETURN(B);
 
     // No default here so that compiler can catch missed state

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.235 2003/05/15 01:29:49 seth Exp $
+ * $Id: libbk.h,v 1.236 2003/05/15 19:46:52 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -465,6 +465,7 @@ struct bk_child_comm
  */
 typedef enum
 {
+  BkIohStatusNoStatus,				///< bk_ioh notifying user handler of nothing yet
   BkIohStatusIncompleteRead=1,			///< bk_ioh notifying user handler of incomplete read, data provided
   BkIohStatusReadComplete,			///< bk_ioh notifying user handler of a previous write of a buffer has completed, and here is the zero terminated array of buffers, which you must copy if necessary
   BkIohStatusIohReadEOF,			///< bk_ioh notifying user handler of a received EOF

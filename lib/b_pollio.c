@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.23 2003/05/14 22:22:33 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.24 2003/05/15 19:46:53 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -570,6 +570,9 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
     break;
 
     // No default so gcc can catch missing cases.
+  case BkIohStatusNoStatus:
+    bk_error_printf(B, BK_ERR_ERR, "Uninitialized status\n");
+    goto error;
   }
 
   if ((*clc_add)(bpi->bpi_data, pid) != DICT_OK)
@@ -678,6 +681,7 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
   }
 
   *datap = NULL;
+  *status = BkIohStatusNoStatus;
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
@@ -700,7 +704,14 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
 
   while (!(pid = pidlist_minimum(bpi->bpi_data)) && !timedout)
   {
-    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_SAW_EOF) || BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_READ_DEAD) || BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) || bk_polling_io_is_canceled(B, bpi, 0))
+    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_SAW_EOF))
+    {
+      *status = BkIohStatusIohReadEOF;
+      ret = 1;
+      goto unlockexit;
+    }
+
+    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_READ_DEAD) || BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) || bk_polling_io_is_canceled(B, bpi, 0))
     {
       bk_error_printf(B, BK_ERR_ERR, "Reading from dead/canceled channel\n");
       ret = -1;
@@ -761,6 +772,11 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
       bpi->bpi_tell += pid->pid_data->len;
       bpi->bpi_size -= pid->pid_data->len;
       *datap = pid->pid_data;
+      pid->pid_data = NULL;
+    }
+    else
+    {
+      ret = 1;
     }
     *status = pid->pid_status;
     pid_destroy(B, pid);
@@ -953,132 +969,6 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
 
   BK_RETURN(B, ret);
 }
-
-
-
-#if 0
-/**
- * Do one polling poll. If we have some data, dequeue it and
- * return. Otherwise call bk_run_once() one time.
- *
- * THREADS: MT-SAFE
- *
- *	@param B BAKA thread/global state.
- *	@param bpi The polling state to use.
- *	@param datap Data to pass up to the user (copyout).
- *	@param statusp Status to pass up to the user (copyout).
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success (with data).
- *	@return <i>positive</i> on no progress.
- */
-int
-bk_polling_io_do_poll(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_status_e *status, bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct polling_io_data *pid;
-  bk_flags bk_run_once_flags;
-
-
-  if (!bpi || !status)
-  {
-    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_RETURN(B, -1);
-  }
-
-  if (datap)
-    *datap = NULL;
-
-  if ((pid = pidlist_minimum(bpi->bpi_data)) ||
-      BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_SAW_EOF))
-  {
-  // Seth sez: do bk_run_once regardless of presence of existing data to report.
-    bk_run_once_flags = BK_RUN_ONCE_FLAG_DONT_BLOCK;
-  }
-  else
-  {
-    bk_run_once_flags = 0;
-  }
-
-#ifdef BK_USING_PTHREADS
-  if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_THREADED) || !BK_GENERAL_FLAG_ISTHREADON(B))
-#endif /* BK_USING_PTHREADS */
-  {
-    if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
-	bk_run_once(B, bpi->bpi_ioh->ioh_run, bk_run_once_flags) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "polling bk_run_once failed severely\n");
-      goto error;
-    }
-  }
-
-  if (!pid)
-    pid = pidlist_minimum(bpi->bpi_data);
-
-  // Now that we either have data or might
-  if (!pid)
-  {
-    /*
-     * If the IOH is in an EOF state then return 0. However if there *is*
-     * data then go ahead and return it. This will occur at *least* when
-     * the pid contains the actual EOF message.
-     */
-    if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_SAW_EOF))
-    {
-      BK_RETURN(B,0);
-    }
-    BK_RETURN(B,1);
-  }
-
-  // You always send status
-  *status = pid->pid_status;
-
-  if (pidlist_delete(bpi->bpi_data, pid) != DICT_OK)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not delete pid from data list: %s\n", pidlist_error_reason(bpi->bpi_data, NULL));
-    goto error;
-  }
-
-
-  // If this is read, then subtract data from my queue.
-  if (pid->pid_status == BkIohStatusReadComplete ||
-      pid->pid_status == BkIohStatusIncompleteRead)
-  {
-    /*
-     * We're removing data which is has been read by the user, so we
-     * decrease the amount of data on the queue and increase our "tell"
-     * position.
-     */
-    bpi->bpi_size -= pid->pid_data->len;
-    bpi->bpi_tell += pid->pid_data->len;
-  }
-
-
-  /*
-   * Enable reading if buffer is not full.  <TODO> if file open for only
-   * writing mark the case so we don't bother.</TODO> <WARNING>Requires
-   * unthrottle as no-op if not throttled.</WARNING>
-   */
-  if (BK_FLAG_ISCLEAR(bpi->bpi_flags, BPI_FLAG_IOH_DEAD) &&
-      bpi->bpi_ioh->ioh_readq.biq_queuemax &&
-      bpi->bpi_size < bpi->bpi_ioh->ioh_readq.biq_queuemax)
-  {
-    bk_polling_io_unthrottle(B, bpi, 0);
-  }
-
-  if (datap)
-  {
-    *datap = pid->pid_data;
-    pid->pid_data = NULL;			// Passed off. We're not responsible anymore.
-  }
-
-  pid_destroy(B, pid);
-
-  BK_RETURN(B,0);
-
- error:
-  BK_RETURN(B,-1);
-}
-#endif
 
 
 
