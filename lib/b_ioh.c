@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.73 2003/04/18 12:24:53 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.74 2003/04/21 20:38:29 brian Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2347,7 +2347,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	{					// We still need to allocate storage for same
 	  if (!(data = malloc(sizeof(lengthfromwire) - size)))
 	  {
-	    bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer for ioh %p of size %d: %s\n",ioh,sizeof(lengthfromwire) - size,strerror(errno));
+	    bk_error_printf(B, BK_ERR_ERR, "Could not allocate input buffer for ioh %p of size %d: %s\n",ioh,(unsigned int)sizeof(lengthfromwire) - size,strerror(errno));
 	    BK_RETURN(B, -1);
 	  }
 
@@ -2845,7 +2845,7 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
     BK_RETURN(B,-1);
   }
 
-  bk_debug_printf_and(B, 1, "Internal read IOH %p (filedes: %d) of %d bytes\n", ioh, fd, len);
+  bk_debug_printf_and(B, 1, "Internal read IOH %p (filedes: %d) of %d bytes\n", ioh, fd, (unsigned int)len);
 
   if (bk_run_fd_is_closed(B, ioh->ioh_run, ioh->ioh_fdin))
   {

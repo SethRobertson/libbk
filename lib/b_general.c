@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.36 2003/04/16 23:39:53 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.37 2003/04/21 20:38:29 brian Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -93,6 +93,12 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
 
 #ifdef BK_USING_PTHREADS
   pthread_mutex_init(&BK_GENERAL_WRMUTEX(B), NULL);
+
+#ifdef MISSING_PTHREAD_RWLOCK_INIT
+  if (bk_envlock_init(B) < 0)
+    goto error;
+#endif /* MISSING_PTHREAD_RWLOCK_INIT */
+
 #endif /* BK_USING_PTHREADS */
 
   if (BK_FLAG_ISSET(flags, BK_GENERAL_THREADREADY))

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.10 2003/04/13 00:24:39 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.11 2003/04/21 20:38:29 brian Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,7 +27,11 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 #ifdef BK_USING_PTHREADS
+#ifdef MISSING_PTHREAD_RWLOCK_INIT
+static pthread_rwlock_t bkenvlock;	///< Lock on enviornment access
+#else
 static pthread_rwlock_t bkenvlock = PTHREAD_RWLOCK_INITIALIZER;	///< Lock on enviornment access
+#endif /* MISSING_PTHREAD_RWLOCK_INIT */
 #endif /* BK_USING_PTHREADS */
 
 
@@ -628,6 +632,28 @@ bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags fl
     free(ret);
   BK_RETURN(B,NULL);
 }
+
+
+
+#ifdef BK_USING_PTHREADS
+#ifdef MISSING_PTHREAD_RWLOCK_INIT
+/**
+ * Initialize the rwlock if we're on a system with funky pthreads.
+ *
+ * @param B BAKA thread/global state.
+ * @return <i>0</i> on success<br>
+ * @return <i>non-zero</i> otherwise
+ */
+int
+bk_envlock_init(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret = 0;
+  ret = pthread_rwlock_init(&bkenvlock, NULL);
+  BK_RETURN(B, ret);
+}
+#endif /* MISSING_PTHREAD_RWLOCK_INIT */
+#endif /* BK_USING_PTHREADS */
 
 
 
