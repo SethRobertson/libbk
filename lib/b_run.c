@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.47 2003/06/03 21:52:01 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.48 2003/06/05 06:54:04 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -23,6 +23,10 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+
+#define BK_RUN_GLOBAL_FLAG_ISLOCKED	0x10000	///< Run already locked by me
+
 
 
 /**
@@ -160,10 +164,12 @@ struct bk_run
 #define BK_RUN_FLAG_ABORT_RUN_ONCE	0x20	///< Return now from run_once
 #define BK_RUN_FLAG_DONT_BLOCK_RUN_ONCE	0x40	///< Don't block on current run once
 #define BK_RUN_FLAG_FD_CANCEL		0x80	///< At least 1 fd on cancel list
-#define BK_RUN_FLAG_FD_CLOSED		0x80	///< At least 1 fd on cancel list is closed
+#define BK_RUN_FLAG_FD_CLOSED		0x100	///< At least 1 fd on cancel list is closed
+#define BK_RUN_FLAG_IN_SELECT		0x200	///< We are in select wait
   dict_h		br_canceled;		///< List of canceled descriptors.
 #ifdef BK_USING_PTHREADS
   pthread_mutex_t	br_lock;		///< Lock on run management
+  int			br_runfd;		///< File descriptor for select interrupt
 #endif /* BK_USING_PTHREADS */
 };
 
@@ -216,6 +222,7 @@ static void *bk_run_runevent_thread(bk_s B, void *opaque);
 #endif /* BK_USING_PTHREADS */
 static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, struct timeval *starttime, bk_flags eventflags, bk_flags flags);
 static void bk_run_runfd(bk_s B, struct bk_run *run, int fd, u_int gottypes, bk_fd_handler_t fun, void *opaque, struct timeval *starttime, bk_flags flags);
+static int bk_run_select_changed_init(bk_s B, struct bk_run *run);
 #ifdef BK_USING_PTHREADS
 static void *bk_run_runfd_thread(bk_s B, void *opaque);
 #endif /* BK_USING_PTHREADS */
@@ -374,6 +381,7 @@ struct bk_run *bk_run_init(bk_s B, bk_flags flags)
     BK_RETURN(B, NULL);
   }
   BK_ZERO(run);
+  run->br_runfd = -1;
 
 #ifdef BK_USING_PTHREADS
   pthread_mutex_init(&run->br_lock, NULL);
@@ -418,6 +426,15 @@ struct bk_run *bk_run_init(bk_s B, bk_flags flags)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create cancel list: %s\n", fd_cancel_error_reason(NULL, NULL));
     goto error;
+  }
+
+  if (BK_GENERAL_FLAG_ISTHREADREADY(B))
+  {
+    if ((run->br_runfd = bk_run_select_changed_init(B, run)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create select interrupt fd\n");
+      goto error;
+    }
   }
 
 
@@ -535,6 +552,9 @@ void bk_run_destroy(bk_s B, struct bk_run *run)
 #ifdef BK_USING_PTHREADS
   if (pthread_mutex_destroy(&run->br_lock) != 0)
     abort();
+
+  if (run->br_runfd >= 0)
+    close(run->br_runfd);
 #endif /* BK_USING_PTHREADS */
 
   free(run);
@@ -1341,13 +1361,40 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
      * signals behave the same as normal system signals.
      */
 
+    // <TODO>This windowing of the lock is perhaps expensive and unnecessary since we gave up previously and aquire later</TODO>
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+    BK_FLAG_SET(run->br_flags, BK_RUN_FLAG_IN_SELECT);
+    bk_debug_printf_and(B, 64, "Entering select %d, %d\n", run->br_selectn, getpid());
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
 
     // Wait for I/O or timeout
-    if ((ret = select(run->br_selectn, &readset, &writeset, &xcptset,
-		      selectarg ? &timeout : NULL)) < 0)
+    ret = select(run->br_selectn, &readset, &writeset, &xcptset, selectarg ? &timeout : NULL);
+
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+    BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_IN_SELECT);
+    bk_debug_printf_and(B, 64, "Select has returned with %d/%d\n", ret, errno);
+#ifdef BK_USING_PTHREADS
+    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+      abort();
+#endif /* BK_USING_PTHREADS */
+
+    if (ret < 0)
     {
       // <TODO>Handle badfd, getfdflags--withdraw and notify handler</TODO>
-      if (errno != EINTR)
+      if (errno != EINTR
+#ifdef ERESTARTNOHAND
+	  && errno != ERESTARTNOHAND
+#endif /* ERESTARTNOHAND */
+	  )
       {
 	bk_error_printf(B, BK_ERR_ERR, "Select failed: %s\n", strerror(errno));
 	goto error;
@@ -1613,7 +1660,6 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
  *	@return <i><0</i> on call failure, or other error.
  *	@return <br><i>0</i> on success.
  */
-struct bk_run;
 int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, void *opaque, u_int wanttypes, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
@@ -1654,38 +1700,12 @@ int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t handler, v
     goto error;
   }
 
-  if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTREAD))
-  {
-    FD_SET(fd, &run->br_readset);
-  }
-  else
-  {
-    FD_CLR(fd, &run->br_readset);
-  }
-
-  if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTWRITE))
-  {
-    FD_SET(fd, &run->br_writeset);
-  }
-  else
-  {
-    FD_CLR(fd, &run->br_writeset);
-  }
-
-  if (BK_FLAG_ISSET(wanttypes, BK_RUN_WANTXCPT))
-  {
-    FD_SET(fd, &run->br_xcptset);
-  }
-  else
-  {
-    FD_CLR(fd, &run->br_xcptset);
-  }
-
   run->br_selectn = MAX(run->br_selectn,fd+1);
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
+  bk_run_setpref(B, run, fd, wanttypes, BK_RUN_WANTREAD|BK_RUN_WANTWRITE|BK_RUN_WANTXCPT, 0);
 
   bk_debug_printf_and(B,1,"Added fd: %d -- selectn now: %d\n", fd, run->br_selectn);
 
@@ -1902,6 +1922,14 @@ int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wa
     FD_SET(fd, &run->br_writeset);
   if (BK_FLAG_ISSET(oldtype, BK_RUN_WANTXCPT))
     FD_SET(fd, &run->br_xcptset);
+
+  bk_debug_printf_and(B, 64, "Modified select set for fd %d, now %d/%d/%d\n", fd, FD_ISSET(fd, &run->br_readset), FD_ISSET(fd, &run->br_writeset), FD_ISSET(fd, &run->br_xcptset));
+
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_IN_SELECT))
+  {
+    bk_debug_printf_and(B, 64, "Asking for runrun rescheduling\n");
+    bk_run_select_changed(B, run, BK_RUN_GLOBAL_FLAG_ISLOCKED);
+  }
 
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
@@ -3256,6 +3284,145 @@ bk_run_fd_is_closed(bk_s B, struct bk_run *run, int fd)
 #endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B, ret);
+}
+
+
+
+/**
+ * The discard handler--not optimized for large buffers to be thrown away.
+ *
+ * @param B BAKA thread/global state
+ * @param run The run environment
+ * @param flags Fun for the future
+ */
+void bk_run_handler_discard(bk_s B, struct bk_run *run, int fd, u_int gottypes, void *opaque, const struct timeval *starttime)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char buf[64];
+
+  if (!run)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  if (BK_FLAG_ISSET(gottypes, BK_RUN_READREADY))
+  {
+    int ret;
+
+    // Ignore errors
+    ret = read(fd, buf, sizeof(buf));
+    bk_debug_printf_and(B, 64, "Read %d to interrupt select\n", ret);
+  }
+  else
+  {
+    bk_debug_printf_and(B, 64, "Other interrupt select activity: %x\n", gottypes);
+  }
+
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Verify that select will not block after some changes we just made
+ *
+ * @param B BAKA thread/global state
+ * @param run The run environment
+ * @param flags Fun for the future
+ */
+void bk_run_select_changed(bk_s B, struct bk_run *run, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!run)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B))
+  {
+    if (BK_FLAG_ISCLEAR(flags, BK_RUN_GLOBAL_FLAG_ISLOCKED) && pthread_mutex_lock(&run->br_lock) != 0)
+      abort();
+
+    // Ignore errors
+    if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_IN_SELECT))
+    {
+      int ret = write(run->br_runfd, "A", 1);
+      bk_debug_printf_and(B, 64, "Writing %d to interrupt select\n", ret);
+    }
+
+    if (BK_FLAG_ISCLEAR(flags, BK_RUN_GLOBAL_FLAG_ISLOCKED) && pthread_mutex_unlock(&run->br_lock) != 0)
+      abort();
+  }
+#endif /* BK_USING_PTHREADS */
+
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Create a loopback file descriptor
+ *
+ * @param B BAKA thread/global state
+ * @return <i>-1</i> on error
+ * @return <br><i>non-negative</i> on success
+ */
+static int bk_run_select_changed_init(bk_s B, struct bk_run *run)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct sockaddr_in originalsin;
+  int fd;
+  int len;
+
+  if ((fd = socket(AF_INET, SOCK_DGRAM, PF_UNSPEC)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create loopback socket: %s\n", strerror(errno));
+    goto error;
+  }
+
+  memset(&originalsin, 0, sizeof(originalsin));
+  originalsin.sin_family = AF_INET;
+  originalsin.sin_port = 0;
+
+  if (bind(fd, (struct sockaddr *)&originalsin, sizeof(originalsin)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not bind to loopback socket: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (getsockname(fd, (struct sockaddr *)&originalsin, &len) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not find name of loopback socket: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (connect(fd, (struct sockaddr *)&originalsin, len) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not connect to loopback socket: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (bk_run_handle(B, run, fd, bk_run_handler_discard, NULL, BK_RUN_WANTREAD, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not register loopback socket: %s\n", strerror(errno));
+    goto error;
+  }
+
+  bk_debug_printf_and(B, 64, "Loopback fd %d\n", fd);
+
+  if (0)
+  {
+  error:
+    if (fd >= 0)
+      close(fd);
+    fd = -1;
+  }
+
+  BK_RETURN(B, fd);
 }
 
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.35 2003/06/03 23:19:15 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.36 2003/06/05 06:54:03 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -144,6 +144,7 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
     BK_RETURN(B, NULL);
   }
 
+  bk_debug_printf_and(B, 64, "Create bpi for fd %d/%d\n", ioh->ioh_fdin, ioh->ioh_fdout);
   if (!(BK_CALLOC(bpi)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bpi: %s\n", strerror(errno));
@@ -181,8 +182,9 @@ bk_polling_io_create(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
   BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_DONT_DESTROY);
 
-  if (BK_FLAG_ISSET(flags, BK_POLLING_THREADED))
-    BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_THREADED);
+  // We are tentatively saying that we *alwasy* want threaded operation (if actually enabled)
+  // if (BK_FLAG_ISSET(flags, BK_POLLING_THREADED))
+  BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_THREADED);
 
   if (bk_ioh_update(B, ioh, NULL, NULL, NULL, NULL, polling_io_ioh_handler, bpi, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER | BK_IOH_UPDATE_OPAQUE) < 0)
   {
@@ -226,6 +228,7 @@ bk_polling_io_close(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
     BK_VRETURN(B);
   }
 
+  bk_debug_printf_and(B, 64, "Closing bpi for fd %d/%d\n", bpi->bpi_ioh->ioh_fdin, bpi->bpi_ioh->ioh_fdout);
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
     abort();
@@ -477,6 +480,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
     goto error;
   }
 
+  bk_debug_printf_and(B, 64, "IOH polling handler: %d\n", status);
   switch (status)
   {
   case BkIohStatusReadComplete:
@@ -487,10 +491,6 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
       bk_error_printf(B, BK_ERR_ERR, "Could not coalesce relay data\n");
       goto error;
     }
-
-#ifdef BK_USING_PTHREADS
-    pthread_cond_broadcast(&bpi->bpi_rdcond);
-#endif /* BK_USING_PTHREADS */
 
     break;
 
@@ -574,12 +574,14 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
 #endif /* BK_USING_PTHREADS */
     bpi->bpi_wroutstanding--;
 #ifdef BK_USING_PTHREADS
+    bk_debug_printf_and(B, 64, "Broadcasting write timed condition wait\n");
     pthread_cond_broadcast(&bpi->bpi_wrcond);
 #endif /* BK_USING_PTHREADS */
 #ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
       abort();
 #endif /* BK_USING_PTHREADS */
+    BK_VRETURN(B);
     break;
 
   case BkIohStatusIohSeekSuccess:
@@ -613,7 +615,7 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
     if (ioh->ioh_readq.biq_queuemax && bpi->bpi_size >= ioh->ioh_readq.biq_queuemax)
     {
       BK_FLAG_SET(bpi->bpi_flags, BPI_FLAG_SELF_THROTTLE);
-      bk_polling_io_throttle(B, bpi, 0);
+      bk_polling_io_throttle(B, bpi, POLLIO_ALREADY_LOCKED);
     }
 
 #ifdef BK_USING_PTHREADS
@@ -627,6 +629,12 @@ polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk
     bk_error_printf(B, BK_ERR_ERR, "Could not append data to data list: %s\n", pidlist_error_reason(bpi->bpi_data, NULL));
     goto error;
   }
+
+#ifdef BK_USING_PTHREADS
+    bk_debug_printf_and(B, 64, "Broadcasting read timed condition wait\n");
+    pthread_cond_broadcast(&bpi->bpi_rdcond);
+#endif /* BK_USING_PTHREADS */
+
 
   BK_VRETURN(B);
 
@@ -750,6 +758,7 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
     if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_THREADED) && BK_GENERAL_FLAG_ISTHREADON(B))
     {
       struct timespec ts;
+      struct timeval tv;
 
       if (timeout == 0)
       {
@@ -757,10 +766,16 @@ bk_polling_io_read(bk_s B, struct bk_polling_io *bpi, bk_vptr **datap, bk_ioh_st
       }
       else
       {
-	ts.tv_sec = timeout / 1000;
-	ts.tv_nsec = (timeout % 1000) * 1000000;
-	if (pthread_cond_timedwait(&bpi->bpi_rdcond, &bpi->bpi_lock, &ts) < 0 && errno == ETIMEDOUT)
+	int tret;
+
+	gettimeofday(&tv, NULL);
+
+	ts.tv_sec = tv.tv_sec + timeout / 1000;
+	ts.tv_nsec = tv.tv_usec * 1000 + (timeout % 1000) * 1000000;
+	bk_debug_printf_and(B, 64, "Entering read timed condition wait %d.%09d, pid %d\n", (int)ts.tv_sec, (int)ts.tv_nsec, getpid());
+	if (((tret = pthread_cond_timedwait(&bpi->bpi_rdcond, &bpi->bpi_lock, &ts)) < 0) && (tret == ETIMEDOUT))
 	  timedout++;
+	bk_debug_printf_and(B, 64, "Exiting read timed condition wait: %d, %d\n", tret, errno);
       }
     }
     else
@@ -921,6 +936,7 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
     if (BK_FLAG_ISSET(bpi->bpi_flags, BPI_FLAG_THREADED) && BK_GENERAL_FLAG_ISTHREADON(B))
     {
       struct timespec ts;
+      struct timeval tv;
 
       if (timeout == 0)
       {
@@ -928,10 +944,16 @@ bk_polling_io_write(bk_s B, struct bk_polling_io *bpi, bk_vptr *data, time_t tim
       }
       else
       {
-	ts.tv_sec = timeout / 1000;
-	ts.tv_nsec = (timeout % 1000) * 1000000;
-	if (pthread_cond_timedwait(&bpi->bpi_wrcond, &bpi->bpi_lock, &ts) < 0 && errno == ETIMEDOUT)
+	int tret;
+
+	gettimeofday(&tv, NULL);
+
+	ts.tv_sec = tv.tv_sec + timeout / 1000;
+	ts.tv_nsec = tv.tv_usec * 1000 + (timeout % 1000) * 1000000;
+	bk_debug_printf_and(B, 64, "Entering write timed condition wait %d.%09d, pid %d\n", (int)ts.tv_sec, (int)ts.tv_nsec, getpid());
+	if (((tret = pthread_cond_timedwait(&bpi->bpi_wrcond, &bpi->bpi_lock, &ts)) < 0) && (tret == ETIMEDOUT))
 	  timedout++;
+	bk_debug_printf_and(B, 64, "Exiting write timed condition wait\n");
       }
     }
     else
@@ -1074,7 +1096,7 @@ pid_destroy(bk_s B, struct polling_io_data *pid)
  *
  *	@param B BAKA thread/global state.
  *	@param bpi The @a bk_polling_io to throttle.
- *	@param flags Flag for the future.
+ *	@param flags AlreadyLocked
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
@@ -1101,14 +1123,14 @@ bk_polling_io_throttle(bk_s B, struct bk_polling_io *bpi, bk_flags flags)
   }
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, POLLIO_ALREADY_LOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&bpi->bpi_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 
   bpi->bpi_throttle_cnt++;
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
+  if (BK_FLAG_ISCLEAR(flags, POLLIO_ALREADY_LOCKED) && BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&bpi->bpi_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.83 2003/06/03 21:52:00 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.84 2003/06/05 06:54:03 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -377,7 +377,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
   curioh->ioh_fdin = fdin;
   if (curioh->ioh_fdin >= 0)
   {
-    if (BK_FLAG_ISCLEAR(flags, BK_IOH_DONT_ACTIVATE))
+    if (BK_FLAG_ISCLEAR(flags, BK_IOH_DONT_ACTIVATE) && BK_FLAG_ISCLEAR(flags, BK_IOH_NO_HANDLER))
     {
       if (bk_run_handle(B, curioh->ioh_run, curioh->ioh_fdin, ioh_runhandler, curioh, BK_RUN_WANTREAD, 0) < 0)
       {
@@ -398,7 +398,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler,
   {
     if (curioh->ioh_fdin != curioh->ioh_fdout)
     {
-      if (BK_FLAG_ISCLEAR(flags, BK_IOH_DONT_ACTIVATE))
+      if (BK_FLAG_ISCLEAR(flags, BK_IOH_DONT_ACTIVATE) && BK_FLAG_ISCLEAR(flags, BK_IOH_NO_HANDLER))
       {
 	if (bk_run_handle(B, curioh->ioh_run, curioh->ioh_fdout, ioh_runhandler, curioh, 0, 0) < 0)
 	{
@@ -549,8 +549,13 @@ int bk_ioh_update(bk_s B, struct bk_ioh *ioh, bk_iorfunc_f readfun, bk_iowfunc_f
     abort();
 #endif /* BK_USING_PTHREADS */
 
-  if (BK_FLAG_ISSET(old_extflags, BK_IOH_DONT_ACTIVATE) && BK_FLAG_ISCLEAR(flags, BK_IOH_DONT_ACTIVATE))
+  if (ioh->ioh_handler)
+    BK_FLAG_CLEAR(ioh->ioh_extflags, BK_IOH_NO_HANDLER);
+
+  if ((BK_FLAG_ISSET(old_extflags, BK_IOH_DONT_ACTIVATE) && BK_FLAG_ISCLEAR(flags, BK_IOH_DONT_ACTIVATE)) ||
+      (BK_FLAG_ISSET(old_extflags, BK_IOH_NO_HANDLER) && ioh->ioh_handler))
   {
+
     // Want activation
     if (ioh->ioh_fdin >= 0)
     {
