@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_url.c,v 1.16 2002/01/16 15:51:47 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_url.c,v 1.17 2002/01/16 18:38:25 dupuy Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -621,7 +621,8 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
   }
 
   /* skip leading white-space, semicolons */
-  for (p = *pathp; *p && (*p == ';' || *p == ' ' || *p == '\t'); ++p);
+  for (p = *pathp; *p && (*p == ';' || *p == ' ' || *p == '\t'); ++p)
+    /* empty */;
 
   if (!*p) 
   {
@@ -651,7 +652,8 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
     else
       *p++ = '\0';
     /* Skip any whitespace or semicolons after this token. */
-    for (; *p && (*p == ';' || *p == ' ' || *p == '\t'); ++p);
+    for (; *p && (*p == ';' || *p == ' ' || *p == '\t'); ++p)
+      /* empty */;
   }
 
   /* set pathp for next round */
