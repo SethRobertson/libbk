@@ -1,3 +1,8 @@
+2003-05-01  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_run.c (bk_run_fd_cancel_*): check that flags is set
+	[immediate cause of EOF ignoring bug in file-plug]
+	
 2003-04-28  Alexander Dupuy  <dupuy@sysdetect.com>
 
 	* include/libbk.h (BK_RETURN): eliminate umpteen billion calls to

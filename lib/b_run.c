@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.39 2003/04/07 18:43:06 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.40 2003/05/01 23:14:02 dupuy Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2039,7 +2039,7 @@ bk_run_fd_cancel_register(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_fd_cancel *bfc = NULL;
 
-  if (!run)
+  if (!run || !flags)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
@@ -2085,7 +2085,7 @@ bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_fd_cancel *bfc = NULL;
 
-  if (!run)
+  if (!run || !flags)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
@@ -2099,7 +2099,7 @@ bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   BK_FLAG_CLEAR(bfc->bfc_flags, flags);
   
   // If any are still set, don't delete this.
-  if (BK_FLAG_ISSET(bfc->bfc_flags,BK_FD_ADMIN_FLAG_WANT_ALL))
+  if (BK_FLAG_ISSET(bfc->bfc_flags, BK_FD_ADMIN_FLAG_WANT_ALL))
     BK_RETURN(B,0);    
 
   if (fd_cancel_delete(run->br_canceled, bfc) != DICT_OK)
@@ -2140,7 +2140,7 @@ bk_run_fd_cancel_unregister(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 
 
 /**
- * Cancel a filed descriptor.
+ * Cancel a file descriptor.
  *
  *	@param B BAKA thread/global state.
  *	@param run The run structure to use.
@@ -2170,8 +2170,9 @@ bk_run_fd_cancel(bk_s B, struct bk_run *run, int fd, bk_flags flags)
 
   if (BK_FLAG_ISCLEAR(bfc->bfc_flags, flags))
   {
-    // <TOOD> What's the best behavior here? jtt thinks warn and ignore </TOOO>
-    bk_error_printf(B, BK_ERR_WARN, "Cancel request for fd: %d ignored. Not registered for cancel\n", fd);
+    // <TODO> What's the best behavior here? jtt thinks warn and ignore </TOOO>
+    bk_error_printf(B, BK_ERR_ERR,
+		    "Ignoring cancel request for unregistered fd %d\n", fd);
     BK_RETURN(B,0);    
   }
 
