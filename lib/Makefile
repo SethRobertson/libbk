@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.29 2002/03/19 05:29:31 seth Exp $
+# $Id: Makefile,v 1.30 2002/05/01 01:53:28 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -46,6 +46,7 @@ BK_LARGE_LIBSRC=		       		\
 		b_servinfo.c			\
 		b_signal.c			\
 		b_stdfun.c			\
+		b_stdsock.c			\
 		b_string.c			\
 		b_time.c			\
 		b_url.c				\

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.138 2002/04/26 08:12:03 seth Exp $
+ * $Id: libbk.h,v 1.139 2002/05/01 01:53:27 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -462,6 +462,7 @@ typedef enum
   BkAddrGroupStateRemoteError,			///< A "remote" network error
   BkAddrGroupStateLocalError,			///< An "local" network error
   BkAddrGroupStateTimeout,			///< A timeout has occured
+  BkAddrGroupStateSocket,			///< New socket--allow callee to muck with sockopts
   BkAddrGroupStateReady,			///< TCP listener or unconnected UDP ready
   BkAddrGroupStateConnected,			///< TCP/UDP/AF_LOCAL connected
   BkAddrGroupStateClosing,			///< State is closing
@@ -505,7 +506,7 @@ typedef void (*bk_fd_handler_t)(bk_s B, struct bk_run *run, int fd, u_int gottyp
  *	@param state State as described by @a bk_addrgroup_state_e.
  *
  */
-typedef void (*bk_bag_callback_f)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state);
+typedef int (*bk_bag_callback_f)(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state);
 
 /**
  * Structure which describes a network "association". This name is slightly
@@ -1474,5 +1475,11 @@ extern void bk_MD5Init (bk_s B, bk_MD5_CTX *mdContext);
 extern void bk_MD5Update (bk_s B, bk_MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen);
 extern void bk_MD5Final (bk_s B, bk_MD5_CTX *mdContext);
 extern int bk_MD5_extract_printable(bk_s B, char *str, bk_MD5_CTX *ctx, bk_flags flags);
+
+/* b_stdsock.h */
+extern int bk_stdsock_multicast(bk_s B, int fd, u_char ttl, struct bk_netaddr *maddrgroup, bk_flags flags);
+#define BK_MULTICAST_WANTLOOP		0x01	///< Want multicasts to loop to local machine
+#define BK_MULTICAST_NOJOIN		0x02	///< Do not wish to join multicast group
+int bk_stdsock_broadcast(bk_s B, int fd, bk_flags flags);
 
 #endif /* _BK_h_ */

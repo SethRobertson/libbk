@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: bttcp.c,v 1.23 2002/04/26 08:12:05 seth Exp $";
+static char libbk__rcsid[] = "$Id: bttcp.c,v 1.24 2002/05/01 01:53:28 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -20,6 +20,11 @@ static char libbk__contact[] = "<projectbaka@baka.org>";
  * @file
  *
  * This file implements both ends of a bidirectional network pipe. 
+ *	
+ * Note: UDP support generally only works in transmit mode.  To
+ * receive you must "transmit" on both sides with inverse IP and port
+ * combinations.  Multicast and broadcast support is transmit only.
+ * (Stupidities of connected UDP).
  */
 
 #include <libbk.h>
@@ -86,7 +91,7 @@ struct program_config
 
 
 static int proginit(bk_s B, struct program_config *pconfig);
-static void connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state);
+static int connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state);
 static void relay_finish(bk_s B, void *args, u_int state);
 static void cleanup(bk_s B, struct program_config *pc);
 
@@ -144,7 +149,7 @@ main(int argc, char **argv, char **envp)
 
   pc = &Pconfig;
   memset(pc,0,sizeof(*pc));
-  pc->pc_multicast_ttl = 1;			// Default local net multicast
+  pc->pc_multicast_ttl = 2;			// Default local net multicast
   pc->pc_timeout=BK_SECS_TO_EVENT(30);
   pc->pc_proto=DEFAULT_PROTO_STR;
 
@@ -211,6 +216,7 @@ main(int argc, char **argv, char **envp)
 
     case 2:					// protocol
       pc->pc_proto="UDP";
+      BK_FLAG_SET(pc->pc_flags, PC_CLOSE_AFTER_ONE);
       break;
 
     case 3:					// multicast
@@ -332,10 +338,9 @@ proginit(bk_s B, struct program_config *pc)
  * What to do when connection completes.
  *
  *	@param B BAKA thread/global state.
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
+ *	XXX DOCUMENT ME
  */
-static void 
+static int 
 connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
@@ -345,7 +350,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   if (!pc)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_VRETURN(B);
+    BK_RETURN(B, -1);
   }
 
   switch (state)
@@ -390,9 +395,26 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     fprintf(stderr,"Software shutdown during connection setup\n");
     goto error;
     break;
-  default:
-    bk_error_printf(B, BK_ERR_ERR,"Unknown state: %d\n", state);
-    goto error;
+  case BkAddrGroupStateSocket:
+    if (BK_FLAG_ISSET(pc->pc_flags, PC_MULTICAST))
+    {
+      if (bk_stdsock_multicast(B, sock, pc->pc_multicast_ttl, bag->bag_remote->bni_addr,
+		       BK_FLAG_ISSET(pc->pc_flags, PC_MULTICAST_LOOP)?BK_MULTICAST_WANTLOOP:0 |
+		       BK_FLAG_ISSET(pc->pc_flags, PC_MULTICAST_NOMEMBERSHIP)?BK_MULTICAST_NOJOIN:0) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not turn on multicast options after socket creation\n");
+	BK_RETURN(B, -1);
+      }
+    }
+    if (BK_FLAG_ISSET(pc->pc_flags, PC_BROADCAST))
+    {
+      if (bk_stdsock_broadcast(B, sock, 0) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not turn on broadcast options after socket creation\n");
+	BK_RETURN(B, -1);
+      }
+    }
+    goto done;
     break;
   }
 
@@ -421,13 +443,13 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   }
 
  done:
-  BK_VRETURN(B);
+  BK_RETURN(B, 0);
 
  error:
   if (std_ioh) bk_ioh_close(B, std_ioh, 0);
   if (net_ioh) bk_ioh_close(B, net_ioh, 0);
   bk_run_set_run_over(B,pc->pc_run);
-  BK_VRETURN(B);
+  BK_RETURN(B, -1);
 }
 
 
@@ -435,8 +457,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 /**
  * Things to do when the relay is over.
  *	@param B BAKA thread/global state.
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
+ *	XXX - Document Me
  */
 static void
 relay_finish(bk_s B, void *args, u_int state)

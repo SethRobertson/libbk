@@ -1,3 +1,16 @@
+2002-04-30  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_addrgroup.c: Run new callback state
+	"BkAddrGroupStateSocket" every time a new socket() is created, to
+	allow user opportunity to set socket options like multicast and
+	broadcast.
+
+	* src/bttcp.c: Enable UDP, multicast, and broadcast support, such
+	as it is.
+
+	* lib/b_stdsock.c: Support routines to turn on multicast and
+	broadcast abilities for sockets.
+
 2002-04-29  James Tanis  <jtt@winwood.sysdetect.com>
 
 	* lib/b_ioh.c: Revert "fix" made recently to allow ioh_close's
