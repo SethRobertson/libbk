@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.1 2001/11/08 23:02:46 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.2 2001/11/08 23:11:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -269,7 +269,7 @@ bk_netaddr_mkaddr(bk_s B, bk_netaddr_type_t type, void *addr, int len, bk_flags 
   case BK_NETINFO_TYPE_LOCAL:
     if (!len) 
     {
-      if ((len=bk_strlen(B, addr, MAXPATHLEN))<0)
+      if ((len=bk_strnlen(B, addr, MAXPATHLEN))<0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not determine the length of the AF_LOCAL address\n");
 	goto error;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.9 2001/11/08 23:02:46 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.10 2001/11/08 23:11:47 jtt Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1033,7 +1033,7 @@ int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags)
  * 	@bugs Does not return the same type as @a strlen(3). See description.
  */
 ssize_t /* this is not an error. See description */
-bk_strlen(bk_s B, char *s, ssize_t max)
+bk_strnlen(bk_s B, char *s, ssize_t max)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libsos");
   ssize_t c=0;

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.43 2001/11/08 23:02:46 jtt Exp $
+ * $Id: libbk.h,v 1.44 2001/11/08 23:11:47 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -566,7 +566,7 @@ extern char *bk_string_quote(bk_s B, char *src, char *needquote, bk_flags flags)
 #define BK_NULLSTR			"NULL"  ///< During bk_string_quote: String rep of NULL
 char *bk_string_flagtoa(bk_s B, bk_flags src, bk_flags flags);
 extern int bk_string_atoflag(bk_s B, char *src, bk_flags *dst, bk_flags flags);
-extern ssize_t bk_strlen(bk_s B, char *s, ssize_t max);
+extern ssize_t bk_strnlen(bk_s B, char *s, ssize_t max);
 
 
 /* getbyfoo.c */
