@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_run.c,v 1.62 2004/01/07 03:02:44 seth Exp $";
+static const char libbk__rcsid[] = "$Id: b_run.c,v 1.63 2004/01/28 02:06:53 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1560,8 +1560,8 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
       islocked = 1;
 #endif /* BK_USING_PTHREADS */
 
-      iter = brfl_iterate(run->br_poll_funcs, DICT_FROM_START);
-      while (brfn = brfl_nextobj(run->br_poll_funcs, iter))
+      iter = brfl_iterate(run->br_idle_funcs, DICT_FROM_START);
+      while (brfn = brfl_nextobj(run->br_idle_funcs, iter))
       {
 #ifdef BK_USING_PTHREADS
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
@@ -1609,7 +1609,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
 	islocked = 1;
 #endif /* BK_USING_PTHREADS */
       }
-      brfl_iterate_done(run->br_poll_funcs, iter);
+      brfl_iterate_done(run->br_idle_funcs, iter);
 #ifdef BK_USING_PTHREADS
       if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
 	abort();
