@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.13 2003/05/13 07:53:13 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_strcode.c,v 1.14 2003/05/16 22:44:25 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2002";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -441,6 +441,8 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
 
     if (left < GROW)
     {
+      int offset = p-xml;
+
       len += chunk;
       left += chunk;
       if (!(tmp = realloc(xml, len)))
@@ -449,6 +451,7 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
 	goto error;
       }
       xml = tmp;
+      p = xml + offset;
     }
     str++;
   }

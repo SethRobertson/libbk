@@ -1,3 +1,8 @@
+2003-05-16  Seth Robertson  <seth@startide.sysdetect.com>
+
+	* lib/b_strcode.c (bk_string_str2xml): not resetting all ptrs on
+	reallocs
+
 2003-05-16  Seth Robertson  <seth@hawking.sysdetect.com>
 
 	* lib/b_ioh.c (bk_ioh_flush): Don't leak CLCs.
