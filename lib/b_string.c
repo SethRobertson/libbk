@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.39 2002/05/01 23:50:28 jtt Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.40 2002/05/14 21:32:21 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1984,4 +1984,33 @@ bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
   }
   
   BK_RETURN(B,ret);  
+}
+
+
+
+/**
+ * Search a region of memory for any of a set of characters (naively)
+ *
+ * @param B Baka thread/global environment
+ * @param s Memory range we are searching
+ * @param accept Characters we are searching for
+ * @return <i>NULL</i> if character set does not appear, or other error
+ * @return <BR><i>pointer to first match</i> if character set does appear
+ */
+void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  void *ret = NULL;
+  u_int cntr;
+
+  for (cntr = 0; cntr < s->len; cntr++)
+  {
+    if (memchr(acceptset->ptr, ((char *)s->ptr)[cntr], acceptset->len))
+    {
+      ret = (char *)s->ptr + cntr;
+      break;
+    }
+  }
+
+  BK_RETURN(B, ret);
 }

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.144 2002/05/14 20:49:01 seth Exp $
+ * $Id: libbk.h,v 1.145 2002/05/14 21:32:21 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1331,6 +1331,7 @@ extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const 
 extern int bk_string_unique_string(bk_s B, char *buf, u_int len, bk_flags flags);
 extern int bk_string_atod(bk_s B, const char *string, double *value, bk_flags flags);
 extern int bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags);
+extern void *bk_mempbrk(bk_s B, bk_vptr *s, bk_vptr *acceptset);
 
 
 

@@ -1,5 +1,9 @@
 2002-05-14  Seth Robertson  <seth@startide.sysdetect.com>
 
+	* lib/b_string.c (bk_mempbrk): strpbrk for vptrs (memory ranges)
+
+2002-05-14  Seth Robertson  <seth@startide.sysdetect.com>
+
 	* lib/b_ioh.c (bk_ioh_readallowed): When unblocking, attempt to
 	see if there might be line-mode data queued up to go to the user,
 	and schedule a job to deliver it at some later moment.

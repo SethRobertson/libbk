@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.52 2002/05/14 20:49:01 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_ioh.c,v 1.53 2002/05/14 21:32:21 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -139,7 +139,7 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags);
 static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
 static struct ioh_data_cmd *idc_create(bk_s B);
 static void idc_destroy(bk_s B, struct ioh_data_cmd *idc);
-static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags)
+static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
 
 
 
@@ -798,7 +798,7 @@ int bk_ioh_readallowed(bk_s B, struct bk_ioh *ioh, int isallowed, bk_flags flags
   }
   else if (ioh->ioh_readallowedevent)
   {
-    bk_run_dequeue(B, run, ioh->ioh_readallowedevent, BK_RUN_DEQUEUE_EVENT);
+    bk_run_dequeue(B, ioh->ioh_run, ioh->ioh_readallowedevent, BK_RUN_DEQUEUE_EVENT);
     ioh->ioh_readallowedevent = NULL;
   }
 
@@ -984,7 +984,7 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
 
   if (ioh->ioh_readallowedevent)
   {
-    bk_run_dequeue(B, run, ioh->ioh_readallowedevent, BK_RUN_DEQUEUE_EVENT);
+    bk_run_dequeue(B, ioh->ioh_run, ioh->ioh_readallowedevent, BK_RUN_DEQUEUE_EVENT);
     ioh->ioh_readallowedevent = NULL;
   }
 
@@ -3542,7 +3542,7 @@ static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, cons
   }
 
   ioh->ioh_readallowedevent = NULL;
-  ioh_runhandler(B, run, BK_RUN_USERFLAG1, ioh, starttime);
+  ioh_runhandler(B, run, BK_RUN_USERFLAG1, ioh->ioh_fdin, ioh, starttime);
 
   BK_VRETURN(B);
 }
