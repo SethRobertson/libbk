@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.24 2005/01/20 21:31:37 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.25 2005/02/07 18:52:25 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,8 +24,6 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
-
-#define jtts stderr
 
 // Declaration of openpty
 #ifdef HAVE_OPENPTY
