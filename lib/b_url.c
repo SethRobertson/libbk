@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_url.c,v 1.24 2002/08/22 20:58:04 lindauer Exp $";
+static const char libbk__rcsid[] = "$Id: b_url.c,v 1.25 2002/08/22 21:25:04 lindauer Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -783,7 +783,7 @@ bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags)
   if (amp = strchr(auth_str, '@'))
   {
     u_int16_t userdata_len = amp - auth_str;	// don't include @
-    if (col = bk_strnchr(B, auth_str, ':', userdata_len))
+    if (col = (char*) memchr(auth_str, ':', userdata_len))
     {
       u_int16_t user_len = col - auth_str;	// don't include :
       auth->auth_user = bk_strndup(B, auth_str, user_len); 

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.164 2002/08/22 20:58:03 lindauer Exp $
+ * $Id: libbk.h,v 1.165 2002/08/22 21:25:04 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1380,7 +1380,6 @@ extern ssize_t bk_strnlen(bk_s B, const char *s, size_t max);
 extern char *bk_encode_base64(bk_s B, const bk_vptr *str, const char *eolseq);
 extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
 extern char *bk_strndup(bk_s B, const char *s, size_t len);
-extern char *bk_strnchr(bk_s B, const char *s, char c, size_t len);
 extern char *bk_strnstr(bk_s B, const char *haystack, const char *needle, size_t len);
 extern char *bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t len);
 extern void *bk_memrchr(bk_s B, const void *buffer, int character, size_t len);
