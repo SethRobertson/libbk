@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.212 2003/03/13 23:58:02 jtt Exp $
+ * $Id: libbk.h,v 1.213 2003/03/15 04:58:41 seth Exp $
  *
  * ++Copyright LIBBK++
  * 
@@ -1775,6 +1775,7 @@ extern void *bk_file_lock(bk_s B, const char *resource, bk_file_lock_type_e type
 extern int bk_file_unlock(bk_s B, void *opaque, bk_flags flags);
 extern int bk_fileutils_match_extension(bk_s B, const char *path, const char * const *exts);
 extern int bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags);
+extern bk_vptr *bk_slurp(bk_s B, FILE *FH, int fd, const char *filename, int maxwastage, bk_flags flags);
 
 
 

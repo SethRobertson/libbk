@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.14 2002/12/20 22:49:48 dupuy Exp $";
+static const char libbk__rcsid[] = "$Id: b_fileutils.c,v 1.15 2003/03/15 04:58:42 seth Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2001";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -798,3 +798,113 @@ bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags)
   BK_RETURN(B, -1);
 }
 
+
+
+/**
+ * Slurp a file--read it into on continuous chunk of memory
+ *
+ * @param B Baka thread/global environment
+ * @param FH Stdio file handle to read (NULL to ignore)
+ * @param fd File description in place of filename (-1 to ignore)
+ * @param filename Name of file to read (NULL to ignore)
+ * @param maxwastage Maximum number of bytes to "waste" above potential file size (-1 to use defaults)
+ * @param flags Fun for the future
+ * @return <i>NULL</i> on call failure, allocation failure, I/O failure
+ * @return <br><i>Allocate vptr to file</i> on success
+ */
+bk_vptr *bk_slurp(bk_s B, FILE *FH, int fd, const char *filename, int maxwastage, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "netpcap");
+  bk_vptr *ret = NULL;
+  int size = 0;
+  void *tmp;
+  int bytes;
+
+  if (!filename && !FH && fd < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  if (maxwastage < 0)
+    maxwastage = 8192;
+  else
+    maxwastage++;
+
+  if (!BK_MALLOC(ret))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate return structure: %s\n", strerror(errno));
+    goto error;
+  }
+  ret->ptr = NULL;
+  ret->len = 0;
+
+  while (FH && !feof(FH))
+  {
+    size += maxwastage - (size-ret->len);
+    
+    if (!(tmp = realloc(ret->ptr, size)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not increase file size to %d: %s\n", size, strerror(errno));
+      goto error;
+    }
+    ret->ptr = tmp;
+
+    if ((bytes = fread((char *)ret->ptr+ret->len, 1, size-ret->len, FH)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Error reading FILE: %s\n", strerror(errno));
+      goto error;
+    }
+    ret->len += bytes;
+    if (!bytes)
+      break;
+  }
+  if (FH)
+    fclose(FH);
+
+ againfd:
+  while (fd >= 0)
+  {
+    size += maxwastage - (size-ret->len);
+    
+    if (!(tmp = realloc(ret->ptr, size)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not increase file size to %d: %s\n", size, strerror(errno));
+      goto error;
+    }
+    ret->ptr = tmp;
+
+    if ((bytes = read(fd, (char *)ret->ptr+ret->len, size-ret->len)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Error reading fd: %s\n", strerror(errno));
+      goto error;
+    }
+    ret->len += bytes;
+    if (!bytes)
+      break;
+  }
+  if (fd >= 0)
+    close(fd);
+
+  if (filename)
+  {
+    if ((fd = open(filename, O_RDONLY)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Error opening file %s: %s\n", filename, strerror(errno));
+      goto error;
+    }
+    filename = NULL;
+    goto againfd;
+  }
+
+  BK_RETURN(B, ret);
+
+ error:
+  if (ret)
+  {
+    if (ret->ptr)
+      free(ret->ptr);
+    free(ret);
+  }
+  BK_RETURN(B, NULL);
+}

@@ -1,3 +1,7 @@
+2003-03-14  Seth Robertson  <seth@winwood.sysdetect.com>
+
+	* lib/b_fileutils.c (bk_slurp): Add routines to slurp files.
+
 2003-03-13  James Tanis  <jtt@saint.sysdetect.com>
 
 	* lib/b_url.c (bk_url_reconstruct): Function to reconstruct a
