@@ -1,7 +1,8 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.4 2004/06/23 21:30:01 seth Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2003";
-static const char libbk__contact[] = "<projectbaka@baka.org>";
+#include "libbk_compiler.h"
+UNUSED static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.5 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
+UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -775,8 +776,8 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
     bk_string_magnitude(B, (double)pc->pc_stats.side[0].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedin, sizeof(speedin), 0);
     bk_string_magnitude(B, (double)pc->pc_stats.side[1].birs_writebytes/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speedout, sizeof(speedout), 0);
 
-    fprintf(stderr, "%s: %llu bytes from side a in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_stats.side[1].birs_writebytes, delta.tv_sec, delta.tv_usec, speedout);
-    fprintf(stderr, "%s: %llu bytes from side b in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_stats.side[0].birs_writebytes, delta.tv_sec, delta.tv_usec, speedin);
+    fprintf(stderr, "%s: %llu bytes from side a in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_stats.side[1].birs_writebytes, (long int) delta.tv_sec, (long int) delta.tv_usec, speedout);
+    fprintf(stderr, "%s: %llu bytes from side b in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_stats.side[0].birs_writebytes, (long int) delta.tv_sec, (long int) delta.tv_usec, speedin);
   }
 
   bk_run_set_run_over(B,pc->pc_run);

@@ -1,7 +1,8 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.40 2004/06/09 04:06:50 seth Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2003";
-static const char libbk__contact[] = "<projectbaka@baka.org>";
+#include "libbk_compiler.h"
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.41 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
+UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -23,10 +24,8 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * transmission. We try to support as many address families and protocol
  * types as we can.
  */
-
 #include <libbk.h>
 #include "libbk_internal.h"
-
 
 
 /**

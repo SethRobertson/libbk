@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.39 2004/06/25 00:30:48 dupuy Exp $
+ * $Id: libbk_include.h,v 1.40 2004/07/08 04:40:15 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -129,10 +129,14 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <netinet/ip_icmp.h>
 #else  /* BK_MINGW32 */
 #include <winsock.h>		/* for fd_set, etc. */
 #include <process.h>		/* for getpid, etc. */
 #endif /* BK_MINGW32 */
+#ifdef HAVE_CRT_EXTERNS_H
+#include <crt_externs.h>
+#endif // HAVE_CRT_EXTERNS_H
 
 #include <float.h>
 

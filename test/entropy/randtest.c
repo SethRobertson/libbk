@@ -7,6 +7,7 @@
 
 */
 
+#include "libbk_autoconf.h"
 #include <math.h>
 
 #define FALSE 0
@@ -22,11 +23,15 @@ static double prob[256];	   /* Probabilities per bin for entropy */
 
 /*  LOG2  --  Calculate log to the base 2  */
 
-#if !defined(log2) && !defined(HAVE_LOG2)
+#if !defined(HAVE_LOG2)
 static double log2(double x)
 {
     return log2of10 * log10(x);
 }
+#else
+#if !defined(log2)
+double log2(double x);
+#endif
 #endif
 
 #define MONTEN	6		      /* Bytes used as Monte Carlo

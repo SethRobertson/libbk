@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.15 2003/06/17 06:07:16 seth Exp $
+# $Id: Makefile,v 1.16 2004/07/08 04:40:15 lindauer Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -17,6 +17,7 @@
 BK_PUBLIC_INC=				\
 		libbk.h 		\
 		libbk_autoconf.h	\
+		libbk_compiler.h	\
 		libbk_i18n.h		\
 		libbk_include.h		\
 		libbk_inline.h 		\

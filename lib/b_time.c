@@ -1,7 +1,8 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_time.c,v 1.19 2004/04/23 23:42:17 lindauer Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2003";
-static const char libbk__contact[] = "<projectbaka@baka.org>";
+#include "libbk_compiler.h"
+UNUSED static const char libbk__rcsid[] = "$Id: b_time.c,v 1.20 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
+UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -610,7 +611,7 @@ bk_time_duration_parse(bk_s B, const char *string, time_t *duration, bk_flags fl
 
   if (len >= maxlen)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid duration: must be shorter than %u characters\n", maxlen);
+    bk_error_printf(B, BK_ERR_ERR, "Invalid duration: must be shorter than %zu characters\n", maxlen);
     goto error;
   }
 

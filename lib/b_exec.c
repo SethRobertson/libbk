@@ -1,7 +1,8 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.20 2004/06/25 00:30:48 dupuy Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2003";
-static const char libbk__contact[] = "<projectbaka@baka.org>";
+#include "libbk_compiler.h"
+UNUSED static const char libbk__rcsid[] = "$Id: b_exec.c,v 1.21 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
+UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -41,6 +42,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #ifdef BK_USING_PTHREADS
 #ifdef MISSING_PTHREAD_RWLOCK_INIT
 static pthread_rwlock_t bkenvlock;	///< Lock on enviornment access
+static short bkenvlock_initialized = 0;
 #else
 static pthread_rwlock_t bkenvlock = PTHREAD_RWLOCK_INITIALIZER;	///< Lock on enviornment access
 #endif /* MISSING_PTHREAD_RWLOCK_INIT */
@@ -804,7 +806,12 @@ bk_envlock_init(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret = 0;
-  ret = pthread_rwlock_init(&bkenvlock, NULL);
+  if (!bkenvlock_initialized)
+  {
+    bkenvlock_initialized = 1;
+    ret = pthread_rwlock_init(&bkenvlock, NULL);
+  }
+
   BK_RETURN(B, ret);
 }
 #endif /* MISSING_PTHREAD_RWLOCK_INIT */

@@ -1,7 +1,8 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_config.c,v 1.38 2003/11/22 06:07:53 dupuy Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2003";
-static const char libbk__contact[] = "<projectbaka@baka.org>";
+#include "libbk_compiler.h"
+UNUSED static const char libbk__rcsid[] = "$Id: b_config.c,v 1.39 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
+UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -223,34 +224,6 @@ static int check_for_double_include(bk_s B, struct bk_config *bc, struct bk_conf
 
 
 /**
- * <KLUDGE>The baka program template uses a big structure to hold all global
- * "Information of international importance to everyone which cannot be passed
- * around."  Some Antura plugins reference this variable (which is only
- * defined in programs, not in libraries) and when these plugins are in
- * LD_PRELOAD, it causes runtime linkage problems for innocent programs that
- * don't define a Global variable, like bash, which is started by gdb (for some
- * annoying reason) to run the program being debugged.
- *
- * Amazingly enough, even though the size of the Global variable structure will
- * vary from program to program, we don't seem to get any errors if we provide
- * a (different size) version here in this library, at least if it is an
- * uninitialized (common, or bss) symbol.
- *
- * On systems where we do get complaints about this, we could try to use a weak
- * symbol instead, with the GCC extension __attribute__((weak)); but common
- * (bss) symbols can't be weak, and I'm not sure if a weak initialized symbol
- * would take precedence over (or conflict with) a common declaration.</KLUDGE>
- */
-struct global_structure
-{
-#ifdef BGCC_BOUNDS_CHECKING
-  int bgcc_is_very_very_stupid;
-#endif /* BGCC_BOUNDS_CHECKING */
-} Global; // __attribute__((weak));
-
-
-
-/**
  * @name Defines: config_kv_clc
  * Key-value database CLC definitions
  * to hide CLC choice.
@@ -274,9 +247,11 @@ struct global_structure
 #define config_kv_error_reason(h,i)	bst_error_reason((h),(i))
 static int kv_oo_cmp(void *bck1, void *bck2);
 static int kv_ko_cmp(void *a, void *bck2);
+#ifdef WE_ARE_ACTUALLY_GOING_TO_USE_THESE
 static ht_val kv_obj_hash(void *bck);
 static ht_val kv_key_hash(void *a);
 static const struct ht_args kv_args = { 512, 1, kv_obj_hash, kv_key_hash };
+#endif
 // @}
 
 
@@ -1364,6 +1339,7 @@ static int kv_ko_cmp(void *a, void *bck)
 {
   return(strcmp((char *)a, ((struct bk_config_key *)bck)->bck_key));
 }
+#ifdef WE_ARE_ACTUALLY_GOING_TO_USE_THESE
 static ht_val kv_obj_hash(void *bck)
 {
   return(bk_strhash(((struct bk_config_key *)bck)->bck_key, 0));
@@ -1372,6 +1348,7 @@ static ht_val kv_key_hash(void *a)
 {
   return(bk_strhash((char *)a, 0));
 }
+#endif
 
 
 

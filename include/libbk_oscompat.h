@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.45 2004/06/25 00:30:48 dupuy Exp $
+ * $Id: libbk_oscompat.h,v 1.46 2004/07/08 04:40:15 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -143,6 +143,27 @@ asm (".long	" #mod "_finish"); void mod ## _finish (void)
 #ifdef O_NDELAY
 #define O_NONBLOCK O_NDELAY
 #endif
+#endif
+
+// Fix networking constants for Darwin
+#ifndef ICMP_DEST_UNREACH
+#define ICMP_DEST_UNREACH ICMP_UNREACH
+#endif
+
+#ifndef ICMP_SOURCE_QUENCH
+#define ICMP_SOURCE_QUENCH ICMP_SOURCEQUENCH
+#endif
+
+#ifndef ICMP_TIME_EXCEEDED
+#define ICMP_TIME_EXCEEDED ICMP_TIMXCEED
+#endif
+
+#ifndef ICMP_PARAMETERPROB
+#define ICMP_PARAMETERPROB ICMP_PARAMPROB
+#endif
+
+#ifndef ETH_P_IP
+#define ETH_P_IP ETHERTYPE_IP
 #endif
 
 
@@ -376,7 +397,13 @@ extern struct tm *gmtime_r(const time_t *timenow, struct tm *buffer);
  * array rather than a pointer.  It might be const-ified in various ways as
  * well.
  */
+
+#ifdef HAVE_NSGETENVIRON
+// Darwin nonsense
+#define environ (*_NSGetEnviron())
+#else
 extern char **environ;
+#endif
 
 #ifdef HAVE_SETENV
 # define BK_SETENV(B, variable, value, overwrite)	(setenv(variable, value, overwrite))

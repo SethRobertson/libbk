@@ -1,7 +1,8 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_listnum.c,v 1.9 2003/06/17 06:07:16 seth Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2003";
-static const char libbk__contact[] = "<projectbaka@baka.org>";
+#include "libbk_compiler.h"
+UNUSED static const char libbk__rcsid[] = "$Id: b_listnum.c,v 1.10 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
+UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -61,9 +62,11 @@ struct bk_listnum_main
 #define listnum_error_reason(h,i)	bst_error_reason((h),(i))
 static int listnum_oo_cmp(struct bk_listnum_head *a, struct bk_listnum_head *b);
 static int listnum_ko_cmp(int *a, struct bk_listnum_head *b);
+#ifdef ACTUALLY_USED
 static ht_val listnum_obj_hash(struct bk_listnum_head *a);
 static ht_val listnum_key_hash(int *a);
 static const struct ht_args listnum_args = { 512, 1, (ht_func)listnum_obj_hash, (ht_func)listnum_key_hash };
+#endif
 // @}
 
 
@@ -261,6 +264,7 @@ static int listnum_ko_cmp(int *a, struct bk_listnum_head *b)
 {
   return(*a - b->blh_num);
 }
+#ifdef ACTUALLY_USED
 static ht_val listnum_obj_hash(struct bk_listnum_head *a)
 {
   return(a->blh_num);
@@ -269,3 +273,4 @@ static ht_val listnum_key_hash(int *a)
 {
   return(*a);
 }
+#endif

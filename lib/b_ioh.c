@@ -1,7 +1,8 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.106 2004/06/30 17:57:48 jtt Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2003";
-static const char libbk__contact[] = "<projectbaka@baka.org>";
+#include "libbk_compiler.h"
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.107 2004/07/08 04:40:16 lindauer Exp $";
+UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
+UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -3780,7 +3781,7 @@ int bk_ioh_stdrdfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t bu
   {
     erno = errno;
     if (!IOH_EBLOCKINGINTR)
-      bk_error_printf(B, BK_ERR_ERR, "read syscall failed on fd %d of size %u: %s\n", fd, size, strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "read syscall failed on fd %d of size %zu: %s\n", fd, size, strerror(errno));
   }
 
   bk_debug_printf_and(B, 1, "System read returns %d with errno %d\n", ret, errno);
@@ -3825,7 +3826,7 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
   {
     erno = errno;
     if (!IOH_EBLOCKINGINTR)
-      bk_error_printf(B, BK_ERR_ERR, "write syscall failed on fd %d of size %u: %s\n", fd, size, strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "write syscall failed on fd %d of size %zu: %s\n", fd, size, strerror(errno));
   }
 
   bk_debug_printf_and(B, 1, "System writev returns %d with errno %d\n",ret,errno);

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.297 2004/06/23 21:28:33 seth Exp $
+ * $Id: libbk.h,v 1.298 2004/07/08 04:40:15 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -43,6 +43,10 @@ struct bk_stat_list;
 struct bk_stat_node;
 struct bk_threadlist;
 struct bk_threadnode;
+
+// These will be defined by each individual program.
+struct global_structure;
+extern struct global_structure Global;
 
 
 #ifdef __INSURE__

@@ -1,7 +1,8 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.8 2004/05/06 22:05:44 seth Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2003";
-static const char libbk__contact[] = "<projectbaka@baka.org>";
+#include "libbk_compiler.h"
+UNUSED static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.9 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
+UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -56,7 +57,6 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 extern char *optarg;
 extern int optind;
-extern char **environ;
 
 static void reopen(char *tty);
 static int child(int argc, char **argv, int optint);

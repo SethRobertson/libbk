@@ -1,7 +1,8 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.19 2004/01/05 19:26:38 seth Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2003";
-static const char libbk__contact[] = "<projectbaka@baka.org>";
+#include "libbk_compiler.h"
+UNUSED static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.20 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
+UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
@@ -55,9 +56,11 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define btl_error_reason(h,i)	bst_error_reason((h),(i))
 static int btl_oo_cmp(struct bk_threadnode *a, struct bk_threadnode *b);
 static int btl_ko_cmp(struct __bk_thread *b, struct bk_threadnode *a);
+#ifdef ACTUALLY_USED
 static ht_val btl_obj_hash(struct bk_threadnode *b);
 static ht_val btl_key_hash(struct __bk_thread *b);
 static const struct ht_args btl_args = { 512, 1, (ht_func)btl_obj_hash, (ht_func)btl_key_hash };
+#endif // ACTUALLY_USED
 // @}
 
 
@@ -902,6 +905,7 @@ static int btl_ko_cmp(struct __bk_thread *b, struct bk_threadnode *a)
 {
   return b - a->btn_B;
 }
+#ifdef ACTUALLY_USED
 static ht_val btl_obj_hash(struct bk_threadnode *a)
 {
   return (ht_val) a->btn_B;
@@ -910,3 +914,4 @@ static ht_val btl_key_hash(struct __bk_thread *b)
 {
   return (ht_val) b;
 }
+#endif // ACTUALLY_USED
