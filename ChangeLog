@@ -1,3 +1,22 @@
+2003-05-16  Alexander Dupuy  <dupuy@sysdetect.com>
+
+	* lib/b_thread.c (struct bk_threadlist): add condvar, init state flags
+	(bk_threadlist_create): properly initialize mutex and condvar
+	(bk_threadlist_destroy): destroy mutex and condvar if initialized
+	(bk_thread_create): use pthread_attr_t to create detached thread;
+	add locked cancellation point before adding to list and creating thread
+	(bk_thread_continue): actually set cleanup handler as advertised
+	(bk_thread_cleanup): cleanup handler for exiting/cancelled threads
+	(bk_thread_tnode_done): wakeup waiting bk_thread_kill_others
+	(bk_thread_kill_others): kill other threads on non-Linux platforms, too
+	(bk_thread_unlock): race condition handler for cancellation points
+	(btl_oo_cmp, btl_ko_cmp, btl_obj_hash, btl_key_hash): use btn_B so
+	that bk_thread_cleanup can use btl_search to find node using B
+	[if we actually need lookup by [non-unique?!?] name, add another bst]
+	
+	* lib/b_general.c (bk_general_destroy): use new bk_thread_kill_others()
+	to avoid giving anyone a false sense of security.
+	
 2003-05-15  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_pollio.c (bk_polling_io_read): Handle unthrottle
@@ -14,7 +33,8 @@
 
 2003-05-15  Seth Robertson  <seth@startide.sysdetect.com>
 
-	* lib/b_pollio.c (bk_polling_io_read): Control return codes a little more closely
+	* lib/b_pollio.c (bk_polling_io_read): Control return codes a
+	little more closely
 
 2003-05-14  Seth Robertson  <seth@startide.sysdetect.com>
 
@@ -24,7 +44,8 @@
 
 	* lib/b_run.c: Implement thread creation for event queues and fds.
 
-	* lib/b_pollio.c (polling_io_ioh_handler): Fix sanity dealing with user close, IOH close, etc
+	* lib/b_pollio.c (polling_io_ioh_handler): Fix sanity dealing with
+	user close, IOH close, etc
 
 	* lib/b_bnbio.c: Functionality moved to polling_io
 
@@ -38,7 +59,7 @@
 
 2003-05-12  Seth Robertson  <seth@startide.sysdetect.com>
 
-	* lib/b_bnbio.c: Specify thread state (though needs more work to be practical)
+	* lib/b_bnbio.c: Specify thread state [needs more work to be practical]
 
 2003-05-09  Seth Robertson  <seth@startide.sysdetect.com>
 

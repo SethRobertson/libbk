@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.236 2003/05/15 19:46:52 seth Exp $
+ * $Id: libbk.h,v 1.237 2003/05/16 05:11:24 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1319,7 +1319,7 @@ extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *co
 #define BK_GENERAL_NOPROCTITLE 1		///< Specify that proctitle is not desired during general baka initialization
 #define BK_GENERAL_THREADREADY	0x2		///< Be ready for threading
 extern int bk_thread_safe_if_thread_ready;
-extern bk_s bk_general_thread_init(bk_s B, char *name);
+extern bk_s bk_general_thread_init(bk_s B, const char *name);
 extern void bk_general_thread_destroy(bk_s B);
 extern void bk_general_proctitle_set(bk_s B, char *);
 extern void bk_general_reinit(bk_s B);
@@ -1988,8 +1988,9 @@ extern void bk_threadlist_destroy(bk_s B, struct bk_threadlist *tlist, bk_flags 
 extern struct bk_threadnode *bk_threadnode_create(bk_s B, const char *threadname, bk_flags flags);
 extern void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags);
 #ifdef BK_USING_PTHREADS
-extern pthread_t *bk_thread_create(bk_s, struct bk_threadlist *tlist, const char *threadname, void *(*start)(bk_s B, void *opaque), void *opaque, bk_flags flags);
+extern pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *threadname, void *(*start)(bk_s B, void *opaque), void *opaque, bk_flags flags);
 extern void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadnode *tnode, bk_flags flags);
+extern void bk_thread_kill_others(bk_s B, bk_flags flags);
 #endif /* BK_USING_PTHREADS */
 
 

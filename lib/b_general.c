@@ -1,24 +1,25 @@
-#if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_general.c,v 1.41 2003/05/15 19:46:24 seth Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2001";
+#if !defined(lint)
+static const char libbk__rcsid[] = "$Id: b_general.c,v 1.42 2003/05/16 05:11:25 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
- *
- * Copyright (c) 2001 The Authors.  All rights reserved.
- *
+ * 
+ * Copyright (c) 2001-2003 The Authors. All rights reserved.
+ * 
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- *
+ * 
  * Mail <projectbaka@baka.org> for further information
- *
+ * 
  * --Copyright LIBBK--
  */
 
 /**
  * @file
- * The BAKA Thread/global state manipulation routines, providing basic, common, core libbk functionality
+ * The BAKA Thread/global state manipulation routines, providing basic, common,
+ * core libbk functionality
  */
 
 #include <libbk.h>
@@ -157,8 +158,7 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
 /**
  * Destroy libbk state (generally not a good idea :-)
  *
- * THREADS: MT-SAFE (Assuming different B)
- * THREADS: REENTRANT (Otherwise)
+ * THREADS: EVIL (since it kills all other threads)
  *
  *	@param B BAKA Thread/global state
  */
@@ -175,22 +175,9 @@ void bk_general_destroy(bk_s B)
       }
 
 #ifdef BK_USING_PTHREADS
-      /*
-       * <TODO bugid="1281">We should cancel all child threads and
-       * perhaps verify that they are dead.  Depending on
-       * pthread_kill_other_threads_np only works on Linux and
-       * prevents proper execution of cancellation functions in other
-       * threads, however is absolutely required for
-       * correctness.</TODO>
-       */
+      bk_thread_kill_others(B, 0);
 
-#ifdef __linux__
-      pthread_kill_other_threads_np();
-#else
-#error "Need to call something like pthread_kill_other_threads_np()"
-#endif
-
-      bk_threadlist_destroy(B, B->bt_general->bg_tlist, 0);
+      bk_threadlist_destroy(B, BK_GENERAL_TLIST(B), 0);
 #endif /*BK_USING_PTHREADS*/
 
       if (BK_GENERAL_ISFUNSTATSON(B))
@@ -344,7 +331,7 @@ int bk_general_destroy_delete(bk_s B, void (*bf_fun)(bk_s, void *, u_int), void 
  *	@return <i>NULL</i> on call failure, allocation failure, other failure
  *	@return <br><i>Baka thread state</i> on success
  */
-bk_s bk_general_thread_init(bk_s B, char *name)
+bk_s bk_general_thread_init(bk_s B, const char *name)
 {
   bk_s B1 = NULL;
 

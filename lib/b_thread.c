@@ -1,23 +1,28 @@
-#if !defined(lint) && !defined(__INSIGHT__)
-static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.9 2003/05/15 03:15:23 seth Exp $";
-static const char libbk__copyright[] = "Copyright (c) 2001";
+#if !defined(lint)
+static const char libbk__rcsid[] = "$Id: b_thread.c,v 1.10 2003/05/16 05:11:25 dupuy Exp $";
+static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright LIBBK++
- *
- * Copyright (c) 2001 The Authors.  All rights reserved.
- *
+ * 
+ * Copyright (c) 2003 The Authors. All rights reserved.
+ * 
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
- *
+ * 
  * Mail <projectbaka@baka.org> for further information
- *
+ * 
  * --Copyright LIBBK--
  */
 
 #include <libbk.h>
 #include "libbk_internal.h"
+
+#ifdef HAVE_PTHREAD_NP_H
+#include <pthread_np.h>				// for pthread_set_name_np
+#endif
+
 
 
 /**
@@ -49,9 +54,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define btl_iterate_done(h,i)	bst_iterate_done((h),(i))
 #define btl_error_reason(h,i)	bst_error_reason((h),(i))
 static int btl_oo_cmp(struct bk_threadnode *a, struct bk_threadnode *b);
-static int btl_ko_cmp(const char *a, struct bk_threadnode *b);
+static int btl_ko_cmp(struct __bk_thread *b, struct bk_threadnode *a);
 static ht_val btl_obj_hash(struct bk_threadnode *b);
-static ht_val btl_key_hash(const char *a);
+static ht_val btl_key_hash(struct __bk_thread *b);
 static const struct ht_args btl_args = { 512, 1, (ht_func)btl_obj_hash, (ht_func)btl_key_hash };
 // @}
 
@@ -61,12 +66,20 @@ static const struct ht_args btl_args = { 512, 1, (ht_func)btl_obj_hash, (ht_func
 
 /**
  * Thread management list
+ *
+ * <TRICKY>The btl_lock mutex is only needed to support bk_thread_kill_others
+ * waiting for all other threads to terminate; it need only be acquired when
+ * inserting/deleting threads to the list, or when evaluating the condition
+ * "are there other threads on the list?" in bk_thread_kill_others.</TRICKY>
  */
 struct bk_threadlist
 {
   dict_h		btl_list;		///< List of known threads
   pthread_mutex_t	btl_lock;		///< Lock on thread list
-  bk_flags		btl_flags;		///< Fun for the future
+  pthread_cond_t	btl_cv;			///< Condvar for kill_others
+  bk_flags		btl_flags;		///< Initialization state flags
+#define BK_THREADLIST_LOCK_INIT	0x1
+#define BK_THREADLIST_CV_INIT	0x2
 };
 
 
@@ -76,6 +89,7 @@ struct bk_threadlist
  */
 struct bk_threadnode
 {
+  // <TODO>remove btn_threadname, duplicates thread name stored in B</TODO>
   const char	       *btn_threadname;		///< Name/purpose of thread
   pthread_t		btn_thid;		///< Thread identifier
   bk_s			btn_B;			///< Baka environment for thread
@@ -98,6 +112,8 @@ struct bk_threadcomm
 
 #ifdef BK_USING_PTHREADS
 static void *bk_thread_continue(void *opaque);
+static void bk_thread_cleanup(void *opaque);
+static void bk_thread_unlock(void *opaque);
 
 
 
@@ -248,7 +264,24 @@ struct bk_threadlist *bk_threadlist_create(bk_s B, bk_flags flags)
 
   tlist->btl_flags = 0;
 
-  if (!(tlist->btl_list = btl_create((dict_function)btl_oo_cmp, (dict_function)btl_ko_cmp, DICT_THREADED_SAFE, &btl_args)))
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_init(&tlist->btl_lock, NULL))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not init mutex: %s\n", strerror(errno));
+    goto error;
+  }
+  BK_FLAG_SET(tlist->btl_flags, BK_THREADLIST_LOCK_INIT);
+
+  if (pthread_cond_init(&tlist->btl_cv, NULL))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not init cond: %s\n", strerror(errno));
+    goto error;
+  }
+  BK_FLAG_SET(tlist->btl_flags, BK_THREADLIST_CV_INIT);
+#endif /* BK_USING_PTHREADS */
+
+  // <TRICKY>DICT_THREADED_SAFE needed; see structure comment</TRICKY>
+  if (!(tlist->btl_list = btl_create((dict_function)btl_oo_cmp, (dict_function)btl_ko_cmp, DICT_THREADED_SAFE|DICT_UNIQUE_KEYS, &btl_args)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create CLC: %s\n", btl_error_reason(tlist->btl_list, NULL));
     goto error;
@@ -286,6 +319,13 @@ void bk_threadlist_destroy(bk_s B, struct bk_threadlist *tlist, bk_flags flags)
     DICT_NUKE(tlist->btl_list, btl, tnode, break, bk_threadnode_destroy(B, tnode, flags));
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_FLAG_ISSET(tlist->btl_flags, BK_THREADLIST_CV_INIT))
+    pthread_cond_destroy(&tlist->btl_cv);
+  if (BK_FLAG_ISSET(tlist->btl_flags, BK_THREADLIST_LOCK_INIT))
+    pthread_mutex_destroy(&tlist->btl_lock);
+#endif /* BK_USING_PTHREADS */
+
   free(tlist);
   return;
 }
@@ -294,6 +334,9 @@ void bk_threadlist_destroy(bk_s B, struct bk_threadlist *tlist, bk_flags flags)
 
 /**
  * Create a thread tracking node
+ *
+ * <TODO>replace threadname argument with new_B argument, since threadname
+ * already stored in (new) B</TODO>
  *
  * THREADS: MT-SAFE
  *
@@ -393,6 +436,7 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_threadnode *tnode = NULL;
   struct bk_threadcomm *tcomm = NULL;
+  pthread_attr_t attr;
   int ret;
 
   if (!start || !tlist || !threadname)
@@ -401,25 +445,61 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
     BK_RETURN(B, NULL);
   }
 
+  // set up thread attributes with PTHREAD_CREATE_DETACHED default
+  if ((ret = pthread_attr_init(&attr)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not init thread attributes: %s\n",
+		    strerror(ret));
+    BK_RETURN(B, NULL);				// *not* goto error
+  }
+  if ((ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not set detached attribute: %s\n",
+		    strerror(ret));
+    goto error;
+  }
+
   if (!BK_CALLOC(tcomm))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create tracking pass node: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not create tracking pass node: %s\n",
+		    strerror(errno));
     goto error;
   }
   tcomm->btc_start = start;
   tcomm->btc_opaque = opaque;
+
+  if (!(tcomm->btc_B = bk_general_thread_init(B, threadname)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not thread BAKA\n");
+    goto error;
+  }
 
   if (!(tnode = bk_threadnode_create(B, threadname, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create tracking thread node\n");
     goto error;
   }
+  tnode->btn_B = tcomm->btc_B;
 
-  if (!(tcomm->btc_B = tnode->btn_B = bk_general_thread_init(B, (char *)threadname)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not thread BAKA\n");
-    goto error;
-  }
+  /*
+   * <TRICKY>We hold this lock until after pthread_create has completed tnode
+   * (by setting tnode->btn_thid).
+   *
+   * To avoid a race condition where we create a new thread after this thread
+   * has been cancelled by bk_thread_kill_others, check for cancellation once
+   * tlist->btl_lock is held; the cleanup handler makes sure that this thread
+   * will release the lock if cancelled.
+   *
+   * Note that we do not make any attempt to clean up other resources on
+   * cancel; the assumption is that an exec or exit is coming very soon and it
+   * isn't worth the trouble - we only need to prevent deadlock.</TRICKY>
+   */
+  if (pthread_mutex_lock(&tlist->btl_lock))
+    abort();
+
+  pthread_cleanup_push(bk_thread_unlock, &tlist->btl_lock);
+  pthread_testcancel();
+  pthread_cleanup_pop(0);			// don't unlock yet
 
   ret = btl_insert(tlist->btl_list, tnode);
 
@@ -435,14 +515,25 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
     goto error;
   }
 
+  if (pthread_mutex_unlock(&tlist->btl_lock))
+    abort();
+
   BK_RETURN(B, &tnode->btn_thid);
 
  error:
+  if (tnode)
+  {
+    if (pthread_mutex_unlock(&tlist->btl_lock))
+      abort();
+    bk_thread_tnode_done(B, tlist, tnode, 0);
+  }
+  else if (tcomm && tcomm->btc_B)
+    bk_general_thread_destroy(tcomm->btc_B);
+
   if (tcomm)
     free(tcomm);
 
-  if (tnode)
-    bk_thread_tnode_done(B, tlist, tnode, 0);
+  pthread_attr_destroy(&attr);
 
   BK_RETURN(B, NULL);
 }
@@ -452,8 +543,8 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
 /**
  * First pthread child -- pull stuff apart and re-exec user's first function
  *
- * Also, disable cancellation, disable signals, install
- * tracking list cleanup handler, make detached, start user processing
+ * Also, disable cancellation, disable signals, install tracking list cleanup
+ * handler, make detached, start user processing
  *
  * THREADS: MT-SAFE
  *
@@ -466,22 +557,17 @@ static void *bk_thread_continue(void *opaque)
   bk_s B;
   void *subopaque;
   void *(*start)(bk_s, void *);
-  pthread_t myth;
   sigset_t mask;
 
   if (!tcomm)
     return(NULL);
 
-  myth = pthread_self();
-
-  // Detach so no-one needs to wait
-  pthread_detach(myth);
-
-  // Block all signals
+  // Block all signals except SIGCONT (to allow interrupting select calls)
   sigfillset(&mask);
+  sigdelset(&mask, SIGCONT);
   pthread_sigmask(SIG_BLOCK, &mask, NULL);
 
-  // Block cancellation until asked
+  // Defer cancel until cancel point (per POSIX, this is default - be paranoid)
   pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
 
   B = tcomm->btc_B;
@@ -489,7 +575,53 @@ static void *bk_thread_continue(void *opaque)
   start = tcomm->btc_start;
 
   free(opaque);
-  return (*start)(B, subopaque);
+
+#ifdef HAVE_PTHREAD_SET_NAME_NP
+  // what the hell, might as well...
+  pthread_set_name_np(pthread_self(), BK_BT_THREADNAME(B));
+#endif
+
+  pthread_cleanup_push(bk_thread_cleanup, B);
+  subopaque = (*start)(B, subopaque);
+  pthread_cleanup_pop(1);
+
+  return subopaque;
+}
+
+
+
+/**
+ * Tracking list cleanup handler.
+ *
+ * THREADS: MT-SAFE
+ *
+ * @param opaque Data from pthread which is hopefully my B
+ */
+static void bk_thread_cleanup(void *opaque)
+{
+  bk_s B = opaque;
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_threadlist *tlist;
+  struct bk_threadnode *tnode;
+
+  if (!(tlist = BK_GENERAL_TLIST(B)))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Cannot find thread list for thread %s\n",
+		    BK_BT_THREADNAME(B));
+    BK_VRETURN(B);
+  }
+
+  if (!(tnode = btl_search(tlist->btl_list, B)))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Cannot find thread node for thread %s\n",
+		    BK_BT_THREADNAME(B));
+  }
+  else
+  {
+     bk_thread_tnode_done(B, tlist, tnode, 0);
+  }
+
+  BK_VRETURN(B);
 }
 
 
@@ -518,7 +650,11 @@ void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadn
     abort();
 
   if (btl_delete(tlist, tnode) != DICT_OK)
-    bk_error_printf(B, BK_ERR_WARN, "Could not find tnode %p in list %p\n", tnode, tlist);
+    bk_error_printf(B, BK_ERR_WARN, "Could not delete %s from thread list\n",
+		    BK_BT_THREADNAME(tnode->btn_B));
+
+  // as good as dead; tell bk_thread_kill_others caller to keep going
+  pthread_cond_signal(&tlist->btl_cv);
 
   if (pthread_mutex_unlock(&tlist->btl_lock))
     abort();
@@ -526,6 +662,125 @@ void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadn
   bk_threadnode_destroy(B, tnode, 0);
   BK_VRETURN(B);
 }
+
+
+
+/**
+ * Kill all other threads.
+ *
+ * THREADS: MT-SAFE
+ *
+ * This should be called prior to any call to exit/exec, and is abused by
+ * bk_general_destroy to prevent concurrent access to bk_general by terminating
+ * rival threads with extreme prejudice.
+ *
+ * @param B BAKA Thread/global state
+ * @param flags Flags for the future (avoid pthread_kill_other_threads_np()?)
+ */
+void bk_thread_kill_others(bk_s B, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+#ifdef HAVE_PTHREAD_KILL_OTHER_THREADS_NP
+  /*
+   * <WARNING bugid="1281">
+   * Using pthread_kill_other_threads_np is only necessary on Linux (or any
+   * platform that doesn't comply with the POSIX requirement that exec/exit
+   * terminate all threads - fortunately, Linux is unique in that respect).
+   *
+   * Even on Linux, this should really be called *after* iterating through the
+   * thread list, not *instead of*, since it prevents thread cancellation
+   * handlers cancellation etc. etc. but I just want to compile on *BSD without
+   * giving anyone a "false sense of security."  So we'll let the users on *BSD
+   * find out if this code works, unless a Linux user hangs first because of a
+   * mutex held by another thread killed by pthread_kill_other_threads_np.
+   * </WARNING>
+   */
+  pthread_kill_other_threads_np();
+#else
+  struct bk_threadlist *tlist;
+  struct bk_threadnode *tnode;
+  pthread_t self = pthread_self();
+  dict_iter iter;
+
+  if ((tlist = BK_GENERAL_TLIST(B)))
+  {
+    /*
+     * <TRICKY>If multiple threads call this at the same time, we need to
+     * make sure that only one of them cancels the other threads; all the
+     * others should be cancelled by the one that won the race.
+     *
+     * We do this by checking for cancellation once tlist->btl_lock is held;
+     * the cleanup handler makes sure that this thread will release the lock if
+     * it lost the race and was cancelled.</TRICKY>
+     */
+
+    if (pthread_mutex_lock(&tlist->btl_lock))
+      abort();
+
+    pthread_cleanup_push(bk_thread_unlock, &tlist->btl_lock);
+    pthread_testcancel();
+    pthread_cleanup_pop(0);			// don't unlock yet
+
+    iter = btl_iterate(tlist->btl_list, DICT_FROM_START);
+    while ((tnode = btl_nextobj(tlist->btl_list, iter)))
+    {
+      if (!pthread_equal(tnode->btn_thid, pthread_self()))
+	pthread_cancel(tnode->btn_thid);
+    }
+    btl_iterate_done(tlist->btl_list, iter);
+
+    /*
+     * We have cancelled all existing baka threads; now we have to wait for
+     * them to reach cancellation points and take themselves off the thread
+     * list.  (No new threads should be created, since bk_thread_create has a
+     * cancellation point that will prevent it from creating a new thread if
+     * the existing one is cancelled).
+     */
+    do
+    {
+      tnode = btl_minimum(tlist->btl_list);
+
+      // is this thread the only one on the list?
+      if (!tnode || (pthread_equal(tnode->btn_thid, self) &&
+		     !(btl_successor(tlist->btl_list, tnode))))
+	break;
+
+      // not yet - wait and see
+      if (pthread_cond_wait(&tlist->btl_cv, &tlist->btl_lock))
+	abort();
+      
+    } while (1);
+
+    if (pthread_mutex_unlock(&tlist->btl_lock))
+      abort();
+  }
+#endif
+
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Race condition handler for bk_thread_kill_others.
+ *
+ * Unlock mutex if this bk_thread_kill_others caller loses the race to another.
+ *
+ * This function assumes that tlist->btl_lock is already held, and will release
+ * that lock before exiting; this is done to simplify error handling in
+ * bk_thread_create().
+ *
+ * THREADS: MT-SAFE (as long as tlist->btl_lock is held when called)
+ *
+ * @param opaque Data from pthread which is hopefully tlist->btl_lock
+ */
+static void bk_thread_unlock(void *opaque)
+{
+  if (pthread_mutex_unlock(opaque))
+    abort();
+}
+
 #endif /* BK_USING_PTHREADS */
 
 
@@ -537,7 +792,7 @@ void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadn
  * search for idle threads, to request thread cancellation, etc
  *
  * It is not clear exactly what functionality will be useful, so they
- * are left as an excercise to the reader.
+ * are left as an exercise to the reader.
  *
  */
 
@@ -545,19 +800,21 @@ void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadn
 
 static int btl_oo_cmp(struct bk_threadnode *a, struct bk_threadnode *b)
 {
-  int ret = strcmp(a->btn_threadname, b->btn_threadname);
+  int ret = a->btn_B - a->btn_B;
   if (ret) return(ret);
-  return (a-b);
+  // DICT_UNIQUE_KEYS should prevent this from ever executing, but just in case
+  return (a - b);
 }
-static int btl_ko_cmp(const char *a, struct bk_threadnode *b)
+// (note a and b reversed from usual, because 'B' cannot be 'a', only 'b' :-)
+static int btl_ko_cmp(struct __bk_thread *b, struct bk_threadnode *a)
 {
-  return strcmp(a, b->btn_threadname);
+  return b - a->btn_B;
 }
 static ht_val btl_obj_hash(struct bk_threadnode *a)
 {
-  return bk_strhash(a->btn_threadname, BK_HASH_NOMODULUS);
+  return (ht_val) a->btn_B;
 }
-static ht_val btl_key_hash(const char *a)
+static ht_val btl_key_hash(struct __bk_thread *b)
 {
-  return bk_strhash(a, BK_HASH_NOMODULUS);
+  return (ht_val) b;
 }
