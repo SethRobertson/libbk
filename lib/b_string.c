@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-static char libbk__rcsid[] = "$Id: b_string.c,v 1.12 2001/11/18 20:00:15 seth Exp $";
+static char libbk__rcsid[] = "$Id: b_string.c,v 1.13 2001/11/18 20:14:45 seth Exp $";
 static char libbk__copyright[] = "Copyright (c) 2001";
 static char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1164,9 +1164,10 @@ char *bk_encode_base64(bk_s B, bk_vptr *src, char *eolseq)
     /* add space for EOL */
     rlen += ((rlen-1) / MAX_LINE + 1) * eollen;
   }
+  rlen++;					// Add space for null termination
 
   /* allocate a result buffer */
-  if (!BK_MALLOC_LEN(r, rlen?rlen:1))
+  if (!BK_MALLOC_LEN(r, rlen))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory(%d) for result: %s\n", rlen, strerror(errno));
     BK_RETURN(B, NULL);
@@ -1254,7 +1255,8 @@ bk_vptr *bk_decode_base64(bk_s B, const char *str)
 
   len = strlen(str);
   rlen = len * 3 / 4;				// Might be too much, but always enough
-  if (!BK_MALLOC_LEN(ret->ptr, rlen?rlen:1))
+  rlen++;					// Add space for null termination
+  if (!BK_MALLOC_LEN(ret->ptr, rlen))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate return structure\n");
     free(ret);
