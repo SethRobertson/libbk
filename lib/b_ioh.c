@@ -1,5 +1,5 @@
 #if !defined(lint)
-static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.92 2003/06/25 19:27:14 jtt Exp $";
+static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.93 2003/06/25 19:57:08 jtt Exp $";
 static const char libbk__copyright[] = "Copyright (c) 2003";
 static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1779,9 +1779,9 @@ static int ioh_dequeue_byte(bk_s B, struct bk_ioh *ioh, struct bk_ioh_queue *ioh
   }
 
   // Figure out what buffers have been fully written
-  while (bid = biq_minimum(iohq->biq_queue);
-	 bid && (bytes > 0);
-	 bid = biq_successor(iohq->biq_queue, bid)
+  for (bid = biq_minimum(iohq->biq_queue);
+       bid && (bytes > 0);
+       bid = biq_successor(iohq->biq_queue, bid))
   {
     if (!bid->bid_data)
       continue;
@@ -2955,9 +2955,9 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 
       // tmp is now the number of sizeof(lengthfromwire) bytes we have seen
       // size is now the number of data bytes we have seen
-      while (bid = biq_minimum(ioh->ioh_readq.biq_queue);
-	     bid && (size < lengthfromwire);
-	     bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
+      for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
+	   bid && (size < lengthfromwire);
+	   bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
       {
 	if (bid->bid_data && bid->bid_inuse > 0)
 	{
@@ -3113,7 +3113,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_
 
       // Find number of segments
       size = cnt = 0;
-      for (bid = biq_minimum(ioh->ioh_readq.biq_queue)
+      for (bid = biq_minimum(ioh->ioh_readq.biq_queue);
 	   bid;
 	   bid = biq_successor(ioh->ioh_readq.biq_queue, bid))
       {
