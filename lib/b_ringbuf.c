@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ringbuf.c,v 1.7 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ringbuf.c,v 1.8 2004/07/09 16:22:10 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -135,8 +135,7 @@ void bk_ring_destroy(bk_s B, struct bk_ring *ring, bk_flags flags)
   BK_FLAG_SET(ring->br_flags, BK_RING_CLOSING);
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ring->br_lock) != 0)
-    abort();
+  BK_SIMPLE_LOCK(B, &ring->br_lock);
 
   while (BK_FLAG_ISSET(flags, BK_RING_WAIT) && READALLOWED(B, ring))
   {
@@ -144,8 +143,7 @@ void bk_ring_destroy(bk_s B, struct bk_ring *ring, bk_flags flags)
     pthread_cond_wait(&ring->br_cond, &ring->br_lock);
   }
   
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ring->br_lock) != 0)
-    abort();
+  BK_SIMPLE_UNLOCK(B, &ring->br_lock);
 
   if (pthread_mutex_destroy(&ring->br_lock) != 0)
     abort();
@@ -198,8 +196,8 @@ int bk_ring_write(bk_s B, struct bk_ring *ring, void *opaque, bk_flags flags)
 
 #ifdef BK_USING_PTHREADS
   // <TRICKY>Danger Will Robertson--we can go to sleep while holding this lock!!!</TRICKY>
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK) && pthread_mutex_lock(&ring->br_wlock) != 0)
-    abort();
+  if (BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK))
+    BK_SIMPLE_LOCK(B, &ring->br_wlock);
 #endif /* BK_USING_PTHREADS */
 
   // While we can make no forward progress
@@ -219,9 +217,8 @@ int bk_ring_write(bk_s B, struct bk_ring *ring, void *opaque, bk_flags flags)
     }
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ring->br_lock) != 0)
-    abort();
-
+    BK_SIMPLE_LOCK(B, &ring->br_lock);
+    
     ring->br_writeasleep = 1;
     pthread_cond_broadcast(&ring->br_cond);	// Ensure noone is accidentially asleep
 
@@ -240,8 +237,7 @@ int bk_ring_write(bk_s B, struct bk_ring *ring, void *opaque, bk_flags flags)
 
     ring->br_writeasleep = 0;
 
-    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ring->br_lock) != 0)
-      abort();
+    BK_SIMPLE_UNLOCK(B, &ring->br_lock);
 #endif /* BK_USING_PTHREADS */
   }
 
@@ -258,8 +254,8 @@ int bk_ring_write(bk_s B, struct bk_ring *ring, void *opaque, bk_flags flags)
 
  unlockexit:
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK) && pthread_mutex_unlock(&ring->br_wlock) != 0)
-    abort();
+  if (BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK))
+    BK_SIMPLE_UNLOCK(B, &ring->br_wlock);
 #endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B, ret);
@@ -293,8 +289,8 @@ volatile void *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
 
 #ifdef BK_USING_PTHREADS
   // <TRICKY>Danger Will Robertson--we can go to sleep while holding this lock!!!</TRICKY>
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK) && pthread_mutex_lock(&ring->br_rlock) != 0)
-    abort();
+  if (BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK))
+    BK_SIMPLE_LOCK(B, &ring->br_rlock);
 #endif /* BK_USING_PTHREADS */
 
   // While we can make no forward progress
@@ -309,8 +305,7 @@ volatile void *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
       goto unlockexit;
 
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ring->br_lock) != 0)
-    abort();
+    BK_SIMPLE_LOCK(B, &ring->br_lock);
 
     ring->br_readasleep = 1;
     pthread_cond_broadcast(&ring->br_cond);	// Ensure noone is accidentially asleep
@@ -330,8 +325,7 @@ volatile void *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
 
     ring->br_readasleep = 0;
 
-    if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ring->br_lock) != 0)
-      abort();
+    BK_SIMPLE_UNLOCK(B, &ring->br_lock);
 #endif /* BK_USING_PTHREADS */
   }
 
@@ -349,8 +343,8 @@ volatile void *bk_ring_read(bk_s B, struct bk_ring *ring, bk_flags flags)
 
  unlockexit:
 #ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK) && pthread_mutex_unlock(&ring->br_rlock) != 0)
-    abort();
+  if (BK_FLAG_ISCLEAR(flags, BK_RING_NOLOCK))
+    BK_SIMPLE_UNLOCK(B, &ring->br_rlock);
 #endif /* BK_USING_PTHREADS */
 
   BK_RETURN(B, ret);

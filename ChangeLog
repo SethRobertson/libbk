@@ -1,3 +1,13 @@
+2004-07-09  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_ringbuf.c: Convert over to BK_SIMPLE_{UN,}LOCK() for
+	readability.
+
+2004-07-08  James Tanis  <jtt@buscemi.sysdetect.com>
+
+	* lib/b_netutils.c (bk_netutils_make_conn_verbose): If local
+	protocol string is not set, use the remote protostr.
+
 2004-07-03  Seth Robertson  <seth@cheviot.sysdetect.com>
 
 	* lib/b_run.c (bk_run_enqueue): Do not enqueue events if we are
