@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bk_pty.c,v 1.1 2005/01/20 21:31:36 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bk_pty.c,v 1.2 2005/01/20 23:27:21 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -57,9 +57,6 @@ struct program_config
 #define PC_VERBOSE	0x001			///< Verbose output
   char **			pc_cmd;		///< Command to execute.
   pid_t				pc_pid;		///< Child pid.
-  bk_s				pc_B;		///< B struct (for passing to sig handler).
-  struct bk_relay_cancel	pc_brc;		///< bk_relay cancel struct.
-
 };
 
 
@@ -131,7 +128,6 @@ main(int argc, char **argv, char **envp)
 
   pc = &Pconfig;
   Global.gs_pc = pc;
-  pc->pc_B = B;
   pc->pc_pid = -1;  
   memset(pc, 0, sizeof(*pc));
   // XXX - customize here
@@ -275,7 +271,7 @@ static void progrun(bk_s B, struct program_config *pc)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bk_pty");
   int fd;
-  struct bk_run *run;
+  struct bk_run *run = NULL;
   struct bk_ioh *ioh_child;
   struct bk_ioh *ioh_stdio;
 
@@ -311,10 +307,18 @@ static void progrun(bk_s B, struct program_config *pc)
     break;
     
   case 0: // Child
-    if (bk_exec(B, pc->pc_cmd[0], &(pc->pc_cmd[1]), environ, 0) < 0)
+    /*
+     * Unfortunately it is possible (as in it has been seen) that the child
+     * process can complete and signal the parent before forkpty() has a
+     * chance to complete and assign the child pid to pc->pc_pid. This
+     * leaves the reaper function executing waitpid() on a bogus value. So
+     * we wait for second to make sure that this assignment has occured.
+     */
+    sleep(1); 
+    if (bk_exec(B, pc->pc_cmd[0], pc->pc_cmd, environ, 0) < 0)
     {
       fprintf(stderr, "Could not fork: %s\n", pc->pc_cmd[0]);
-      exit(1); // DO NOT GOTO ERROR HERE.
+      bk_exit(B, 1); // DO NOT GOTO ERROR HERE.
     }
     // NOTREACHED
     break;
@@ -326,8 +330,7 @@ static void progrun(bk_s B, struct program_config *pc)
       goto error;
     }
 
-    //BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE
-    if (bk_relay_ioh(B, ioh_child, ioh_stdio, NULL, NULL, NULL, &pc->pc_brc, 0))
+    if (bk_relay_ioh(B, ioh_child, ioh_stdio, NULL, NULL, NULL, NULL, BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE))
     {
       fprintf(stderr, "Could not configure relay");
       goto error;
@@ -342,9 +345,12 @@ static void progrun(bk_s B, struct program_config *pc)
     break;
   }
 
+  bk_run_destroy(B, run);
   BK_VRETURN(B);
 
  error:
+  if (run)
+    bk_run_destroy(B, run);
   bk_exit(B, 1);
   BK_VRETURN(B);
 }
@@ -355,24 +361,9 @@ static void
 reaper(int sig)
 {
   struct program_config *pc = Global.gs_pc;
-  int ret;
 
-  switch (ret = waitpid(pc->pc_pid, NULL, WNOHANG))
-  {
-  case -1:
+  if (waitpid(pc->pc_pid, NULL, WNOHANG) < 0)
     fprintf(stderr, "waitpid failed: %s\n", strerror(errno));
-    break;
-    
-  case 0: // What the heck? Some *other* child died. Weird.
-    break;
 
-  default:
-    if (bk_relay_cancel(pc->pc_B, &pc->pc_brc, 0) < 0)
-    {
-      fprintf(stderr, "Could not cancel relay\n");
-      // Hmm.. what to do.. perhaps exit()?
-    }
-    break;
-  }
   return;
 }

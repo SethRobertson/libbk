@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.33 2004/08/14 19:39:26 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_relay.c,v 1.34 2005/01/20 23:27:22 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,8 +24,6 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
-
-
 
 
 /**
@@ -225,8 +223,8 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr *data, void *opaque, struct bk_i
       relay->br_stats->side[side].birs_ioh_ops++;
     }
 
-    bk_debug_printf_and(B,128,"Reading data\n");
-
+    bk_debug_printf_and(B,128,"Reading data on descriptor pair (%d:%d)\n", ioh->ioh_fdin, ioh->ioh_fdout);
+    
     if (relay->br_callback)
     {
       bk_debug_printf_and(B,64,"Making relay callback\n");
