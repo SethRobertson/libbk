@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.319 2005/03/17 06:20:05 jtt Exp $
+ * $Id: libbk.h,v 1.320 2005/04/22 22:13:15 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -136,7 +136,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_APP_CONF	"/etc/bk.conf"		///< Default configuration file name
 #define BK_ENV_GWD(B, e,d)	BK_OR(bk_getenv(B, e),(d)) ///< Get an environmental variable with a default if it does not work
 #define BK_GWD(B,k,d) BK_OR(bk_config_getnext(B, NULL, (k), NULL),(d)) ///< Get a value from the config file, or return a default
-#define BK_SYSLOG_MAXLEN 256			///< Length of maximum user message we will syslog
+#define BK_SYSLOG_MAXLEN 1024			///< Length of maximum user message we will syslog
 // BK_FLAG_{SET,CLEAR} are statement macros to prevent inadvertent use as tests
 #define BK_FLAG_SET(var,bit) do { (var) |= (bit); } while (0) ///< Set a bit in a simple bitfield
 #define BK_FLAG_CLEAR(var,bit) do { (var) &= ~(bit); } while (0) ///< Clear a bit in a simple bitfield
