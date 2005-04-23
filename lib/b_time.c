@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_time.c,v 1.23 2005/02/15 23:08:01 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_time.c,v 1.24 2005/04/23 18:03:28 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,6 +26,22 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 
+/*
+ * Notes on durations; these could be implemented as struct tm for convenience.
+ * can nanosecond/microsecond sub-resolution be hidden inside? tm_gmtoff is set
+ * by localtime()/gmtime() and only used by strftime() %z; values +/- 46800;
+ * tm_isdst == -0xADD (-2781) could be used to indicate a duration, as opposed
+ * to absolute time, which should have tm_isdst = 0/1 or maybe -1? (in which
+ * case, tm_gmtoff is not treated as nanoseconds, but rather, ignored).
+ * How are signed durations represented?  Alternate tm_isdst magic?  Or just
+ * signed values in struct tm?  Note that mix of signs can't be represented in
+ * string format without "carry" i.e. -1 month +1 day = -27/-28/-29 days, and
+ * such "carries" are not well-defined for months/years (okay for other things)
+ * What is the (unspecified) duration (e.g. (time_t) -1)?  (struct tm *)NULL?
+ * Will need addition/subtraction functions on struct tm
+ */
+
+
 // must adjust if converting to struct timeval
 #define RESOLUTION BK_SECSTONSEC(1)
 #define LOG10_RES  9
@@ -49,6 +65,11 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  * in the ISO format leaving Oracle compatible "ANSI format" timestamps like
  * "2002-06-22 18:46:12.012345".  Note that although no 'Z' timezone designator
  * is present, this timestamp uses GMT/UTC.
+ *
+ * <TODO>Get rid of annoying copyout argument and return required size.
+ * While strftime doesn't provide this information, the formats we use are of
+ * fixed size (at least for non-wide-character locales) so we can easily
+ * compute them.</TODO>
  *
  * The output flags BK_TIME_FORMAT_OUTFLAG_TRUNCATED means that the
  * function failed to find enough space.
@@ -376,7 +397,7 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
   if (!(fraction = strptime(string, "%Y-%m-%dT%H:%M:%S", &t)))
     {
       if (BK_FLAG_ISSET(flags, BK_TIME_FORMAT_NO_ERROR))
-	bk_error_printf(B, BK_ERR_ERR, "Invalid return when parsing text format: %s\n", string);
+	bk_error_printf(B, BK_ERR_ERR, "Invalid ISO time: %s\n", string);
       BK_RETURN(B, -1);
     }
 #else
@@ -389,7 +410,7 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
 	|| (sep != 'T' && sep != ' '))
     {
       if (BK_FLAG_ISSET(flags, BK_TIME_FORMAT_NO_ERROR))
-	bk_error_printf(B, BK_ERR_ERR, "Invalid return when parsing text format: %s\n", string);
+	bk_error_printf(B, BK_ERR_ERR, "Invalid ISO time: %s\n", string);
       BK_RETURN(B, -1);
     }
 
