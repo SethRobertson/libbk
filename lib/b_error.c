@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_error.c,v 1.46 2004/12/24 00:28:00 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_error.c,v 1.47 2005/04/26 04:54:12 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -754,6 +754,7 @@ void bk_error_imark(bk_s B, struct bk_error *beinfo, const char *mark, bk_flags 
   node->ben_seq = beinfo->be_seqnum++;
   node->ben_level = 0;
   node->ben_msg = (char *)mark;
+  node->ben_origmsg = mark;
 
   if (errq_insert(beinfo->be_markqueue, node) != DICT_OK)
   {
