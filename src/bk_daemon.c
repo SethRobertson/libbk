@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.10 2005/02/05 03:16:38 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.11 2005/05/13 00:57:24 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -27,13 +27,17 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  * use the current baka programming style, but who has the time?  Answer -
  * the poor saps who get to port this to more modern OS's.
  *
+ * -a		Set O_APPEND to files opened with -s
  * -c		close all files > 2
  * -C		close all files
- * -D		Daemonize (-cdeu)
  * -d		chdir to / (get off possibly NFS mounted filesystems)
+ * -D		Daemonize (-cdeu)
  * -e		bail on environmental variables (PATH=BSD default)
- * -u		bail on umask -> umask 0
+ * -N		Open fds 0, 1, and 2 on /dev/null if not already open
  * -ppriority	change the priority to priority (default 15)
+ * -q		Quiet--don't print child PID on stderr
+ * -s		File to open output TTYs onto
+ * -u		bail on umask -> umask 0
  *
  * NOTE: default is to redirect stdio files to /dev/null if they are attached
  * to a tty (and you can't stop that.  This is specifically designed to prevent
@@ -111,14 +115,14 @@ main(int argc, char **argv, char **envp)
     case 'd':
       cdir = 1;
       break;
+    case 'D':
+      cfiles = cdir = env = b_umask = 1;
+      break;
     case 'e':
       env = 1;
       break;
-    case 'u':
-      b_umask = 1;
-      break;
-    case 'D':
-      cfiles = cdir = env = b_umask = 1;
+    case 'N':
+      want_dev_null_stdio = 1;
       break;
     case 'p':
       strptr=(char *)NULL;
@@ -139,9 +143,8 @@ main(int argc, char **argv, char **envp)
     case 's':
       outstream = optarg;
       break;
-
-    case 'N':
-      want_dev_null_stdio = 1;
+    case 'u':
+      b_umask = 1;
       break;
 
     case '?':
