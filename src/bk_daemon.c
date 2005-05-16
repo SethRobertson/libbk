@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.11 2005/05/13 00:57:24 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bk_daemon.c,v 1.12 2005/05/16 16:52:04 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -158,7 +158,18 @@ main(int argc, char **argv, char **envp)
   /* check for errors or a program to run */
   if (error || argc <= optind)
   {
-    (void) fprintf (stderr, "usage: %s [-cNCdDeEu] [-p priority] <cmd> [args]\n", argv[0]);
+    (void) fprintf (stderr, "usage: %s [-acCdDeNqsu] [-p priority] <cmd> [args]\n\n\
+-a	Set O_APPEND to files opened with -s\n\
+-c	close all files > 2\n\
+-C	close all files\n\
+-d	chdir to /\n\
+-D	-cdeu\n\
+-e	Bail on environmental variables (PATH=BSD default)\n\
+-N	Open fds 0, 1, and 2 on /dev/null if not already open\n\
+-p pri	Change the priority (default 15)\n\
+-q	Quiet=don't print child PID on stderr\n\
+-s	File to open output TTYs onto instead of /dev/null\n\
+-u	Set umask to umask 0\n", argv[0]);
     exit (2);
   }
 
