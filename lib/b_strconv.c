@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.21 2004/07/12 17:23:35 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.22 2005/09/02 17:13:53 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -196,7 +196,7 @@ int bk_string_atou64(bk_s B, const char *string, u_int64_t *value, bk_flags flag
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int sign = 0;
-  u_int64_t tmp;
+  u_int64_t tmp = -1;
   int ret = bk_string_atou64_int(B, string, &tmp, &sign, flags);
 
   if (sign < 0)					// not a valid unsigned

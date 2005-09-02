@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.50 2004/12/16 20:52:08 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.51 2005/09/02 17:13:52 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1571,7 +1571,7 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
   struct addrgroup_state *as = NULL;
   struct addrgroup_state *nas = NULL;
   struct sockaddr sa;
-  int len = sizeof(sa);
+  socklen_t len = sizeof(sa);
   int newfd = -1;
   struct bk_addrgroup *bag = NULL;
   int socktype;

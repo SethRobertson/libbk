@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.79 2005/02/09 01:32:25 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.80 2005/09/02 17:13:53 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3611,7 +3611,7 @@ static int bk_run_select_changed_init(bk_s B, struct bk_run *run)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct sockaddr_in originalsin;
   int fd;
-  int len = sizeof(originalsin);
+  socklen_t len = sizeof(originalsin);
 
   if ((fd = socket(AF_INET, SOCK_DGRAM, PF_UNSPEC)) < 0)
   {

@@ -41,7 +41,7 @@ How to do all of this, for C programmers:
 Constant string initializers get the N_() wrapper.  Ex:
 
 ----------------------------------------------------------------------
-  const struct poptOption optionsTable[] =
+  struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', N_("Turn on debugging"), NULL },
 ----------------------------------------------------------------------

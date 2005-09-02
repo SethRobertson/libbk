@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.9 2005/03/07 23:15:25 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.10 2005/09/02 17:13:55 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -162,7 +162,7 @@ main(int argc, char **argv, char **envp)
   extern int optind;
   struct program_config Pconfig, *pc=NULL;
   poptContext optCon=NULL;
-  const struct poptOption optionsTable[] =
+  struct poptOption optionsTable[] =
   {
     {"debug", 'd', POPT_ARG_NONE, NULL, 'd', "Turn on debugging", NULL },
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },

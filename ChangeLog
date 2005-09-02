@@ -1,3 +1,24 @@
+2005-09-02  Alexander Dupuy  <alex.dupuy@counterstorm.com>
+
+	* README.i18n: gcc-4 puts "const struct poptOption optionsTable[]"
+	in read-only code segment - hey - it's declared const, after all, and
+	this gets a SEGV when we localize one of the string pointers in it.
+	Don't declare it const, here, or in any of the umpteen dozen main()
+	functions that were cut&pasted from this
+
+	* include/libbk.h (BK_ENTRY_VOLATILE): BK_ENTRY_VOLATILE is
+	occasionally needed to prevent compiler warnings (errors) about
+	__bk_funinfo being clobbered by longjmp or vfork (or pthread_create).
+	<TRICKY>A special macro is needed because the __bk_funinfo pointer
+	variable *itself* (not the struct bk_funinfo it points to) must be
+	declared volatile - use cdecl to "explain" the crazy C syntax for this.
+
+	Seth had been using a "stupid" hack to force gcc to keep the variable
+	on the stack, but the gcc-4 optimizer is too smart and optimizes the
+	hack away, so we must use the volatile declaration correctly.</TRICKY>
+
+	* lib/b_thread.c (bk_thread_create, bk_thread_kill_others): use it
+
 2005-03-17  James Tanis  <jtt@cheviot.sysdetect.com>
 
 	* lib/b_string.c (bk_string_tokenize_split): Allow for user

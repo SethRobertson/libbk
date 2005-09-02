@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.320 2005/04/22 22:13:15 seth Exp $
+ * $Id: libbk.h,v 1.321 2005/09/02 17:13:51 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -813,7 +813,23 @@ struct bk_addrgroup
 #define BK_ENTRY_MAIN(B, fun, pkg, grp) struct bk_funinfo *__bk_funinfo = bk_fun_entry(B, fun, pkg, grp)
 
 
+
 #ifdef __GNUC__
+/*
+ * BK_ENTRY_VOLATILE is occasionally needed to prevent compiler warnings
+ * (errors) about __bk_funinfo being clobbered by longjmp or vfork (or
+ * pthread_create).  <TRICKY>A special macro is needed because the __bk_funinfo
+ * pointer variable *itself* (not the struct bk_funinfo it points to) must be
+ * declared volatile - use cdecl to "explain" the crazy C syntax for this.
+ *
+ * Seth had been using a "stupid" hack to force gcc to keep the variable on the
+ * stack, but the gcc-4 optimizer is too smart and optimizes the hack away, so
+ * we must use the volatile declaration correctly.</TRICKY>
+ */
+#define BK_ENTRY_VOLATILE(B, fun, pkg, grp) struct bk_funinfo *volatile __bk_funinfo = (!B || !BK_GENERAL_FLAG_ISFUNON(B)?NULL:bk_fun_entry(B, fun, pkg, grp))
+
+
+
 /**
  * @brief Return a value, letting function tracing know you are exiting the
  * function preserving the order of return value function stack evaluation
@@ -827,7 +843,12 @@ do {						\
   return myretval;				\
   /* NOTREACHED */				\
 } while (0)
+
 #else  /* !__GNUC__ */
+
+// no need for volatile declarations - may not even compile
+#define BK_ENTRY_VOLATILE(B, fun, pkg, grp) BK_ENTRY(B, fun, pkg, grp)
+
 // order of function stack *will* be messed up, tough baka
 #define BK_RETURN(B, retval)			\
 do {						\
@@ -836,6 +857,7 @@ do {						\
   return retval;				\
   /* NOTREACHED */				\
 } while (0)
+
 #endif /* !__GNUC__ */
 
 

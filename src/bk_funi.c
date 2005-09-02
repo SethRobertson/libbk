@@ -125,7 +125,7 @@ int main(int argc, char **argv, char **envp)
 
   /* exec the program in question */
   if (optind >= argc)
-    execl(shell, shell, 0);
+    execl(shell, shell, NULL);
   else
     execvp(argv[optind], argv+optind);
 

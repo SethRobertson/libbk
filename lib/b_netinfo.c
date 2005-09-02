@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.24 2004/08/17 03:35:07 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.25 2005/09/02 17:13:53 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -997,7 +997,8 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
   bk_netaddr_type_e netaddr_type;
   socklen_t len;
   bk_sockaddr_t bs;
-  int socket_type, socket_type_len;
+  int socket_type;
+  socklen_t socket_type_len;
   const char *proto_str = NULL;
 
   memset(&bs, 0,sizeof(bs));

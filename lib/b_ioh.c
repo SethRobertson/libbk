@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.112 2005/01/25 21:53:36 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.113 2005/09/02 17:13:52 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1728,7 +1728,7 @@ static int bk_ioh_fdctl(bk_s B, int fd, u_int32_t *savestate, bk_flags flags)
   int oobinline = -1;
   int linger = -1;
   struct linger sling;
-  int size;
+  socklen_t size;
 
   if (!savestate)
   {
@@ -2788,7 +2788,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int ret = 0;
   struct bk_ioh_data *bid;
-  u_int32_t room, size = 0;
+  u_int32_t room =0, size = 0;
   u_int32_t lengthfromwire = 0;
   int cnt = 0;
   struct bk_ioh_data *bid_cache = NULL;

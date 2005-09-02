@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.13 2005/02/05 03:16:38 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.14 2005/09/02 17:13:53 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -470,7 +470,7 @@ void bk_truerand_opertunistic(bk_s B, bk_MD5_CTX *ctx)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int fd = -1;
-  char buf[BK_POOLSIZE];
+  unsigned char buf[BK_POOLSIZE];
 
   if (!ctx)
   {
