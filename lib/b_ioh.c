@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.113 2005/09/02 17:13:52 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.114 2005/09/20 23:41:45 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3790,7 +3790,7 @@ int bk_ioh_stdrdfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t bu
   if ((ret = read(fd, buf, size)) < 0)
   {
     erno = errno;
-    if (!IOH_EBLOCKINGINTR)
+    if (!IOH_EBLOCKINGINTR && errno != EIO)
       bk_error_printf(B, BK_ERR_ERR, "read syscall failed on fd %d of size %zu: %s\n", fd, size, strerror(errno));
   }
 
