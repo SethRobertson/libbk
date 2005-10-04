@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bk_pty.c,v 1.4 2005/09/02 17:13:55 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bk_pty.c,v 1.5 2005/10/04 20:25:37 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -20,7 +20,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  *
- * Run a program under a pty. 
+ * Run a program under a pty.
  * Example libbk user with main() prototype.
  */
 #include <libbk.h>
@@ -68,6 +68,7 @@ struct program_config
 {
   bk_flags			pc_flags;	///< Flags are fun!
 #define PC_VERBOSE	0x001			///< Verbose output
+#define PC_TWOCLOSE	0x002			///< 2 Closes required
   char **			pc_cmd;		///< Command to execute.
   pid_t				pc_pid;		///< Child pid.
 };
@@ -107,6 +108,7 @@ main(int argc, char **argv, char **envp)
       {"no-seatbelts", 0, POPT_ARG_NONE, NULL, 0x1000, N_("Sealtbelts off & speed up"), NULL },
       {"seatbelts", 0, POPT_ARG_NONE, NULL, 0x1001, N_("Enable function tracing"), NULL },
       {"profiling", 0, POPT_ARG_STRING, NULL, 0x1002, N_("Enable and write profiling data"), N_("filename") },
+      {"twoclose", 0, POPT_ARG_NONE, NULL, 0x101, N_("Input and output of child must close before exit"), NULL },
       POPT_AUTOHELP
       POPT_TABLEEND
     };
@@ -140,7 +142,7 @@ main(int argc, char **argv, char **envp)
 
   pc = &Pconfig;
   Global.gs_pc = pc;
-  pc->pc_pid = -1;  
+  pc->pc_pid = -1;
   memset(pc, 0, sizeof(*pc));
   // XXX - customize here
 
@@ -184,6 +186,16 @@ main(int argc, char **argv, char **envp)
 	bk_debug_printf(B, "Super-extra debugging on\n");
 	debug_level++;
       }
+      else if (debug_level == 3)
+      {
+	/*
+	 * Enable output of all levels of bk_error logs (this can be
+	 * very annoying so require -ddd)
+	 */
+	bk_error_config(B, BK_GENERAL_ERROR(B), 0, stderr, BK_ERR_NONE, BK_ERR_DEBUG, BK_ERROR_CONFIG_FH | BK_ERROR_CONFIG_HILO_PIVOT | BK_ERROR_CONFIG_SYSLOGTHRESHOLD | BK_ERROR_CONFIG_FLAGS | BK_ERROR_FLAG_MORE_FUN);
+	bk_debug_printf(B, "Super-extra debugging with tracing on\n");
+	debug_level++;
+      }
       break;
     case 'v':					// verbose
       BK_FLAG_SET(pc->pc_flags, PC_VERBOSE);
@@ -201,6 +213,10 @@ main(int argc, char **argv, char **envp)
     default:
       getopterr++;
       break;
+
+    case 0x101:					// twoclose
+      BK_FLAG_SET(pc->pc_flags, PC_TWOCLOSE);
+      break;
     }
   }
 
@@ -211,7 +227,7 @@ main(int argc, char **argv, char **envp)
    */
   pc->pc_cmd = argv = (char **)poptGetArgs(optCon);
   argc = 0;
-  
+
   if (argv)
     for (; argv[argc]; argc++)
       ; // Intentially left blank
@@ -318,7 +334,7 @@ static void progrun(bk_s B, struct program_config *pc)
     fprintf(stderr, "Could not fork new process under a pty: %s\n", strerror(errno));
     goto error;
     break;
-    
+
   case 0: // Child
     /*
      * Unfortunately it is possible (as in it has been seen) that the child
@@ -327,7 +343,7 @@ static void progrun(bk_s B, struct program_config *pc)
      * leaves the reaper function executing waitpid() on a bogus value. So
      * we wait for second to make sure that this assignment has occured.
      */
-    sleep(1); 
+    sleep(1);
     if (bk_exec(B, pc->pc_cmd[0], pc->pc_cmd, environ, 0) < 0)
     {
       fprintf(stderr, "Could not fork: %s\n", pc->pc_cmd[0]);
@@ -343,7 +359,7 @@ static void progrun(bk_s B, struct program_config *pc)
       goto error;
     }
 
-    if (bk_relay_ioh(B, ioh_child, ioh_stdio, NULL, NULL, NULL, NULL, BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE))
+    if (bk_relay_ioh(B, ioh_child, ioh_stdio, NULL, NULL, NULL, NULL, BK_FLAG_ISSET(pc->pc_flags, PC_TWOCLOSE)?0:BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE))
     {
       fprintf(stderr, "Could not configure relay");
       goto error;
@@ -374,7 +390,7 @@ static void progrun(bk_s B, struct program_config *pc)
 
 
 
-static void 
+static void
 reaper(int sig)
 {
   struct program_config *pc = Global.gs_pc;
