@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.321 2005/09/02 17:13:51 dupuy Exp $
+ * $Id: libbk.h,v 1.322 2005/10/21 23:33:49 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2235,7 +2235,8 @@ extern int bk_ring_length(bk_s B, struct bk_ring *ring, bk_flags flags);
 
 /* b_vptr.c */
 extern int bk_vptr_append(bk_s B, bk_vptr *dp, const bk_vptr *sp);
-extern int bk_vptr_trimleft(bk_s B, bk_vptr *vptr, const void *ptr);
+extern int bk_vptr_trimleft(bk_s B, bk_vptr *vptr, const void *ptr, bk_flags flags);
+#define BK_VPTR_FLAG_NO_RESIZE		0x01	///< Don't realloc memory
 extern int bk_vptr_ntrimleft(bk_s B, bk_vptr *vptr, size_t n);
 extern int bk_vptr_cmp(bk_vptr *v1, bk_vptr *v2);
 

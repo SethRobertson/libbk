@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_vptr.c,v 1.6 2004/08/21 04:39:40 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_vptr.c,v 1.7 2005/10/21 23:33:50 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -69,10 +69,11 @@ extern int bk_vptr_append(bk_s B, bk_vptr *dp, const bk_vptr *sp)
  *	@param B BAKA thread/global state.
  *	@param vptr The @a bk_vptr to lop off.
  *	@param ptr First position to save.
+ *	@param flags BK_VPTR_FLAG_NO_RESIZE - Don't realloc memory
  *	@return <i>-1</i> on failure.<br>
  *	@return the <i>length</i> <em>removed</em> success.
  */
-int bk_vptr_trimleft(bk_s B, bk_vptr *vptr, const void *ptr)
+int bk_vptr_trimleft(bk_s B, bk_vptr *vptr, const void *ptr, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   size_t removed;
@@ -97,21 +98,24 @@ int bk_vptr_trimleft(bk_s B, bk_vptr *vptr, const void *ptr)
   if (left_over)
     memmove(vptr->ptr, ptr, left_over);
 
-  // realloc pointer for efficiency.  Iff !leftover, realloc to 1
-  if ((new = realloc(vptr->ptr, left_over ? left_over : 1)))
-    vptr->ptr = new;				// probably the same anyhow
-  else
+  if (BK_FLAG_ISCLEAR(flags, BK_VPTR_FLAG_NO_RESIZE))
   {
-    /*
-     * We can still continue since the original block is left untouched in case
-     * of realloc failure. But generate a warning since this is unexpected.
-     * Note that most realloc implementations waste the space in any case.
-     */
-    bk_error_printf(B, BK_ERR_WARN, "Trimmed vptr wastes %zu bytes.\n",
-		    removed);
-  }
+    // realloc pointer for efficiency.  Iff !leftover, realloc to 1
+    if ((new = realloc(vptr->ptr, left_over ? left_over : 1)))
+      vptr->ptr = new;				// probably the same anyhow
+    else
+    {
+      /*
+       * We can still continue since the original block is left untouched in case
+       * of realloc failure. But generate a warning since this is unexpected.
+       * Note that most realloc implementations waste the space in any case.
+       */
+      bk_error_printf(B, BK_ERR_WARN, "Trimmed vptr wastes %zu bytes.\n",
+		      removed);
+    }
 
-  vptr->len = left_over;
+    vptr->len = left_over;
+  }
 
   BK_RETURN(B,removed);
 }
@@ -137,7 +141,7 @@ extern int bk_vptr_ntrimleft(bk_s B, bk_vptr *vptr, size_t n)
     BK_RETURN(B, -1);
   }
 
-  BK_RETURN(B, bk_vptr_trimleft(B, vptr, (char*)(vptr->ptr) + n));
+  BK_RETURN(B, bk_vptr_trimleft(B, vptr, (char*)(vptr->ptr) + n, 0));
 }
 
 
