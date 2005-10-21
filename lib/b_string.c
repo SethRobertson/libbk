@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.123 2005/03/17 19:28:11 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.124 2005/10/21 23:14:54 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -605,7 +605,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
       
     }
     *ret = NULL;
-    BK_RETURN(B, ret);    
+    goto abort;
   }
 
   /* Go over all characters in source string */
@@ -1137,6 +1137,10 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
   BK_RETURN(B, ret);
 
  error:
+  ret = NULL;
+  // Intentional fall through
+
+ abort:
   /*
    * Note - contents of splitx (duplicated tokens) may be leaked
    * no matter what we do, due to realloc.  Thus we do not get
@@ -1159,7 +1163,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
   if (right_braces)
     free(right_braces);
 
-  BK_RETURN(B, NULL);
+  BK_RETURN(B, ret);
 }
 
 
