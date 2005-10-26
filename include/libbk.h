@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.322 2005/10/21 23:33:49 lindauer Exp $
+ * $Id: libbk.h,v 1.323 2005/10/26 21:20:29 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -662,7 +662,7 @@ struct bk_bitfield
  */
 struct bk_timespec
 {
-  u_int32_t		bt_secs;		///< Seconds since epoch
+  time_t		bt_secs;		///< Seconds since epoch
   u_int32_t		bt_nsecs;		///< Nanoseconds since second
 };
 
@@ -1010,7 +1010,7 @@ do {						\
  */
 #define BK_BTS2F(bt) ((double)(((double)((bt)->bt_secs)) + ((double)((bt)->bt_nsecs))/1000000000.0))
 // And similarly for comparisons
-#define BK_BTS_CMP(a,b) BK_OR((a)->bt_secs-(b)->bt_secs,(a)->bt_nsecs-(b)->bt_nsecs)
+#define BK_BTS_CMP(a,b) BK_OR(((UNSIGNED_TIME_T)((a)->bt_secs-(b)->bt_secs)),(a)->bt_nsecs-(b)->bt_nsecs)
 
 
 /** @brief Special symbol which means resolve to "any" address. */
