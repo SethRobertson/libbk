@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.22 2005/09/02 17:13:53 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.23 2005/11/16 22:58:22 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1005,6 +1005,26 @@ bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
  * exa- 	E 	10^18 	2^60
  * zetta- 	Z 	10^21 	2^70
  * yotta- 	Y 	10^24 	2^80
+ *
+ *
+ *
+ * Updated news: binary (power 2) SI names have been changed for
+ * clarity:
+ *
+ * 2^10 	kibi 	Ki 	kilobinary: (2^10)^1 	kilo: (10^3)^1
+ * 2^20 	mebi 	Mi 	megabinary: (2^10)^2  	mega: (10^3)^2
+ * 2^30 	gibi 	Gi 	gigabinary: (2^10)^3 	giga: (10^3)^3
+ * 2^40 	tebi 	Ti 	terabinary: (2^10)^4 	tera: (10^3)^4
+ * 2^50 	pebi 	Pi 	petabinary: (2^10)^5 	peta: (10^3)^5
+ * 2^60 	exbi 	Ei 	exabinary: (2^10)^6 	exa: (10^3)^6
+ *
+ * Despite this technically more correct representation, I am being
+ * lazy and not updating this function at this time.  There is not
+ * particular reason, aside from the rewrite of the search and the
+ * required testing due to the multibyte return, that we should not.
+ *
+ * Possibly a new flag for BK_STRING_MAGNITUDE_SIBM would be best.
+ *
  *
  * @param B BAKA Thread/Global environment
  * @param number Number to transform
