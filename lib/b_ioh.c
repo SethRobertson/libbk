@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.114 2005/09/20 23:41:45 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.115 2006/01/04 01:27:21 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -2300,6 +2300,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	bk_debug_printf_and(B, 64, "Stopped enqueueing data, vectors %d, bid %p, bid->data %p, bid->flags %x, bid->idc_type %d\n", vectors_in_use, bid, bid?bid->bid_data:NULL, bid?bid->bid_flags:0, bid?bid->bid_idc.idc_type:0);
 
 #ifdef BK_USING_PTHREADS
+	ioh->ioh_incallback++;
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
 	{
 	  ioh->ioh_userid = pthread_self();
@@ -2319,6 +2320,7 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 	    abort();
 	  pthread_cond_broadcast(&ioh->ioh_cond);
 	}
+	ioh->ioh_incallback--;
 #endif /* BK_USING_PTHREADS */
 
 	free(iov);
@@ -2581,6 +2583,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
       }
 
 #ifdef BK_USING_PTHREADS
+      ioh->ioh_incallback++;
       if (BK_GENERAL_FLAG_ISTHREADON(B))
       {
 	ioh->ioh_userid = pthread_self();
@@ -2600,6 +2603,7 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 	  abort();
 	pthread_cond_broadcast(&ioh->ioh_cond);
       }
+      ioh->ioh_incallback--;
 #endif /* BK_USING_PTHREADS */
 
       free(iov);
@@ -2868,6 +2872,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
       if (bid && cnt > 0)
       {
 #ifdef BK_USING_PTHREADS
+	ioh->ioh_incallback++;
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
 	{
 	  ioh->ioh_userid = pthread_self();
@@ -2887,6 +2892,7 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 	    abort();
 	  pthread_cond_broadcast(&ioh->ioh_cond);
 	}
+	ioh->ioh_incallback--;
 #endif /* BK_USING_PTHREADS */
 
 	errno = ioh->ioh_errno;
@@ -3471,6 +3477,7 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
   }
 
 #ifdef BK_USING_PTHREADS
+  ioh->ioh_incallback++;
   if (BK_GENERAL_FLAG_ISTHREADON(B))
   {
     ioh->ioh_userid = pthread_self();
@@ -3490,6 +3497,7 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
       abort();
     pthread_cond_broadcast(&ioh->ioh_cond);
   }
+  ioh->ioh_incallback--;
 #endif /* BK_USING_PTHREADS */
 
   if (ret > 0)
