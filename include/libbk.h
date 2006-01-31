@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.323 2005/10/26 21:20:29 jtt Exp $
+ * $Id: libbk.h,v 1.324 2006/01/31 09:22:21 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2475,5 +2475,21 @@ extern char *bk_strdup_wrapper(const char *str);
 extern char *bk_strndup_wrapper(const char *str, size_t n);
 
 #endif /* defined(__INSURE__) && !defined(BK_NO_MALLOC_WRAP) */
+
+/* b_bigint.c */
+
+/**
+ * @name bk_bigint
+ * 
+ * Structure for handling u_ints with overflow protection
+ */
+struct bk_bigint
+{
+  u_int		bb_cur_uint;	///< The value of the last u_int update;
+  u_int64_t	bb_overflow;	///< The accumulations of overflow.
+};
+extern int bk_bigint_accumulate(bk_s B, struct bk_bigint *bb, u_int val, bk_flags flags);
+extern u_int64_t bk_bigint_value(bk_s B, struct bk_bigint *bb, bk_flags flags);
+extern int bk_bigint_init(bk_s B, struct bk_bigint *bb, bk_flags flags);
 
 #endif /* _BK_h_ */

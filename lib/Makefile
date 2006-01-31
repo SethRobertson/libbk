@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.54 2004/07/12 17:23:35 jtt Exp $
+# $Id: Makefile,v 1.55 2006/01/31 09:22:22 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -18,6 +18,7 @@ BK_LARGE_LIB=libbk$(LIBEXT)
 
 BK_LARGE_LIBSRC=				\
 		b_addrgroup.c			\
+		b_bigint.c			\
 		b_bits.c			\
 		b_child.c			\
 		b_cksum.c			\
