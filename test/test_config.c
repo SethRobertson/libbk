@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: test_config.c,v 1.14 2005/09/02 17:13:56 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: test_config.c,v 1.15 2006/02/03 01:16:03 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -97,13 +97,15 @@ main(int argc, char **argv, char **envp)
     poptPrintUsage(optCon, stderr, 0);
     bk_exit(B,254);
   }
+  argv = (char **)poptGetArgs(optCon);
+  argc = 0;
 
   if (proginit(B) < 0)
   {
     bk_die(B,254,stderr,"Could not perform program initialization\n",0);
   }
 
-  progrun(B, argv[1]);
+  progrun(B, argv?argv[0]:NULL);
   bk_exit(B,0);
   abort();
   BK_RETURN(B,255);				/* Insight is stupid */
@@ -129,6 +131,8 @@ int proginit(bk_s B)
 void progrun(bk_s B, const char *extra)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
+
+  printf("Hello world\n");
 
   if (BK_FLAG_ISSET(Global.gs_flags, TESTCONFIG_FLAG_DISPLAY))
   {

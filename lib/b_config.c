@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_config.c,v 1.41 2005/03/17 06:20:04 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_config.c,v 1.42 2006/02/03 01:16:03 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -43,8 +43,6 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  * - \uxxxx unicode character escapes aren't supported [for control/8bit chars]
  *    libbk sez just include them directly (NUL not supported) or use \ooo byte
  *    encoding
- *
- * - maximum line length is 8192 characters
  *
  * Differences from format accepted by Properties.load are the above, plus:
  *
@@ -148,7 +146,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 #define SET_CONFIG(b,B,c) do { if (!(c)) { (b)=BK_GENERAL_CONFIG(B); } else { (b)=(c); } } while (0) ///< Set the configuration database to use--either from BAKA or from passed-in
-#define LINELEN 8192				///< Maximum size of one configuration line
+#define LINELEN 8192				///< Initial size of one configuration line
 #define CONFIG_MANAGE_FLAG_NEW_KEY	0x1	///< Internal state info required for config_manage cleanup
 #define CONFIG_MANAGE_FLAG_NEW_VALUE	0x2	///< Internal state info required for config_manage cleanup
 #define BK_CONFIG_SEPARATORS "=:"BK_HWHITESPACE	///< Default configuration separators
@@ -464,7 +462,8 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   FILE *fp = NULL;
   int ret = 0;
-  char line[LINELEN];
+  char *line = NULL;
+  int linelen = LINELEN;
   int lineno = 0;
   char **key = NULL;				// (single) token array
   char **value = NULL;				// (single) token array
@@ -473,6 +472,13 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
+  }
+
+  if (!(line = malloc(LINELEN)))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Could not allocate initial bkconf line length: %s\n", strerror(errno));
+    ret=-1;
+    goto done;
   }
 
   if (!(fp = fopen(bcf->bcf_filename, "r")))
@@ -504,10 +510,29 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
   }
 
   bk_debug_printf_and(B, 1, "Have opened %s while loading config info", bcf->bcf_filename);
-  while(fgets(line, LINELEN, fp))
+  while(!feof(fp) && fgets(line, linelen, fp))
   {
     char *start = line;
     char *rest;
+
+    // Check to see if we didn't read the entire line (presumably due to line length limitations)
+    while (!memchr(line,'\n', linelen))
+    {
+      if (!(start = realloc(line, linelen + LINELEN)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not realloc for long line of size over %d: %s\n", linelen, strerror(errno));
+	ret = -1;
+	goto done;
+      }
+
+      // Readjust and read the next part of the line
+      line = start;
+      start = line + strlen(line);
+      linelen += LINELEN;
+      if (fgets(start, LINELEN, fp) == NULL)
+	break;
+    }
+    start = line;
 
     lineno++;
 
@@ -627,6 +652,7 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
   }
 
  done:
+  if (line) free(line);
   if (fp) fclose(fp);
   if (key) bk_string_tokenize_destroy(B, key);
   if (value) bk_string_tokenize_destroy(B, value);
