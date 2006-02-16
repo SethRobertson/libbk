@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: allocate_actual.c,v 1.1 2006/02/16 19:12:52 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: allocate_actual.c,v 1.2 2006/02/16 20:09:00 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -260,7 +260,7 @@ long linux_get_memusage(void)
   parse += strlen(NEEDLE);
   while (*parse && (*parse == ' ' || *parse == '\t'))
     parse++;
-  return(atoi(parse)*1000);
+  return(atoi(parse)*1024);
 }
 #endif /* RUSAGE_WORKED */
 
@@ -319,12 +319,16 @@ static void progrun(bk_s B, struct program_config *pc)
 
     if (newmem != curmem)
     {
+      if (lowest == 0)
+      {
+	lowest = newmem;
+	allocations = 0;
+      }
       if (tests++ > 0)
       {
 	printf("For requests of size %d, I saw %d in %ld, for average size of %.2f\n", pc->pc_size,allocations-1,newmem-curmem,(newmem-curmem)/(allocations-1.0));
-	if (lowest == 0)
-	  lowest = newmem;
 	sum_allocs += allocations;
+	curmem = newmem;
 	if (tests > pc->pc_maxbumps)
 	  break;
       }
