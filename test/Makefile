@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.28 2006/02/23 21:26:52 seth Exp $
+# $Id: Makefile,v 1.29 2006/02/28 20:32:20 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -30,6 +30,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		test_ioh		\
 		test_iospeed		\
 		test_locks 		\
+		test_mt19937		\
 		test_printbuf 		\
 		test_ringdir		\
 		test_string	 	\

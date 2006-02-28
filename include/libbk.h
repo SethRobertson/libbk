@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.324 2006/01/31 09:22:21 jtt Exp $
+ * $Id: libbk.h,v 1.325 2006/02/28 20:32:19 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2491,5 +2491,16 @@ struct bk_bigint
 extern int bk_bigint_accumulate(bk_s B, struct bk_bigint *bb, u_int val, bk_flags flags);
 extern u_int64_t bk_bigint_value(bk_s B, struct bk_bigint *bb, bk_flags flags);
 extern int bk_bigint_init(bk_s B, struct bk_bigint *bb, bk_flags flags);
+
+/* mt19937 */
+extern struct mt_state *mt19937_truerand_init(void);
+extern struct mt_state *mt19937_init_genrand64(unsigned long long myseed);
+extern struct mt_state *mt19937_init_by_array64(unsigned long long init_key[], unsigned long long key_length);
+extern unsigned long long mt19937_genrand64_int64(struct mt_state *mts);
+extern long long mt19937_genrand64_int63(struct mt_state *mts);
+extern double mt19937_genrand64_real1(struct mt_state *mts);
+extern double mt19937_genrand64_real2(struct mt_state *mts);
+extern double mt19937_genrand64_real3(struct mt_state *mts);
+extern void mt19937_destroy(struct mt_state *mts);
 
 #endif /* _BK_h_ */

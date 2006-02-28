@@ -19,3 +19,5 @@ test_clc
 diskspeed
 test_threads
 test_ringdir
+allocate_actual
+test_mt19937

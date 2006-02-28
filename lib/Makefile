@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.55 2006/01/31 09:22:22 jtt Exp $
+# $Id: Makefile,v 1.56 2006/02/28 20:32:19 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -65,6 +65,7 @@ BK_LARGE_LIBSRC=				\
 		b_url.c				\
 		b_vault.c			\
 		b_vptr.c			\
+		mt19937-64.c			\
 # Line eater fodder -- leave
 
 LT_LDLIBS=-ldict -lfsma -lpqueue $(BK_LIBM) $(PTHREAD_LIBS)
