@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.325 2006/02/28 20:32:19 seth Exp $
+ * $Id: libbk.h,v 1.326 2006/03/02 21:48:11 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -141,6 +141,10 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_FLAG_SET(var,bit) do { (var) |= (bit); } while (0) ///< Set a bit in a simple bitfield
 #define BK_FLAG_CLEAR(var,bit) do { (var) &= ~(bit); } while (0) ///< Clear a bit in a simple bitfield
 #define BK_FLAG_ALLSET(var,bit) (((var) & (bit)) == (bit)) ///< Test if all bits are set in a simple bitfield
+#define BK_FLAG_ALLCLEAR(var,bit) (BK_FLAG_ISCLEAR(var,bit)) ///< Included for completeness (or to prove why it's not actually necessary)
+#define BK_FLAG_ANYCLEAR(var,bit) (((var) & (bit)) != (bit)) ///< Test if any bit is cleared
+#define BK_FLAG_ANYSET(var,bit) (BK_FLAG_ISSET(var,bit)) ///< Included for completeness (or to prove why it's not actually necessary)
+
 #define BK_FLAG_ISSET(var,bit) ((var) & (bit))	///< Test if bit (any of the bits) is set in a simple bitfield
 #define BK_FLAG_ISCLEAR(var,bit) (!((var) & (bit))) ///< Test of bit is clear in a simple bitfield
 #define BK_STRCMP(a,b) (((a) && (b)) ? strcmp((a),(b)) : ((a) ? 1 : -1)) ///< Strcmp with nulls allowed
