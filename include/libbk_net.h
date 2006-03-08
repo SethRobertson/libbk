@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.16 2005/01/11 18:29:08 seth Exp $
+ * $Id: libbk_net.h,v 1.17 2006/03/08 21:31:58 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -122,6 +122,9 @@ struct baka_tcphdr
 
 
 
+typedef u_int8_t		bk_icmp_code_t;
+#define BK_MAX_ICMP_CODES	(sizeof(bk_icmp_code_t) * 8)
+
 /**
  * OS independent version of UDP header (thanks linux)
  */
@@ -134,16 +137,15 @@ struct baka_udphdr
 };
 
 
-
 /**
  * OS independent version of ICMP header (thanks linux)
  */
 struct baka_icmphdr
 {
-  u_int8_t  pkt_icmp_type;			///< Message type
-  u_int8_t  pkt_icmp_code;			///< Type sub-code
-  u_int16_t pkt_icmp_checksum;                  ///< Header+payload checksum
-  u_char    pkt_icmp_payload[0];                ///< Possible ICMP additional data
+  u_int8_t		pkt_icmp_type;		///< Message type
+  bk_icmp_code_t	pkt_icmp_code;		///< Type sub-code
+  u_int16_t		pkt_icmp_checksum;     ///< Header+payload checksum
+  u_char		pkt_icmp_payload[0]; ///< Possible ICMP additional data
 };
 
 
