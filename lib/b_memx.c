@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.15 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.16 2006/03/20 20:48:46 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -257,7 +257,7 @@ bk_memx_lop(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags)
 
 
 /**
- * Special hack in this is a string.  Create the necessary space and
+ * Special hack if this is a string.  Create the necessary space and
  * append the supplied string on the end of the old string.
  * Maintaining NULL termination, of course.
  *
@@ -301,4 +301,47 @@ int bk_memx_addstr(bk_s B, struct bk_memx *bm, char *str, bk_flags flags)
 
   strcpy(new, str);
   BK_RETURN(B, 0);
+}
+
+
+
+/**
+ * Append some data to the end of a memx.
+ *
+ * THREADS: MT-SAFE (as long as bm is thread-private)
+ *
+ * @param B Baka Thread/global environment
+ * @param bm Memx structure
+ * @param data Data to append
+ * @param len Length of data to append
+ * @param flags Fun for the future
+ * @return <i>-1</i> on failure
+ * @return <i>0</i> on success
+ */
+int bk_memx_append(bk_s B, struct bk_memx *bm, const void *data, u_int32_t len, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  void *new;
+
+  if (!bm || !data)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments.\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!len)
+    BK_RETURN(B, 0);
+
+  if (!(new = bk_memx_get(B, bm, len, NULL, BK_MEMX_GETNEW)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not obtain space to append data.\n");
+    goto error;
+  }
+
+  memcpy(new, data, len);
+
+  BK_RETURN(B, 0);
+
+ error:
+  BK_RETURN(B, -1);
 }

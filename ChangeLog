@@ -1,3 +1,7 @@
+2006-03-20  Brian Lindauer  <brian.lindauer@counterstorm.com>
+
+	* lib/b_memx.c (bk_memx_append): Added bk_memx_append function.
+
 2006-02-02  Seth Robertson  <seth@startide.sysdetect.com>
 
 	* lib/b_config.c (load_config_from_file): Allow infinite length configuration lines

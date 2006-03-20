@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.326 2006/03/02 21:48:11 jtt Exp $
+ * $Id: libbk.h,v 1.327 2006/03/20 20:48:46 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1598,6 +1598,7 @@ extern void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused
 extern int bk_memx_addstr(bk_s B, struct bk_memx *bm, char *str, bk_flags flags);
 extern int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags);
 extern int bk_memx_lop(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags);
+int bk_memx_append(bk_s B, struct bk_memx *bm, const void *data, u_int32_t len, bk_flags flags);
 
 
 /* b_run.c */
