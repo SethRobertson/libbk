@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.23 2005/11/16 22:58:22 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_strconv.c,v 1.24 2006/04/26 15:11:08 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -945,7 +945,7 @@ int
 bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  double tmp;
+  double tmp = 0.0;
   int ret = 0;
 
   if (!string || !value)
