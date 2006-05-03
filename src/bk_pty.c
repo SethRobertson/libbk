@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bk_pty.c,v 1.5 2005/10/04 20:25:37 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bk_pty.c,v 1.6 2006/05/03 04:58:15 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -344,7 +344,7 @@ static void progrun(bk_s B, struct program_config *pc)
      * we wait for second to make sure that this assignment has occured.
      */
     sleep(1);
-    if (bk_exec(B, pc->pc_cmd[0], pc->pc_cmd, environ, 0) < 0)
+    if (bk_exec(B, pc->pc_cmd[0], pc->pc_cmd, environ, BK_EXEC_FLAG_SEARCH_PATH) < 0)
     {
       fprintf(stderr, "Could not fork: %s\n", pc->pc_cmd[0]);
       bk_exit(B, 1); // DO NOT GOTO ERROR HERE.

@@ -1,3 +1,7 @@
+2006-05-03  James Tanis  <jtt@outpost.tanis.org>
+
+	* src/bk_pty.c (progrun): bk_pty should do $PATH search.
+
 2006-03-20  Brian Lindauer  <brian.lindauer@counterstorm.com>
 
 	* lib/b_memx.c (bk_memx_append): Added bk_memx_append function.
