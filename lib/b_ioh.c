@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.115 2006/01/04 01:27:21 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.116 2006/05/03 20:34:44 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1207,7 +1207,7 @@ static int ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
 
   if (ioh->ioh_incallback
 #ifdef BK_USING_PTHREADS
-      || ioh->ioh_waiting || (ioh->ioh_userid && pthread_equal(ioh->ioh_userid, pthread_self()))
+      || ioh->ioh_waiting
 #endif /* BK_USING_PTHREADS */
       )
   {
@@ -2315,9 +2315,9 @@ static int ioht_raw_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk_f
 #ifdef BK_USING_PTHREADS
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
 	{
-	  BK_ZERO(&ioh->ioh_userid);
 	  if (pthread_mutex_lock(&ioh->ioh_lock) != 0)
 	    abort();
+	  BK_ZERO(&ioh->ioh_userid);
 	  pthread_cond_broadcast(&ioh->ioh_cond);
 	}
 	ioh->ioh_incallback--;
@@ -2598,9 +2598,9 @@ static int ioht_block_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, bk
 #ifdef BK_USING_PTHREADS
       if (BK_GENERAL_FLAG_ISTHREADON(B))
       {
-	BK_ZERO(&ioh->ioh_userid);
 	if (pthread_mutex_lock(&ioh->ioh_lock) != 0)
 	  abort();
+	BK_ZERO(&ioh->ioh_userid);
 	pthread_cond_broadcast(&ioh->ioh_cond);
       }
       ioh->ioh_incallback--;
@@ -2887,9 +2887,9 @@ static int ioht_vector_other(bk_s B, struct bk_ioh *ioh, u_int aux, u_int cmd, b
 #ifdef BK_USING_PTHREADS
 	if (BK_GENERAL_FLAG_ISTHREADON(B))
 	{
-	  BK_ZERO(&ioh->ioh_userid);
 	  if (pthread_mutex_lock(&ioh->ioh_lock) != 0)
 	    abort();
+	  BK_ZERO(&ioh->ioh_userid);
 	  pthread_cond_broadcast(&ioh->ioh_cond);
 	}
 	ioh->ioh_incallback--;
@@ -3492,9 +3492,9 @@ static int ioh_internal_read(bk_s B, struct bk_ioh *ioh, int fd, char *data, siz
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B))
   {
-    BK_ZERO(&ioh->ioh_userid);
     if (pthread_mutex_lock(&ioh->ioh_lock) != 0)
       abort();
+    BK_ZERO(&ioh->ioh_userid);
     pthread_cond_broadcast(&ioh->ioh_cond);
   }
   ioh->ioh_incallback--;
