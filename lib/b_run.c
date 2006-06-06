@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.80 2005/09/02 17:13:53 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.81 2006/06/06 22:55:18 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -970,8 +970,8 @@ int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags)
     abort();
 #endif /* BK_USING_PTHREADS */
   BK_FLAG_CLEAR(run->br_flags, BK_RUN_FLAG_RUN_OVER); // Don't inherit previous setting
-  run->br_iothread = pthread_self();
 #ifdef BK_USING_PTHREADS
+  run->br_iothread = pthread_self();
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
