@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.327 2006/03/20 20:48:46 lindauer Exp $
+ * $Id: libbk.h,v 1.328 2006/06/15 17:38:14 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1618,6 +1618,7 @@ extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msecs, void (*
 extern int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags);
 #define BK_RUN_DEQUEUE_EVENT			0x01 ///< Normal event to dequeue for @a bk_run_dequeue
 #define BK_RUN_DEQUEUE_CRON			0x02 ///< Cron event to dequeue for @a bk_run_dequeue
+#define BK_RUN_DEQUEUE_WAIT			0x04 ///< Wait for currently executing event to complete before returning--watch for lock inheritence bug
 extern int bk_run_run(bk_s B, struct bk_run *run, bk_flags flags);
 extern int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags);
 #define BK_RUN_ONCE_FLAG_DONT_BLOCK		0x1 ///<  Execute run once without blocking in select(2).

@@ -21,3 +21,4 @@ test_threads
 test_ringdir
 allocate_actual
 test_mt19937
+test_closerace

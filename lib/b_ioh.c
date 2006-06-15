@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.116 2006/05/03 20:34:44 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.117 2006/06/15 17:38:15 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1284,7 +1284,7 @@ static int ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags)
      * effect if SHUTDOWN_INPUT or ERROR_INPUT are set.  figure out what, if
      * anything, should be done here</TODO>
      */
-    // bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0);
+    bk_run_setpref(B, ioh->ioh_run, ioh->ioh_fdin, 0, BK_RUN_WANTREAD, 0);
     bk_ioh_readallowed(B, ioh, 0, IOH_FLAG_ALREADYLOCKED);
   }
   if (ioh->ioh_fdout >= 0 && BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_OUTPUT|IOH_FLAGS_ERROR_OUTPUT))
@@ -1366,6 +1366,20 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
     // Forge on
   }
 
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+  /*
+   * Bug 7666: Ensure we do not have ioh lock when acquiring bk_run's
+   * brf pseudo-lock Do this by ensuring that read and write
+   * preferences have been disabled (in bk_ioh_close) and windowing
+   * the ioh lock open while we close the run.  This will allow any
+   * pending ioh handlers to get through (and be discarded due to the
+   * IOH_SHUTDOWN state) while we turn off the run to prevent any
+   * others from ever happening.
+   */
+
   // Remove from RUN level
   if (ioh->ioh_fdin >= 0)
     bk_run_close(B, ioh->ioh_run, ioh->ioh_fdin, 0);
@@ -1373,10 +1387,15 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
     bk_run_close(B, ioh->ioh_run, ioh->ioh_fdout, 0);
 
   if (ioh->ioh_readallowedevent)
-  {
     bk_run_dequeue(B, ioh->ioh_run, ioh->ioh_readallowedevent, BK_RUN_DEQUEUE_EVENT);
+
+#ifdef BK_USING_PTHREADS
+  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
+    abort();
+#endif /* BK_USING_PTHREADS */
+
+  if (ioh->ioh_readallowedevent)
     ioh->ioh_readallowedevent = NULL;
-  }
 
   bk_ioh_cancel_unregister(B, ioh, BK_FD_ADMIN_FLAG_WANT_ALL);
 
@@ -1533,6 +1552,10 @@ static void ioh_runhandler(bk_s B, struct bk_run *run, int fd, u_int gottypes, v
 #ifdef BK_USING_PTHREADS
   if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
     abort();
+
+  if (BK_FLAG_ISSET(ioh->ioh_intflags, IOH_FLAGS_SHUTDOWN_DESTROYING))
+    goto unlockexit;
+
   if (BK_GENERAL_FLAG_ISTHREADON(B))
   {
     while (ioh->ioh_incallback && !pthread_equal(ioh->ioh_userid, pthread_self()))

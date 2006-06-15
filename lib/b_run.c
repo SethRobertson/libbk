@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.81 2006/06/06 22:55:18 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.82 2006/06/15 17:38:15 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -875,9 +875,12 @@ int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msec, void (*event)(b
  *	@param B BAKA thread/global state
  *	@param run The baka run environment state
  *	@param handle The handle to dequeue the event in the future
- *	@param flags Flags for the Future.
+ *	@param flags BK_RUN_DEQUEUE_EVENT normal event
+ * 		     BK_RUN_DEQUEUE_CRON cron class event
+ * 		     BK_RUN_DEQUEUE_WAIT wait for current execution to complete before return -- watch for lock inheritance bug
  *	@return <i><0</i> on call failure, or other error.
  *	@return <br><i>0</i> on success.
+ *	@return <br><i>1</i> on pending success (event is executing now, but it will be the last time).
  */
 int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags)
 {
@@ -905,10 +908,13 @@ int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags)
       BK_ZERO(&brec->brec_userid);		// Mark as deleted
 
       // Wait for the current user to finish
-      if (!isme)
+      if (!isme && BK_FLAG_ISSET(flags, BK_RUN_DEQUEUE_WAIT))
 	pthread_cond_wait(&brec->brec_cond, &run->br_lock);
 
-      BK_RETURN(B, 0);				// Running thread handled everything
+      if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&run->br_lock) != 0)
+	abort();
+
+      BK_RETURN(B, BK_FLAG_ISSET(flags, BK_RUN_DEQUEUE_WAIT)?0:1); // Running thread will do everything
     }
     else
     {
