@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.328 2006/06/15 17:38:14 seth Exp $
+ * $Id: libbk.h,v 1.329 2006/06/27 00:03:40 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -416,8 +416,8 @@ do {										\
 #define CONVERT_SUBSECSTIMESPEC2NTP(subsecs)	((((((u_int64_t)(subsecs))*(1LL<<32))/500000000)+1)/2)
 // @}
 
-// <TODO> Potential porting issue here. We assume that time_t is 4 bytes </TODO>
-#define BK_MAX_TIME_T	(LONG_MAX)
+// This number (2^39-1) is apparently the current maximum supported value for maxtime, since LONG_MAX is not understood by gmtime & friends yet.  This corresponds to the year 19391 AD.  Good enough for me.
+#define BK_MAX_TIME_T	(LONG_MAX > 549755813887?549755813887:LONG_MAX)
 
 
 /**
