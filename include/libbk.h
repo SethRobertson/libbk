@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.329 2006/06/27 00:03:40 seth Exp $
+ * $Id: libbk.h,v 1.330 2006/06/27 13:42:49 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -417,7 +417,12 @@ do {										\
 // @}
 
 // This number (2^39-1) is apparently the current maximum supported value for maxtime, since LONG_MAX is not understood by gmtime & friends yet.  This corresponds to the year 19391 AD.  Good enough for me.
+#if SIZEOF_LONG > 4
 #define BK_MAX_TIME_T	(LONG_MAX > 549755813887?549755813887:LONG_MAX)
+#else
+#define BK_MAX_TIME_T	LONG_MAX
+#endif
+
 
 
 /**
