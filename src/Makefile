@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.35 2005/03/16 22:08:25 dupuy Exp $
+# $Id: Makefile,v 1.36 2006/07/12 17:52:16 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -88,14 +88,13 @@ ifneq ($(BK_WANT_LIBTOOL),false)
 # to override, but it works until somebody breaks it by getting fancy.</TRICKY>
 
 # basic dependencies for typical baka programs
-LDLIBS=$(filter-out -lbkssl -lssl -lcrypto -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
+LDLIBS=$(filter-out -lpq -lbkssl -lssl -lcrypt -lcrypto -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
 
-# these are not really baka programs, despite their names
+# these are not really baka programs, despite their names, and need only -lc
 adjtime bk_daemon bk_funi timeout: LDLIBS=
 
 ifneq ($(strip $(BK_USING_SSL)),false)
-bttcp: LDLIBS=$(filter-out -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
+bttcp: LDLIBS=$(filter-out -lpq -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
 endif
 
 endif # BK_WANT_LIBTOOL
-
