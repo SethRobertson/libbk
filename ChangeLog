@@ -1,3 +1,7 @@
+2006-07-20  Brian Lindauer  <brian.lindauer@counterstorm.com>
+
+	* include/libbk_include.h: Add stddef.h for ptrdiff_t definition.
+
 2006-05-03  James Tanis  <jtt@outpost.tanis.org>
 
 	* src/bk_pty.c (progrun): bk_pty should do $PATH search.

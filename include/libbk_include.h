@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.42 2004/12/27 23:59:34 dupuy Exp $
+ * $Id: libbk_include.h,v 1.43 2006/07/20 20:45:50 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -80,6 +80,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
