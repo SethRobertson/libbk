@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.22 2005/02/15 19:31:50 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.23 2006/07/27 03:51:21 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1010,7 +1010,7 @@ bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions 
 
     if ((fd = open(brs->brs_chkpnt_filename, O_WRONLY|O_CREAT, 0666)) < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not open %s for reading: %s\n", brs->brs_chkpnt_filename, strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not open %s for writing: %s\n", brs->brs_chkpnt_filename, strerror(errno));
       goto error;
     }
 
