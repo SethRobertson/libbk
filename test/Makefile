@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.30 2006/06/15 17:38:15 seth Exp $
+# $Id: Makefile,v 1.31 2006/08/02 20:23:50 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -41,6 +41,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		test_url	 	\
 		testhashspeed		\
 		testrandidea		\
+		writev			\
 # Leave me -- line eater fodder
 
 GROUPTOP=..
