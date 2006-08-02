@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: writev.c,v 1.1 2006/08/02 20:35:27 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: writev.c,v 1.2 2006/08/02 20:54:58 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -264,6 +264,8 @@ static void progrun(bk_s B, struct program_config *pc)
   if (pc->pc_vectorsize < 1)
   {
     buffer = malloc(pc->pc_filesize);
+    for(i=0;i<pc->pc_filesize;i++)
+      buffer[i] = i;
     write(x,buffer,pc->pc_filesize);
   }
   else
@@ -272,14 +274,17 @@ static void progrun(bk_s B, struct program_config *pc)
     vectors = malloc(numbuf * sizeof(*vectors));
     for(i=0;i<numbuf;i++)
     {
-      vectors[i].iov_base = malloc(pc->pc_vectorsize);
+      int j;
+      buffer = vectors[i].iov_base = malloc(pc->pc_vectorsize);
+      for(j=0;j<pc->pc_vectorsize;j++)
+	buffer[j] = j;
       vectors[i].iov_len = pc->pc_vectorsize;
     }
     // Adjust for possible last buffer resize
     vectors[numbuf-1].iov_len += pc->pc_filesize - pc->pc_vectorsize * numbuf;
     writev(x,vectors,numbuf);
   }
-
+  fsync(x);
   close(x);
   if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_NODELETE))
     unlink("testfile");
