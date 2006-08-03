@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: writev.c,v 1.2 2006/08/02 20:54:58 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: writev.c,v 1.3 2006/08/03 14:22:51 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -30,6 +30,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define STD_LOCALEDIR_DEF     "/usr/local/baka"	///< Default base of where locale directory might be found
 #define STD_LOCALEDIR_SUB     "locale"		///< Sub-component from install base where locale might be found
 #define ERRORQUEUE_DEPTH      32		///< Default error queue depth
+#define FILENAME	      "testfile"	///< Default filename to use
 
 
 /**
@@ -50,9 +51,11 @@ struct program_config
 {
   int			pc_filesize;		///< How big the end file should be
   int			pc_vectorsize;		///< How big a writevector should be
+  const char	       *pc_filename;		///< Default filename
   bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x001			///< Verbose output
 #define PC_NODELETE	0x002			///< Do not delete testfile
+#define PC_SYNC		0x004			///< Want O_SYNC
 };
 
 
@@ -91,7 +94,9 @@ main(int argc, char **argv, char **envp)
     {"profiling", 0, POPT_ARG_STRING, NULL, 0x1002, N_("Enable and write profiling data"), N_("filename") },
 
     {"nodelete", 0, POPT_ARG_NONE, NULL, 'D', N_("Do not delete testfile"), NULL },
+    {"sync", 0, POPT_ARG_NONE, NULL, 0x2001, N_("Do not delete testfile"), NULL },
     {"filesize", 0, POPT_ARG_INT, NULL, 's', N_("Size of file to create"), N_("bytes") },
+    {"filename", 0, POPT_ARG_STRING, NULL, 0x2002, N_("Name of file to use"), N_("filename") },
     {"vectorsize", 0, POPT_ARG_INT, NULL, 'S', N_("Size of each vector we write"), N_("bytes") },
     POPT_AUTOHELP
     POPT_TABLEEND
@@ -126,6 +131,7 @@ main(int argc, char **argv, char **envp)
 
   pc = &Pconfig;
   memset(pc, 0, sizeof(*pc));
+  pc->pc_filename = FILENAME;
 
   if (!(optCon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0)))
   {
@@ -186,11 +192,27 @@ main(int argc, char **argv, char **envp)
     case 'D':					// nodelete
       BK_FLAG_SET(pc->pc_flags, PC_NODELETE);
       break;
+    case 0x2001:				// sync
+      BK_FLAG_SET(pc->pc_flags, PC_SYNC);
+      break;
+    case 0x2002:				// filename
+      pc->pc_filename = poptGetOptArg(optCon);
+      break;
     case 's':					// filesize
-      pc->pc_filesize = atoi(poptGetOptArg(optCon));
+      {
+	double tmplimit = bk_string_demagnify(B, poptGetOptArg(optCon), 0);
+	if (isnan(tmplimit))
+	  getopterr++;
+	pc->pc_filesize = tmplimit;
+      }
       break;
     case 'S':					// vectorsize
-      pc->pc_vectorsize = atoi(poptGetOptArg(optCon));
+      {
+	double tmplimit = bk_string_demagnify(B, poptGetOptArg(optCon), 0);
+	if (isnan(tmplimit))
+	  getopterr++;
+	pc->pc_vectorsize = tmplimit;
+      }
       break;
     }
   }
@@ -248,6 +270,9 @@ static void progrun(bk_s B, struct program_config *pc)
   int numbuf;
   int i;
   int x;
+  int flags = O_WRONLY|O_TRUNC|O_CREAT|O_LARGEFILE;
+  struct timeval start, end, delta;
+  char speed[128];
 
   if (!pc)
   {
@@ -255,7 +280,10 @@ static void progrun(bk_s B, struct program_config *pc)
     BK_VRETURN(B);
   }
 
-  if ((x = open("testfile",O_WRONLY|O_TRUNC|O_CREAT)) < 0)
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_SYNC))
+    flags |= O_SYNC;
+
+  if ((x = open(pc->pc_filename,flags,0666)) < 0)
   {
     fprintf(stderr, "Could not open testfile: %s\n", strerror(errno));
     exit(2);
@@ -266,6 +294,7 @@ static void progrun(bk_s B, struct program_config *pc)
     buffer = malloc(pc->pc_filesize);
     for(i=0;i<pc->pc_filesize;i++)
       buffer[i] = i;
+    gettimeofday(&start, NULL);
     write(x,buffer,pc->pc_filesize);
   }
   else
@@ -282,12 +311,22 @@ static void progrun(bk_s B, struct program_config *pc)
     }
     // Adjust for possible last buffer resize
     vectors[numbuf-1].iov_len += pc->pc_filesize - pc->pc_vectorsize * numbuf;
+    gettimeofday(&start, NULL);
     writev(x,vectors,numbuf);
   }
   fsync(x);
   close(x);
+  gettimeofday(&end, NULL);
+
+  BK_TV_SUB(&delta, &end, &start);
+
+  bk_string_magnitude(B, (double)pc->pc_filesize/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speed, sizeof(speed), 0);
+
+  fprintf(stderr, "%d bytes written in %ld.%06ld seconds: %s\n", pc->pc_filesize, (long int) delta.tv_sec, (long int) delta.tv_usec, speed);
+
+
   if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_NODELETE))
-    unlink("testfile");
+    unlink(pc->pc_filename);
 
   BK_VRETURN(B);
 }
