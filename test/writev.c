@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: writev.c,v 1.3 2006/08/03 14:22:51 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: writev.c,v 1.4 2006/08/03 14:55:39 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -56,6 +56,7 @@ struct program_config
 #define PC_VERBOSE	0x001			///< Verbose output
 #define PC_NODELETE	0x002			///< Do not delete testfile
 #define PC_SYNC		0x004			///< Want O_SYNC
+#define PC_FSYNC	0x008			///< Want FSYNC
 };
 
 
@@ -94,7 +95,8 @@ main(int argc, char **argv, char **envp)
     {"profiling", 0, POPT_ARG_STRING, NULL, 0x1002, N_("Enable and write profiling data"), N_("filename") },
 
     {"nodelete", 0, POPT_ARG_NONE, NULL, 'D', N_("Do not delete testfile"), NULL },
-    {"sync", 0, POPT_ARG_NONE, NULL, 0x2001, N_("Do not delete testfile"), NULL },
+    {"sync", 0, POPT_ARG_NONE, NULL, 0x2001, N_("Want open with O_SYNC"), NULL },
+    {"fsync", 0, POPT_ARG_NONE, NULL, 0x2003, N_("Want fsync after write"), NULL },
     {"filesize", 0, POPT_ARG_INT, NULL, 's', N_("Size of file to create"), N_("bytes") },
     {"filename", 0, POPT_ARG_STRING, NULL, 0x2002, N_("Name of file to use"), N_("filename") },
     {"vectorsize", 0, POPT_ARG_INT, NULL, 'S', N_("Size of each vector we write"), N_("bytes") },
@@ -198,6 +200,9 @@ main(int argc, char **argv, char **envp)
     case 0x2002:				// filename
       pc->pc_filename = poptGetOptArg(optCon);
       break;
+    case 0x2003:				// fsync
+      BK_FLAG_SET(pc->pc_flags, PC_FSYNC);
+      break;
     case 's':					// filesize
       {
 	double tmplimit = bk_string_demagnify(B, poptGetOptArg(optCon), 0);
@@ -270,7 +275,7 @@ static void progrun(bk_s B, struct program_config *pc)
   int numbuf;
   int i;
   int x;
-  int flags = O_WRONLY|O_TRUNC|O_CREAT|O_LARGEFILE;
+  int flags = O_WRONLY|O_TRUNC|O_CREAT|O_LARGEFILE|O_NONBLOCK;
   struct timeval start, end, delta;
   char speed[128];
 
@@ -314,7 +319,8 @@ static void progrun(bk_s B, struct program_config *pc)
     gettimeofday(&start, NULL);
     writev(x,vectors,numbuf);
   }
-  fsync(x);
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_FSYNC))
+    fsync(x);
   close(x);
   gettimeofday(&end, NULL);
 
