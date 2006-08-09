@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: writev.c,v 1.4 2006/08/03 14:55:39 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: writev.c,v 1.5 2006/08/09 18:54:56 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -296,14 +296,34 @@ static void progrun(bk_s B, struct program_config *pc)
 
   if (pc->pc_vectorsize < 1)
   {
+    int byteswritten = 0;
+    int bytestowrite = pc->pc_filesize;
+
     buffer = malloc(pc->pc_filesize);
     for(i=0;i<pc->pc_filesize;i++)
       buffer[i] = i;
     gettimeofday(&start, NULL);
-    write(x,buffer,pc->pc_filesize);
+    while (bytestowrite)
+    {
+      int ret = write(x,buffer+byteswritten,bytestowrite);
+
+      if (ret < 1)
+      {
+	if (errno == EAGAIN)
+	  continue;
+	perror("write");
+	exit(2);
+      }
+
+      bytestowrite -= ret;
+      byteswritten += ret;
+    }
   }
   else
   {
+    int byteswritten = 0;
+    int bytestowrite = pc->pc_filesize;
+
     numbuf = (pc->pc_filesize + pc->pc_vectorsize - 1) / pc->pc_vectorsize;
     vectors = malloc(numbuf * sizeof(*vectors));
     for(i=0;i<numbuf;i++)
@@ -317,7 +337,35 @@ static void progrun(bk_s B, struct program_config *pc)
     // Adjust for possible last buffer resize
     vectors[numbuf-1].iov_len += pc->pc_filesize - pc->pc_vectorsize * numbuf;
     gettimeofday(&start, NULL);
-    writev(x,vectors,numbuf);
+    while (bytestowrite)
+    {
+      int offset = byteswritten / pc->pc_vectorsize;
+      int ret;
+
+      ret = writev(x,vectors+offset,MIN(numbuf-offset,1024));
+
+      if (ret < 1)
+      {
+	if (errno == EAGAIN)
+	  continue;
+	perror("writev");
+	exit(2);
+      }
+
+      bytestowrite -= ret;
+      byteswritten += ret;
+
+      for (i=offset;i<numbuf && ret > 0;i++)
+      {
+	if ((unsigned)ret > vectors[i].iov_len)
+	  ret -= vectors[i].iov_len;
+	else
+	{
+	  vectors[i].iov_len -= ret;
+	  ret = 0;
+	}
+      }
+    }
   }
   if (BK_FLAG_ISSET(pc->pc_flags, PC_FSYNC))
     fsync(x);

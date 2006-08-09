@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.117 2006/06/15 17:38:15 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.118 2006/08/09 18:54:56 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -3860,22 +3860,77 @@ int bk_ioh_stdrdfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, caddr_t bu
 int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int ret, erno = 0;
+  int ret = 0, erno = 0;
+  int cursize = size;
+  int offset = 0;
+  ssize_t bytes_to_write = 0;
+  ssize_t bytes_written = 0;
+  __SIZE_TYPE__ i;
 
   errno = 0;
 
-  // avoid EINVAL errors from exceeding maxiov limit (if any)
-  if (ioh->ioh_maxiov!= 0 && size > ioh->ioh_maxiov)
-    size = ioh->ioh_maxiov;
-
-  if ((ret = writev(fd, buf, size)) < 0)
+  for (i=0;i<size;i++)
   {
-    erno = errno;
-    if (!IOH_EBLOCKINGINTR)
-      bk_error_printf(B, BK_ERR_ERR, "write syscall failed on fd %d of size %zu: %s\n", fd, size, strerror(errno));
+    if (bytes_to_write + (ssize_t)buf[i].iov_len < bytes_to_write)
+    {
+      // iov is too big--complete vector write would overwhelm return code size
+      size = i;
+      break;
+    }
+    bytes_to_write += buf[i].iov_len;
   }
 
-  bk_debug_printf_and(B, 1, "System writev returns %d with errno %d\n",ret,errno);
+  /*
+   * Spin on this FD as long as possible.  With pipe fds
+   * the 4K maximum write size means that the overhead of going
+   * out of this function and through select before we get to
+   * write another 4K chunk will be overwhelming.
+   */
+  while (bytes_to_write > 0)
+  {
+    // avoid EINVAL errors from exceeding maxiov limit (if any)
+    if (ioh->ioh_maxiov!= 0 && (size - offset) > ioh->ioh_maxiov)
+      cursize = ioh->ioh_maxiov;
+    else
+      cursize = size - offset;
+
+    if ((ret = writev(fd, buf+offset, cursize)) < 0)
+    {
+      erno = errno;
+      if (!IOH_EBLOCKINGINTR)
+	bk_error_printf(B, BK_ERR_ERR, "write syscall failed on fd %d of size %zu: %s\n", fd, size, strerror(errno));
+    }
+
+    bk_debug_printf_and(B, 1, "System writev returns %d with errno %d\n",ret,errno);
+    if (ret < 1)
+    {
+      if (!bytes_written)
+	bytes_written = ret;
+      break;
+    }
+
+    bytes_written += ret;
+    bytes_to_write -= ret;
+
+    if (bytes_to_write)
+    {
+      // Figure out where the next write should start in the iov
+      for (i=offset;i<size && ret > 0;i++)
+      {
+	if (ret >= (ssize_t)buf[i].iov_len)
+	{
+	  offset++;
+	  ret -= buf[i].iov_len;
+	}
+	else
+	{
+	  buf[i].iov_base = ((char *)buf[i].iov_base) + ret;
+	  buf[i].iov_len -= ret;
+	  break;
+	}
+      }
+    }
+  }
 
   if (bk_debug_and(B, 0x20) && ret > 0)
   {
@@ -3897,7 +3952,7 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
   }
 
   errno = erno;
-  BK_RETURN(B, ret);
+  BK_RETURN(B, bytes_written);
 }
 
 
