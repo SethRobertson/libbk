@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.52 2005/02/05 04:45:37 seth Exp $
+ * $Id: libbk_oscompat.h,v 1.53 2006/08/11 19:02:35 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -130,23 +130,9 @@ typedef uint32_t in_addr_t;
 #define BK_INIT_FUN(mod)  void mod ## _init (void)
 #define BK_FINISH_FUN(mod) void mod ## _finish (void)
 #else
-#ifdef __INSURE__NOT
-#error DO NOT USE ASM CODE WITH INSURE
-// insure doesn't like __attribute__((__constructor__)) so we use asm instead
-// Thu Jan 30: This now appears fixed, but keeping this code around is probably usefull
-#define BK_INIT_FUN(mod) \
-asm ("	.section	.ctors,\"aw\""); BK_INSURE_INIT_FUN(mod)
-#define BK_FINISH_FUN(mod) \
-asm ("	.section	.dtors,\"aw\""); BK_INSURE_FINISH_FUN(mod)
-#define BK_INSURE_INIT_FUN(mod) \
-asm (".long	" #mod "_init"); void mod ## _init (void)
-#define BK_INSURE_FINISH_FUN(mod) \
-asm (".long	" #mod "_finish"); void mod ## _finish (void)
-#else
 // no linker support for init functions; we'll need to use libtool to get name
 #define BK_INIT_FUN(mod) void mod ## _LTX_init (void)
 #define BK_FINISH_FUN(mod) void mod ## _LTX_finish (void)
-#endif /* !HAVE_INSURE */
 #endif /* !HAVE_INIT_PRAGMA */
 #endif /* !HAVE_CONSTRUCTOR_ATTRIBUTE */
 #endif /* !USING_LT_DLOPEN */
