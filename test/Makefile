@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.31 2006/08/02 20:23:50 seth Exp $
+# $Id: Makefile,v 1.32 2006/08/11 14:48:21 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -22,6 +22,8 @@ BK_SIMPLE_INTERNALPROGS=		\
 		allocate_actual		\
 		diskspeed		\
 		mutex			\
+		shmcat			\
+		sourcesink		\
 		test_clc		\
 		test_closerace		\
 		test_config		\

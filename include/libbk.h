@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.330 2006/06/27 13:42:49 seth Exp $
+ * $Id: libbk.h,v 1.331 2006/08/11 14:48:21 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2491,7 +2491,7 @@ extern char *bk_strndup_wrapper(const char *str, size_t n);
 
 /**
  * @name bk_bigint
- * 
+ *
  * Structure for handling u_ints with overflow protection
  */
 struct bk_bigint
@@ -2513,5 +2513,21 @@ extern double mt19937_genrand64_real1(struct mt_state *mts);
 extern double mt19937_genrand64_real2(struct mt_state *mts);
 extern double mt19937_genrand64_real3(struct mt_state *mts);
 extern void mt19937_destroy(struct mt_state *mts);
+
+/* b_shmipc.c */
+extern struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_int initus, u_int spinus, u_int size, u_int mode, bk_flags flags);
+#define BK_SHMIPC_RDONLY	0x01		///< Read only activity
+#define BK_SHMIPC_WRONLY	0x02		///< Write only activity
+#define BK_SHMIPC_WRWAITFORRD	0x04		///< Writer open does not succeed until reader attaches
+extern void bk_shmipc_destroy(bk_s B, struct bk_shmipc *bsi, bk_flags flags);
+extern ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_int timeoutus, bk_flags flags);
+#define BK_SHMIPC_NOBLOCK	0x01		///< Do not block
+#define BK_SHMIPC_WRITEALL	0x02		///< Do not succeed without writing everything
+extern ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_int timeout, bk_flags flags);
+#define BK_SHMIPC_NOBLOCK	0x01		///< Do not block
+#define BK_SHMIPC_READALL	0x02		///< Do not succeed without reading everything
+extern bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes, bk_flags flags);
+extern int bk_shmipc_peek(bk_s B, struct bk_shmipc *bsi, size_t *bytesreadable, size_t *byteswritable, int *numothers, bk_flags flags);
+extern int bk_shmipc_errno(bk_s B, struct bk_shmipc *bsi, bk_flags flags);
 
 #endif /* _BK_h_ */
