@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: shmcat.c,v 1.1 2006/08/11 14:48:21 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: shmcat.c,v 1.2 2006/08/13 03:50:55 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -54,6 +54,7 @@ struct program_config
   const char *		pc_filename;		///< Filename of IPC
   struct bk_shmipc     *pc_bsi;			///< Shared memory info
   u_quad_t		pc_cntr;		///< Bytes transferred
+  u_quad_t		pc_ops;			///< Number of transfer operations
   u_int			pc_timeout;		///< Timeout in us
   u_int			pc_poll;		///< How often to check for progress
   u_int			pc_length;		///< Length of shared memory
@@ -311,6 +312,8 @@ static int progrun(bk_s B, struct program_config *pc)
   int len;
   struct timeval start, end, delta;
   char speed[128];
+  u_int buffersize;
+  int highwater = 0;
 
   if (!pc)
   {
@@ -333,8 +336,10 @@ static int progrun(bk_s B, struct program_config *pc)
       for (len=0;len<(int)pc->pc_size;len++)
 	buf[len] = len;
 
+      highwater = pc->pc_size;
       while (pc->pc_sourcebufs--)
       {
+	pc->pc_ops++;
 	if (bk_shmipc_write(B, pc->pc_bsi, buf, len, 0, BK_SHMIPC_WRITEALL) < 1)
 	{
 	  bk_error_printf(B, BK_ERR_ERR, "Shared memory write failed: %s\n", strerror(bk_shmipc_errno(B, pc->pc_bsi, 0)));
@@ -352,6 +357,8 @@ static int progrun(bk_s B, struct program_config *pc)
 	  bk_error_printf(B, BK_ERR_ERR, "Shared memory write failed: %s\n", strerror(bk_shmipc_errno(B, pc->pc_bsi, 0)));
 	  BK_RETURN(B, -1);
 	}
+	highwater = MAX(highwater,len);
+	pc->pc_ops++;
 	pc->pc_cntr += len;
       }
       if (len < 0)
@@ -365,6 +372,8 @@ static int progrun(bk_s B, struct program_config *pc)
   {
     while ((len = bk_shmipc_read(B, pc->pc_bsi, buf, pc->pc_size, 0, 0)) > 0)
     {
+      highwater = MAX(highwater,len);
+      pc->pc_ops++;
       if (BK_FLAG_ISSET(pc->pc_flags, PC_SINK))
       {
 	pc->pc_cntr += len;
@@ -398,8 +407,13 @@ static int progrun(bk_s B, struct program_config *pc)
   BK_TV_SUB(&delta, &end, &start);
 
   bk_string_magnitude(B, (double)pc->pc_cntr/((double)delta.tv_sec + (double)delta.tv_usec/1000000.0), 3, "B/s", speed, sizeof(speed), 0);
-
   fprintf(stderr, "%llu bytes transferred in %ld.%06ld seconds: %s\n", (unsigned long long)pc->pc_cntr, (long int) delta.tv_sec, (long int) delta.tv_usec, speed);
+
+  bk_shmipc_peek(B, pc->pc_bsi, NULL, NULL, &buffersize, NULL, 0);
+
+  bk_string_magnitude(B, (double)pc->pc_cntr/(double)pc->pc_ops, 3, "B/op", speed, sizeof(speed), 0);
+  fprintf(stderr, "Transferred in %llu operations with %u sized shmbuf: %s\n", (unsigned long long)pc->pc_ops, buffersize,  speed);
+  fprintf(stderr, "High water mark: %d bytes\n", highwater);
 
   bk_shmipc_destroy(B, pc->pc_bsi, 0);
 

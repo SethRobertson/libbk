@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.331 2006/08/11 14:48:21 seth Exp $
+ * $Id: libbk.h,v 1.332 2006/08/13 03:50:54 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2524,10 +2524,12 @@ extern ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t
 #define BK_SHMIPC_NOBLOCK	0x01		///< Do not block
 #define BK_SHMIPC_WRITEALL	0x02		///< Do not succeed without writing everything
 extern ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_int timeout, bk_flags flags);
-#define BK_SHMIPC_NOBLOCK	0x01		///< Do not block
+//#define BK_SHMIPC_NOBLOCK	0x01		///< Do not block
 #define BK_SHMIPC_READALL	0x02		///< Do not succeed without reading everything
-extern bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes, bk_flags flags);
-extern int bk_shmipc_peek(bk_s B, struct bk_shmipc *bsi, size_t *bytesreadable, size_t *byteswritable, int *numothers, bk_flags flags);
+extern bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes, u_int timeoutus, bk_flags flags);
+//#define BK_SHMIPC_NOBLOCK	0x01		///< Do not block
+extern int bk_shmipc_peek(bk_s B, struct bk_shmipc *bsi, size_t *bytesreadable, size_t *byteswritable, u_int *buffersize, int *numothers, bk_flags flags);
 extern int bk_shmipc_errno(bk_s B, struct bk_shmipc *bsi, bk_flags flags);
+extern int bk_shmipc_cancel(bk_s B, struct bk_shmipc *bsi, bk_flags flags);
 
 #endif /* _BK_h_ */

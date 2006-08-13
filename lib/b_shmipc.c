@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.1 2006/08/11 14:48:21 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.2 2006/08/13 03:50:54 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -31,8 +31,8 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <sys/shm.h>
 
 
-#define SHMIPC_MAGIC		0xfeedface	///< Magic cookie
-#define SHMIPC_MAGIC_EOF	0xdeadbeef	///< Magic cookie for death
+#define SHMIPC_MAGIC		0xacedf331	///< Magic cookie
+#define SHMIPC_MAGIC_EOF	0xfee1aced	///< Magic cookie for death
 #define DEFAULT_SIZE		4074		///< Default size of ring if not specified
 #define DEFAULT_SPINUS		0		///< Default, spin
 
@@ -151,7 +151,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   delta.tv_usec = initus % 1000000;
   BK_TV_ADD(&endtime,&endtime,&delta);
 
-  while (bsi->si_shmid < 0 && (!initus || BK_TV_CMP(&endtime,&delta) <= 0))
+  while (bsi->si_shmid < 0 && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
   {
     if ((bsi->si_shmid = shmget(bsi->si_shmkey, size+sizeof(struct bk_shmipc_header), shmflg)) < 0)
     {
@@ -172,7 +172,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 	  bk_error_printf(B, BK_ERR_WARN, "Could not get shared memory for delete (%s): %s\n", bsi->si_filename, strerror(errno));
 	}
       }
-      else if ((bsi->si_errno = errno) == ENOENT)
+      else if (bsi->si_errno == ENOENT)
       {
 	bk_error_printf(B, BK_ERR_WARN, "Could not get shared memory (%s): %s\n", bsi->si_filename, strerror(errno));
       }
@@ -188,7 +188,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 
   if (bsi->si_shmid < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not get shared memory within timeout(%s): %s\n", bsi->si_filename, strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not get shared memory within timeout of %u microseconds (%s): %s\n", initus, bsi->si_filename, strerror(errno));
     goto error;
   }
 
@@ -207,7 +207,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
     bsi->si_base->bsh_magic = SHMIPC_MAGIC;
   }
 
-  while (bsi->si_base->bsh_magic != SHMIPC_MAGIC && (!initus || BK_TV_CMP(&endtime,&delta) <= 0))
+  while (bsi->si_base->bsh_magic != SHMIPC_MAGIC && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
   {
     if (bsi->si_base->bsh_magic == SHMIPC_MAGIC_EOF)
     {
@@ -220,7 +220,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 
   if (bsi->si_base->bsh_magic != SHMIPC_MAGIC)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Writer has not initialized shm within timeout (%s)\n", bsi->si_filename);
+    bk_error_printf(B, BK_ERR_ERR, "Writer has not initialized shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
     goto error;
   }
 
@@ -245,17 +245,17 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   {
     int numreader = 0;
 
-    bk_shmipc_peek(B, bsi, NULL, NULL, &numreader, 0);
-    while (numreader < 1 && (!initus || BK_TV_CMP(&endtime,&delta) <= 0))
+    bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numreader, 0);
+    while (numreader < 1 && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
     {
       usleep(bsi->si_spinus);
       gettimeofday(&delta, NULL);
-      bk_shmipc_peek(B, bsi, NULL, NULL, &numreader, 0);
+      bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numreader, 0);
     }
 
     if (numreader < 1)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Reader of shared memory did not attach in time (%s): %s\n", bsi->si_filename, strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Reader of shared memory did not attach in time (%d microseconds) (%s)\n", initus, bsi->si_filename);
       goto error;
     }
     BK_FLAG_SET(bsi->si_flags, SI_SEENREADER);
@@ -416,13 +416,13 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
 	BK_RETURN(B, ret);
       }
 
-      bk_shmipc_peek(B, bsi, NULL, NULL, &numreader, 0);
+      bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numreader, 0);
 
       if (BK_FLAG_ISSET(flags, BK_SHMIPC_NOBLOCK))
       {
       wouldblock:
 	bsi->si_errno = EAGAIN;
-	bk_error_printf(B, BK_ERR_WARN, "Write failed--timeout with no free space to push data with %d peers (%s)\n", numreader, bsi->si_filename);
+	bk_error_printf(B, BK_ERR_WARN, "Write failed--timeout (%u) with no free space to push data with %d peers (%s)\n", timeoutus, numreader, bsi->si_filename);
 	BK_RETURN(B, -1);
       }
 
@@ -439,7 +439,7 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
       if (timeoutus)
       {
 	gettimeofday(&delta, NULL);
-	if (BK_TV_CMP(&endtime,&delta) > 0)
+	if (BK_TV_CMP(&endtime,&delta) < 0)
 	  goto wouldblock;
       }
       usleep(bsi->si_spinus);
@@ -500,6 +500,7 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
   if (BK_FLAG_ISSET(bsi->si_flags, SI_SAWEND))
   {
     bk_error_printf(B, BK_ERR_ERR, "Writer is no longer reachable (%s)\n", bsi->si_filename);
+    bsi->si_errno = 0;
     BK_RETURN(B, 0);
   }
 
@@ -538,12 +539,13 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
 	BK_RETURN(B, ret);
       }
 
-      bk_shmipc_peek(B, bsi, NULL, NULL, &numwriter, 0);
+      bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numwriter, 0);
 
       if (numwriter < 1 || bsi->si_base->bsh_magic == SHMIPC_MAGIC_EOF)
       {
 	// EOF
 	BK_FLAG_SET(bsi->si_flags, SI_SAWEND);
+	bsi->si_errno = 0;
 	BK_RETURN(B, 0);
       }
 
@@ -551,14 +553,14 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
       {
       wouldblock:
 	bsi->si_errno = EAGAIN;
-	bk_error_printf(B, BK_ERR_WARN, "Read failed--timeout with no data available (%s)\n", bsi->si_filename);
+	bk_error_printf(B, BK_ERR_WARN, "Read failed--timeout (%u) with no data available (%s)\n", timeoutus, bsi->si_filename);
 	BK_RETURN(B, -1);
       }
 
       if (timeoutus)
       {
 	gettimeofday(&delta, NULL);
-	if (BK_TV_CMP(&endtime,&delta) > 0)
+	if (BK_TV_CMP(&endtime,&delta) < 0)
 	  goto wouldblock;
       }
       usleep(bsi->si_spinus);
@@ -591,14 +593,17 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
  *	@param B BAKA Thread/global state
  *	@param bsi Shared memory structure
  *	@param maxbytes Maximum bytes to read (0 for infinite)
- *	@param flags Fun for the future
- *	@return <i>NULL</i> on failure, including EOF and no data available at the moment
+ *	@param timeout Time to wait for data in usec
+ *	@param flags BK_SHMIPC_NOBLOCK
+ *	@return <i>NULL</i> on failure, including EOF, timeout, and no data available at the moment
  *	@return <br><i>bk_vptr of data</i> on success
  */
-bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes, bk_flags flags)
+bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes, u_int timeoutus, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_vptr *ret = NULL;
+  struct timeval endtime;
+  struct timeval delta;
   u_int readbytes;
 
   if (!bsi)
@@ -609,13 +614,57 @@ bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes, bk_fl
     BK_RETURN(B, NULL);
   }
 
-  if (!(readbytes = bytes_available_read(bsi->si_base->bsh_writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes)))
+  if (BK_FLAG_ISSET(bsi->si_flags, SI_SAWEND))
   {
+    bk_error_printf(B, BK_ERR_ERR, "Writer is no longer reachable (%s)\n", bsi->si_filename);
     bsi->si_errno = 0;
-    goto error;
+    BK_RETURN(B, NULL);
   }
+
+  gettimeofday(&endtime, NULL);
+  if (!timeoutus)
+    timeoutus = bsi->si_timeoutus;
+  delta.tv_sec = timeoutus / 1000000;
+  delta.tv_usec = timeoutus % 1000000;
+  BK_TV_ADD(&endtime,&endtime,&delta);
+
+  while (!(readbytes = bytes_available_read(bsi->si_base->bsh_writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes)))
+  {
+    int numwriter;
+
+    if (bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numwriter, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_WARN, "Could not peek\n");
+      goto error;
+    }
+
+    if (numwriter < 1 || bsi->si_base->bsh_magic == SHMIPC_MAGIC_EOF)
+    {
+      // EOF
+      BK_FLAG_SET(bsi->si_flags, SI_SAWEND);
+      bsi->si_errno = 0;
+      BK_RETURN(B, NULL);
+    }
+
+    if (BK_FLAG_ISSET(flags, BK_SHMIPC_NOBLOCK))
+    {
+    wouldblock:
+      bsi->si_errno = EAGAIN;
+      bk_error_printf(B, BK_ERR_WARN, "Read failed--timeout (%u) with  no data available (%s)\n", timeoutus, bsi->si_filename);
+      goto error;
+    }
+
+    if (timeoutus)
+    {
+      gettimeofday(&delta, NULL);
+      if (BK_TV_CMP(&endtime,&delta) < 0)
+	goto wouldblock;
+    }
+    usleep(bsi->si_spinus);
+  }
+
   if (maxbytes)
-    readbytes = MIN(readbytes,maxbytes);
+    readbytes = MIN(MIN(readbytes,maxbytes), bsi->si_ringbytes);
 
   if (!BK_MALLOC(ret))
   {
@@ -668,7 +717,7 @@ bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes, bk_fl
  *	@return <i>-1</i> on failure
  *	@return <br><i>0</i> on success
  */
-int bk_shmipc_peek(bk_s B, struct bk_shmipc *bsi, size_t *bytesreadable, size_t *byteswritable, int *numothers, bk_flags flags)
+int bk_shmipc_peek(bk_s B, struct bk_shmipc *bsi, size_t *bytesreadable, size_t *byteswritable, u_int *buffersize, int *numothers, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -684,6 +733,8 @@ int bk_shmipc_peek(bk_s B, struct bk_shmipc *bsi, size_t *bytesreadable, size_t 
     *bytesreadable = bytes_available_read(bsi->si_base->bsh_writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes);
   if (byteswritable)
     *byteswritable = bytes_available_write(bsi->si_base->bsh_writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes);
+  if (buffersize)
+    *buffersize = bsi->si_ringbytes;
 
   if (numothers)
   {
@@ -732,4 +783,34 @@ int bk_shmipc_errno(bk_s B, struct bk_shmipc *bsi, bk_flags flags)
   }
 
   BK_RETURN(B, bsi->si_errno);
+}
+
+
+
+/**
+ * Cancel (artifical EOF) a shmipc
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA Thread/global state
+ *	@param bsi Shared memory structure
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> on failure
+ *	@return <br><i>0</i> on success
+ */
+int bk_shmipc_cancel(bk_s B, struct bk_shmipc *bsi, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bsi)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    if (bsi)
+      bsi->si_errno = EINVAL;
+    BK_RETURN(B, -1);
+  }
+
+  bsi->si_base->bsh_magic = SHMIPC_MAGIC_EOF;
+
+  BK_RETURN(B, 0);
 }
