@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: shmadm.c,v 1.1 2006/08/14 16:46:56 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: shmadm.c,v 1.2 2006/08/14 17:53:18 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -278,7 +278,7 @@ static int progrun(bk_s B, struct program_config *pc)
     printf("Warning: no-one attached, information might be bogus\n");
     goto printinfo;
   case 2:
-    printf("Warning: no-one attached, information definately bogus\n");
+    printf("Warning: no-one attached or magic numbers incorrect, information definately bogus\n");
     goto printinfo;
   case 0:
   printinfo:

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.4 2006/08/14 17:00:15 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.5 2006/08/14 17:53:18 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -31,8 +31,8 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <sys/shm.h>
 
 
-#define SHMIPC_MAGIC		0xacedf331	///< Magic cookie
-#define SHMIPC_MAGIC_EOF	0xfee1aced	///< Magic cookie for death
+#define SHMIPC_MAGIC		0xfeedface	///< Magic cookie
+#define SHMIPC_MAGIC_EOF	0xdeadbeef	///< Magic cookie for death
 #define DEFAULT_SIZE		4074		///< Default size of ring if not specified
 #define DEFAULT_SPINUS		0		///< Default, spin
 
@@ -924,7 +924,7 @@ int bk_shmipc_remove(bk_s B, const char *name, bk_flags flags)
  *	@return <i>-1</i> on failure
  *	@return <br><i>0</i> on success
  *	@return <br><i>1</i> on success but data might be bad (no-one attached)
- *	@return <br><i>2</i> on success but data definately bad (no-one attached)
+ *	@return <br><i>2</i> on success but data definately bad (incorrect magic numbers or other accounting)
  *	@return <br><i>3</i> on partial success (only numothers/segsize filled out--insufficient attaches to be safe, need force)
  */
 int bk_shmipc_peekbyname(bk_s B, const char *name, u_int32_t *magic, u_int32_t *ringsize, u_int32_t *offset, u_int32_t *writehand, u_int32_t *readhand, size_t *bytesreadable, size_t *byteswritable, int *numothers, size_t *segsize, bk_flags flags)
@@ -950,9 +950,6 @@ int bk_shmipc_peekbyname(bk_s B, const char *name, u_int32_t *magic, u_int32_t *
 
   if ((shmid = shmget(key, 0, 0)) < 0)
   {
-    if (errno == ENOENT)
-      BK_RETURN(B, 0);
-
     bk_error_printf(B, BK_ERR_ERR, "Could not get shm name %s: %s\n", name, strerror(errno));
     BK_RETURN(B, -1);
   }
