@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.3 2006/08/14 16:46:55 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.4 2006/08/14 17:00:15 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -736,6 +736,8 @@ int bk_shmipc_peek(bk_s B, struct bk_shmipc *bsi, size_t *bytesreadable, size_t 
   if (numothers)
   {
     struct shmid_ds buf;
+
+    memset(&buf, 0, sizeof(buf));
 
     if (shmctl(bsi->si_shmid, IPC_STAT, &buf) < 0)
     {
