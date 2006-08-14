@@ -16,3 +16,5 @@ timeout
 tmp
 tmp.c
 adjtime
+shmadm
+shmcat

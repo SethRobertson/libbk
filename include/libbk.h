@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.332 2006/08/13 03:50:54 seth Exp $
+ * $Id: libbk.h,v 1.333 2006/08/14 16:46:53 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2531,5 +2531,8 @@ extern bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes
 extern int bk_shmipc_peek(bk_s B, struct bk_shmipc *bsi, size_t *bytesreadable, size_t *byteswritable, u_int *buffersize, int *numothers, bk_flags flags);
 extern int bk_shmipc_errno(bk_s B, struct bk_shmipc *bsi, bk_flags flags);
 extern int bk_shmipc_cancel(bk_s B, struct bk_shmipc *bsi, bk_flags flags);
+extern int bk_shmipc_remove(bk_s B, const char *name, bk_flags flags);
+extern int bk_shmipc_peekbyname(bk_s B, const char *name, u_int32_t *magic, u_int32_t *ringsize, u_int32_t *offset, u_int32_t *writehand, u_int32_t *readhand, size_t *bytesreadable, size_t *byteswritable, int *numothers, size_t *segsize, bk_flags flags);
+#define BK_SHMIPC_FORCE		0x01		///< Force checks even if insufficient attaches
 
 #endif /* _BK_h_ */

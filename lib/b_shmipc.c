@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.2 2006/08/13 03:50:54 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.3 2006/08/14 16:46:55 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -76,6 +76,7 @@ struct bk_shmipc_header
 
 static inline int bytes_available_write(u_int32_t writehand, u_int32_t readhand, u_int32_t ringbytes);
 static inline int bytes_available_read(u_int32_t writehand, u_int32_t readhand, u_int32_t ringbytes);
+static int genkeyfromname(bk_s B, const char *name, key_t *key, bk_flags flags);
 
 
 
@@ -102,7 +103,6 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   struct bk_shmipc *bsi = NULL;
   struct timeval endtime;
   struct timeval delta;
-  bk_MD5_CTX mdContext;
   int shmflg = 0;
   struct shmid_ds buf;
 
@@ -115,7 +115,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   if (!spinus)
     spinus = DEFAULT_SPINUS;
 
-  if (!size)
+  if (!size && BK_FLAG_ISSET(flags, BK_SHMIPC_WRONLY))
     size = DEFAULT_SIZE;
 
   if (!BK_CALLOC(bsi))
@@ -132,10 +132,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   bsi->si_spinus = spinus;
   bsi->si_timeoutus = timeoutus;
 
-  bk_MD5Init(B, &mdContext);
-  bk_MD5Update(B, &mdContext, bsi->si_filename, strlen(bsi->si_filename));
-  bk_MD5Final(B, &mdContext);
-  memcpy(&bsi->si_shmkey, &(mdContext.digest), MIN(sizeof(bsi->si_shmkey), sizeof(mdContext.digest)));
+  genkeyfromname(B, bsi->si_filename, &bsi->si_shmkey, 0);
 
   if (BK_FLAG_ISSET(flags, BK_SHMIPC_RDONLY))
   {
@@ -153,7 +150,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 
   while (bsi->si_shmid < 0 && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
   {
-    if ((bsi->si_shmid = shmget(bsi->si_shmkey, size+sizeof(struct bk_shmipc_header), shmflg)) < 0)
+    if ((bsi->si_shmid = shmget(bsi->si_shmkey, size?size+sizeof(struct bk_shmipc_header):0, shmflg)) < 0)
     {
       if ((bsi->si_errno = errno) == EEXIST)
       {
@@ -813,4 +810,206 @@ int bk_shmipc_cancel(bk_s B, struct bk_shmipc *bsi, bk_flags flags)
   bsi->si_base->bsh_magic = SHMIPC_MAGIC_EOF;
 
   BK_RETURN(B, 0);
+}
+
+
+
+/**
+ * Remove an IPC by name (preattach)
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA Thread/global state
+ *	@param name Name to convert
+ *	@param key Pointer to key to fill out
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> on failure
+ *	@return <br><i>0</i> on success
+ */
+static int genkeyfromname(bk_s B, const char *name, key_t *key, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  bk_MD5_CTX mdContext;
+
+  if (!name || !key)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  bk_MD5Init(B, &mdContext);
+  bk_MD5Update(B, &mdContext, name, strlen(name));
+  bk_MD5Final(B, &mdContext);
+  memcpy(key, &(mdContext.digest), MIN(sizeof(*key), sizeof(mdContext.digest)));
+
+  BK_RETURN(B, 0);
+}
+
+
+
+/**
+ * Remove an IPC by name (preattach)
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA Thread/global state
+ *	@param name Name to remove
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> on failure
+ *	@return <br><i>0</i> on success
+ */
+int bk_shmipc_remove(bk_s B, const char *name, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  key_t key;
+  int shmid;
+
+  if (!name)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (genkeyfromname(B, name, &key, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert name %s\n", name);
+    BK_RETURN(B, -1);
+  }
+
+  if ((shmid = shmget(key, 0, 0)) < 0)
+  {
+    if (errno == ENOENT)
+      BK_RETURN(B, 0);
+
+    bk_error_printf(B, BK_ERR_ERR, "Could not get shm name %s: %s\n", name, strerror(errno));
+    BK_RETURN(B, -1);
+  }
+
+  if (shmctl(shmid, IPC_RMID, NULL) < 0)
+  {
+    if (errno == EIDRM)
+    {
+      bk_error_printf(B, BK_ERR_WARN, "Already removed %s\n", name);
+      BK_RETURN(B, 0);
+    }
+
+    bk_error_printf(B, BK_ERR_ERR, "Could not remove shm name %s: %s\n", name, strerror(errno));
+    BK_RETURN(B, -1);
+  }
+
+  BK_RETURN(B, 0);
+}
+
+
+
+/**
+ * Peek at available data in ipc ring (by name)
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA Thread/global state
+ *	@param name Name to check out
+ *	@param magic Copy-out magic number of ring
+ *	@param ringsize Copy-out size of actual usable ring
+ *	@param offset Copy-out offset from base to usable ring
+ *	@param writehand Copy-out write hand position
+ *	@param readhand Copy-out read hand position
+ *	@param bytesreadable Copy-out number of bytes someone can read
+ *	@param byteswritable Copy-out number of bytes someone can write
+ *	@param numothers Copy-out number of people attached (always correct)
+ *	@param segsize Copy-out size of shared memory segment (always correct)
+ *	@param flags BK_SHMIPC_FORCE
+ *	@return <i>-1</i> on failure
+ *	@return <br><i>0</i> on success
+ *	@return <br><i>1</i> on success but data might be bad (no-one attached)
+ *	@return <br><i>2</i> on success but data definately bad (no-one attached)
+ *	@return <br><i>3</i> on partial success (only numothers/segsize filled out--insufficient attaches to be safe, need force)
+ */
+int bk_shmipc_peekbyname(bk_s B, const char *name, u_int32_t *magic, u_int32_t *ringsize, u_int32_t *offset, u_int32_t *writehand, u_int32_t *readhand, size_t *bytesreadable, size_t *byteswritable, int *numothers, size_t *segsize, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct shmid_ds buf;
+  key_t key;
+  int shmid;
+  struct bk_shmipc_header *base = NULL;
+  int ret = 0;
+
+  if (!name)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (genkeyfromname(B, name, &key, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert name %s\n", name);
+    BK_RETURN(B, -1);
+  }
+
+  if ((shmid = shmget(key, 0, 0)) < 0)
+  {
+    if (errno == ENOENT)
+      BK_RETURN(B, 0);
+
+    bk_error_printf(B, BK_ERR_ERR, "Could not get shm name %s: %s\n", name, strerror(errno));
+    BK_RETURN(B, -1);
+  }
+
+  if (shmctl(shmid, IPC_STAT, &buf) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not stat shmipc: %s\n", strerror(errno));
+    BK_RETURN(B, -1);
+  }
+
+  if (numothers)
+    *numothers = buf.shm_nattch;
+
+  if (segsize)
+    *segsize = buf.shm_segsz;
+
+  if (buf.shm_nattch == 1 && BK_FLAG_ISCLEAR(flags, BK_SHMIPC_FORCE))
+  {
+    bk_error_printf(B, BK_ERR_WARN, "Not enough people to safe attach to shared memory (might falsely tell writer reader is present)\n");
+    BK_RETURN(B, 3);
+  }
+
+  if (!(base = shmat(shmid, NULL, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not attach shared memory (%s): %s\n", name, strerror(errno));
+    BK_RETURN(B, -1);
+  }
+
+  if (buf.shm_nattch == 0)
+    ret = 1;
+
+  if (base->bsh_ringsize+base->bsh_ringoffset != buf.shm_segsz || (base->bsh_magic != SHMIPC_MAGIC && base->bsh_magic != SHMIPC_MAGIC_EOF))
+    ret = 2;
+
+  if (magic)
+    *magic = base->bsh_magic;
+
+  if (ringsize)
+    *ringsize = base->bsh_ringsize;
+
+  if (offset)
+    *offset = base->bsh_ringoffset;
+
+  if (writehand)
+    *writehand = base->bsh_writehand;
+
+  if (readhand)
+    *readhand = base->bsh_readhand;
+
+  if (bytesreadable)
+    *bytesreadable = bytes_available_read(base->bsh_writehand, base->bsh_readhand, base->bsh_ringsize);
+
+  if (byteswritable)
+    *byteswritable = bytes_available_write(base->bsh_writehand, base->bsh_readhand, base->bsh_ringsize);
+
+  if (shmdt(base) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not detach shared memory: %s\n", strerror(errno));
+  }
+
+  BK_RETURN(B, ret);
 }
