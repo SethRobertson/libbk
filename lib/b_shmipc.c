@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.5 2006/08/14 17:53:18 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.6 2006/08/17 20:26:45 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -22,8 +22,8 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  *
  * Implementation of shared memory IPC
  *
- * Layout of shared memory ring buffer
- *
+ * TODO: Instead of spinning on read empty/write full, use a semaphore
+ * or perhaps a message queue
  */
 
 #include <libbk.h>
@@ -31,9 +31,11 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <sys/shm.h>
 
 
-#define SHMIPC_MAGIC		0xfeedface	///< Magic cookie
+// Duplicated in shmadm.c for humans
+#define SHMIPC_MAGIC_WINIT	0xfeedface	///< Magic cookie for SYN
+#define SHMIPC_MAGIC_RINIT	0xfacefedd	///< Magic cookie for SYN-ACK
+#define SHMIPC_MAGIC		0xabadcafe	///< Magic cookie for connected
 #define SHMIPC_MAGIC_EOF	0xdeadbeef	///< Magic cookie for death
-#define DEFAULT_SIZE		4074		///< Default size of ring if not specified
 #define DEFAULT_SPINUS		0		///< Default, spin
 
 
@@ -55,7 +57,6 @@ struct bk_shmipc
   bk_flags	si_flags;			///< Fun for the future
 #define SI_SAWEND	0x01			///< Saw EOF on way or another
 #define SI_READONLY	0x02			///< Readonly, otherwise writeonly
-#define SI_SEENREADER	0x04			///< Have seen reader
 };
 
 
@@ -66,11 +67,16 @@ struct bk_shmipc
 struct bk_shmipc_header
 {
   u_int32_t	bsh_magic;			///< Set once everything is initialized
+  u_int32_t	bsh_generation;			///< Generation number, possibly resembling writer init time
   u_int32_t	bsh_ringsize;			///< Size of ring
   u_int32_t	bsh_ringoffset;			///< Offset of start of ring from base of shared memory
   u_int32_t	bsh_writehand;			///< Byte offset of write hand
   u_int32_t	bsh_readhand;			///< Byte offset of read hand
 };
+
+
+
+#define DEFAULT_SIZE		4096-sizeof(struct bk_shmipc_header)	///< Default size of ring if not specified
 
 
 
@@ -93,7 +99,7 @@ static int genkeyfromname(bk_s B, const char *name, key_t *key, bk_flags flags);
  *	@param initus Timeout to wait for writer to become present or old instance to disappear
  *	@param size Desired size of buffers (writer only, ignored for reader)
  *	@param mode SHM permissions mode (writer only, ignored for reader)
- *	@param flags BK_SHMIPC_RDONLY, BK_SHMIPC_WRONLY, BK_SHMIPC_WRWAITFORRD
+ *	@param flags BK_SHMIPC_RDONLY, BK_SHMIPC_WRONLY
  *	@return <i>NULL</i> on call failure, allocation failure, writer not present (reader only)
  *	@return <br><i>IPC handle</i> on success
  */
@@ -105,6 +111,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   struct timeval delta;
   int shmflg = 0;
   struct shmid_ds buf;
+  int numothers = 0;
 
   if (!name || BK_FLAG_ISCLEAR(flags, BK_SHMIPC_RDONLY|BK_SHMIPC_WRONLY) || BK_FLAG_ALLSET(flags, BK_SHMIPC_RDONLY|BK_SHMIPC_WRONLY))
   {
@@ -142,12 +149,13 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   {
     shmflg = IPC_CREAT|IPC_EXCL|mode;
   }
-  bsi->si_shmid = -1;
   gettimeofday(&endtime, NULL);
   delta.tv_sec = initus / 1000000;
   delta.tv_usec = initus % 1000000;
   BK_TV_ADD(&endtime,&endtime,&delta);
+  bsi->si_shmid = -1;
 
+  // Readers and writers attempt to get shared memory segment
   while (bsi->si_shmid < 0 && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
   {
     if ((bsi->si_shmid = shmget(bsi->si_shmkey, size?size+sizeof(struct bk_shmipc_header):0, shmflg)) < 0)
@@ -196,30 +204,105 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   }
 
   if (BK_FLAG_ISCLEAR(bsi->si_flags, SI_READONLY))
-  {
+  {						// Writer initializes the shared memory segment
+    time_t curtime = time(NULL);
+
+    bsi->si_base->bsh_generation = curtime;
     bsi->si_base->bsh_ringsize = size;
     bsi->si_base->bsh_ringoffset = sizeof(struct bk_shmipc_header);
     bsi->si_base->bsh_writehand = 0;
     bsi->si_base->bsh_readhand = 0;
-    bsi->si_base->bsh_magic = SHMIPC_MAGIC;
+    bsi->si_base->bsh_magic = SHMIPC_MAGIC_WINIT; // Send SYN
   }
-
-  while (bsi->si_base->bsh_magic != SHMIPC_MAGIC && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
-  {
-    if (bsi->si_base->bsh_magic == SHMIPC_MAGIC_EOF)
+  else
+  {						// Reader waits for initialization
+    while (bsi->si_base->bsh_magic != SHMIPC_MAGIC_WINIT && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Writer closed before we saw magic (%s)\n", bsi->si_filename);
+      if (bsi->si_base->bsh_magic == SHMIPC_MAGIC_EOF || bsi->si_base->bsh_magic == SHMIPC_MAGIC_RINIT || bsi->si_base->bsh_magic == SHMIPC_MAGIC)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Writer closed before we saw magic (%s)\n", bsi->si_filename);
+	goto error;
+      }
+
+      if (bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numothers, 0) < 0 || numothers < 1)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Writer went away, so I will as well (%s)\n", bsi->si_filename);
+	goto error;
+      }
+
+      usleep(bsi->si_spinus);
+      gettimeofday(&delta, NULL);
+    }
+
+    if (bsi->si_base->bsh_magic != SHMIPC_MAGIC_WINIT)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Writer has not initialized shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
       goto error;
     }
-    usleep(bsi->si_spinus);
-    gettimeofday(&delta, NULL);
+
+    // Continue the dance -- send syn-ack
+    bsi->si_base->bsh_magic = SHMIPC_MAGIC_RINIT;
   }
 
-  if (bsi->si_base->bsh_magic != SHMIPC_MAGIC)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Writer has not initialized shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
-    goto error;
+  if (BK_FLAG_ISCLEAR(bsi->si_flags, SI_READONLY))
+  {						// Writer waits for reader syn-ack
+    while (bsi->si_base->bsh_magic != SHMIPC_MAGIC_RINIT && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
+    {
+      u_int32_t oldmagic = bsi->si_base->bsh_magic;
+
+      if (oldmagic == SHMIPC_MAGIC_EOF || oldmagic == SHMIPC_MAGIC || (oldmagic != SHMIPC_MAGIC_RINIT && oldmagic != SHMIPC_MAGIC_WINIT))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Bad magic (%x)--not following protocol or corrupted (%s)\n", oldmagic, bsi->si_filename);
+	goto error;
+      }
+
+      usleep(bsi->si_spinus);
+      gettimeofday(&delta, NULL);
+    }
+
+    if (bsi->si_base->bsh_magic != SHMIPC_MAGIC_RINIT)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Reader has not acknolwedged shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
+      goto error;
+    }
+
+    // Say we are connected
+    bsi->si_base->bsh_magic = SHMIPC_MAGIC;
   }
+  else
+  {						// Reader waits for connected
+    while (bsi->si_base->bsh_magic != SHMIPC_MAGIC && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
+    {
+      u_int32_t oldmagic = bsi->si_base->bsh_magic;
+
+      if (oldmagic == SHMIPC_MAGIC_EOF || oldmagic == SHMIPC_MAGIC_WINIT || (oldmagic != SHMIPC_MAGIC && oldmagic != SHMIPC_MAGIC_RINIT))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Bad magic (%x)--not following protocol or corrupted (%s)\n", oldmagic, bsi->si_filename);
+	goto error;
+      }
+
+      if (bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numothers, 0) < 0 || numothers < 1)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Writer went away, so I will as well (%s)\n", bsi->si_filename);
+	goto error;
+      }
+
+      usleep(bsi->si_spinus);
+      gettimeofday(&delta, NULL);
+    }
+
+    if (bsi->si_base->bsh_magic != SHMIPC_MAGIC)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Writer has not acknolwedged reader shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
+      goto error;
+    }
+  }
+
+  /*
+   * We are fully connected at this point
+   *
+   * Perform final initialization and sanity checks
+   */
 
   bsi->si_ringbytes = bsi->si_base->bsh_ringsize;
   bsi->si_ring = ((char *)bsi->si_base) + bsi->si_base->bsh_ringoffset;
@@ -236,26 +319,6 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
     bk_error_printf(B, BK_ERR_ERR, "Memory corruption or attack to induce memory corruption ((%p-%p)%u + %d > %u)\n", bsi->si_ring, bsi->si_base, (u_int)(bsi->si_ring - (char *)bsi->si_base), bsi->si_ringbytes, (u_int)buf.shm_segsz);
     bsi->si_errno = EBADSLT;
     goto error;
-  }
-
-  if (BK_FLAG_ISCLEAR(bsi->si_flags, SI_READONLY) && BK_FLAG_ISSET(flags, BK_SHMIPC_WRWAITFORRD))
-  {
-    int numreader = 0;
-
-    bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numreader, 0);
-    while (numreader < 1 && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
-    {
-      usleep(bsi->si_spinus);
-      gettimeofday(&delta, NULL);
-      bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numreader, 0);
-    }
-
-    if (numreader < 1)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Reader of shared memory did not attach in time (%d microseconds) (%s)\n", initus, bsi->si_filename);
-      goto error;
-    }
-    BK_FLAG_SET(bsi->si_flags, SI_SEENREADER);
   }
 
   BK_RETURN(B, bsi);
@@ -423,9 +486,7 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
 	BK_RETURN(B, -1);
       }
 
-      if (numreader > 0 && BK_FLAG_ISCLEAR(bsi->si_flags, SI_SEENREADER))
-	BK_FLAG_SET(bsi->si_flags, SI_SEENREADER);
-      if (numreader < 1 && BK_FLAG_ISSET(bsi->si_flags, SI_SEENREADER))
+      if (numreader < 1)
       {
 	// EOF
 	BK_FLAG_SET(bsi->si_flags, SI_SAWEND);
@@ -747,9 +808,6 @@ int bk_shmipc_peek(bk_s B, struct bk_shmipc *bsi, size_t *bytesreadable, size_t 
     }
 
     *numothers = buf.shm_nattch - 1;
-
-    if (BK_FLAG_ISCLEAR(bsi->si_flags, SI_SEENREADER) && buf.shm_nattch > 1)
-      BK_FLAG_SET(bsi->si_flags, SI_SEENREADER);
   }
 
   BK_RETURN(B, 0);
@@ -927,7 +985,7 @@ int bk_shmipc_remove(bk_s B, const char *name, bk_flags flags)
  *	@return <br><i>2</i> on success but data definately bad (incorrect magic numbers or other accounting)
  *	@return <br><i>3</i> on partial success (only numothers/segsize filled out--insufficient attaches to be safe, need force)
  */
-int bk_shmipc_peekbyname(bk_s B, const char *name, u_int32_t *magic, u_int32_t *ringsize, u_int32_t *offset, u_int32_t *writehand, u_int32_t *readhand, size_t *bytesreadable, size_t *byteswritable, int *numothers, size_t *segsize, bk_flags flags)
+int bk_shmipc_peekbyname(bk_s B, const char *name, u_int32_t *magic, u_int32_t *generation, u_int32_t *ringsize, u_int32_t *offset, u_int32_t *writehand, u_int32_t *readhand, size_t *bytesreadable, size_t *byteswritable, int *numothers, size_t *segsize, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct shmid_ds buf;
@@ -986,6 +1044,9 @@ int bk_shmipc_peekbyname(bk_s B, const char *name, u_int32_t *magic, u_int32_t *
 
   if (magic)
     *magic = base->bsh_magic;
+
+  if (generation)
+    *generation = base->bsh_generation;
 
   if (ringsize)
     *ringsize = base->bsh_ringsize;

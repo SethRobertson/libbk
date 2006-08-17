@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: shmadm.c,v 1.2 2006/08/14 17:53:18 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: shmadm.c,v 1.3 2006/08/17 20:26:45 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -252,7 +252,7 @@ main(int argc, char **argv, char **envp)
 static int progrun(bk_s B, struct program_config *pc)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
-  u_int32_t magic, ringsize, offset, writehand, readhand;
+  u_int32_t magic, generation, ringsize, offset, writehand, readhand;
   size_t bytesreadable, byteswritable, segsize;
   int numothers;
   int ret;
@@ -263,7 +263,7 @@ static int progrun(bk_s B, struct program_config *pc)
     BK_RETURN(B, -1);
   }
 
-  switch (ret = bk_shmipc_peekbyname(B, pc->pc_filename, &magic, &ringsize, &offset, &writehand, &readhand, &bytesreadable, &byteswritable, &numothers, &segsize, BK_FLAG_ISSET(pc->pc_flags, PC_FORCE)?BK_SHMIPC_FORCE:0))
+  switch (ret = bk_shmipc_peekbyname(B, pc->pc_filename, &magic, &generation, &ringsize, &offset, &writehand, &readhand, &bytesreadable, &byteswritable, &numothers, &segsize, BK_FLAG_ISSET(pc->pc_flags, PC_FORCE)?BK_SHMIPC_FORCE:0))
   {
   case -1:
     bk_die(B, 254, stderr, _("Could not gather IPC information\n"), BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
@@ -286,6 +286,14 @@ static int progrun(bk_s B, struct program_config *pc)
     printf("%40s: %d\n", "Number of attached people", (int)numothers);
     printf("%40s: %d\n", "Segment size", (int)segsize);
     printf("%40s: %x\n", "Magic number", (int)magic);
+    if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
+    {
+      printf("%40s: %x\n", "Magic number (SYN)", 0xfeedface);
+      printf("%40s: %x\n", "Magic number (SYN-ACK)", 0xfacefedd);
+      printf("%40s: %x\n", "Magic number (CONNECTED)", 0xabadcafe);
+      printf("%40s: %x\n", "Magic number (RST)", 0xdeadbeef);
+    }
+    printf("%40s: %u\n", "Generation", (u_int)generation);
     printf("%40s: %d\n", "Ring size", (int)ringsize);
     printf("%40s: %d\n", "Ring offset", (int)offset);
     printf("%40s: %d\n", "Write hand", (int)writehand);
