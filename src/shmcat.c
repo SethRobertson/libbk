@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: shmcat.c,v 1.2 2006/08/17 20:26:45 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: shmcat.c,v 1.3 2006/08/31 22:24:47 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -285,7 +285,7 @@ static int proginit(bk_s B, struct program_config *pc)
     BK_RETURN(B, -1);
   }
 
-  if (!(pc->pc_bsi = bk_shmipc_create(B, pc->pc_filename, pc->pc_timeout, pc->pc_timeout, pc->pc_poll, pc->pc_length, 0700, BK_FLAG_ISSET(pc->pc_flags, PC_RDONLY)?BK_SHMIPC_RDONLY:BK_SHMIPC_WRONLY)))
+  if (!(pc->pc_bsi = bk_shmipc_create(B, pc->pc_filename, pc->pc_timeout, pc->pc_timeout, pc->pc_poll, pc->pc_length, 0700, NULL, BK_FLAG_ISSET(pc->pc_flags, PC_RDONLY)?BK_SHMIPC_RDONLY:BK_SHMIPC_WRONLY)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not attach to shared memory IPC\n");
     BK_RETURN(B, -1);

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.6 2006/08/17 20:26:45 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.7 2006/08/31 22:24:47 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -103,7 +103,7 @@ static int genkeyfromname(bk_s B, const char *name, key_t *key, bk_flags flags);
  *	@return <i>NULL</i> on call failure, allocation failure, writer not present (reader only)
  *	@return <br><i>IPC handle</i> on success
  */
-struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_int initus, u_int spinus, u_int size, u_int mode, bk_flags flags)
+struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_int initus, u_int spinus, u_int size, u_int mode, bk_shmipc_failure_e *failure_reason, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_shmipc *bsi = NULL;
@@ -113,9 +113,12 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   struct shmid_ds buf;
   int numothers = 0;
 
+  if (failure_reason) *failure_reason = BkShmIpcCreateSuccess;
+
   if (!name || BK_FLAG_ISCLEAR(flags, BK_SHMIPC_RDONLY|BK_SHMIPC_WRONLY) || BK_FLAG_ALLSET(flags, BK_SHMIPC_RDONLY|BK_SHMIPC_WRONLY))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    if (failure_reason) *failure_reason = BkShmIpcCreateFatal;
     BK_RETURN(B, NULL);
   }
 
@@ -128,12 +131,14 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   if (!BK_CALLOC(bsi))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory: %s\n", strerror(errno));
+    if (failure_reason) *failure_reason = BkShmIpcCreateFatal;
     BK_RETURN(B, NULL);
   }
 
   if (!(bsi->si_filename = strdup(name)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not duplicate shm name (%s): %s\n", name, strerror(errno));
+    if (failure_reason) *failure_reason = BkShmIpcCreateFatal;
     goto error;
   }
   bsi->si_spinus = spinus;
@@ -184,6 +189,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
       else
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not get shared memory (%s): %s\n", bsi->si_filename, strerror(errno));
+	if (failure_reason) *failure_reason = BkShmIpcCreateFatal;
 	goto error;
       }
       usleep(bsi->si_spinus);
@@ -194,12 +200,14 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   if (bsi->si_shmid < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not get shared memory within timeout of %u microseconds (%s): %s\n", initus, bsi->si_filename, strerror(errno));
+    if (failure_reason) *failure_reason = BkShmIpcCreateTimeout;
     goto error;
   }
 
   if (!(bsi->si_base = shmat(bsi->si_shmid, NULL, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not attach shared memory (%s): %s\n", bsi->si_filename, strerror(errno));
+    if (failure_reason) *failure_reason = BkShmIpcCreateFatal;
     goto error;
   }
 
@@ -221,12 +229,14 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
       if (bsi->si_base->bsh_magic == SHMIPC_MAGIC_EOF || bsi->si_base->bsh_magic == SHMIPC_MAGIC_RINIT || bsi->si_base->bsh_magic == SHMIPC_MAGIC)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Writer closed before we saw magic (%s)\n", bsi->si_filename);
+	if (failure_reason) *failure_reason = BkShmIpcCreateStale;
 	goto error;
       }
 
       if (bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numothers, 0) < 0 || numothers < 1)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Writer went away, so I will as well (%s)\n", bsi->si_filename);
+	if (failure_reason) *failure_reason = BkShmIpcCreateStale;
 	goto error;
       }
 
@@ -237,6 +247,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
     if (bsi->si_base->bsh_magic != SHMIPC_MAGIC_WINIT)
     {
       bk_error_printf(B, BK_ERR_ERR, "Writer has not initialized shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
+      if (failure_reason) *failure_reason = BkShmIpcCreateTimeout;
       goto error;
     }
 
@@ -253,6 +264,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
       if (oldmagic == SHMIPC_MAGIC_EOF || oldmagic == SHMIPC_MAGIC || (oldmagic != SHMIPC_MAGIC_RINIT && oldmagic != SHMIPC_MAGIC_WINIT))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Bad magic (%x)--not following protocol or corrupted (%s)\n", oldmagic, bsi->si_filename);
+	if (failure_reason) *failure_reason = BkShmIpcCreateFatal;
 	goto error;
       }
 
@@ -263,6 +275,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
     if (bsi->si_base->bsh_magic != SHMIPC_MAGIC_RINIT)
     {
       bk_error_printf(B, BK_ERR_ERR, "Reader has not acknolwedged shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
+      if (failure_reason) *failure_reason = BkShmIpcCreateTimeout;
       goto error;
     }
 
@@ -278,12 +291,14 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
       if (oldmagic == SHMIPC_MAGIC_EOF || oldmagic == SHMIPC_MAGIC_WINIT || (oldmagic != SHMIPC_MAGIC && oldmagic != SHMIPC_MAGIC_RINIT))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Bad magic (%x)--not following protocol or corrupted (%s)\n", oldmagic, bsi->si_filename);
+	if (failure_reason) *failure_reason = BkShmIpcCreateFatal;
 	goto error;
       }
 
       if (bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numothers, 0) < 0 || numothers < 1)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Writer went away, so I will as well (%s)\n", bsi->si_filename);
+	if (failure_reason) *failure_reason = BkShmIpcCreateStale;
 	goto error;
       }
 
@@ -294,6 +309,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
     if (bsi->si_base->bsh_magic != SHMIPC_MAGIC)
     {
       bk_error_printf(B, BK_ERR_ERR, "Writer has not acknolwedged reader shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
+      if (failure_reason) *failure_reason = BkShmIpcCreateTimeout;
       goto error;
     }
   }
@@ -311,6 +327,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   {
     bsi->si_errno = errno;
     bk_error_printf(B, BK_ERR_ERR, "Could not stat shmipc: %s\n", strerror(errno));
+    if (failure_reason) *failure_reason = BkShmIpcCreateFatal;
     goto error;
   }
 
@@ -318,6 +335,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
   {
     bk_error_printf(B, BK_ERR_ERR, "Memory corruption or attack to induce memory corruption ((%p-%p)%u + %d > %u)\n", bsi->si_ring, bsi->si_base, (u_int)(bsi->si_ring - (char *)bsi->si_base), bsi->si_ringbytes, (u_int)buf.shm_segsz);
     bsi->si_errno = EBADSLT;
+    if (failure_reason) *failure_reason = BkShmIpcCreateFatal;
     goto error;
   }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.334 2006/08/17 20:26:44 seth Exp $
+ * $Id: libbk.h,v 1.335 2006/08/31 22:24:46 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2515,7 +2515,14 @@ extern double mt19937_genrand64_real3(struct mt_state *mts);
 extern void mt19937_destroy(struct mt_state *mts);
 
 /* b_shmipc.c */
-extern struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_int initus, u_int spinus, u_int size, u_int mode, bk_flags flags);
+typedef enum
+{
+  BkShmIpcCreateSuccess=0,			///< No particular error
+  BkShmIpcCreateFatal=1,			///< Probably will not succeed if attempted again
+  BkShmIpcCreateStale=2,			///< Could have failed due to stale shared memory
+  BkShmIpcCreateTimeout=3,			///< Failed due to timeout
+} bk_shmipc_failure_e;
+extern struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_int initus, u_int spinus, u_int size, u_int mode, bk_shmipc_failure_e *failure_reason, bk_flags flags);
 #define BK_SHMIPC_RDONLY	0x01		///< Read only activity
 #define BK_SHMIPC_WRONLY	0x02		///< Write only activity
 extern void bk_shmipc_destroy(bk_s B, struct bk_shmipc *bsi, bk_flags flags);
