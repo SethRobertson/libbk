@@ -1,3 +1,45 @@
+2006-09-05  Alex Dupuy  <alex.dupuy@counterstorm.com>
+
+	* src/timeout.c: compatibility with netatalk timeout [-t optional],
+	validate numeric options, allow signal names as well as numbers,
+	better error messages, propagate child signal termination status
+
+2006-08-31  Seth Robertson  <seth@counterstorm.com>
+
+	* include/libbk.h, lib/b_shmipc.c, src/shmcat.c: #8397: Allow shared
+	memory protocol to recover a little better from stale shmem segments
+
+2006-08-17  Seth Robertson  <seth@counterstorm.com>
+
+	* include/libbk.h, lib/b_shmipc.c, src/shmadm.c, src/shmcat.c: #8335:
+	Do the three way handshake to validate that everyone is OK with	startup.
+	Add generation number cum write init timestamp to shm header and diag
+	program for value added diagnostics
+
+2006-08-11  Seth Robertson  <seth@counterstorm.com>
+
+	* include/libbk.h, lib/b_shmipc.c, src/shmadm.c, src/shmcat.c:
+	* test/sourcesink.c, */Makefile: #7859: Shared memory IPC data transfer
+	infrastructure
+
+2006-08-09  Seth Robertson  <seth@counterstorm.com>
+
+	* lib/b_ioh.c, test/writev.c: #7859: Improve write performance for
+	[primarily] pipe output devices
+
+2006-08-03  Seth Robertson  <seth@counterstorm.com>
+
+	* test/writev.c: performance testing for file i/o
+
+2006-07-27  Alex Dupuy  <alex.dupuy@counterstorm.com>
+
+	* lib/b_ringdir.c: #8185: lower err level of bk_ring errors as
+	well when DUMP_RING_FLAG_NOT_REQUIRED
+
+2006-07-22  James Tanis  <jtt@counterstorm.com>
+
+	* lib/b_strconv.c, lib/b_thread.c: WANT_STATIC=true and gcc 4.1.1 fixes
+
 2006-07-20  Brian Lindauer  <brian.lindauer@counterstorm.com>
 
 	* include/libbk_include.h: Add stddef.h for ptrdiff_t definition.
