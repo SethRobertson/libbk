@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.335 2006/08/31 22:24:46 seth Exp $
+ * $Id: libbk.h,v 1.336 2006/09/11 20:43:00 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -685,6 +685,16 @@ typedef enum
   BkSocketSideLocal=1,			///< The local side.
   BkSocketSideRemote,			///< The remote side.
 } bk_socket_side_e;
+
+
+
+/**
+ * 16-bit representation of a number between 0.0 and 1.0,
+ * with conversion routines.
+ */
+typedef u_int16_t bk_pct16_t;
+#define BK_FLOAT_TO_PCT16(f) ((bk_pct16_t) (f * 0xffff))
+#define BK_PCT16_TO_FLOAT(p) (p / (float) 0xffff)
 
 
 
