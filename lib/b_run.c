@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.82 2006/06/15 17:38:15 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.83 2006/09/12 21:50:25 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1042,13 +1042,22 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
     wantsignals = 1;
 #endif /* BK_USING_PTHREADS */
 
-#define BK_RUN_ONCE_ABORT_CHECK()						\
-  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE))			\
-    goto abort_run_once;							\
-  if (wantsignals && sigprocmask(SIG_UNBLOCK, &run->br_runsignals, NULL) < 0 ||	\
-      sigprocmask(SIG_BLOCK, &run->br_runsignals, NULL) < 0 ||			\
-      br_beensignaled)								\
-    goto beensignaled;
+/*
+ * Performance improvement: sigprocmask is very expensive and we do it very often
+ * and normally we don't need signals quite so often.
+ */
+#define DO_PROCMASK_OFTEN      0
+
+#define BK_RUN_ONCE_ABORT_CHECK()					\
+do {									\
+  if (BK_FLAG_ISSET(run->br_flags, BK_RUN_FLAG_ABORT_RUN_ONCE))		\
+    goto abort_run_once;						\
+  if (DO_PROCMASK_OFTEN && wantsignals &&				\
+      (sigprocmask(SIG_UNBLOCK, &run->br_runsignals, NULL) < 0 ||	\
+       sigprocmask(SIG_BLOCK, &run->br_runsignals, NULL) < 0 ||		\
+       br_beensignaled))						\
+    goto beensignaled;							\
+} while(0)
 
   /*
    * The purpose of the flag should be explained. libbk supports the idea
