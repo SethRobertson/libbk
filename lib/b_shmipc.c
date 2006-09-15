@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.7 2006/08/31 22:24:47 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.8 2006/09/15 18:46:55 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -204,7 +204,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
     goto error;
   }
 
-  if (!(bsi->si_base = shmat(bsi->si_shmid, NULL, 0)))
+  if ((bsi->si_base = shmat(bsi->si_shmid, NULL, 0)) == (void *)-1)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not attach shared memory (%s): %s\n", bsi->si_filename, strerror(errno));
     if (failure_reason) *failure_reason = BkShmIpcCreateFatal;
