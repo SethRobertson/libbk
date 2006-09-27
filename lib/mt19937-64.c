@@ -72,6 +72,10 @@ struct mt_state
 
 
 
+static void mt19937_init_genrand64_int(struct mt_state *mts, unsigned long long seed);
+
+
+
 void mt19937_destroy(struct mt_state *mts)
 {
   free(mts);
@@ -95,11 +99,11 @@ struct mt_state *mt19937_truerand_init(void)
   if (!(btri = bk_truerand_init(NULL, 0, 0)))
     return (NULL);
 
-  mts->mti = NN+1;
+  mts->mti = NN;
 
   bk_truerand_getbuf(NULL, btri, (unsigned char *)mts->mt, sizeof(mts->mt), 0);
 
-  mts->mt[0] = 1ULL << 63; /* MSB is 1; assuring non-zero initial array */
+  mts->mt[0] |= 1ULL << 63; /* MSB is 1; assuring non-zero initial array */
 
   bk_truerand_destroy(NULL, btri);
 
@@ -115,14 +119,24 @@ struct mt_state *mt19937_init_genrand64(unsigned long long seed)
 {
   struct mt_state *mts = (struct mt_state *)malloc(sizeof(struct mt_state));
 
+  mt19937_init_genrand64_int(mts, seed);
+
+  return(mts);
+}
+
+
+
+/*
+ * initializes mt[NN] with a seed
+ */
+static void mt19937_init_genrand64_int(struct mt_state *mts, unsigned long long seed)
+{
   if (!mts)
-    return(NULL);
+    return;
 
   mts->mt[0] = seed;
   for (mts->mti=1; mts->mti<NN; mts->mti++)
     mts->mt[mts->mti] =  (6364136223846793005ULL * (mts->mt[mts->mti-1] ^ (mts->mt[mts->mti-1] >> 62)) + mts->mti);
-
-  return(mts);
 }
 
 
@@ -140,9 +154,9 @@ struct mt_state *mt19937_init_by_array64(unsigned long long init_key[], unsigned
   if (!mts)
     return(NULL);
 
-  mts->mti = NN+1;
+  mts->mti = NN;
 
-  mt19937_init_genrand64(19650218ULL);
+  mt19937_init_genrand64_int(mts, 19650218ULL);
   i=1; j=0;
   k = (NN>key_length ? NN : key_length);
   for (; k; k--)
@@ -188,13 +202,6 @@ unsigned long long mt19937_genrand64_int64(struct mt_state *mts)
   if (mts->mti >= NN)
   {
     /* generate NN words at one time */
-
-    /*
-     * if init_genrand64() has not been called,
-     * a default initial seed is used
-     */
-    if (mts->mti == NN+1)
-      mt19937_init_genrand64(5489ULL);
 
     for (i=0;i<NN-MM;i++)
     {
