@@ -1,3 +1,16 @@
+2006-09-27  Seth Robertson  <seth@doe.sysdetect.com>
+
+	* lib/mt19937-64.c (mt19937_init_by_array64): Plug a memory leak
+	by eliminating some code which would never be called under the
+	baka API, allow init_by_array to work more identically with public
+	implementations, and at the same time, make things epsilon faster.
+	Note that if we want to make things 1/epsilon faster, or at least
+	much faster, consider http://www.cs.hmc.edu/~geoff/mtwist.html
+	which would probably take a bit of porting and would be different
+	from this version (would produce the 32 bit implementation random
+	numbers instead of the 64 bit numbers our version generates).  Not
+	a big deal for us.
+
 2006-09-05  Alex Dupuy  <alex.dupuy@counterstorm.com>
 
 	* src/timeout.c: compatibility with netatalk timeout [-t optional],
