@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.124 2005/10/21 23:14:54 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.125 2006/09/28 15:37:08 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,7 +25,6 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
-#define jtts stderr
 
 /**
  * @name bk_str_registry
