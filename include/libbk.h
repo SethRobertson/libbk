@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.337 2006/09/28 15:12:57 jtt Exp $
+ * $Id: libbk.h,v 1.338 2006/09/28 16:26:59 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2515,7 +2515,7 @@ extern int bk_bigint_init(bk_s B, struct bk_bigint *bb, bk_flags flags);
 
 /* mt19937 */
 extern struct mt_state *mt19937_truerand_init(void);
-extern void mt19937_init_genrand64(struct mt_state *mts, unsigned long long myseed);
+extern struct mt_state *mt19937_init_genrand64(unsigned long long myseed);
 extern struct mt_state *mt19937_init_by_array64(unsigned long long init_key[], unsigned long long key_length);
 extern unsigned long long mt19937_genrand64_int64(struct mt_state *mts);
 extern long long mt19937_genrand64_int63(struct mt_state *mts);
