@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.14 2005/09/02 17:13:53 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_rand.c,v 1.15 2006/09/28 15:12:58 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -481,11 +481,11 @@ void bk_truerand_opertunistic(bk_s B, bk_MD5_CTX *ctx)
   // Precedence of devices is perhaps wrong...
 #ifdef HAVE_DEVSRANDOM				  // Strong random data (may block)
   fd = open("/dev/srandom", O_RDONLY|O_NONBLOCK);
-#elsif HAVE_DEVURANDOM
+#elif HAVE_DEVURANDOM
   fd = open("/dev/urandom", O_RDONLY|O_NONBLOCK); // Non-blocking random data
-#elsif HAVE_DEVRANDOM
+#elif HAVE_DEVRANDOM
   fd = open("/dev/random", O_RDONLY|O_NONBLOCK);  // Nuclear random data (may block)
-#elsif HAVE_DEVRANDOM
+#elif HAVE_DEVRANDOM
   fd = open("/dev/prandom", O_RDONLY|O_NONBLOCK); // Kernel pseudo random data
 #endif /* HAVE_DEV*RANDOM */
 

@@ -11,6 +11,11 @@
 	numbers instead of the 64 bit numbers our version generates).  Not
 	a big deal for us.
 
+2006-09-27  James Tanis  <jtt@swift.sysdetect.com>
+
+	* lib/mt19937-64.c (mt19937_init_genrand64): Take mts as argument
+	so that it 1) doesn't leak memory and 2) actually has an effect.
+
 2006-09-05  Alex Dupuy  <alex.dupuy@counterstorm.com>
 
 	* src/timeout.c: compatibility with netatalk timeout [-t optional],
