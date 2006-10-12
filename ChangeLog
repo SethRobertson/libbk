@@ -1,3 +1,12 @@
+2006-10-12  Alexander Dupuy  <alex.dupuy@counterstorm.com>
+
+	* src/timeout.c: eliminate some signal handler race condition that
+	returned timeout status (SIGALRM) if child finished just fast enough
+
+2006-09-28  James Tanis  <jtt@counterstorm.com>
+
+	* lib/b_string.c: Eliminate useless debugging #defines
+
 2006-09-27  Seth Robertson  <seth@doe.sysdetect.com>
 
 	* lib/mt19937-64.c (mt19937_init_by_array64): Plug a memory leak

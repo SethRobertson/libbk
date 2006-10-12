@@ -21,7 +21,7 @@
 int sig = SIGTERM;
 unsigned timeout = 0;
 int waitaftersignal = 0;
-int finished = 0;
+volatile int finished = 0;
 int pid = 0;
 
 /*
@@ -37,7 +37,9 @@ int pid = 0;
  * 127 may be a useful choice in some cases, as the shell uses it when unable to
  * fork or exec a program.
  */
-int error_exit = 128 + SIGCHLD;
+#define ERR_EXIT (128 + SIGCHLD)
+int error_exit = ERR_EXIT;
+volatile int status = W_EXITCODE(ERR_EXIT,0);
 
 
 void reaper(int signum);
@@ -56,7 +58,6 @@ int main(int argc, char **argv)
   char opt;
   unsigned long arg;
   char *argend;
-  int status;
 
   while ((opt = getopt(argc, argv, "+s:t:e:w")) != EOF)
   {
@@ -140,12 +141,17 @@ int main(int argc, char **argv)
   {
     if (kill(pid, sig) < 0 && errno != ESRCH)
       perror(PROGNAME "kill");
+  }
 
-    if (waitaftersignal)
-    {
-      waitpid(pid, &status, 0);
-      status_exit(status);
-    }
+  /* always check for child status (possibly waiting), to handle signal races */
+  if (!finished && waitpid(pid, &status, (waitaftersignal ? 0 : WNOHANG)))
+  {
+    finished++;
+  }
+
+  if (finished)
+  {
+    status_exit(status);
   }
 
   /* child not reaped; we don't want to wait, so fake a signal termination */
@@ -164,7 +170,6 @@ int main(int argc, char **argv)
 void reaper(int signum)
 {
   int child;
-  int status;
 
   while ((child = waitpid(-1, &status, WNOHANG)) >= 0)
   {
@@ -183,17 +188,17 @@ void reaper(int signum)
 /*
  * Reflect child exit status, with or without signal
  */
-void status_exit(int status)
+void status_exit(int code)
 {
-  if (WIFEXITED(status))
-    exit(WEXITSTATUS(status));
+  if (WIFEXITED(code))
+    exit(WEXITSTATUS(code));
 
-  if (WIFSIGNALED(status))
+  if (WIFSIGNALED(code))
   {
-    signal(WTERMSIG(status), SIG_DFL);
-    raise(WTERMSIG(status));
+    signal(WTERMSIG(code), SIG_DFL);
+    raise(WTERMSIG(code));
     /* this should not be reached, but just in case */
-    exit(128 + WTERMSIG(status));
+    exit(128 + WTERMSIG(code));
   }
 
   /* this should not be reached, but perhaps child is traced somehow? */
