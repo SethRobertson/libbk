@@ -144,7 +144,8 @@ int main(int argc, char **argv)
   }
 
   /* always check for child status (possibly waiting), to handle signal races */
-  if (!finished && waitpid(pid, &status, (waitaftersignal ? 0 : WNOHANG)))
+  if (!finished &&
+      waitpid(pid, (int *)&status, (waitaftersignal ? 0 : WNOHANG)))
   {
     finished++;
   }
@@ -171,7 +172,7 @@ void reaper(int signum)
 {
   int child;
 
-  while ((child = waitpid(-1, &status, WNOHANG)) >= 0)
+  while ((child = waitpid(-1, (int *)&status, WNOHANG)) >= 0)
   {
     /* if exec fails, child may exit before parent returns from fork() */
     if (child == pid || (pid == 0 && WEXITSTATUS(status) == error_exit))
