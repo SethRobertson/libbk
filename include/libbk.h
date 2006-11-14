@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.338 2006/09/28 16:26:59 jtt Exp $
+ * $Id: libbk.h,v 1.339 2006/11/14 15:57:03 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1063,7 +1063,7 @@ typedef struct bk_vstr
 {
   char *ptr;					///< Data
   u_int32_t cur;				///< Current length (not including NULL)
-  u_int32_t max;				///< Maximum length (not including NULL)
+  u_int32_t max;				///< Allocated length (including NULL)
 } bk_vstr;
 
 

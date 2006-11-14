@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.125 2006/09/28 15:37:08 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.126 2006/11/14 15:57:03 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1815,7 +1815,8 @@ char *
 bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, va_list xap)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  int n, size = 2048;
+  static int warned = 0;
+  int n, size = 256;
   char *p = NULL;
   char *tmpp = NULL;
   va_list ap;
@@ -1826,12 +1827,15 @@ bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, v
     BK_RETURN(B, NULL);
   }
 
+  if (flags & ~BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY)
+    bk_error_printf(B, BK_ERR_ERR, "Unrecognized flags (0x%x) - probably misplaced chunksize\n", flags);
+
   if (chunk)
     size = chunk;
 
   if (!(p = malloc(size)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not alloc string: %s\n", strerror(errno));
+    bk_error_printf(B, BK_ERR_ERR, "Could not alloc string\n");
     goto error;
   }
 
@@ -1855,8 +1859,17 @@ bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, v
       size *= 2;  /* twice the old size */
     if (!(tmpp = realloc (p, size)))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not realloc string: %s\n", strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not realloc %d byte string\n", size);
       goto error;
+    }
+    else if (!flags && warned < size)
+    {
+      warned = size;
+      bk_error_printf(B, BK_ERR_ERR, "Inefficient use of bk_string_alloc_*sprintf - use chunksize > %d, or better yet, bk_vstr_cat\n", size);
+      if (!B)
+	bk_error_printf(B, BK_ERR_ERR, "Run with --seatbelts for caller info\n");
+      else
+	bk_fun_trace(B, NULL, BK_ERR_ERR, 0);
     }
     p = tmpp;
   }
@@ -1918,52 +1931,76 @@ bk_vstr_cat(bk_s B, bk_flags flags, bk_vstr *dest, const char *src_fmt, ...)
   // try with available space
   while (1)
   {
-    int available = dest->max - dest->cur;
+    int available = dest->max - dest->cur - 1;
 
-    /* Try to print in the allocated space. */
+    /*
+     * We assume that available space (based on max) must be sufficient to hold
+     * the terminating NUL.  Previous versions of this function would reduce
+     * max by 1 so that there would be an extra byte to hold the NUL, but since
+     * no function to perform the initial allocation is provided, we rely on
+     * callers to set max correctly.  In fact, some callers set max == allocated
+     * size.  So we play it safe and don't assume they subtracted 1.  Worst
+     * case, callers that subtract 1 waste a byte - big deal.
+     */
+
+    // try to print in the allocated space
     va_start(ap, src_fmt);
     n = vsnprintf (dest->ptr + dest->cur, available + 1, src_fmt, ap);
     va_end(ap);
 
-    /* If that worked, return the string. */
+    // if that worked, return the string
     if ((n > -1) && (n <= available))
     {
-      // update length counter in vstr
-      dest->cur += n;
+      dest->cur += n;				// update length counter in vstr
       break;
     }
 
-    /* Else try again with more space. */
-    if ((n > -1) && BK_FLAG_ISSET(flags, BK_VSTR_CAT_FLAG_STINGY_MEMORY))    /* glibc 2.1 */
-    {
-      size = n+1; /* precisely what is needed */
+    // else try again with more space
+    if (n >= 0)					// glibc 2.1 (C99)
+    {		
+      if (BK_FLAG_ISSET(flags, BK_VSTR_CAT_FLAG_STINGY_MEMORY))
+	size = n + 1;				// precisely what is needed
+
+      else if (n - dest->max >= BUFSIZ)		// big growth for big increment
+	size = n + BUFSIZ;
+      else if (dest->max > BUFSIZ)		// increment by (8KB) chunks
+	size = dest->max + BUFSIZ;
+      else if (n < (int) dest->max * 2)		// double size if large enough
+	size = dest->max * 2;
+      else					// or precisely what is needed
+	size = n + 1;
     }
-    else           /* glibc 2.0 */
+    else					// glibc 2.0
     {
-      size = (dest->max + 1) * 2;  /* twice the old size */
+      size = dest->max * 2;			// double size
+
+      if (dest->max > 2 * BUFSIZ)		// don't waste it, though
+	BK_FLAG_SET(flags, BK_VSTR_CAT_FLAG_STINGY_MEMORY);
     }
+
     if (!(p = realloc (dest->ptr, size)))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not realloc string: %s\n", strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not realloc vstring\n");
       goto error;
     }
     dest->ptr = p;
-    dest->max = size - 1;			// don't include NULL space
+    dest->max = size;
   }
 
-  if (BK_FLAG_ISSET(flags, BK_VSTR_CAT_FLAG_STINGY_MEMORY))
+  if (BK_FLAG_ISSET(flags, BK_VSTR_CAT_FLAG_STINGY_MEMORY)
+      && dest->max > dest->cur + 1)
   {
     char *tmp;
 
     if (!(tmp = strdup(dest->ptr)))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not copy string to minimize memory usage: %s\n", strerror(errno));
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy vstring to smaller buffer\n");
       goto error;
     }
     free(dest->ptr);
     dest->ptr = tmp;
 
-    dest->max = dest->cur;
+    dest->max = dest->cur + 1;
   }
 
   BK_RETURN(B, 0);
