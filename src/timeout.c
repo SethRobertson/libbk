@@ -2,14 +2,7 @@
  * Dedicated to the public (domain).
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
-#include <signal.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <unistd.h>
+#include <libbk.h>
 
 #ifndef SIGCHLD
 #define SIGCHLD SIGCLD
@@ -32,7 +25,7 @@ int pid = 0;
  * SIGCHLD (impossible, since the default action for that signal is SIG_IGN).
  *
  * As the value of SIGCHLD may be different on different platforms, if a
- * portable error exit code is needed, it can be specified with the -e option.	
+ * portable error exit code is needed, it can be specified with the -e option.
  *
  * 127 may be a useful choice in some cases, as the shell uses it when unable to
  * fork or exec a program.
@@ -43,6 +36,7 @@ volatile int status = W_EXITCODE(ERR_EXIT,0);
 
 
 void reaper(int signum);
+void timerouter(int signum);
 void status_exit(int childstatus);
 void usage(void);
 int sigcompare(const void *a, const void *b);
@@ -108,7 +102,13 @@ int main(int argc, char **argv)
   if (!timeout)
     timeout = DEFAULT_TIMEOUT;
 
-  if (signal(SIGCHLD, reaper) == SIG_ERR)
+  if (bk_signal(NULL, SIGCHLD, reaper, 0) < 0)
+  {
+    perror(PROGNAME "signal");
+    exit(error_exit);
+  }
+
+  if (bk_signal(NULL, SIGALRM, timerouter, 0) < 0)
   {
     perror(PROGNAME "signal");
     exit(error_exit);
@@ -134,8 +134,23 @@ int main(int argc, char **argv)
     exit(error_exit);
   }
 
+  // Use alarm instead of sleep to prevent race
+  alarm(timeout);
+
   if (!finished)
-    sleep(timeout);
+  {
+    if (waitpid(pid, (int *)&status, 0) < 0 && errno == EINTR)
+    {
+      // Not finished
+    }
+    else
+    {
+      finished++;
+    }
+  }
+
+  // Prevent future races
+  alarm(0);
 
   if (!finished)
   {
@@ -158,7 +173,7 @@ int main(int argc, char **argv)
   /* child not reaped; we don't want to wait, so fake a signal termination */
   signal(sig, SIG_DFL);
   raise(sig);
-  
+
   /* if signal is not fatal, exit with shell-style exit code */
   exit(128 + sig);
 }
@@ -182,6 +197,17 @@ void reaper(int signum)
       status_exit(status);
     }
   }
+}
+
+
+
+/*
+ * Received timeout.  Hope that wait was interrupted...
+ */
+void timerouter(int signum)
+{
+  // Naught
+  return;
 }
 
 
@@ -368,13 +394,13 @@ int sigcompare(const void *a, const void *b)
 {
   const struct slist *first = a;
   const struct slist *second = b;
-  
+
   /* sort all zero (uninitialized) entries to end */
   if (!second->number)
     return -1;
   if (!first->number)
     return 1;
-  
+
   /* numeric sort */
   return first->number - second->number;
 
