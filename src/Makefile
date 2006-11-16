@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.38 2006/11/16 02:42:00 seth Exp $
+# $Id: Makefile,v 1.39 2006/11/16 20:23:43 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -46,7 +46,7 @@ BK_SIMPLE_PROGS=			\
 GROUPTOP=..
 GROUPSUBDIR=src
 
-# This has to go here so we get the benefit of $(TEST) which is included by one of the above.
+# This allows for test programs to be compiled here without changing Makefile
 BK_TMP_PROG:=$(shell if [ -f tmp.c ]; then echo tmp; fi)
 
 
@@ -82,7 +82,7 @@ ifneq ($(BK_WANT_LIBTOOL),false)
 # libraries are missing.
 
 # <TRICKY>We don't want -lbkssl or -lbkxml for most of the programs here, and
-# some of the programs don't need *anything* (e.g. timeout); however, some
+# some of the programs don't need *anything* (e.g. bk_daemon); however, some
 # programs (e.g. bttcp) do need -lbkssl.  To manage this mess, we use a fairly
 # obscure GNU make feature, Target-specific Variables, to set variables
 # differently for different targets.  Note that this won't necessarily do what

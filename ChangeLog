@@ -1,6 +1,13 @@
+2006-11-15  Seth Robertson  <seth@counterstorm.com>
+
+	* src/timeout.c: #8646: "if (finished) sleep(timeout)" has a race if
+	the child is reaped between the test of finished and the sleep.  Using
+	alarm should in theory fix this which we are seeing at BAE continually,
+	unlike everywhere else.
+
 2006-10-12  Alexander Dupuy  <alex.dupuy@counterstorm.com>
 
-	* src/timeout.c: eliminate some signal handler race condition that
+	* src/timeout.c: #8590: eliminate some signal handler race condition that
 	returned timeout status (SIGALRM) if child finished just fast enough
 
 2006-09-28  James Tanis  <jtt@counterstorm.com>
