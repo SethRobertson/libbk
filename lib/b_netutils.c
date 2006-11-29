@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.33 2004/12/16 20:52:08 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.34 2006/11/29 22:55:28 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1001,8 +1001,8 @@ sss_connect_rgethost_complete(bk_s B, struct bk_run *run, struct hostent *h, str
   if (!bk_gethostbyfoo(B, sss->sss_host, 0, sss->sss_lbni, run, sss_connect_lgethost_complete, sss, 0))
   {
     bk_error_printf(B, BK_ERR_ERR, "gethostbyfoo failed\n");
-    /* All callbacks have occured */
-    sss->sss_callback=NULL;
+    /* All callbacks have occured, sss has been destroyed */
+    sss = NULL;
     goto error;
   }
 

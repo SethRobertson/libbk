@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.59 2005/09/02 17:13:55 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.60 2006/11/29 22:55:31 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -252,7 +252,7 @@ main(int argc, char **argv, char **envp)
     case 'r':					// Receive
       if (pc->pc_role)
       {
-	fprintf(stderr,"Cannot be both transmitter and receiver\n");
+	fprintf(stderr,"%s: Cannot be both transmitter and receiver\n", BK_GENERAL_PROGRAM(B));
 	exit(1);
       }
       pc->pc_role=BttcpRoleReceive;
@@ -265,7 +265,7 @@ main(int argc, char **argv, char **envp)
     case 't':					// Transmit
       if (pc->pc_role)
       {
-	fprintf(stderr,"Cannot be both transmitter and receiver\n");
+	fprintf(stderr,"%s: Cannot be both transmitter and receiver\n", BK_GENERAL_PROGRAM(B));
 	exit(1);
       }
       pc->pc_role=BttcpRoleTransmit;
@@ -591,19 +591,19 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   switch (state)
   {
   case BkAddrGroupStateSysError:
-    fprintf(stderr,"A system error occured\n");
+    fprintf(stderr,"%s%s: A system error occurred (use -d for more details)\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
     goto error;
     break;
   case BkAddrGroupStateRemoteError:
-    fprintf(stderr,"A remote network error occured (connection refused?)\n");
+    fprintf(stderr,"%s%s: A remote network error occurred (connection refused--use -d for more details?)\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
     goto error;
     break;
   case BkAddrGroupStateLocalError:
-    fprintf(stderr,"A local network error occured (address already in use?)\n");
+    fprintf(stderr,"%s%s: A local network error occurred (address already in use--use -d for more details?)\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
     goto error;
     break;
   case BkAddrGroupStateTimeout:
-    fprintf(stderr,"The connection timed out with no more addresses to try\n");
+    fprintf(stderr,"%s%s: The connection timed out with no more addresses to try\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
     goto error;
     break;
   case BkAddrGroupStateReady:
@@ -652,7 +652,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
       goto done;
     }
     if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-      fprintf(stderr,"Software shutdown during connection setup\n");
+      fprintf(stderr,"%s%s: Software shutdown during connection setup\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
     goto error;
     break;
   case BkAddrGroupStateSocket:
