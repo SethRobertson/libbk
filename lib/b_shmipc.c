@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.8 2006/09/15 18:46:55 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.9 2006/12/03 06:16:59 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -607,7 +607,7 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
   {
     if (!(readlen = bytes_available_read(bsi->si_base->bsh_writehand, readhand, bsi->si_ringbytes)))
     {
-      int numwriter;
+      int numwriter = 0;
 
       if (ret && (BK_FLAG_ISCLEAR(flags, BK_SHMIPC_READALL)))
       {
