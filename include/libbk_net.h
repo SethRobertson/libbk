@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.17 2006/03/08 21:31:58 jtt Exp $
+ * $Id: libbk_net.h,v 1.18 2006/12/07 21:20:01 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -29,6 +29,10 @@
 #include <netinet/ip_icmp.h>
 #include <net/route.h>
 
+
+#ifndef ETHERTYPE_8021Q
+#define ETHERTYPE_8021Q 0x8100
+#endif
 
 #define BK_INET_NET_MATCH(addr1, addr2, mask) (((ntohl(((struct in_addr *)(addr1))->s_addr)) & (ntohl(((struct in_addr *)(mask))->s_addr))) == ((ntohl(((struct in_addr *)(addr2))->s_addr)) & (ntohl(((struct in_addr *)(mask))->s_addr))))
 
