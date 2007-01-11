@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.126 2006/11/14 15:57:03 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.127 2007/01/11 06:01:37 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1958,17 +1958,17 @@ bk_vstr_cat(bk_s B, bk_flags flags, bk_vstr *dest, const char *src_fmt, ...)
     // else try again with more space
     if (n >= 0)					// glibc 2.1 (C99)
     {		
+      size = dest->max;
       if (BK_FLAG_ISSET(flags, BK_VSTR_CAT_FLAG_STINGY_MEMORY))
-	size = n + 1;				// precisely what is needed
-
-      else if (n - dest->max >= BUFSIZ)		// big growth for big increment
-	size = n + BUFSIZ;
-      else if (dest->max > BUFSIZ)		// increment by (8KB) chunks
-	size = dest->max + BUFSIZ;
-      else if (n < (int) dest->max * 2)		// double size if large enough
-	size = dest->max * 2;
-      else					// or precisely what is needed
-	size = n + 1;
+	size += n - available + 1;		// precisely what is needed
+      else if (n - available >= BUFSIZ)
+	size += BUFSIZ * (1 + n/BUFSIZ);	// big growth for big increment
+      else if (dest->max > BUFSIZ)
+	size += BUFSIZ;				// increment by (8KB) chunks
+      else if (n < (int) dest->max * 2)
+	size += dest->max;			// double size if large enough
+      else
+	size += n - available + 1;		// or precisely what is needed
     }
     else					// glibc 2.0
     {

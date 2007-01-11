@@ -1,3 +1,7 @@
+2007-01-11  Alex Dupuy  <alex.dupuy@counterstorm.com>
+
+	* lib/b_string.c (bk_vstr_cat): fix problems with "improved" allocation
+	
 2006-11-15  Seth Robertson  <seth@counterstorm.com>
 
 	* src/timeout.c: #8646: "if (finished) sleep(timeout)" has a race if

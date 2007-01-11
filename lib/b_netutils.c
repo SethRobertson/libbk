@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.34 2006/11/29 22:55:28 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.35 2007/01/11 06:01:37 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -700,7 +700,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
   if (!lurl)
   {
     /*
-     * It is apparently acceptable to for AF_LOCAL to bind to one addr and
+     * It is apparently acceptable for AF_LOCAL to bind to one addr and
      * connect to another just like AF_INET. Seems a little weird, but why
      * not? At any rate make sure that if the lurl is *not* set and we're
      * in AF_LOCAL, then create a temporary file and use it.
