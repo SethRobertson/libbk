@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.51 2005/09/02 17:13:52 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.52 2007/01/11 05:59:20 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1471,8 +1471,8 @@ do_net_init_listen(bk_s B, struct addrgroup_state *as)
 
   if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0)
   {
-    bk_error_printf(B, BK_ERR_WARN, "Could not set reuseaddr on socket\n");
-    // Fatal? Nah...
+    bk_error_printf(B, BK_ERR_ERR, "Could not set reuseaddr on socket\n");
+    // Fatal? Nah... but may cause problems later on, so warn at ERR level
   }
 
   if (as->as_callback)
@@ -1661,8 +1661,8 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
     int one = 1;
 
     /*
-     * Simulate accept(2) for DGRAM service. Obtain the premable (which is
-     * really mostly just a "dummy" clien write so the server has something
+     * Simulate accept(2) for DGRAM service. Obtain the preamble (which is
+     * really mostly just a "dummy" client write so the server has something
      * to recvfrom(2) on before real data comes). Connect the server socket
      * to the client and the create a *new* server socket. It *must* be
      * done in this order or the second bind(2) will fail with
@@ -1720,8 +1720,8 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
 
     BK_GET_SOCKADDR_LEN(B, &(bs.bs_sa), bs_len);
 
-    // For AF_LOCAL we *must* remove the synch file before rebinding
-    // <WARNNING> THIS CREATES A RACE CONDITION OF SOMEONE IS CONNECTING </WARNING?
+    // For AF_LOCAL we *must* remove the sync file before rebinding
+    // <WARNNING> THIS CREATES A RACE CONDITION IF SOMEONE IS CONNECTING </WARNING?
     if (bs.bs_sa.sa_family == AF_LOCAL && (unlink(bs.bs_sun.sun_path) < 0) && (errno != ENOENT))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not unlink AFL_LOCAL file %s prior to rebinding: %s\n", bs.bs_sun.sun_path, strerror(errno));
