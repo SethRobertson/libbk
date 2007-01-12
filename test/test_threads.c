@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: test_threads.c,v 1.5 2005/09/02 17:13:57 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: test_threads.c,v 1.6 2007/01/12 15:26:03 lindauer Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -56,14 +56,17 @@ struct program_config
   bk_flags		pc_flags;		///< Everyone needs flags.
 #define PC_THREADREADY			0x01	///< Want threads
 #define PC_VERBOSE			0x02	///< Verbose output
+#define PC_ABSOLUTE			0x04	///< Enqueue event for an absolute (rather than relative) time.
   u_int			pc_cntr;		///< How many times
   u_int			pc_seconds;		///< Sleep time
+  u_int			pc_frequency;		///< Event frequency
 };
 
 
 
 static int proginit(bk_s B, struct program_config *pconfig);
-void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval *startide, bk_flags flags);
+void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
+struct timeval next_run_time(bk_s B, struct program_config *pc);
 
 
 
@@ -94,6 +97,8 @@ main(int argc, char **argv, char **envp)
     {"no-seatbelts", 0, POPT_ARG_NONE, NULL, 0x1000, "Sealtbelts off & speed up", NULL },
     {"sleep", 's', POPT_ARG_INT, NULL, 's', "Set the sleep timeout", "mseconds" },
     {"thread", 't', POPT_ARG_NONE, NULL, 't', "Thread ready", NULL },
+    {"absolute", 'a', POPT_ARG_NONE, NULL, 'a', "Use absolute time", NULL },
+    {"frequency", 'f', POPT_ARG_INT, NULL, 'f', "Set the event frequency", "seconds" },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -141,6 +146,14 @@ main(int argc, char **argv, char **envp)
 
     case 's':					// local-name
       pc->pc_seconds=atoi(poptGetOptArg(optCon));
+      break;
+
+    case 'a':
+      BK_FLAG_SET(pc->pc_flags, PC_ABSOLUTE);
+      break;
+
+    case 'f':
+      pc->pc_frequency=atoi(poptGetOptArg(optCon));
       break;
     }
   }
@@ -196,8 +209,24 @@ proginit(bk_s B, struct program_config *pc)
     goto error;
   }
 
-  bk_run_enqueue_cron(B, pc->pc_run, 1000, eventq, pc, NULL, BK_FLAG_ISSET(pc->pc_flags, PC_THREADREADY)?BK_RUN_THREADREADY:0);
-  bk_run_enqueue_cron(B, pc->pc_run, 1000, eventq, pc, NULL, BK_FLAG_ISSET(pc->pc_flags, PC_THREADREADY)?BK_RUN_THREADREADY:0);
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_ABSOLUTE))
+  {
+    struct timeval next = next_run_time(B, pc);
+
+    bk_debug_printf(B, "Scheduling next run for %lu.%lu\n", next.tv_sec, next.tv_usec);
+
+    if (bk_run_enqueue(B, pc->pc_run, next, eventq, pc, NULL, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Failed to enqueue event.\n");
+      goto error;
+    }
+
+  }
+  else
+  {
+    bk_run_enqueue_cron(B, pc->pc_run, 1000, eventq, pc, NULL, BK_FLAG_ISSET(pc->pc_flags, PC_THREADREADY)?BK_RUN_THREADREADY:0);
+    bk_run_enqueue_cron(B, pc->pc_run, 1000, eventq, pc, NULL, BK_FLAG_ISSET(pc->pc_flags, PC_THREADREADY)?BK_RUN_THREADREADY:0);
+  }
 
   BK_RETURN(B, 0);
 
@@ -206,7 +235,7 @@ proginit(bk_s B, struct program_config *pc)
 }
 
 
-void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval *startide, bk_flags flags)
+void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
   struct program_config *pc = opaque;
@@ -220,9 +249,24 @@ void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval *star
     BK_VRETURN(B);
   }
 
-  foo = startide->tv_sec;
+  foo = starttime->tv_sec;
   (void)localtime_r(&foo, &tm);
   printf("Running event queue job at: %s\n",asctime_r(&tm, buf));
+
+  bk_debug_printf(B, "starttime %lu; clock time %lu\n", starttime->tv_sec, time(NULL));
+
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_ABSOLUTE))
+  {
+    struct timeval next = next_run_time(B, pc);
+    bk_debug_printf(B, "Scheduling next run for %lu.%lu\n", next.tv_sec, next.tv_usec);
+
+    if (bk_run_enqueue(B, pc->pc_run, next, eventq, pc, NULL, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Failed to enqueue event.\n");
+      BK_VRETURN(B);
+    }
+  }
+
   usleep(pc->pc_seconds*1000);
 
   if (++pc->pc_cntr == 10)
@@ -233,4 +277,16 @@ void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval *star
 
   printf("Exiting event queue job started at: %s\n",asctime_r(&tm, buf));
   BK_VRETURN(B);
+}
+
+
+struct timeval next_run_time(bk_s B, struct program_config *pc)
+{
+  BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
+  struct timeval ret;
+
+  ret.tv_sec = time(NULL) + pc->pc_frequency;
+  ret.tv_usec = 0;
+
+  BK_RETURN(B, ret);
 }
