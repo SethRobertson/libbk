@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.52 2007/01/11 05:59:20 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.53 2007/01/18 22:47:23 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -101,7 +101,7 @@ static int do_net_init_listen(bk_s B, struct addrgroup_state *as);
 static int open_local(bk_s B, struct addrgroup_state *as);
 static void stream_end(bk_s B, struct addrgroup_state *as);
 static void dgram_end(bk_s B, struct addrgroup_state *as);
-static void stream_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags);
+static void stream_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval starttime, bk_flags flags);
 static void stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime);
 static void net_close(bk_s B, struct addrgroup_state *as);
 static void listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, const struct timeval *startime);
@@ -1211,7 +1211,7 @@ net_init_abort(bk_s B, struct addrgroup_state *as)
  *	@param flags Random flags.
  */
 static void
-stream_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags)
+stream_connect_timeout(bk_s B, struct bk_run *run, void *args, const struct timeval starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct addrgroup_state *as;

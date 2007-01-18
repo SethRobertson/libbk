@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.53 2005/01/18 22:41:13 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_pollio.c,v 1.54 2007/01/18 22:47:23 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -115,8 +115,8 @@ static struct polling_io_data *pid_create(bk_s B);
 static void pid_destroy(bk_s B, struct polling_io_data *pid);
 static void polling_io_ioh_handler(bk_s B, bk_vptr *data, void *args, struct bk_ioh *ioh, bk_ioh_status_e status);
 static int polling_io_flush(bk_s B, struct bk_polling_io *bpi, bk_flags flags );
-static void bpi_rdtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *stattime, bk_flags flags);
-static void bpi_wrtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *stattime, bk_flags flags);
+static void bpi_rdtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags);
+static void bpi_wrtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags);
 static void bk_polling_io_destroy(bk_s B, struct bk_polling_io *bpi);
 
 
@@ -1555,7 +1555,7 @@ bk_polling_io_geterr(bk_s B, struct bk_polling_io *bpi)
  *	@param flags Flags.
  */
 static void
-bpi_rdtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *stattime, bk_flags flags)
+bpi_rdtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_polling_io *bpi = opaque;
@@ -1606,7 +1606,7 @@ bpi_rdtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *st
  *	@param flags Flags.
  */
 static void
-bpi_wrtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval *stattime, bk_flags flags)
+bpi_wrtimeout(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_polling_io *bpi = opaque;

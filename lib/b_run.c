@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.83 2006/09/12 21:50:25 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.84 2007/01/18 22:47:23 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -49,7 +49,7 @@ struct bk_fd_cancel
 struct br_equeue
 {
   struct timeval	bre_when;		///< Time to run event
-  void			(*bre_event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags); ///< Event to run
+  void			(*bre_event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags); ///< Event to run
   void			*bre_opaque;		///< Data for opaque
   bk_flags		bre_flags;		///< BK_RUN_THREADREADY
 };
@@ -63,7 +63,7 @@ struct br_equeue
 struct br_equeuecron
 {
   time_t		brec_interval;		///< msec Interval timer
-  void			(*brec_event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags); ///< Event to run
+  void			(*brec_event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags); ///< Event to run
   void		       *brec_opaque;		///< Data for opaque
   struct br_equeue     *brec_equeue;		///< Queued cron event (ie next instance to fire).
   bk_flags		brec_flags;		///< Flags are always useful
@@ -82,9 +82,9 @@ struct br_equeuecron
 struct br_runevent
 {
   struct bk_run		       *brre_run;	///< Run environment
-  void (*brre_fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags); ///< Function to call
+  void (*brre_fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags); ///< Function to call
   void *brre_opaque;				///< Opaque data for function
-  struct timeval	       *brre_starttime;	///< Timestamp to hopefully save cycles
+  struct timeval	        brre_starttime;	///< Timestamp to hopefully save cycles
   bk_flags		        brre_flags;	///< Flag information for eventq function
 };
 
@@ -217,7 +217,7 @@ struct bk_run_ondemand_func
 
 
 static int bk_run_event_comparator(struct br_equeue *a, struct br_equeue *b);
-static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
+static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags);
 static int bk_run_checkeventq(bk_s B, struct bk_run *run, struct timeval *starttime, struct timeval *delta, u_int *event_cntp);
 static struct bk_run_func *brfn_alloc(bk_s B);
 static void brfn_destroy(bk_s B, struct bk_run_func *brf);
@@ -226,7 +226,7 @@ static void brof_destroy(bk_s B, struct bk_run_ondemand_func *brof);
 #ifdef BK_USING_PTHREADS
 static void *bk_run_runevent_thread(bk_s B, void *opaque);
 #endif /* BK_USING_PTHREADS */
-static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, struct timeval *starttime, bk_flags eventflags, bk_flags flags);
+static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags), void *opaque, struct timeval *starttime, bk_flags eventflags, bk_flags flags);
 static void bk_run_runfd(bk_s B, struct bk_run *run, int fd, u_int gottypes, bk_fd_handler_t fun, void *opaque, struct timeval *starttime, bk_flags flags);
 #ifdef BK_USING_PTHREADS
 static int bk_run_select_changed_init(bk_s B, struct bk_run *run);
@@ -705,7 +705,7 @@ int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)(bk_s B
  *	@return <i><0</i> on call failure, allocation failure, or other error.
  *	@return <br><i>0</i> on success.
  */
-int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
+int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeue *new;
@@ -788,7 +788,7 @@ int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event
  *	@return <i>-1</i> on call failure, allocation failure, or other error.
  *	@return <br><i>0</i> on success.
  */
-int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t msec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
+int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t msec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct timeval tv, diff;
@@ -825,7 +825,7 @@ int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t msec, void (*event)(
  *	@return <i><0</i> on call failure, allocation failure, or other error.
  *	@return <br><i>0</i> on success.
  */
-int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
+int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msec, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeuecron *brec;
@@ -2182,7 +2182,7 @@ void bk_run_signal_ihandler(int signum)
  *	@param starttime The time when this global-event queue run was started
  *	@param flags BK_RUN_DESTROY when this event is being called for the last time.
  */
-static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags)
+static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct br_equeuecron *brec = opaque;
@@ -2196,7 +2196,7 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
 
   addtv.tv_sec = brec->brec_interval / 1000;
   addtv.tv_usec = brec->brec_interval % 1000;
-  BK_TV_ADD(&addtv,&addtv,starttime);
+  BK_TV_ADD(&addtv,&addtv,&starttime);
 
   if (BK_FLAG_ISCLEAR(flags,BK_RUN_DESTROY))
     bk_run_enqueue(B, run, addtv, bk_run_event_cron, brec, ((void **)&brec->brec_equeue), brec->brec_flags);
@@ -2268,7 +2268,7 @@ static void bk_run_event_cron(bk_s B, struct bk_run *run, void *opaque, const st
  * @param eventflags DESTROY and other such stuff
  * @param flags BK_RUN_THREADREADY to fork a new thread
  */
-static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, struct timeval *starttime, bk_flags eventflags, bk_flags flags)
+static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags), void *opaque, struct timeval *starttime, bk_flags eventflags, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
@@ -2292,7 +2292,7 @@ static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, stru
     brre->brre_run = run;
     brre->brre_fun = fun;
     brre->brre_opaque = opaque;
-    brre->brre_starttime = starttime;
+    brre->brre_starttime = *starttime;
     brre->brre_flags = eventflags;
 
     if (!bk_general_thread_create(B, "bk_run.eventq", bk_run_runevent_thread, brre, 0))
@@ -2304,7 +2304,7 @@ static void bk_run_runevent(bk_s B, struct bk_run *run, void (*fun)(bk_s B, stru
   }
   else
 #endif /* BK_USING_PTHREADS */
-    (*fun)(B, run, opaque, starttime, eventflags);
+    (*fun)(B, run, opaque, *starttime, eventflags);
 
   BK_VRETURN(B);
 }

@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.118 2006/08/09 18:54:56 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.119 2007/01/18 22:47:23 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -207,9 +207,9 @@ static int ioh_close(bk_s B, struct bk_ioh *ioh, bk_flags flags);
 static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh);
 static struct ioh_data_cmd *idc_create(bk_s B);
 static void idc_destroy(bk_s B, struct ioh_data_cmd *idc);
-static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
+static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags);
 static void check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags);
-static void recheck_follow(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
+static void recheck_follow(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags);
 static int compress_write(bk_s B, struct bk_ioh *ioh, bk_iowfunc_f writefun, void *opaque, int fd, struct iovec *buf, __SIZE_TYPE__ size, bk_flags flags);
 
 
@@ -4639,7 +4639,7 @@ extern int bk_ioh_printf(bk_s B, struct bk_ioh *ioh, const char *format, ...)
  * @param starttime When this event queue run started
  * @param flags Fun for the future
  */
-static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags)
+static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *ioh = opaque;
@@ -4662,7 +4662,7 @@ static void bk_ioh_userdrainevent(bk_s B, struct bk_run *run, void *opaque, cons
     abort();
 #endif /* BK_USING_PTHREADS */
 
-  ioh_runhandler(B, run, BK_RUN_USERFLAG1, ioh->ioh_fdin, ioh, starttime);
+  ioh_runhandler(B, run, BK_RUN_USERFLAG1, ioh->ioh_fdin, ioh, &starttime);
 
   BK_VRETURN(B);
 }
@@ -4974,7 +4974,7 @@ check_follow(bk_s B, struct bk_ioh *ioh, bk_flags flags)
  *	@return <i>0</i> on success.
  */
 static void
-recheck_follow(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags)
+recheck_follow(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *ioh = (struct bk_ioh *)opaque;

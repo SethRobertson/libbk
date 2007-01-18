@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.30 2004/08/05 12:17:19 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.31 2007/01/18 22:47:23 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -55,7 +55,7 @@ struct bk_gethostbyfoo_state
 
 
 static int copy_hostent(bk_s B, struct hostent **ih, struct hostent *h);
-static void gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags);
+static void gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, const struct timeval starttime, bk_flags flags);
 static struct bk_gethostbyfoo_state *bgs_create(bk_s B);
 static void bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs);
 
@@ -972,7 +972,7 @@ copy_hostent(bk_s B, struct hostent **ih, struct hostent *h)
  *	@param flags Random flags.
  */
 static void
-gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, const struct timeval *starttime, bk_flags flags)
+gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, const struct timeval starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_gethostbyfoo_state *bgs = args;
