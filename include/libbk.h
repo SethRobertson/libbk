@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.339 2006/11/14 15:57:03 dupuy Exp $
+ * $Id: libbk.h,v 1.340 2007/01/19 16:42:04 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1624,11 +1624,11 @@ extern int bk_run_signal(bk_s B, struct bk_run *run, int signum, void (*handler)
 #define BK_RUN_SIGNAL_CLEARPENDING		0x01 ///< Clear pending signal count for this signum for @a bk_run_signal
 #define BK_RUN_SIGNAL_INTR			0x02 ///< Interrupt system calls for @a bk_run_signal
 #define BK_RUN_SIGNAL_RESTART			0x04 ///< Restart system calls for @a bk_run_signal
-extern int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue(bk_s B, struct bk_run *run, struct timeval when, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
 //#define BK_RUN_THREADREADY			0x10000 ///< Handler is prepared to run in a thread
-extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t msecs, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue_delta(bk_s B, struct bk_run *run, time_t msecs, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
 //#define BK_RUN_THREADREADY			0x10000 ///< Handler is prepared to run in a thread
-extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msecs, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
+extern int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msecs, void (*event)(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags), void *opaque, void **handle, bk_flags flags);
 //#define BK_RUN_THREADREADY			0x10000 ///< Handler is prepared to run in a thread
 extern int bk_run_dequeue(bk_s B, struct bk_run *run, void *handle, bk_flags flags);
 #define BK_RUN_DEQUEUE_EVENT			0x01 ///< Normal event to dequeue for @a bk_run_dequeue
