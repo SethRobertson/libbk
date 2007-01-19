@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.57 2006/08/11 14:48:21 seth Exp $
+# $Id: Makefile,v 1.58 2007/01/19 18:50:35 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -43,6 +43,7 @@ BK_LARGE_LIBSRC=				\
 		b_netutils.c			\
 		b_nvmap.c			\
 		b_pollio.c			\
+		b_procinfo.c			\
 		b_protoinfo.c			\
 		b_rand.c			\
 		b_realloc.c			\

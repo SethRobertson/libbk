@@ -2,6 +2,10 @@
 
 	* lib/b_string.c (bk_vstr_cat): fix problems with "improved" allocation
 	
+2007-01-11  James Tanis  <jtt@swift.sysdetect.com>
+
+	* lib/b_procinfo.c: Routines which handle the process table.
+
 2006-11-15  Seth Robertson  <seth@counterstorm.com>
 
 	* src/timeout.c: #8646: "if (finished) sleep(timeout)" has a race if
@@ -11,7 +15,7 @@
 
 2006-10-12  Alexander Dupuy  <alex.dupuy@counterstorm.com>
 
-	* src/timeout.c: #8590: eliminate some signal handler race condition that
+	* src/timeout.c: #8590: eliminate signal handler race condition that
 	returned timeout status (SIGALRM) if child finished just fast enough
 
 2006-09-28  James Tanis  <jtt@counterstorm.com>

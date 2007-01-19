@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: test_threads.c,v 1.6 2007/01/12 15:26:03 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: test_threads.c,v 1.7 2007/01/19 18:50:36 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -53,10 +53,11 @@ struct global_structure
 struct program_config
 {
   struct bk_run	       *pc_run;			///< BAKA run environment
-  bk_flags		pc_flags;		///< Everyone needs flags.
+  bk_flags		pc_flags;		///< Everyone needs flags
 #define PC_THREADREADY			0x01	///< Want threads
 #define PC_VERBOSE			0x02	///< Verbose output
-#define PC_ABSOLUTE			0x04	///< Enqueue event for an absolute (rather than relative) time.
+#define PC_ABSOLUTE			0x04	///< Enqueue event for an absolute (rather than relative) time
+#define PC_CHECK			0x08	///< Check time for continuity
   u_int			pc_cntr;		///< How many times
   u_int			pc_seconds;		///< Sleep time
   u_int			pc_frequency;		///< Event frequency
@@ -65,7 +66,7 @@ struct program_config
 
 
 static int proginit(bk_s B, struct program_config *pconfig);
-void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags);
+void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags);
 struct timeval next_run_time(bk_s B, struct program_config *pc);
 
 
@@ -98,6 +99,7 @@ main(int argc, char **argv, char **envp)
     {"sleep", 's', POPT_ARG_INT, NULL, 's', "Set the sleep timeout", "mseconds" },
     {"thread", 't', POPT_ARG_NONE, NULL, 't', "Thread ready", NULL },
     {"absolute", 'a', POPT_ARG_NONE, NULL, 'a', "Use absolute time", NULL },
+    {"check", 'c', POPT_ARG_NONE, NULL, 'c', "Check temporal continuity", NULL },
     {"frequency", 'f', POPT_ARG_INT, NULL, 'f', "Set the event frequency", "seconds" },
     POPT_AUTOHELP
     POPT_TABLEEND
@@ -150,6 +152,10 @@ main(int argc, char **argv, char **envp)
 
     case 'a':
       BK_FLAG_SET(pc->pc_flags, PC_ABSOLUTE);
+      break;
+
+    case 'c':
+      BK_FLAG_SET(pc->pc_flags, PC_CHECK);
       break;
 
     case 'f':
@@ -215,7 +221,7 @@ proginit(bk_s B, struct program_config *pc)
 
     bk_debug_printf(B, "Scheduling next run for %lu.%lu\n", next.tv_sec, next.tv_usec);
 
-    if (bk_run_enqueue(B, pc->pc_run, next, eventq, pc, NULL, 0) < 0)
+    if (bk_run_enqueue(B, pc->pc_run, next, eventq, pc, NULL, BK_FLAG_ISSET(pc->pc_flags, PC_THREADREADY)?BK_RUN_THREADREADY:0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Failed to enqueue event.\n");
       goto error;
@@ -235,13 +241,17 @@ proginit(bk_s B, struct program_config *pc)
 }
 
 
-void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval *starttime, bk_flags flags)
+void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
   struct program_config *pc = opaque;
   struct tm tm;
-  time_t foo;
+  time_t foo, bar;
+  struct timeval cur;
   char buf[90];
+
+  gettimeofday(&cur, NULL);
+  bar = time(NULL);
 
   if (!pc)
   {
@@ -249,18 +259,27 @@ void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval *star
     BK_VRETURN(B);
   }
 
-  foo = starttime->tv_sec;
+  foo = starttime.tv_sec;
   (void)localtime_r(&foo, &tm);
   printf("Running event queue job at: %s\n",asctime_r(&tm, buf));
 
-  bk_debug_printf(B, "starttime %lu; clock time %lu\n", starttime->tv_sec, time(NULL));
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_CHECK))
+  {
+    if (bar < foo)
+    {
+      printf("Time says %lu, gettimeofday %lu.%06lu, starttime %lu.%06lu\n", bar, cur.tv_sec,cur.tv_usec,starttime.tv_sec,starttime.tv_usec);
+      exit(0);
+    }
+  }
+
+  bk_debug_printf(B, "starttime %lu; clock time %lu\n", starttime.tv_sec, time(NULL));
 
   if (BK_FLAG_ISSET(pc->pc_flags, PC_ABSOLUTE))
   {
     struct timeval next = next_run_time(B, pc);
     bk_debug_printf(B, "Scheduling next run for %lu.%lu\n", next.tv_sec, next.tv_usec);
 
-    if (bk_run_enqueue(B, pc->pc_run, next, eventq, pc, NULL, 0) < 0)
+    if (bk_run_enqueue(B, pc->pc_run, next, eventq, pc, NULL, BK_FLAG_ISSET(pc->pc_flags, PC_THREADREADY)?BK_RUN_THREADREADY:0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Failed to enqueue event.\n");
       BK_VRETURN(B);
@@ -269,7 +288,7 @@ void eventq(bk_s B, struct bk_run *run, void *opaque, const struct timeval *star
 
   usleep(pc->pc_seconds*1000);
 
-  if (++pc->pc_cntr == 10)
+  if (++pc->pc_cntr == 10 && BK_FLAG_ISCLEAR(pc->pc_flags, PC_CHECK))
   {
     printf("Calling exit\n");
     bk_exit(B, 0);

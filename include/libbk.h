@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.340 2007/01/19 16:42:04 lindauer Exp $
+ * $Id: libbk.h,v 1.341 2007/01/19 18:50:35 dupuy Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2550,5 +2550,58 @@ extern int bk_shmipc_cancel(bk_s B, struct bk_shmipc *bsi, bk_flags flags);
 extern int bk_shmipc_remove(bk_s B, const char *name, bk_flags flags);
 extern int bk_shmipc_peekbyname(bk_s B, const char *name, u_int32_t *magic, u_int32_t *generation, u_int32_t *ringsize, u_int32_t *offset, u_int32_t *writehand, u_int32_t *readhand, size_t *bytesreadable, size_t *byteswritable, int *numothers, size_t *segsize, bk_flags flags);
 #define BK_SHMIPC_FORCE		0x01		///< Force checks even if insufficient attaches
+
+/* b_procinfo */
+struct bk_procinfo
+{
+  pid_t		bpi_pid;			// Process ID
+  char *	bpi_exec_path;			// Full path to executable (may be NULL)
+  char *	bpi_comm;			// File name of the executabe
+  char *	bpi_cmdline;			// Space separated command line
+  char **	bpi_env;			// Environment list 
+  char 		bpi_state;			// State of the process
+  pid_t		bpi_ppid;			// Parent PID
+  int		bpi_pgid;			// Process group ID
+  int		bpi_sid;			// Senssion ID
+  int		bpi_tty_major;			// TTY major number
+  int		bpi_tty_minor;			// TTY minor number
+  u_long	bpi_proc_flags;			// Kernel flags for process (may have to translate from text)
+  u_long	bpi_utime;			// User mode time (units are arch specific)
+  u_long	bpi_stime;			// Kernel mode time (units are arch specific)
+  long		bpi_nice;			// Standard nice value ([-19, 19])
+  u_long	bpi_starttime;			// Startime (units are arch specific)
+  u_long	bpi_vsize;			// Virtual memory size
+  long		bpi_rss;			// Resident set size
+  u_long	bpi_wchan;			// Wait channel
+  void *	bpi_arch_specific;		// Pointer for arch specific status info (not implmented)
+  bk_flags 	bpi_flags;			// Everyone needs flags
+  
+};
+
+extern dict_h bk_procinfo_create(bk_s B, bk_flags flags);
+extern void bk_procinfo_destroy(bk_s B, dict_h bpi_list);
+
+/**
+ * @name Defines: procinfo_list clc
+ * helper defines for procinfo structures
+ */
+// @{
+#define procinfo_list_create(o,k,f)		dll_create((o),(k),(f))
+#define procinfo_list_destroy(h)		dll_destroy(h)
+#define procinfo_list_insert(h,o)		dll_insert((h),(o))
+#define procinfo_list_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
+#define procinfo_list_append(h,o)		dll_append((h),(o))
+#define procinfo_list_append_uniq(h,n,o)	dll_append_uniq((h),(n),(o))
+#define procinfo_list_search(h,k)		dll_search((h),(k))
+#define procinfo_list_delete(h,o)		dll_delete((h),(o))
+#define procinfo_list_minimum(h)		dll_minimum(h)
+#define procinfo_list_maximum(h)		dll_maximum(h)
+#define procinfo_list_successor(h,o)		dll_successor((h),(o))
+#define procinfo_list_predecessor(h,o)		dll_predecessor((h),(o))
+#define procinfo_list_iterate(h,d)		dll_iterate((h),(d))
+#define procinfo_list_nextobj(h,i)		dll_nextobj((h),(i))
+#define procinfo_list_iterate_done(h,i)		dll_iterate_done((h),(i))
+#define procinfo_list_error_reason(h,i)		dll_error_reason((h),(i))
+
 
 #endif /* _BK_h_ */

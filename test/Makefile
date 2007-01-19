@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.33 2006/08/14 14:33:27 seth Exp $
+# $Id: Makefile,v 1.34 2007/01/19 18:50:36 dupuy Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -34,6 +34,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		test_locks 		\
 		test_mt19937		\
 		test_printbuf 		\
+		test_proc 		\
 		test_ringdir		\
 		test_string	 	\
 		test_stringconv 	\
