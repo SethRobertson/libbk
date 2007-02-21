@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.16 2004/07/08 04:40:15 lindauer Exp $
+# $Id: Makefile,v 1.17 2007/02/21 19:05:51 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -23,8 +23,11 @@ BK_PUBLIC_INC=				\
 		libbk_inline.h 		\
 		libbk_net.h		\
 		libbk_oscompat.h	\
-		libbkxml.h		\
 # Line fodder. Don not remove.
+
+ifneq ($(strip $(WANT_BK_XML)),false)
+BK_PUBLIC_INC+=libbkxml.h
+endif
 
 ifneq ($(strip $(BK_USING_SSL)),false)
 BK_PUBLIC_INC+=libbkssl.h

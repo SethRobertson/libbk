@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.11 2003/06/17 06:07:15 seth Exp $
+# $Id: Makefile,v 1.12 2007/02/21 19:05:52 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -32,8 +32,25 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
 
-BK_SUBDIR=lib xml
+BK_SUBDIR=lib
+
+# Suppress libbkxml.so
+ifneq ($(strip $(WANT_BK_XML)),false)
+BK_SUBDIR+=xml
+endif
+
+# Suppress libbkssl.so
 ifneq ($(strip $(BK_USING_SSL)),false)
 BK_SUBDIR+=ssl # This must come *after* lib in list
 endif # BK_USING_SSL
-BK_SUBDIR+=src man test
+
+# Suppress building of BK programs (like bttcp and bchill). Includes suppresion of test
+ifneq ($(strip $(WANT_BK_PROCS)),false)
+BK_SUBDIR+=src 
+# Even if BK programs are wanted, suppress building of test
+ifneq ($(strip $(WANT_BK_TEST)),false)
+BK_SUBDIR+=test
+endif
+endif
+
+BK_SUBDIR+=man
