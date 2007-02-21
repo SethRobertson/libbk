@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.58 2007/01/19 18:50:35 dupuy Exp $
+# $Id: Makefile,v 1.59 2007/02/21 20:28:10 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -70,7 +70,7 @@ BK_LARGE_LIBSRC=				\
 		mt19937-64.c			\
 # Line eater fodder -- leave
 
-LT_LDLIBS=-ldict -lfsma -lpqueue $(BK_LIBM) $(PTHREAD_LIBS)
+LT_LDLIBS=-ldict -lfsma -lpqueue  $(PTHREAD_LIBS)
 
 GROUPTOP=..
 GROUPSUBDIR=lib

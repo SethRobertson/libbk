@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.8 2003/12/29 20:02:13 jtt Exp $
+# $Id: Makefile,v 1.9 2007/02/21 20:28:11 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -48,7 +48,7 @@ THIRD_PARTY_LIBS:=
 
 endif # BK_WANT_LIBTOOL
 
-LOCAL_LIBS=$(BK_LIBM)
+LOCAL_LIBS=
 BK_LOCALJUNK=*.bak
 
 enttest:	ent
