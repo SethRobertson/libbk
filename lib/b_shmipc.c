@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.9 2006/12/03 06:16:59 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_shmipc.c,v 1.10 2007/04/09 16:19:28 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -274,7 +274,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 
     if (bsi->si_base->bsh_magic != SHMIPC_MAGIC_RINIT)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Reader has not acknolwedged shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
+      bk_error_printf(B, BK_ERR_ERR, "Reader has not acknowledged shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
       if (failure_reason) *failure_reason = BkShmIpcCreateTimeout;
       goto error;
     }
@@ -308,7 +308,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 
     if (bsi->si_base->bsh_magic != SHMIPC_MAGIC)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Writer has not acknolwedged reader shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
+      bk_error_printf(B, BK_ERR_ERR, "Writer has not acknowledged reader shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
       if (failure_reason) *failure_reason = BkShmIpcCreateTimeout;
       goto error;
     }
