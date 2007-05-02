@@ -1,3 +1,31 @@
+2007-05-02  Alexander Dupuy  <alex.dupuy@counterstorm.com>
+
+	* lib/b_ringdir.c (bk_ringdir_get_status): #9000: handle rings starting
+	at 1 instead of 0
+
+2007-04-09  Alexander Dupuy  <alex.dupuy@counterstorm.com>
+
+	* lib/b_shmipc.c: acknolwedged
+
+2007-02-21  James Tanis  <jtt@counterstorm.com>
+
+	* test/entropy/Makefile, lib/Makefile: $(BK_LIBM) is now obsolete
+
+	* Makefile, include/Makefile: All user to selectively *not* compile in
+	several baka features
+
+2007-01-15  Seth Robertson  <seth@counterstorm.com>
+
+	* test/test_threads.c: reversed test
+
+2007-01-12  Brian Lindauer  <lindauer@counterstorm.com>
+
+	* test/test_threads.c: #8756: Save someone a rollup headache.
+
+2007-01-11  James Tanis  <jtt@counterstorm.com>
+
+	* lib/b_procinfo.c, test/test_proc.c: New file.
+
 2007-01-11  Alex Dupuy  <alex.dupuy@counterstorm.com>
 
 	* lib/b_string.c (bk_vstr_cat): fix problems with "improved" allocation

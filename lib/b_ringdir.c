@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.23 2006/07/27 03:51:21 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ringdir.c,v 1.24 2007/05/02 05:45:06 dupuy Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -981,8 +981,8 @@ bk_ringdir_standard_unlink(bk_s B, void *opaque, const char *filename, enum bk_r
  *	@param action The action to take (described above).
  *	@param directory The directory you may be asked to nuke.
  *	@param pattern The file pattern.
- *	@param valuep The file pattern.
- *	@param source The ring direction action which triggerd this callback
+ *	@param valuep The file value.
+ *	@param source The ring direction action which triggered this callback
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
@@ -1019,7 +1019,7 @@ bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions 
     {
       if ((ret = write(fd, ((char *)&value)+sizeof(value)-len, len)) < 0)
       {
-	bk_error_printf(B, BK_ERR_ERR, "Failed to read out check value: %s\n", strerror(errno));
+	bk_error_printf(B, BK_ERR_ERR, "Failed to write out check value: %s\n", strerror(errno));
 	goto error;
       }
       len -= ret;
@@ -1682,12 +1682,22 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
       goto error;
     }
 
-    if (access(oldest_filename, F_OK) < 0)
+    while (access(oldest_filename, F_OK) < 0 && *oldest != *current)
     {
       if (errno == ENOENT)
       {
-	// The next file in the ring doesn't yet exist, so file 0 is actually oldest.
-	*oldest = 0;
+	// Next file in the ring doesn't yet exist, start search from file 0
+	if (*oldest > *current)
+	  *oldest = 0;
+	else
+	  *oldest = (*oldest + 1) % *max;
+
+	free(oldest_filename);
+	if (!(oldest_filename = create_file_name(B, pattern, *oldest, 0)))
+	{
+	  bk_error_printf(B, errlevel, "Could not build filename for oldest file.\n");
+	  goto error;
+	}
       }
       else
       {
