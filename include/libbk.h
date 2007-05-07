@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.341 2007/01/19 18:50:35 dupuy Exp $
+ * $Id: libbk.h,v 1.342 2007/05/07 22:52:48 seth Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2558,8 +2558,8 @@ struct bk_procinfo
   char *	bpi_exec_path;			// Full path to executable (may be NULL)
   char *	bpi_comm;			// File name of the executabe
   char *	bpi_cmdline;			// Space separated command line
-  char **	bpi_env;			// Environment list 
-  char 		bpi_state;			// State of the process
+  char **	bpi_env;			// Environment list
+  char		bpi_state;			// State of the process
   pid_t		bpi_ppid;			// Parent PID
   int		bpi_pgid;			// Process group ID
   int		bpi_sid;			// Senssion ID
@@ -2574,8 +2574,8 @@ struct bk_procinfo
   long		bpi_rss;			// Resident set size
   u_long	bpi_wchan;			// Wait channel
   void *	bpi_arch_specific;		// Pointer for arch specific status info (not implmented)
-  bk_flags 	bpi_flags;			// Everyone needs flags
-  
+  bk_flags	bpi_flags;			// Everyone needs flags
+
 };
 
 extern dict_h bk_procinfo_create(bk_s B, bk_flags flags);
