@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.342 2007/05/07 22:52:48 seth Exp $
+ * $Id: libbk.h,v 1.343 2007/05/30 14:46:52 lindauer Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -982,7 +982,20 @@ do {						\
       BK_TS_RECTIFY(sum);				\
     } while (0)
 /** @brief Compare two timespecs, return trinary value around zero */
-#define BK_TS_CMP(a,b) BK_OR((a)->tv_sec-(b)->tv_sec,(a)->tv_nsec-(b)->tv_nsec)
+static inline int BK_TS_CMP(struct timespec *a, struct timespec *b)
+{
+  if (a->tv_sec < b->tv_sec)
+    return(-1);
+  else if (a->tv_sec > b->tv_sec)
+    return(1);
+  else if (a->tv_nsec < b->tv_nsec)
+    return(-1);
+  else if (a->tv_nsec > b->tv_nsec)
+    return(1);
+  else
+    return(0);
+}
+
 /** @brief Convert a timespec to a float. */
 #define BK_TS2F(tv) ((double)(((double)((tv)->tv_sec)) + ((double)((tv)->tv_nsec))/1000000000.0))
 /** @brief Rectify timespec so that nsec value is within range of second, and that nsec value has same sign as sec.  Performed automatically on all BK_TS operations. */
@@ -1029,7 +1042,19 @@ do {						\
  */
 #define BK_BTS2F(bt) ((double)(((double)((bt)->bt_secs)) + ((double)((bt)->bt_nsecs))/1000000000.0))
 // And similarly for comparisons
-#define BK_BTS_CMP(a,b) BK_OR(((UNSIGNED_TIME_T)((a)->bt_secs-(b)->bt_secs)),(a)->bt_nsecs-(b)->bt_nsecs)
+static inline int BK_BTS_CMP(struct bk_timespec *a, struct bk_timespec *b)
+{
+  if (a->bt_secs < b->bt_secs)
+    return(-1);
+  else if (a->bt_secs > b->bt_secs)
+    return(1);
+  else if (a->bt_nsecs < b->bt_nsecs)
+    return(-1);
+  else if (a->bt_nsecs > b->bt_nsecs)
+    return(1);
+  else
+    return(0);
+}
 
 
 /** @brief Special symbol which means resolve to "any" address. */
