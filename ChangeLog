@@ -1,3 +1,8 @@
+ 2007-06-19  James Tanis  <jtt@outpost.tanis.org>
+	
+	* lib/b_ringdir.c (bk_ringdir_get_status): Work aroundf fencepost
+	error. May need to be reworked later.
+
 2007-05-02  Alexander Dupuy  <alex.dupuy@counterstorm.com>
 
 	* lib/b_ringdir.c (bk_ringdir_get_status): #9000: handle rings starting
