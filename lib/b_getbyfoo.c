@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.31 2007/01/18 22:47:23 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_getbyfoo.c,v 1.32 2007/09/14 04:17:05 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -33,7 +33,6 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include "libbk_internal.h"
-
 
 
 /**
@@ -1001,4 +1000,130 @@ gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, const struct timev
 
   bgs_destroy(B,bgs);
   BK_VRETURN(B);
+}
+
+
+
+/**
+ * Convert an ethernet address from strings to struct either
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ether_addr_str String version of ether address
+ *	@param ether_addr C/O ether address
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ether_aton(bk_s B, const char *ether_addr_str, struct ether_addr *ether_addr, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char **ether_toks = NULL;
+  int cnt;
+
+  if (!ether_addr_str || !ether_addr)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  if (!(ether_toks = bk_string_tokenize_split(B, ether_addr_str, 0, ":", NULL, NULL, NULL, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not tokenize the ether address\n");
+    goto error;
+  }
+
+  for(cnt = 0; cnt < 6; cnt++)
+  {
+    u_int32_t element = 0;
+    char hex_char[2];
+    u_int32_t cnt2;
+    u_int32_t len = strlen(ether_toks[cnt]);
+
+    if (len > 2)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Element '%s' of ethernet address is invalid\n", ether_toks[cnt]);
+      goto error;
+    }
+
+    hex_char[1] = '\0';
+    for(cnt2 = 0; cnt2 < len; cnt2++)
+    {
+      int hex;
+      hex_char[0] = ether_toks[cnt][cnt2];
+      if (bk_string_atou32(B, hex_char, &hex, BK_STRING_ATOI_FLAG_HEX) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not convert ether address element to a value\n");
+	goto error;
+      }
+      element = ((element<<4) | (hex&0xf))&0xff;
+    }
+    element &= 0xff; // Just be certain
+    ether_addr->ether_addr_octet[cnt] = element;
+  }
+  
+  bk_string_tokenize_destroy(B, ether_toks);
+  BK_RETURN(B, 0);  
+  
+ error:
+  if (ether_toks)
+    bk_string_tokenize_destroy(B, ether_toks);
+  BK_RETURN(B, -1);  
+}
+
+
+
+/**
+ * Convert an ethernet address to a string. All elements will be 2 characters long
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ether_addr The ethernet address to convert
+ *	@param ether_addr_string C/O address as string. You must allocate space (18 chars).
+ *	@param flags BK_ETHER_NTOA_FLAG_UPPER: produce resuts in upper case
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ether_ntoa(bk_s B, struct ether_addr *ether_addr, char *ether_addr_str, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int ret;
+
+  if (!ether_addr || !ether_addr_str)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  
+  if (BK_FLAG_ISSET(flags, BK_ETHER_NTOA_FLAG_UPPER))
+  {
+    ret = snprintf(ether_addr_str, 18, "%02X:%02X:%02X:%02X:%02X:%02X", 
+		   ether_addr->ether_addr_octet[0],
+		   ether_addr->ether_addr_octet[1],
+		   ether_addr->ether_addr_octet[2],
+		   ether_addr->ether_addr_octet[3],
+		   ether_addr->ether_addr_octet[4],
+		   ether_addr->ether_addr_octet[5]);
+  }
+  else
+  {
+    ret = snprintf(ether_addr_str, 18, "%02x:%02x:%02x:%02x:%02x:%02x", 
+		   ether_addr->ether_addr_octet[0],
+		   ether_addr->ether_addr_octet[1],
+		   ether_addr->ether_addr_octet[2],
+		   ether_addr->ether_addr_octet[3],
+		   ether_addr->ether_addr_octet[4],
+		   ether_addr->ether_addr_octet[5]);
+  }
+
+  if (ret != 17)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not convert ethernet address to string: %s\n", strerror(errno));
+    goto error;
+  }
+
+  BK_RETURN(B, 0);
+
+ error:
+  BK_RETURN(B, -1);  
 }

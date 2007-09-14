@@ -1,3 +1,10 @@
+2007-09-13  James Tanis  <jtt@outpost.tanis.org>
+
+	* lib/b_getbyfoo.c (bk_ether_aton): Convert a string ethernet
+	address to struct ether.
+	(bk_ether_ntoa): Convert a struct ether to a ethernet address
+	string. 
+
  2007-06-19  James Tanis  <jtt@outpost.tanis.org>
 	
 	* lib/b_ringdir.c (bk_ringdir_get_status): Work aroundf fencepost

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.343 2007/05/30 14:46:52 lindauer Exp $
+ * $Id: libbk.h,v 1.344 2007/09/14 04:17:05 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1962,6 +1962,9 @@ void *bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, st
 #define BK_GETHOSTBYFOO_FLAG_FQDN	0x1	///< Get the FQDN
 extern void bk_destroy_hostent(bk_s B, struct hostent *h);
 extern void bk_gethostbyfoo_abort(bk_s B, void *opaque);
+extern int bk_ether_aton(bk_s B, const char *ether_addr_str, struct ether_addr *ether_addr, bk_flags flags);
+extern int bk_ether_ntoa(bk_s B, struct ether_addr *ether_addr, char *ether_addr_str, bk_flags flags);
+#define BK_ETHER_NTOA_FLAG_UPPER 0x1
 
 
 /* b_netinfo.c */
