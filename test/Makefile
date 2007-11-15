@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.34 2007/01/19 18:50:36 dupuy Exp $
+# $Id: Makefile,v 1.35 2007/11/15 17:00:14 seth Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -20,6 +20,7 @@ BK_SUBDIR=entropy
 BK_SIMPLE_INTERNALPROGS=		\
 		../test/test_fun	\
 		allocate_actual		\
+		app-timed-replay	\
 		diskspeed		\
 		mutex			\
 		sourcesink		\

@@ -24,3 +24,5 @@ test_mt19937
 test_closerace
 writev
 sourcesink
+app-timed-replay
+test_proc

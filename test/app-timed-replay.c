@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.61 2007/11/15 17:00:14 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: app-timed-replay.c,v 1.1 2007/11/15 17:00:14 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -20,23 +20,20 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  *
- * This file implements both ends of a bidirectional network pipe.
+ * This file implements a timed application traffic generator.
  *
- * Note: UDP support generally only works in transmit mode.  To
- * receive you must "transmit" on both sides with inverse IP and port
- * combinations.  Multicast and broadcast support is transmit only.
- * (Stupidities of connected UDP).
+ * Format of input is an ascii line of "delay_ms length\n" followed by length characters
+ * of application traffic which will be output to the network location as designated on the
+ * command line.  Example input of:
  *
- * TODO:
- *	--socks w/bind support?
- *	--proxy (http proxy support?)
- *	--address-family for unix domain named sockets
- *	* Verify bidirectional SSL authentication, encryption w/keygen ex *
+ * "0 4\nfoo\n5000 3\nbar5 4\nbaz\n"
+ *
+ * would generate three packets.  The first would be "foo\n"  the second would be "bar"
+ * the third would be "baz\n"
  */
 
 #include <libbk.h>
 #include <libbk_net.h>
-#include <libbkssl.h>
 
 
 
@@ -86,14 +83,8 @@ struct program_config
 #define PC_BROADCAST			0x00008	///< Broadcast allowed
 #define PC_MULTICAST_LOOP		0x00010	///< Multicast loopback
 #define PC_MULTICAST_NOMEMBERSHIP	0x00020	///< Multicast w/o membership
-#define PC_CLOSE_AFTER_ONE		0x00040	///< Close relay after one side closed
-#define PC_SSL				0x00080	///< Want SSL
 #define PC_NODELAY			0x00100	///< Set nodelay socket buffer option
 #define PC_KEEPALIVE			0x00200	///< Set keepalive preference
-#define PC_SERVER			0x00400	///< Server mode
-#define PC_EXECUTE			0x00800 ///< Execute command instead of stdio
-#define PC_EXECUTE_STDERR		0x01000 ///< Dup cmd stderr to stdout
-#define PC_EXECUTE_PTY			0x02000 ///< Run cmd in a pty
 #define PC_RAW				0x04000 ///< Run in raw mode
 #define PC_RESTORE_TERMIN		0x08000 ///< Reset input termio mode
 #define PC_RESTORE_TERMOUT		0x10000 ///< Reset output termio mode
@@ -123,12 +114,6 @@ struct program_config
   struct bk_relay_ioh_stats	pc_stats;	///< Statistics about relay
   struct timeval	pc_start;		///< Starting time
   const char	       *pc_filein;		///< Set input filename
-  const char	       *pc_fileout;		///< Set output filename
-  struct bk_ssl_ctx    *pc_ssl_ctx;		///< SSL session template
-  const char *		pc_ssl_cert_file;	///< Location of SSL cert file
-  const char *		pc_ssl_key_file;	///< Location of SSL key file
-  const char *		pc_ssl_cafile;		///< Location of SSL CA file
-  const char *		pc_ssl_dhparam_file;	///< Location of SSL DH params file
   struct bk_relay_cancel pc_brc;		///< User cancel struct
 };
 
@@ -136,7 +121,6 @@ struct program_config
 
 static int proginit(bk_s B, struct program_config *pconfig);
 static int connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *server_handle, bk_addrgroup_state_e state);
-static void relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags);
 static void cleanup(bk_s B, struct program_config *pc);
 static void finish(int signum);
 static int do_cancel(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags);
@@ -170,7 +154,6 @@ main(int argc, char **argv, char **envp)
     {"verbose", 'v', POPT_ARG_NONE, NULL, 'v', "Turn on verbose message", NULL },
     {"no-seatbelts", 0, POPT_ARG_NONE, NULL, 0x1000, "Sealtbelts off & speed up", NULL },
     {"transmit", 't', POPT_ARG_STRING, NULL, 't', "Transmit to host", "proto://ip:port" },
-    {"receive", 'r', POPT_ARG_NONE, NULL, 'r', "Receive", NULL },
     {"local-name", 'l', POPT_ARG_STRING, NULL, 'l', "Local address to bind", "proto://ip:port" },
 #ifdef NOTYET
     {"address-family", 0, POPT_ARG_INT, NULL, 1, "Set the address family", "address_family" },
@@ -183,26 +166,12 @@ main(int argc, char **argv, char **envp)
     {"multicast-nomembership", 0, POPT_ARG_NONE, NULL, 7, "Don't want multicast membership management", NULL },
     {"buffersize", 0, POPT_ARG_STRING, NULL, 8, "Size of I/O queues", "buffer size" },
     {"length", 'L', POPT_ARG_STRING, NULL, 9, "Default I/O chunk size", "default length" },
-    {"close-after-one", 'c', POPT_ARG_NONE, NULL, 10, "Shut down relay after only one side closes", NULL },
-#ifndef NO_SSL
-    {"ssl", 's', POPT_ARG_NONE, NULL, 's', "Use SSL", NULL },
-    {"ssl-cert", 0, POPT_ARG_STRING, NULL, 11, "PEM SSL certificate location", "filename" },
-    {"ssl-key", 0, POPT_ARG_STRING, NULL, 12, "PEM SSL key location", "filename" },
-    {"ssl-cafile", 0, POPT_ARG_STRING, NULL, 13, "File containing acceptable CA certificates", "filename" },
-    {"ssl-dhparams", 0, POPT_ARG_STRING, NULL, 14, "Use DH param file (PEM format) instead of certificate & private key", "filename"},
-#endif // NO_SSL
     {"timeout", 'T', POPT_ARG_INT, NULL, 'T', "Set the connection timeout", "timeout" },
     {"sockbuf", 'B', POPT_ARG_STRING, NULL, 15, "Socket snd/rcv buffer size", "length in bytes" },
     {"nodelay", 0, POPT_ARG_NONE, NULL, 16, "Set TCP NODELAY", NULL },
     {"keepalive", 0, POPT_ARG_NONE, NULL, 17, "Set TCP KEEPALIVE", NULL },
-    {"file-io", 0, POPT_ARG_STRING, NULL, 18, "Use file instead of stdio", "filename"},
     {"file-in", 0, POPT_ARG_STRING, NULL, 19, "Use file instead of stdin", "filename"},
-    {"file-out", 0, POPT_ARG_STRING, NULL, 20, "Use file instead of stdout", "filename"},
-    {"server", 0, POPT_ARG_NONE, NULL, 21, "Set server (multiple connection) mode", NULL },
     {"transmit-limit", 0, POPT_ARG_STRING, NULL, 22, "Limit maximum transmit size", "bytes"},
-    {"execute", 0, POPT_ARG_NONE, NULL, 23, "Execute program and argument after '--'", NULL },
-    {"execute-with-stderr", 0, POPT_ARG_NONE, NULL, 24, "Execute program and argument after w/stderr on stdout '--'", NULL },
-    {"execute-in-pty", 0, POPT_ARG_NONE, NULL, 25, "Execute program in a pty", NULL },
     {"raw", 0, POPT_ARG_NONE, NULL, 26, "No buffer, no tty", NULL },
     {"bakaudp", 0, POPT_ARG_NONE, NULL, 27, "Use baka preamble/postamble", NULL },
     POPT_AUTOHELP
@@ -251,19 +220,6 @@ main(int argc, char **argv, char **envp)
       getopterr++;
       break;
 
-    case 'r':					// Receive
-      if (pc->pc_role)
-      {
-	fprintf(stderr,"%s: Cannot be both transmitter and receiver\n", BK_GENERAL_PROGRAM(B));
-	exit(1);
-      }
-      pc->pc_role=BttcpRoleReceive;
-      if (!pc->pc_localurl)
-      {
-	pc->pc_localurl=BK_ADDR_ANY;
-      }
-      break;
-
     case 't':					// Transmit
       if (pc->pc_role)
       {
@@ -282,17 +238,12 @@ main(int argc, char **argv, char **envp)
       pc->pc_timeout=BK_SECS_TO_EVENT(atoi(poptGetOptArg(optCon)));
       break;
 
-    case 's':
-      BK_FLAG_SET(pc->pc_flags, PC_SSL);
-      break;
-
     case 1:					// address-family
       pc->pc_af=atoi(poptGetOptArg(optCon));
       break;
 
     case 2:					// protocol
       pc->pc_proto="UDP";
-      BK_FLAG_SET(pc->pc_flags, PC_CLOSE_AFTER_ONE);
       break;
 
     case 3:					// multicast
@@ -333,25 +284,6 @@ main(int argc, char **argv, char **envp)
       }
       break;
 
-    case 10:					// Close after one
-      BK_FLAG_SET(pc->pc_flags, PC_CLOSE_AFTER_ONE);
-      break;
-
-    case 11:					// SSL Cert
-      pc->pc_ssl_cert_file = poptGetOptArg(optCon);
-      break;
-
-    case 12:					// SSL Key
-      pc->pc_ssl_key_file = poptGetOptArg(optCon);
-      break;
-
-    case 13:					// SSL CA File
-      pc->pc_ssl_cafile = poptGetOptArg(optCon);
-      break;
-
-    case 14:					// SSL DH Params
-      pc->pc_ssl_dhparam_file = poptGetOptArg(optCon);
-      break;
 
     case 15:
       {
@@ -370,26 +302,8 @@ main(int argc, char **argv, char **envp)
       BK_FLAG_SET(pc->pc_flags, PC_KEEPALIVE);
       break;
 
-    case 18:
-      /*
-       * I am still wondering if one RDWR open would be better But if
-       * we think about a named pipe or a device, to get proper close
-       * semantics (e.g. be able to notify when network in shuts down)
-       * we need two true file descriptors (and not just dups).
-       */
-      pc->pc_filein = pc->pc_fileout = poptGetOptArg(optCon);
-      break;
-
     case 19:
       pc->pc_filein = poptGetOptArg(optCon);
-      break;
-
-    case 20:
-      pc->pc_fileout = poptGetOptArg(optCon);
-      break;
-
-    case 21:
-      BK_FLAG_SET(pc->pc_flags, PC_SERVER);
       break;
 
     case 22:
@@ -399,18 +313,6 @@ main(int argc, char **argv, char **envp)
 	  getopterr++;
 	pc->pc_translimit = tmplimit;
       }
-      break;
-
-    case 23:
-      BK_FLAG_SET(pc->pc_flags, PC_EXECUTE);
-      break;
-
-    case 24:
-      BK_FLAG_SET(pc->pc_flags, PC_EXECUTE|PC_EXECUTE_STDERR);
-      break;
-
-    case 25:
-      BK_FLAG_SET(pc->pc_flags, PC_EXECUTE|PC_EXECUTE_PTY);
       break;
 
     case 26:
@@ -434,7 +336,7 @@ main(int argc, char **argv, char **envp)
     for (; pc->pc_args[argc]; argc++)
       ; // Void
 
-  if (c < -1 || getopterr || !pc->pc_role || (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE) && argc < 1))
+  if (c < -1 || getopterr || !pc->pc_role)
   {
     if (c < -1)
     {
@@ -453,7 +355,7 @@ main(int argc, char **argv, char **envp)
   {
     bk_die(B, 1, stderr, "Failure during run_run\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
-  
+
   cleanup(B, pc);
   bk_exit(B, 0);
   return(255);
@@ -501,50 +403,10 @@ proginit(bk_s B, struct program_config *pc)
   bk_signal(B, SIGCHLD, bk_reaper, BK_RUN_SIGNAL_RESTART);
   bk_signal(B, SIGINT, finish, BK_RUN_SIGNAL_RESTART);
 
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
-  {
-#ifndef NO_SSL
-    if (bk_ssl_env_init(B) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "SSL initialization failed.\n");
-      BK_RETURN(B, -1);
-    }
-
-    if (!(pc->pc_ssl_ctx = bk_ssl_create_context(B, pc->pc_ssl_cert_file, pc->pc_ssl_key_file,
-						 pc->pc_ssl_dhparam_file, pc->pc_ssl_cafile, 0)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Failed to create SSL context.\n");
-      BK_RETURN(B, -1);
-    }
-#endif // NO_SSL
-  }
 
   switch (pc->pc_role)
   {
-  case BttcpRoleReceive:
-    if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
-    {
-#ifndef NO_SSL
-      if (bk_ssl_start_service_verbose(B, pc->pc_run, pc->pc_ssl_ctx, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto, NULL, connect_complete, pc, 0, 0))
-	bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-#endif // NO_SSL
-    }
-    else
-    {
-      if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto, NULL, connect_complete, pc, 0, 0))
-	bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-    }
-    break;
-
   case BttcpRoleTransmit:
-    if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
-    {
-#ifndef NO_SSL
-      if (bk_ssl_make_conn_verbose(B, pc->pc_run, pc->pc_ssl_ctx, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, pc->pc_proto, pc->pc_timeout, connect_complete, pc, BK_FLAG_ISSET(pc->pc_flags, PC_BAKAUDP)?0:1) < 0)
-	bk_die(B, 1, stderr, "Could not start transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-#endif // NO_SSL
-    }
-    else
     {
       if (bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, pc->pc_proto, pc->pc_timeout, connect_complete, pc, BK_FLAG_ISSET(pc->pc_flags, PC_BAKAUDP)?0:1) < 0)
 	bk_die(B, 1, stderr, "Could not start transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
@@ -613,40 +475,13 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     goto error;
     break;
   case BkAddrGroupStateReady:
-    pc->pc_server = server_handle;
-    if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-      fprintf(stderr,"%s%s: Ready and listening\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
-    goto done;
+    fprintf(stderr,"%s%s: Cannot handle listening/receive modes\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
+    goto error;
     break;
   case BkAddrGroupStateConnected:
     if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
     {
-      if (pc->pc_server)
-	fprintf(stderr,"%s%s: Accepted connection\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
-      else
-	fprintf(stderr,"%s%s: Connection complete\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
-    }
-
-    if (BK_FLAG_ISSET(pc->pc_flags, PC_SERVER))
-    { 
-      switch (fork())
-      {
-      case -1:
-	bk_error_printf(B, BK_ERR_ERR, "Could not create child process to handle accepted fd: %s\n", strerror(errno));
-	bk_die(B, 1, stderr, "Fork failure--assuming worst case and going away\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-	break;
-      case 0:					// Child
-	break;					// Continue on with normal path
-      default:					// Parent
-	close(sock);
-	goto done;
-      }
-    }
-    if (pc->pc_server /* && ! serving_conintuously */)
-    {
-      BK_FLAG_SET(pc->pc_flags, BTTCP_FLAG_SHUTTING_DOWN_SERVER);
-      bk_addrgroup_server_close(B, pc->pc_server);
-      pc->pc_server = NULL;
+      fprintf(stderr,"%s%s: Connection complete\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t");
     }
     break;
   case BkAddrGroupStateClosing:
@@ -750,26 +585,6 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     }
   }
 
-  if (pc->pc_fileout)
-  {
-    if ((outfd = open(pc->pc_fileout,O_WRONLY|O_CREAT|O_TRUNC,0666)) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not open output file %s: %s\n", pc->pc_fileout, strerror(errno));
-      goto error;
-    }
-  }
-
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE))
-  {
-    if ((pc->pc_childid = bk_pipe_to_exec(B, &infd, &outfd, *pc->pc_args, pc->pc_args, NULL, (BK_EXEC_FLAG_CLOSE_CHILD_DESC|BK_EXEC_FLAG_SEARCH_PATH|
-											      (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE_STDERR)?BK_EXEC_FLAG_STDERR_ON_STDOUT:0)|
-											      (BK_FLAG_ISSET(pc->pc_flags, PC_EXECUTE_PTY)?BK_EXEC_FLAG_USE_PTY:0)))) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not execute/pipe\n");
-      goto error;
-    }
-  }
-
   if (BK_FLAG_ISSET(pc->pc_flags, PC_RAW))
   {
     if (isatty(infd))
@@ -802,122 +617,40 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     }
   }
 
-
   pc->pc_fdin = infd;
-  if (!(std_ioh = bk_ioh_init(B, infd, outfd, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on stdin/stdout\n");
-    goto error;
-  }
+  FILE *fin = fdopen(infd, "r");
 
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
+  char *buf = malloc(pc->pc_buffer);
+
+  while (cancel_relay == 0 && fgets(buf, pc->pc_buffer, fin))
   {
-#ifndef NO_SSL
-    if (!(net_ioh = bk_ssl_ioh_init(B, bag->bag_ssl, sock, sock, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+    int msdelay;
+    int len;
+
+    if (sscanf(buf, "%d %d\n",&msdelay,&len) != 2)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not create ioh network\n");
-      if (bag->bag_ssl)
-      {
-	bk_ssl_destroy(B, bag->bag_ssl, 0);
-	bag->bag_ssl = NULL;
-      }
-      goto error;
+      fprintf(stderr,"Invalid delay/len input: %s\n",buf);
+      break;
     }
-    bag->bag_ssl = NULL;
-#endif // NO_SSL
-  }
-  else
-  {
-    if (!(net_ioh = bk_ioh_init(B, sock, sock, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+
+    usleep(msdelay*1000);
+    int actuallen = fread(buf,len,1,fin);
+    if (actuallen > 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not create ioh network\n");
-      goto error;
+      actuallen *= len;
+      write(sock,buf,actuallen);
     }
+    pc->pc_stats.side[0].birs_writebytes += actuallen;
   }
 
   gettimeofday(&pc->pc_start, NULL);
 
-  if (bk_relay_ioh(B, std_ioh, net_ioh, relay_finish, pc, &pc->pc_stats, &pc->pc_brc, BK_FLAG_ISSET(pc->pc_flags,PC_CLOSE_AFTER_ONE)?BK_RELAY_IOH_DONE_AFTER_ONE_CLOSE:0) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not relay my iohs\n");
-    goto error;
-  }
-
- done:
-  BK_RETURN(B, 0);
-
- error:
-  if (std_ioh) bk_ioh_close(B, std_ioh, 0);
-  if (net_ioh) bk_ioh_close(B, net_ioh, 0);
-  set_run_over(B, pc, 0);
-  BK_RETURN(B, -1);
-}
-
-
-
-/**
- * Callback prototype for ioh relay. This is called once per read and once
- * one everything is shutdown. While the relay is active, the callback is
- * called when the data has been read but before it has been
- * written. During shutdown, indicated by a NULL data argument, the
- * read_ioh and write_ioh no longer have these meanings, but are supplied
- * for convenience.
- *
- *	@param B BAKA thread/global state.
- *	@param opaque Data supplied by the relay initiator (optional of course).
- *	@param read_ioh Where the data came from.
- *	@param flags Where the data is going.
- *	@param data The data to be relayed.
- *	@param flags Flags for future use.
- */
-static void
-relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_ioh, bk_vptr *data,  bk_flags flags)
-{
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
-  struct program_config *pc;
-  struct timeval end, delta;
-  char speedin[128];
-  char speedout[128];
-
-  if (!(pc = args))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
-    BK_VRETURN(B);
-  }
-
-  // We only care about shutdown
-  if (data && !pc->pc_translimit)
-    BK_VRETURN(B);
-
-  if (data)
-  {
-    // <TRICKY>Assumption about data read and callback order</TRICKY>
-    if (pc->pc_stats.side[0].birs_readbytes >= pc->pc_translimit)
-    {						// Implement artificial EOF
-      int newfd;
-      // stupid hack to get an EOF...switch the FD from underneath the IOH
-      close(pc->pc_fdin);
-      newfd = open(_PATH_DEVNULL, O_RDONLY, 0666);
-      if (newfd < 0)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Good grief! Cannot open %s: %s\n",
-			_PATH_DEVNULL, strerror(errno));
-	BK_VRETURN(B);
-      }
-      if (newfd != pc->pc_fdin)
-      {
-	dup2(newfd, pc->pc_fdin);
-	close(newfd);
-      }
-
-      // Pretend we read exactly the right amount
-      data->len -= pc->pc_stats.side[0].birs_readbytes - pc->pc_translimit;
-    }
-    BK_VRETURN(B);
-  }
-
   if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
   {
+    struct timeval end,delta;
+    char speedin[128];
+    char speedout[128];
+
     gettimeofday(&end, NULL);
     BK_TV_SUB(&delta, &end, &pc->pc_start);
 
@@ -927,9 +660,6 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
     fprintf(stderr, "%s%s: %llu bytes received in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", BUG_LLU_CAST(pc->pc_stats.side[0].birs_writebytes), (long int) delta.tv_sec, (long int) delta.tv_usec, speedin);
     fprintf(stderr, "%s%s: %llu bytes transmitted in %ld.%06ld seconds: %s\n", BK_GENERAL_PROGRAM(B), pc->pc_role==BttcpRoleReceive?"-r":"-t", BUG_LLU_CAST(pc->pc_stats.side[1].birs_writebytes), (long int) delta.tv_sec, (long int) delta.tv_usec, speedout);
   }
-
-  if (pc->pc_childid > 0)
-    kill(-pc->pc_childid, SIGTERM);
 
   if (BK_FLAG_ISSET(pc->pc_flags, PC_RESTORE_TERMOUT))
   {
@@ -946,7 +676,15 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
   }
 
   set_run_over(B, pc, 0);
-  BK_VRETURN(B);
+
+ done:
+  BK_RETURN(B, 0);
+
+ error:
+  if (std_ioh) bk_ioh_close(B, std_ioh, 0);
+  if (net_ioh) bk_ioh_close(B, net_ioh, 0);
+  set_run_over(B, pc, 0);
+  BK_RETURN(B, -1);
 }
 
 
@@ -967,17 +705,6 @@ cleanup(bk_s B, struct program_config *pc)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
-  }
-
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
-  {
-#ifndef NO_SSL
-    if (pc->pc_ssl_ctx)
-    {
-      bk_ssl_destroy_context(B, pc->pc_ssl_ctx);
-    }
-    bk_ssl_env_destroy(B);
-#endif // NO_SSL
   }
 
   if (pc->pc_local) bk_netinfo_destroy(B,pc->pc_local);
@@ -1013,7 +740,7 @@ static void finish(int signum)
  *	@param starttime The start time of the latest invocation of @a bk_run_once.
  *	@param flags Flags for your enjoyment.
  */
-static int 
+static int
 do_cancel(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
@@ -1026,7 +753,7 @@ do_cancel(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const 
   }
 
   if (!*demand) // Protect against bizzare recursion (shouldn't happen but does)
-    BK_RETURN(B, 0);    
+    BK_RETURN(B, 0);
 
   *demand = 0;
 
@@ -1035,7 +762,7 @@ do_cancel(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const 
     bk_addrgroup_server_close(B, pc->pc_server);
     pc->pc_server = NULL;
   }
-    
+
   if (pc->pc_brc.brc_ioh1)
   {
     if (bk_relay_cancel(B, &pc->pc_brc, 0) < 0)
@@ -1051,10 +778,10 @@ do_cancel(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const 
     goto error;
   }
 
-  BK_RETURN(B, 0);  
+  BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -1080,18 +807,18 @@ set_run_over(bk_s B, struct program_config *pc, bk_flags flags)
   }
 
   if (BK_FLAG_ISSET(pc->pc_flags, PC_RUN_OVER))
-    BK_RETURN(B, 0);    
+    BK_RETURN(B, 0);
 
   if (bk_run_set_run_over(B, pc->pc_run) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not set run over\n");
     goto error;
   }
-  
+
   BK_FLAG_SET(pc->pc_flags, PC_RUN_OVER);
 
-  BK_RETURN(B, 0);  
-  
+  BK_RETURN(B, 0);
+
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
