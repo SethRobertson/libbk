@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: app-timed-replay.c,v 1.1 2007/11/15 17:00:14 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: app-timed-replay.c,v 1.2 2007/11/15 19:57:48 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -30,6 +30,8 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  *
  * would generate three packets.  The first would be "foo\n"  the second would be "bar"
  * the third would be "baz\n"
+ *
+ * <BilledTo>Dublin</BilledTo>
  */
 
 #include <libbk.h>
