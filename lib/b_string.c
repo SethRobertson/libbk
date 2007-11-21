@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.127 2007/01/11 06:01:37 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.128 2007/11/21 17:57:56 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -447,7 +447,7 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *	@param braces String of character pairs which degine left and right braces.
  *	@param kvht_vardb Key-value hash table for variable substitution
  *	@param variabledb Environ-style environment for variable substitution
- *	@param flags 
+ *	@param flags
  *		BK_STRING_TOKENIZE_SKIPLEADING, if set will cause
  *		leading separator characters to be ignored; otherwise,
  *		an initial zero-length token will be generated.
@@ -467,7 +467,7 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *		number (of variable length up to length 3) to be
  *		interpreted as, and converted to, an ASCII character;
  *		otherwise, that sequence is not treated
- *		specially. 
+ *		specially.
  *
  *		BK_STRING_TOKENIZE_BACKSLASH, if set, will cause a
  *		backslash to be a general quoting character which will
@@ -492,7 +492,7 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *		to free up the generated array.
  *
  *		BK_STRING_TOKENIZE_CONF_EXPAND if set will allow you to
- *		expand keys using values from you bk_conf. 
+ *		expand keys using values from your bk_conf.
  *
  *		BK_STRING_TOKENIZE_WANT_EMPTY_TOKEN if set will return an
  *		array of two elements if the input string is empty. The
@@ -500,13 +500,13 @@ char *bk_string_printbuf(bk_s B, const char *intro, const char *prefix, const bk
  *		NULL string. Normally we would return an array containing
  *		the NULL string.
  *
- * 		BK_STRING_TOKENIZE_KEEP_BRACES overrides the default
- * 		behavior of stripping the outermost braces.
+ *		BK_STRING_TOKENIZE_KEEP_BRACES overrides the default
+ *		behavior of stripping the outermost braces.
  *
- * 		BK_STRING_TOKENIZE_BRACES_LIKE_SQUOTE overrides the default
- * 		behavior of expanding the text within braces like as if the
- * 		outermost braces were double quotes and treats them like
- * 		single quotes.
+ *		BK_STRING_TOKENIZE_BRACES_LIKE_SQUOTE overrides the default
+ *		behavior of expanding the text within braces like as if the
+ *		outermost braces were double quotes and treats them like
+ *		single quotes.
  *
  *	@return <i>NULL</i> on call failure, allocation failure, other failure
  *	@return <br><i>null terminated array of token strings</i> on success.
@@ -553,7 +553,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
     int half_len;
     const char *q = braces;
     char *l, *r;
-    
+
     if ((half_len = strlen(braces) % 2) != 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Brace string must contain sets of brace pairs (implying that it must be of even length)\n");
@@ -569,7 +569,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 
     l = left_braces;
     r = right_braces;
-    
+
     // Copy left brace chars into left string and right brace chars into right string.
     while(*q)
     {
@@ -601,7 +601,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for NULL string: %s\n", strerror(errno));
       goto error;
-      
+
     }
     *ret = NULL;
     goto abort;
@@ -1081,7 +1081,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	  GOSTATE(S_BASE);
 	  if (BK_FLAG_ISCLEAR(flags, BK_STRING_TOKENIZE_KEEP_BRACES))
 	  {
-	    continue;	    
+	    continue;
 	  }
 	}
 	goto addnormal;
@@ -1103,7 +1103,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
       // Not a character special to braces.
       goto addnormal;
     }
-    
+
 
     bk_error_printf(B, BK_ERR_ERR, "Should never reach here (%d)\n", *curloc);
     goto error;
@@ -1158,7 +1158,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 
   if (left_braces)
     free(left_braces);
-  
+
   if (right_braces)
     free(right_braces);
 
@@ -1957,7 +1957,7 @@ bk_vstr_cat(bk_s B, bk_flags flags, bk_vstr *dest, const char *src_fmt, ...)
 
     // else try again with more space
     if (n >= 0)					// glibc 2.1 (C99)
-    {		
+    {
       size = dest->max;
       if (BK_FLAG_ISSET(flags, BK_VSTR_CAT_FLAG_STINGY_MEMORY))
 	size += n - available + 1;		// precisely what is needed
@@ -2619,7 +2619,7 @@ bk_string_registry_register_by_id(bk_s B, bk_str_registry_t bsr, bk_str_id_t id,
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-    
+
   BK_SIMPLE_LOCK(B, &bsr->bsr_lock);
 
   if (id >= bsr->bsr_next_index || !(bsre = bsr->bsr_registry[id]))
@@ -2628,19 +2628,19 @@ bk_string_registry_register_by_id(bk_s B, bk_str_registry_t bsr, bk_str_id_t id,
     BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
     BK_RETURN(B, NULL);
   }
-  
+
   // Lock the bsre before releasing the bsr which contains it.
   BK_SIMPLE_LOCK(B, &bsre->bsre_lock);
 
   BK_SIMPLE_UNLOCK(B, &bsr->bsr_lock);
- 
+
   bsre->bsre_ref++;
 
   BK_SIMPLE_UNLOCK(B, &bsre->bsre_lock);
 
   bk_debug_printf_and(B, 1, "%d ==> %s\n", id, bsre->bsre_str);
 
-  BK_RETURN(B, bsre->bsre_str);  
+  BK_RETURN(B, bsre->bsre_str);
 }
 
 
@@ -2751,7 +2751,7 @@ bk_string_csv_quote(bk_s B, const char *in_str, int in_len, char *out_str, int o
 	  goto done;
 	out_str[out_index++] = 'n';
 	break;
-	
+
       case '"':
 	out_str[out_index++] = '"';
 	if (out_index == out_len)
@@ -2782,8 +2782,8 @@ bk_string_csv_quote(bk_s B, const char *in_str, int in_len, char *out_str, int o
     out_str[out_index] = '\0';
 
  done:
-  BK_RETURN(B, out_index);  
+  BK_RETURN(B, out_index);
 
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
