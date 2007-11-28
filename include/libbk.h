@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.344 2007/09/14 04:17:05 jtt Exp $
+ * $Id: libbk.h,v 1.345 2007/11/28 22:32:01 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -618,6 +618,7 @@ struct bk_listnum_head
 };
 
 
+#define BK_LISTNUM_INSERT(head,node,nextname,prevname) do { ((node)->nextname) = (head)->blh_first; ((node)->prevname) = (void *)(head); ((node)->nextname->prevname) = (node); (head)->blh_first = (node); } while (0)
 #define BK_LISTNUM_APPEND(head,node,nextname,prevname) do { ((node)->nextname) = (void *)(head); ((node)->prevname) = (head)->blh_last; ((node)->prevname->nextname) = (node); (head)->blh_last = (node); } while (0)
 #define BK_LISTNUM_DELETE(node,nextname,prevname) do { ((node)->nextname->prevname) = ((node)->prevname); ((node)->prevname->nextname) = ((node)->nextname); ((node)->nextname) = NULL; ((node)->prevname) = NULL; } while (0)
 // @}
