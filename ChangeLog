@@ -1,3 +1,8 @@
+2007-12-04  James Tanis  <jtt@stockade.tanis.org>
+
+	* lib/b_memx.c (bk_memx_append): Convert function to use count
+	instead of len, so as to match the rest of the memx API.
+
 2007-09-13  James Tanis  <jtt@outpost.tanis.org>
 
 	* lib/b_getbyfoo.c (bk_ether_aton): Convert a string ethernet
