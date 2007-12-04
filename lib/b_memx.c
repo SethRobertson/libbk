@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.18 2007/12/04 07:26:00 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.19 2007/12/04 08:03:36 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -175,6 +175,7 @@ void *bk_memx_get(bk_s B, struct bk_memx *bm, u_int count, u_int *curused, bk_fl
 	// don't destroy our bm -- data still valid
 	BK_RETURN(B, NULL);
       }
+      bm->bm_curalloc += incr;
       bm->bm_array = tmp;
     }
 

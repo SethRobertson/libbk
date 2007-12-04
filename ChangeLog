@@ -3,6 +3,8 @@
 	* lib/b_memx.c (bk_memx_append): Convert function to use count
 	instead of len, so as to match the rest of the memx API.
 	(bk_memx_info): Function export all values in a bk_memx.
+	(bk_memx_get): Allow memx to actually allocate extra elements
+	past the initial hint.
 
 	* bk_memx_size: constant which allows outsiders to know the size
 	of a bk_memx structure.
