@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.346 2007/12/04 05:20:34 jtt Exp $
+ * $Id: libbk.h,v 1.347 2007/12/04 07:26:00 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1630,6 +1630,7 @@ extern int bk_funlist_delete(bk_s B, struct bk_funlist *funlist, void (*bf_fun)(
 
 
 /* b_memx.c */
+extern const size_t bk_memx_size;
 extern struct bk_memx *bk_memx_create(bk_s B, size_t objsize, u_int start_hint, u_int incr_hint, bk_flags flags);
 extern void bk_memx_destroy(bk_s B, struct bk_memx *bm, bk_flags flags);
 #define BK_MEMX_PRESERVE_ARRAY    1		///< Don't destroy created array in @a bk_memx_destroy
@@ -1640,6 +1641,7 @@ extern int bk_memx_addstr(bk_s B, struct bk_memx *bm, char *str, bk_flags flags)
 extern int bk_memx_trunc(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags);
 extern int bk_memx_lop(bk_s B, struct bk_memx *bm, u_int count, bk_flags flags);
 extern int bk_memx_append(bk_s B, struct bk_memx *bm, const void *data, u_int count, bk_flags flags);
+extern int bk_memx_info(bk_s B, struct bk_memx *bm, void **arrayp, size_t *unitesizep, size_t *curallocp, size_t *curusedp, u_int *incrp, bk_flags *flagsp, bk_flags flags);
 
 /* b_run.c */
 extern struct bk_run *bk_run_init(bk_s B, bk_flags flags);

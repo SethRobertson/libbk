@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.17 2007/12/04 05:20:33 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_memx.c,v 1.18 2007/12/04 07:26:00 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -45,7 +45,7 @@ struct bk_memx
 };
 
 
-
+const size_t bk_memx_size = sizeof(struct bk_memx);
 
 /**
  * Create the extensible buffer management state along with an initial allocation
@@ -344,4 +344,42 @@ int bk_memx_append(bk_s B, struct bk_memx *bm, const void *data, u_int count, bk
 
  error:
   BK_RETURN(B, -1);
+}
+
+
+
+/**
+ * Return the elements of a memx. Some of this functionality is replicated
+ * in other functions. All copy out values are optional.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bm The memx from which to extract information.
+ *	@param arrayp C/O array pointer
+ *	@param unitsizep C/O unit size.
+ *	@param curallocp C/O current allocation.
+ *	@param curused C/O current used.
+ *	@param incrp C/O increment amount
+ *	@param flagsp C/O memx flags.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_memx_info(bk_s B, struct bk_memx *bm, void **arrayp, size_t *unitesizep, size_t *curallocp, size_t *curusedp, u_int *incrp, bk_flags *flagsp, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (!bm)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (arrayp) *arrayp = bm->bm_array;
+  if (unitesizep) *unitesizep = bm->bm_unitsize;
+  if (curusedp) *curusedp = bm->bm_curused;
+  if (incrp) *incrp = bm->bm_incr;
+  if (flagsp) *flagsp = bm->bm_flags;
+
+  BK_RETURN(B, 0);  
 }
