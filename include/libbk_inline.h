@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_inline.h,v 1.16 2004/05/04 14:40:38 brian Exp $
+ * $Id: libbk_inline.h,v 1.17 2007/12/06 20:50:26 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -327,7 +327,7 @@ bk_dll_append_uniq(dict_h handle, dict_obj obj, dict_obj *old_objp)
 /**
  * Delete an element from the list.
  *
- *	@param handle The handle of dll.
+ *	@param handle The handle of dll (not used but needed to keep the dict API).
  *	@param obj The object to insert.
  *	@return <i>DICT_ERR</i> on failure.<br>
  *	@return <i>DICT_OK</i> on success.
