@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.347 2007/12/04 07:26:00 jtt Exp $
+ * $Id: libbk.h,v 1.348 2007/12/11 04:14:15 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -282,6 +282,7 @@ struct bk_version
 #define bk_debug_printf(B,f,args...) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprintf(B,BK_GENERAL_DEBUG(B),f,##args):1) ///< Perform a debugging printf if debugging is enabled
 #define bk_debug_vprintf(B,f,ap) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_ivprintf(B,BK_GENERAL_DEBUG(B),f,ap):1) ///< Perform a debugging vprintf if debugging is enabled
 #define bk_debug_printbuf(B,i,p,v) ((BK_GENERAL_FLAG_ISDEBUGON(B) && BK_BT_CURFUN(B))?bk_debug_iprintbuf(B,BK_GENERAL_DEBUG(B),i,p,v):1) ///< Perform a debugging printbuf if debugging is enabled
+#define bk_debug_stream(B) ((BK_GENERAL_FLAG_ISDEBUGON(B))?(bk_debug_istream(BK_GENERAL_DEBUG(B))):NULL)
 // @}
 
 
@@ -1578,6 +1579,8 @@ extern void bk_debug_iprint(bk_s B, struct bk_debug *bdinfo, const char *buf);
 extern void bk_debug_iprintf(bk_s B, struct bk_debug *bdinfo, const char *format, ...) __attribute__ ((format (printf, 3, 4)));
 extern void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, const char *intro, const char *prefix, const bk_vptr *buf);
 extern void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, const char *format, va_list ap) __attribute__ ((format (printf, 3, 0)));
+extern FILE *bk_debug_istream(struct bk_debug *bdfinfo);
+
 
 
 

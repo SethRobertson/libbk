@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.32 2005/03/17 06:20:04 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_debug.c,v 1.33 2007/12/11 04:14:15 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -676,6 +676,25 @@ void bk_debug_ivprintf(bk_s B, struct bk_debug *bdinfo, const char *format, va_l
   bk_debug_iprint(B, bdinfo, buf);
 
   return;
+}
+
+
+
+/**
+ * Return the debug file stream
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+FILE *
+bk_debug_istream(struct bk_debug *bdinfo)
+{
+  if (!bdinfo)
+    return(NULL);
+
+  return(bdinfo->bd_fh);
 }
 
 

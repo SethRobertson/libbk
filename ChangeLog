@@ -1,3 +1,8 @@
+2007-12-10  James Tanis  <jtt@stockade.tanis.org>
+
+	* lib/b_debug.c (bk_debug_istream): Function to return the
+	debugging stream
+
 2007-12-04  James Tanis  <jtt@stockade.tanis.org>
 
 	* lib/b_memx.c (bk_memx_append): Convert function to use count
