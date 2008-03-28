@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.61 2007/11/15 17:00:14 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.62 2008/03/28 02:29:18 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -850,6 +850,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   if (std_ioh) bk_ioh_close(B, std_ioh, 0);
   if (net_ioh) bk_ioh_close(B, net_ioh, 0);
   set_run_over(B, pc, 0);
+  exit(1);
   BK_RETURN(B, -1);
 }
 
