@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.59 2007/02/21 20:28:10 jtt Exp $
+# $Id: Makefile,v 1.60 2008/04/09 04:35:57 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -55,6 +55,7 @@ BK_LARGE_LIBSRC=				\
 		b_servinfo.c			\
 		b_shmipc.c			\
 		b_signal.c			\
+		b_sprintf.c			\
 		b_stats.c			\
 		b_stdfun.c			\
 		b_stdsock.c			\

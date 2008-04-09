@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.348 2007/12/11 04:14:15 jtt Exp $
+ * $Id: libbk.h,v 1.349 2008/04/09 04:35:57 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1935,7 +1935,6 @@ extern char *bk_strstrn(bk_s B, const char *haystack, const char *needle, size_t
 extern int bk_strnspacecmp(bk_s B, const char *s1, const char *s2, u_int len1, u_int len2);
 extern void *bk_memrchr(bk_s B, const void *buffer, int character, size_t len);
 extern int bk_memdiff(bk_s B, const void *b1, const void *b2, u_int len1, u_int len2);
-extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #define BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY	0x1 ///< Take more time to return use as little memory as possible.
 extern char *bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, va_list ap) __attribute__ ((format (printf, 4, 0)));
 extern int bk_vstr_cat(bk_s B,  bk_flags flags, bk_vstr *dest, const char *src_fmt, ...) __attribute__ ((format (printf, 4, 5)));
@@ -1954,6 +1953,10 @@ extern bk_str_id_t bk_string_registry_idbystr(bk_s B, bk_str_registry_t handle, 
 extern char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const char **envdb, bk_flags flags);
 #define BK_STRING_EXPAND_FREE 1
 extern int bk_string_csv_quote(bk_s B, const char *in_str, int in_len, char *out_str, int out_len, const char *quote_str, bk_flags flags);
+
+/* b_sprintf.c */
+extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
+
 
 
 /* getbyfoo.c */
