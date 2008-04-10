@@ -1,3 +1,8 @@
+2008-04-09  James Tanis  <jtt@localhost.localdomain>
+
+	* ssl/b_ssl.c: Avoid a dangling reference by withdrawing the iofun
+	from the ioh structure before freeing the ssl state structure.
+
 2007-12-10  James Tanis  <jtt@stockade.tanis.org>
 
 	* lib/b_debug.c (bk_debug_istream): Function to return the

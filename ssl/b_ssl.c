@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.13 2005/02/08 02:07:29 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.14 2008/04/10 01:30:09 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -90,9 +90,10 @@ struct bk_ssl_ctx
  */
 struct bk_ssl
 {
-  SSL	       *bs_ssl;				///< SSL connection state
-  struct bk_run *bs_run;			///< Baka run state
-  bk_flags	bs_flags;			///< Reserved
+  SSL *			bs_ssl;			///< SSL connection state
+  struct bk_run *	bs_run;			///< Baka run state
+  struct bk_ioh *	bs_ioh;			///< IOH struct
+  bk_flags		bs_flags;		///< Reserved
 };
 
 
@@ -424,6 +425,12 @@ bk_ssl_destroy(bk_s B, struct bk_ssl *ssl, bk_flags flags)
     SSL_free(ssl->bs_ssl);
   }
 
+  /*
+   * At this point we're done. We don't need the IOH level to inform us of
+   * this and it creates a dangling reference which annoys Insure. So
+   * withdraw the iofun from the ioh.
+   */
+  bk_ioh_update(B, ssl->bs_ioh, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER);
   free(ssl);
 
   BK_VRETURN(B);
@@ -595,6 +602,8 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
     bk_error_printf(B, BK_ERR_ERR, "Failed to create ioh.\n");
     goto error;
   }
+
+  ssl->bs_ioh = ioh;
 
   // Set read & write functions and activate
   ret = bk_ioh_update(B, ioh, ssl_readfun, ssl_writefun, ssl_closefun, ssl, 0,
