@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.15 2008/04/11 05:53:25 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.16 2008/04/11 20:51:08 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -203,6 +203,13 @@ bk_ssl_env_init(bk_s B)
 
   BK_FLAG_SET(BK_BT_FLAGS(B), BK_B_FLAG_SSL_INITIALIZED);
 
+  // By doing this first we don't have to worry about the error condition
+  if (bk_general_destroy_insert(B, bk_ssl_env_destroy_funlist, NULL) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert SSL env destroy task on destroy list\n");
+    goto error;
+  }
+
   SSL_library_init();
   SSL_load_error_strings();
 
@@ -234,12 +241,6 @@ bk_ssl_env_init(bk_s B)
   }
 #endif // BK_USING_PTHREADS
 
-  if (bk_general_destroy_insert(B, bk_ssl_env_destroy_funlist, NULL) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not insert SSL env destroy task on destroy list\n");
-    goto error;
-  }
-
 
   BK_RETURN(B, 0);
 
@@ -249,10 +250,6 @@ bk_ssl_env_init(bk_s B)
     bk_truerand_destroy(B, randinfo);
     randinfo = NULL;
   }
-
-#ifdef BK_USING_PTHREADS
-  ssl_threads_destroy(B);
-#endif // BK_USING_PTHREADS
 
   BK_RETURN(B, -1);
 }
@@ -278,6 +275,12 @@ bk_ssl_env_destroy(bk_s B)
 
   BK_FLAG_CLEAR(BK_BT_FLAGS(B), BK_B_FLAG_SSL_INITIALIZED);
 
+#ifdef BK_USING_PTHREADS
+  if (lock_count)
+    ssl_threads_destroy(B);
+#endif // BK_USING_PTHREADS
+
+  ERR_free_strings();
   EVP_cleanup();
 
   BK_RETURN(B, 0);
