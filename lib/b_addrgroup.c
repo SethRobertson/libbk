@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.53 2007/01/18 22:47:23 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.54 2008/04/11 05:53:24 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -752,7 +752,7 @@ do_net_init_dgram_connect(bk_s B, struct addrgroup_state *as)
     goto error;
   }
 
-  if (BK_FLAG_ISCLEAR(as->as_user_flags, BK_NET_STANDARD_UDP))
+  if (BK_FLAG_ISCLEAR(as->as_user_flags, BK_NET_FLAG_STANDARD_UDP))
   {
     cnt = 0;
     while(cnt < sizeof(DGRAM_PREAMBLE))
@@ -1961,12 +1961,56 @@ bk_addressgroup_suspend(bk_s B, struct bk_run *run, void *server_handle, bk_flag
  *	@param sercurenets IP address filtering.
  *	@param callback Function to call back when there's a connection
  *	@param args User arguments to supply to above.
+ * 	@param key_path (file) path to private key file in PEM format
+ * 	@param cert_path (file) path to certificate file in PEM format
+ * 	@param dhparam_path (file) path to dh param file in PEM format
+ * 	@param ca_file file to dh param file in PEM format
+ *	@param ctx_flags SSL context flags (see bk_ssl_create_context())
  *	@param flags User flags.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, const char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags)
+bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, const char *securenets, bk_bag_callback_f callback, void *args, const char *key_path, const char *cert_path, const char *ca_file, const char *dhparam_path, bk_flags ctx_flags, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  if (BK_FLAG_ISSET(flags, BK_NET_FLAG_WANT_SSL))
+  {
+    if (!bk_ssl_supported(B))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "SSL support is not available\n");
+      BK_RETURN(B, -1);      
+    }
+
+#ifndef NO_SSL
+    BK_RETURN(B, bk_ssl_netutils_commandeer_service(B, run, s, securenets, callback, args, key_path, cert_path, ca_file, dhparam_path, ctx_flags, 0));
+#endif /* NO_SSL */
+  }
+  BK_RETURN(B, bk_netutils_commandeer_service_std(B, run, s, securenets, callback, args, flags));
+}
+
+
+
+/**
+ * Take over a listening socket and handle its service. Despite it's name
+ * this function must appear here so it can reference a static callback
+ * routine. Oh well.
+ *
+ * THREADS: MT-SAFE (assuming s is not closed)
+ * THREADS: REENTRANT (otherwise)
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run @a bk_run structure.
+ *	@param s The socket to assume control over.
+ *	@param sercurenets IP address filtering.
+ *	@param callback Function to call back when there's a connection
+ *	@param args User arguments to supply to above.
+ *	@param flags User flags.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_netutils_commandeer_service_std(bk_s B, struct bk_run *run, int s, const char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct addrgroup_state *as = NULL;

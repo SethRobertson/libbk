@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: test_closerace.c,v 1.1 2006/06/15 17:38:15 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: test_closerace.c,v 1.2 2008/04/11 05:53:26 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -289,7 +289,7 @@ static void *loop_th(bk_s B, void *opaque)
       goto error;
     }
 
-    if (!(Global.ioh = bk_ioh_init(B, fd, fd, handleuser, pc, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+    if (!(Global.ioh = bk_ioh_init(B, NULL, fd, fd, handleuser, pc, 0, 0, 0, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create ioh network\n");
       goto error;

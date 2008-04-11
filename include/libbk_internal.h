@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_internal.h,v 1.46 2004/08/17 03:35:06 dupuy Exp $
+ * $Id: libbk_internal.h,v 1.47 2008/04/11 05:53:24 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -115,6 +115,24 @@ extern pthread_mutex_t BkGlobalSignalLock;
 
 
 extern void bk_run_signal_ihandler(int signum);
+
+/* b_netutils.c */
+extern int bk_netutils_make_conn_verbose_std(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags );
+extern int bk_netutils_start_service_verbose_std(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags);
+
+/* b_addrgroup (why?) */
+extern int bk_netutils_commandeer_service_std(bk_s B, struct bk_run *run, int s, const char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags);
+
+/* b_ssl.c */
+extern int bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, const char *key_file, const char *cert_file, const char *ca_file, const char *dhparam_file, bk_flags ctx_flags, bk_flags flags);
+extern int bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, const char *key_file, const char *cert_file, const char *ca_file, const char *dhparam_file, bk_flags ctx_flags, bk_flags flags);
+extern int bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, const char *securenets, bk_bag_callback_f callback, void *args, const char *key_file, const char *cert_file, const char *ca_file, const char *dhparam_file, bk_flags ctx_flags, bk_flags flags);
+extern struct bk_ioh *bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
+
+
+/* b_ioh.c */
+extern struct bk_ioh *bk_ioh_init_std(bk_s B, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
+
 
 
 

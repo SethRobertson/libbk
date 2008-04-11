@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bk_pty.c,v 1.6 2006/05/03 04:58:15 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bk_pty.c,v 1.7 2008/04/11 05:53:25 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -315,7 +315,7 @@ static void progrun(bk_s B, struct program_config *pc)
     goto error;
   }
 
-  if (!(ioh_stdio = bk_ioh_init(B, fileno(stdin), fileno(stdout), NULL, NULL, 0, 0, 0, run, BK_IOH_NO_HANDLER | BK_IOH_RAW | BK_IOH_STREAM)))
+  if (!(ioh_stdio = bk_ioh_init(B, NULL, fileno(stdin), fileno(stdout), NULL, NULL, 0, 0, 0, run, BK_IOH_NO_HANDLER | BK_IOH_RAW | BK_IOH_STREAM)))
   {
     fprintf(stderr, "Could not create io handler around child process\n");
     goto error;
@@ -353,7 +353,7 @@ static void progrun(bk_s B, struct program_config *pc)
     break;
 
   default:
-    if (!(ioh_child = bk_ioh_init(B, fd, fd, NULL, NULL, 0, 0, 0, run, BK_IOH_NO_HANDLER | BK_IOH_RAW | BK_IOH_STREAM)))
+    if (!(ioh_child = bk_ioh_init(B, NULL, fd, fd, NULL, NULL, 0, 0, 0, run, BK_IOH_NO_HANDLER | BK_IOH_RAW | BK_IOH_STREAM)))
     {
       fprintf(stderr, "Could not create io handler around child process\n");
       goto error;

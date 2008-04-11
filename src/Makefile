@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.39 2006/11/16 20:23:43 dupuy Exp $
+# $Id: Makefile,v 1.40 2008/04/11 05:53:25 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -63,12 +63,12 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 ##################################################
 
 ifneq ($(strip $(BK_USING_SSL)),false)
-LOCAL_LIBS=-lbkssl
+#LOCAL_LIBS=-lbkssl
 ifeq ($(BK_WANT_LIBTOOL),false)
 LOCAL_LIBS+=-lssl -lcrypto
 endif # BK_WANT_LIBTOOL
 else
-LOCAL_DEFINES+=-DNO_SSL
+#LOCAL_DEFINES+=-DNO_SSL
 endif # BK_USING_SSL
 
 ifneq ($(BK_WANT_LIBTOOL),false)
@@ -90,7 +90,7 @@ ifneq ($(BK_WANT_LIBTOOL),false)
 # to override, but it works until somebody breaks it by getting fancy.</TRICKY>
 
 # basic dependencies for typical baka programs
-LDLIBS=$(filter-out -lpq -lbkssl -lssl -lcrypt -lcrypto -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
+LDLIBS=$(filter-out -lpq -lssl -lcrypt -lcrypto -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
 
 # these are not really baka programs, despite their names, and need only -lc
 adjtime bk_daemon bk_funi: LDLIBS=

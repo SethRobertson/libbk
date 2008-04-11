@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bdtee.c,v 1.7 2005/09/02 17:13:54 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bdtee.c,v 1.8 2008/04/11 05:53:25 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -278,7 +278,7 @@ static int proginit(bk_s B, struct program_config *pc)
     goto error;
   }
 
-  if (!(pc->pc_out_ioh = bk_ioh_init(B, -1, fd, out_file_handler, pc, 0, 0, 0, pc->pc_run, BK_IOH_RAW | BK_IOH_STREAM)))
+  if (!(pc->pc_out_ioh = bk_ioh_init(B, NULL, -1, fd, out_file_handler, pc, 0, 0, 0, pc->pc_run, BK_IOH_RAW | BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh for out file\n");
     goto error;
@@ -313,14 +313,14 @@ static int proginit(bk_s B, struct program_config *pc)
     prog2_out = fileno(stdout);
   }
 
-  if (!(ioh1=bk_ioh_init(B, prog1_in, prog1_out, NULL, pc, 0, 0, 0, pc->pc_run, BK_IOH_RAW | BK_IOH_STREAM)))
+  if (!(ioh1=bk_ioh_init(B, NULL, prog1_in, prog1_out, NULL, pc, 0, 0, 0, pc->pc_run, BK_IOH_RAW | BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh1 for first prog\n");
   }
 
   pc->pc_peer1_ioh = ioh1;
 
-  if (!(ioh2=bk_ioh_init(B, prog2_in, prog2_out, NULL, pc, 0, 0, 0, pc->pc_run, BK_IOH_RAW | BK_IOH_STREAM)))
+  if (!(ioh2=bk_ioh_init(B, NULL, prog2_in, prog2_out, NULL, pc, 0, 0, 0, pc->pc_run, BK_IOH_RAW | BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh1 for second prog\n");
   }

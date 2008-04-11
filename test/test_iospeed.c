@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: test_iospeed.c,v 1.8 2005/09/02 17:13:57 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: test_iospeed.c,v 1.9 2008/04/11 05:53:26 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -221,13 +221,13 @@ proginit(bk_s B, struct program_config *pc)
     goto error;
   }
 
-  if (!(stdin_ioh = bk_ioh_init(B, fileno(stdin), devnull2, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+  if (!(stdin_ioh = bk_ioh_init(B, NULL, fileno(stdin), devnull2, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on stdin/stdout\n");
     goto error;
   }
 
-  if (!(stdout_ioh = bk_ioh_init(B, devnull1, fileno(stdout), NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+  if (!(stdout_ioh = bk_ioh_init(B, NULL, devnull1, fileno(stdout), NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on stdin/stdout\n");
     goto error;

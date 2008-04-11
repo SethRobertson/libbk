@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.15 2004/07/08 04:40:17 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_stdfun.c,v 1.16 2008/04/11 05:53:25 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -157,3 +157,45 @@ void bk_dmalloc_shutdown(bk_s B, void *opaque, u_int other)
   dmalloc_shutdown();
 #endif /* USING_DMALLOC */
 }
+
+
+/**
+ * Return whether SSL is supported at all or not. This needs to be included
+ * *not* in libbssl so it is accessble even if libbkssl is not linked in.
+ *
+ *	@param B BAKA thread/global state.
+ *	@return <i>1</i> if SSL is supported.<br>
+ *	@return <i>0</i> if not.
+ */
+int
+bk_ssl_supported(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
+
+#ifndef NO_SSL
+  BK_RETURN(B, 1);
+#else /* NO_SSL */
+  BK_RETURN(B, 0);
+#endif /* NO_SSL */
+}
+
+
+
+#ifdef NO_SSL
+/**
+ * This is merely a compatibility version of this function for use when
+ * NO_SSL is set. By supporting this version, users do not have to worry
+ * about remembering to compile this function conditionally on NO_SSL.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+void
+bk_ssl_destroy(bk_s B, void *ssl, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
+  BK_VRETURN(B);  
+}
+#endif /* NO_SSL */

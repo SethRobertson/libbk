@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.10 2005/09/02 17:13:55 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bkrelay.c,v 1.11 2008/04/11 05:53:25 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -422,10 +422,10 @@ main(int argc, char **argv, char **envp)
       if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_WAIT_DATA_A))
 	BK_FLAG_SET(pc->pc_flags, PC_ACTIVEACTIVE);
 
-      if (pc->pc_remoteurl_a && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_a, NULL, DEFAULT_PORT_STR, pc->pc_localurl_a, NULL, NULL, pc->pc_proto_a, pc->pc_timeout, connect_complete, &sidea, 0) < 0)
+      if (pc->pc_remoteurl_a && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_a, NULL, DEFAULT_PORT_STR, pc->pc_localurl_a, NULL, NULL, pc->pc_proto_a, pc->pc_timeout, connect_complete, &sidea, NULL, NULL, NULL, NULL, 0, 0) < 0)
 	bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 
-      if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_WAIT_DATA_A) && pc->pc_remoteurl_b && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_b, NULL, DEFAULT_PORT_STR, pc->pc_localurl_b, NULL, NULL, pc->pc_proto_b, pc->pc_timeout, connect_complete, &sideb, 0) < 0)
+      if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_WAIT_DATA_A) && pc->pc_remoteurl_b && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_b, NULL, DEFAULT_PORT_STR, pc->pc_localurl_b, NULL, NULL, pc->pc_proto_b, pc->pc_timeout, connect_complete, &sideb, NULL, NULL, NULL, NULL, 0, 0) < 0)
 	bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
       break;
     } while (BK_FLAG_ISSET(pc->pc_flags, PC_SERVER));
@@ -486,7 +486,7 @@ proginit(bk_s B, struct program_config *pc)
 
   if (pc->pc_role_a == BttcpRoleReceive)
   {
-    if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl_a, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto_a, NULL, connect_complete, &sidea, 0, 0))
+    if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl_a, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto_a, NULL, connect_complete, &sidea, 0, NULL, NULL, NULL, NULL, 0, 0))
       bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     pc->pc_desiredpassive++;
   }
@@ -497,7 +497,7 @@ proginit(bk_s B, struct program_config *pc)
   {
     pc->pc_desiredpassive++;
 
-    if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_MULTISERVER) && bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl_b, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto_b, NULL, connect_complete, &sideb, 0, 0))
+    if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_MULTISERVER) && bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl_b, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto_b, NULL, connect_complete, &sideb, 0, NULL, NULL, NULL, NULL, 0, 0))
       bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
   else
@@ -877,13 +877,13 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   {
     struct bk_ioh *ioha, *iohb;
 
-    if (!(ioha = bk_ioh_init(B, pc->pc_fd_a, pc->pc_fd_a, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+    if (!(ioha = bk_ioh_init(B, NULL, pc->pc_fd_a, pc->pc_fd_a, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on side a\n");
       goto error;
     }
 
-    if (!(iohb = bk_ioh_init(B, pc->pc_fd_b, pc->pc_fd_b, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+    if (!(iohb = bk_ioh_init(B, NULL, pc->pc_fd_b, pc->pc_fd_b, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on side b\n");
       bk_ioh_close(B, ioha, 0);
@@ -910,10 +910,10 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
       fprintf(stderr,"%s: Connecting...\n", BK_GENERAL_PROGRAM(B));
 
-    if (pc->pc_fd_a < 0 && pc->pc_remoteurl_a && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_a, NULL, DEFAULT_PORT_STR, pc->pc_localurl_a, NULL, NULL, pc->pc_proto_a, pc->pc_timeout, connect_complete, &sidea, 0) < 0)
+    if (pc->pc_fd_a < 0 && pc->pc_remoteurl_a && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_a, NULL, DEFAULT_PORT_STR, pc->pc_localurl_a, NULL, NULL, pc->pc_proto_a, pc->pc_timeout, connect_complete, &sidea, NULL, NULL, NULL, NULL, 0, 0) < 0)
       bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 
-    if (pc->pc_fd_b < 0 && pc->pc_remoteurl_b && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_b, NULL, DEFAULT_PORT_STR, pc->pc_localurl_b, NULL, NULL, pc->pc_proto_b, pc->pc_timeout, connect_complete, &sideb, 0) < 0)
+    if (pc->pc_fd_b < 0 && pc->pc_remoteurl_b && bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl_b, NULL, DEFAULT_PORT_STR, pc->pc_localurl_b, NULL, NULL, pc->pc_proto_b, pc->pc_timeout, connect_complete, &sideb, NULL, NULL, NULL, NULL, 0, 0) < 0)
       bk_die(B, 1, stderr, "Could not start side a transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
   else if (pc->pc_actualpassive < pc->pc_desiredpassive && BK_FLAG_ISSET(pc->pc_flags, PC_MULTISERVER))
@@ -951,7 +951,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
       goto done;
     }
 
-    if (pc->pc_role_b == BttcpRoleReceive && bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl_b, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto_b, NULL, connect_complete, &sideb, 0, 0))
+    if (pc->pc_role_b == BttcpRoleReceive && bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl_b, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto_b, NULL, connect_complete, &sideb, 0, NULL, NULL, NULL, NULL, 0, 0))
       bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 

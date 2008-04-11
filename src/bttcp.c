@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.62 2008/03/28 02:29:18 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.63 2008/04/11 05:53:25 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -124,7 +124,6 @@ struct program_config
   struct timeval	pc_start;		///< Starting time
   const char	       *pc_filein;		///< Set input filename
   const char	       *pc_fileout;		///< Set output filename
-  struct bk_ssl_ctx    *pc_ssl_ctx;		///< SSL session template
   const char *		pc_ssl_cert_file;	///< Location of SSL cert file
   const char *		pc_ssl_key_file;	///< Location of SSL key file
   const char *		pc_ssl_cafile;		///< Location of SSL CA file
@@ -184,13 +183,11 @@ main(int argc, char **argv, char **envp)
     {"buffersize", 0, POPT_ARG_STRING, NULL, 8, "Size of I/O queues", "buffer size" },
     {"length", 'L', POPT_ARG_STRING, NULL, 9, "Default I/O chunk size", "default length" },
     {"close-after-one", 'c', POPT_ARG_NONE, NULL, 10, "Shut down relay after only one side closes", NULL },
-#ifndef NO_SSL
     {"ssl", 's', POPT_ARG_NONE, NULL, 's', "Use SSL", NULL },
     {"ssl-cert", 0, POPT_ARG_STRING, NULL, 11, "PEM SSL certificate location", "filename" },
     {"ssl-key", 0, POPT_ARG_STRING, NULL, 12, "PEM SSL key location", "filename" },
     {"ssl-cafile", 0, POPT_ARG_STRING, NULL, 13, "File containing acceptable CA certificates", "filename" },
     {"ssl-dhparams", 0, POPT_ARG_STRING, NULL, 14, "Use DH param file (PEM format) instead of certificate & private key", "filename"},
-#endif // NO_SSL
     {"timeout", 'T', POPT_ARG_INT, NULL, 'T', "Set the connection timeout", "timeout" },
     {"sockbuf", 'B', POPT_ARG_STRING, NULL, 15, "Socket snd/rcv buffer size", "length in bytes" },
     {"nodelay", 0, POPT_ARG_NONE, NULL, 16, "Set TCP NODELAY", NULL },
@@ -283,6 +280,10 @@ main(int argc, char **argv, char **envp)
       break;
 
     case 's':
+      if (!bk_ssl_supported(B))
+      {
+	bk_die(B, 254, stderr, "SSL is not supported in this build\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+      }
       BK_FLAG_SET(pc->pc_flags, PC_SSL);
       break;
 
@@ -501,54 +502,39 @@ proginit(bk_s B, struct program_config *pc)
   bk_signal(B, SIGCHLD, bk_reaper, BK_RUN_SIGNAL_RESTART);
   bk_signal(B, SIGINT, finish, BK_RUN_SIGNAL_RESTART);
 
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
-  {
-#ifndef NO_SSL
-    if (bk_ssl_env_init(B) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "SSL initialization failed.\n");
-      BK_RETURN(B, -1);
-    }
-
-    if (!(pc->pc_ssl_ctx = bk_ssl_create_context(B, pc->pc_ssl_cert_file, pc->pc_ssl_key_file,
-						 pc->pc_ssl_dhparam_file, pc->pc_ssl_cafile, 0)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Failed to create SSL context.\n");
-      BK_RETURN(B, -1);
-    }
-#endif // NO_SSL
-  }
-
   switch (pc->pc_role)
   {
   case BttcpRoleReceive:
-    if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
     {
-#ifndef NO_SSL
-      if (bk_ssl_start_service_verbose(B, pc->pc_run, pc->pc_ssl_ctx, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto, NULL, connect_complete, pc, 0, 0))
-	bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-#endif // NO_SSL
-    }
-    else
-    {
-      if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto, NULL, connect_complete, pc, 0, 0))
+      bk_flags start_service_flags = 0;
+      if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
+      {
+	BK_FLAG_SET(start_service_flags, BK_NET_FLAG_WANT_SSL);
+      }
+      if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto, NULL, connect_complete, pc, 0, pc->pc_ssl_key_file, pc->pc_ssl_cert_file, pc->pc_ssl_cafile, pc->pc_ssl_dhparam_file, 0, start_service_flags))
 	bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     }
+
     break;
 
   case BttcpRoleTransmit:
-    if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
     {
-#ifndef NO_SSL
-      if (bk_ssl_make_conn_verbose(B, pc->pc_run, pc->pc_ssl_ctx, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, pc->pc_proto, pc->pc_timeout, connect_complete, pc, BK_FLAG_ISSET(pc->pc_flags, PC_BAKAUDP)?0:1) < 0)
+      bk_flags make_conn_flags = 0;
+      if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
+      {
+	BK_FLAG_SET(make_conn_flags, BK_NET_FLAG_WANT_SSL);
+      }
+      if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_BAKAUDP))
+      {
+	BK_FLAG_SET(make_conn_flags, BK_NET_FLAG_STANDARD_UDP);
+      }
+
+      if (bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, pc->pc_proto, pc->pc_timeout, connect_complete, pc, pc->pc_ssl_key_file, pc->pc_ssl_cert_file, pc->pc_ssl_cafile, pc->pc_ssl_dhparam_file, 0, make_conn_flags) < 0)
+      {
 	bk_die(B, 1, stderr, "Could not start transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-#endif // NO_SSL
+      }
     }
-    else
-    {
-      if (bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, pc->pc_proto, pc->pc_timeout, connect_complete, pc, BK_FLAG_ISSET(pc->pc_flags, PC_BAKAUDP)?0:1) < 0)
-	bk_die(B, 1, stderr, "Could not start transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-    }
+
     break;
 
   default:
@@ -804,7 +790,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 
 
   pc->pc_fdin = infd;
-  if (!(std_ioh = bk_ioh_init(B, infd, outfd, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+  if (!(std_ioh = bk_ioh_init(B, NULL, infd, outfd, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create ioh on stdin/stdout\n");
     goto error;
@@ -812,8 +798,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
 
   if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
   {
-#ifndef NO_SSL
-    if (!(net_ioh = bk_ssl_ioh_init(B, bag->bag_ssl, sock, sock, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+    if (!(net_ioh = bk_ioh_init(B, bag->bag_ssl, sock, sock, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create ioh network\n");
       if (bag->bag_ssl)
@@ -824,11 +809,10 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
       goto error;
     }
     bag->bag_ssl = NULL;
-#endif // NO_SSL
   }
   else
   {
-    if (!(net_ioh = bk_ioh_init(B, sock, sock, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
+    if (!(net_ioh = bk_ioh_init(B, NULL, sock, sock, NULL, NULL, pc->pc_len, pc->pc_buffer, pc->pc_buffer, pc->pc_run, BK_IOH_RAW|BK_IOH_STREAM)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create ioh network\n");
       goto error;
@@ -968,17 +952,6 @@ cleanup(bk_s B, struct program_config *pc)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
-  }
-
-  if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
-  {
-#ifndef NO_SSL
-    if (pc->pc_ssl_ctx)
-    {
-      bk_ssl_destroy_context(B, pc->pc_ssl_ctx);
-    }
-    bk_ssl_env_destroy(B);
-#endif // NO_SSL
   }
 
   if (pc->pc_local) bk_netinfo_destroy(B,pc->pc_local);

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: test_ioh.c,v 1.25 2005/09/02 17:13:57 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: test_ioh.c,v 1.26 2008/04/11 05:53:26 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -404,14 +404,14 @@ static int create_relay(bk_s B, struct program_config *pconfig, int fd1in, int f
   }
 
   // Create IOH for network
-  if (!(ioh1 = bk_ioh_init(B, fd1in, fd1out, NULL, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, mode)))
+  if (!(ioh1 = bk_ioh_init(B, NULL, fd1in, fd1out, NULL, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, mode)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid network ioh creation\n");
     bk_die(B,254,stderr,"Could not perform ioh initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
 
   // Create IOH for stdio
-  if (!(ioh2 = bk_ioh_init(B, fd2in, fd2out, NULL, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, BK_IOH_STREAM|BK_IOH_RAW)))
+  if (!(ioh2 = bk_ioh_init(B, NULL, fd2in, fd2out, NULL, NULL, pconfig->pc_input_hint, pconfig->pc_input_max, pconfig->pc_output_max, pconfig->pc_run, BK_IOH_STREAM|BK_IOH_RAW)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid network ioh creation\n");
     bk_die(B,254,stderr,"Could not perform ioh initialization\n",BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);

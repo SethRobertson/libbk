@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.14 2008/04/10 01:30:09 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.15 2008/04/11 05:53:25 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -24,6 +24,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #include <libbk.h>
 #include <libbkssl.h>
+#include <libbk_internal.h>
 #include <openssl/ssl.h>
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
@@ -51,8 +52,8 @@ struct start_service_args
   struct bk_run	       *ssa_run;		///< Run environment
   bk_bag_callback_f	ssa_user_callback;	///< Caller's callback.
   void		       *ssa_user_args;		///< Caller's opaque args.
-  SSL_CTX	       *ssa_ssl_ctx;		///< Template for new SSL connections.
   ssl_task_e		ssa_task;		///< Connect or accept
+  struct bk_ssl_ctx    *ssa_ssl_ctx;		///< SSL session template
   bk_flags		ssa_flags;		///< Reserved.
 };
 
@@ -111,8 +112,15 @@ static unsigned long pthreads_thread_id(void);
 static void pthreads_locking_callback(int mode, int type, const char *file, int line);
 #endif // BK_USING_PTHREADS
 static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
-
-
+static struct start_service_args *ssa_create(bk_s B, bk_flags flags);
+static void ssa_destroy(bk_s B, struct start_service_args *ssa);
+static int bk_ssl_env_init(bk_s B);
+/* 
+ * This is called by bk_general_destroy(). We thus can't make it static but
+ * neither do we want to advertise it in libbkssl.h.
+ */
+static int bk_ssl_env_destroy(bk_s B);
+static void bk_ssl_env_destroy_funlist(bk_s B, void *args, bk_flags flags);
 
 #ifdef BK_USING_PTHREADS
 static pthread_mutex_t *lock_cs = NULL;
@@ -122,20 +130,78 @@ static long *lock_count = NULL;
 
 
 /**
+ * Create a @a ssa
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>ssa</i> on success.
+ */
+static struct start_service_args *
+ssa_create(bk_s B, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
+  struct start_service_args *ssa = NULL;
+
+  if (!BK_CALLOC(ssa))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for new service args: %s\n", strerror(errno));
+    BK_RETURN(B, NULL);    
+  }
+
+  BK_RETURN(B, ssa);  
+}
+
+
+
+/**
+ * Destroy a @a ssa
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ssa The @a ssa to destroy
+ */
+static void
+ssa_destroy(bk_s B, struct start_service_args *ssa)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
+
+  if (!ssa)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  if (ssa->ssa_ssl_ctx)
+    bk_ssl_destroy_context(B, ssa->ssa_ssl_ctx);
+
+  free(ssa);
+  BK_VRETURN(B);  
+}
+
+
+
+/*
  * Initialize global OpenSSL state.  You *must* call this function before
- * any other ssl functions.
+ * any other ssl functions. This function is idempotent.
  *
  * @param B BAKA Thread/global state.
  * @return <i>0</i> on success
  * @return <i>-1</i> on failure
  */
-int
+static int
 bk_ssl_env_init(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
   struct bk_truerandinfo *randinfo = NULL;
   const int bufsize = 1024;
   char buf[bufsize];
+
+  if (BK_FLAG_ISSET(BK_BT_FLAGS(B), BK_B_FLAG_SSL_INITIALIZED))
+  {
+    BK_RETURN(B, 0);    
+  }
+
+  BK_FLAG_SET(BK_BT_FLAGS(B), BK_B_FLAG_SSL_INITIALIZED);
 
   SSL_library_init();
   SSL_load_error_strings();
@@ -168,6 +234,13 @@ bk_ssl_env_init(bk_s B)
   }
 #endif // BK_USING_PTHREADS
 
+  if (bk_general_destroy_insert(B, bk_ssl_env_destroy_funlist, NULL) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not insert SSL env destroy task on destroy list\n");
+    goto error;
+  }
+
+
   BK_RETURN(B, 0);
 
  error:
@@ -198,6 +271,13 @@ bk_ssl_env_destroy(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
 
+  if (BK_FLAG_ISCLEAR(BK_BT_FLAGS(B), BK_B_FLAG_SSL_INITIALIZED))
+  {
+    BK_RETURN(B, 0);    
+  }
+
+  BK_FLAG_CLEAR(BK_BT_FLAGS(B), BK_B_FLAG_SSL_INITIALIZED);
+
   EVP_cleanup();
 
   BK_RETURN(B, 0);
@@ -218,6 +298,7 @@ bk_ssl_env_destroy(bk_s B)
  * @param cert_path (file) path to certificate file in PEM format
  * @param key_path (file) path to private key file in PEM format
  * @param dhparam_path (file) path to dh param file in PEM format
+ * @param cafile file to dh param file in PEM format
  * @param flags See above.
  * @return <i>pointer to new bk_ssl_ctx</i> on success
  * @return <i>NULL</i> on error
@@ -232,6 +313,12 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
   X509_STORE *store = NULL;
   long ssl_options = 0;
   int err;
+
+  if (bk_ssl_env_init(B) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not initialize SSL environment\n");
+    BK_RETURN(B, NULL);    
+  }
 
   if (!BK_CALLOC(ssl_ctx))
   {
@@ -455,23 +542,28 @@ bk_ssl_destroy(bk_s B, struct bk_ssl *ssl, bk_flags flags)
  *	@param callback Function to call when start is complete.
  *	@param args User args for @a callback.
  *	@param backlog Server @a listen(2) backlog
+ * 	@param key_path (file) path to private key file in PEM format
+ * 	@param cert_path (file) path to certificate file in PEM format
+ * 	@param dhparam_path (file) path to dh param file in PEM format
+ * 	@param ca_file file to dh param file in PEM format
+ *	@param ctx_flags SSL context flags (see bk_ssl_create_context())
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
+bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, const char *key_path, const char *cert_path, const char *ca_file, const char *dhparam_path, bk_flags ctx_flags, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
   struct start_service_args *ssa = NULL;
 
-  if (!ssl_ctx || !ssl_ctx->bsc_ssl_ctx)
+  if (!run || !url)
   {
     bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments\n");
     BK_RETURN(B, -1);
   }
 
-  if (!BK_CALLOC(ssa))
+  if (!(ssa = ssa_create(B, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Calloc failed: %s.\n", strerror(errno));
     goto error;
@@ -480,11 +572,15 @@ bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_
   ssa->ssa_user_callback = callback;
   ssa->ssa_user_args = args;
   ssa->ssa_run = run;
-  ssa->ssa_ssl_ctx = ssl_ctx->bsc_ssl_ctx;
   ssa->ssa_task = SslTaskAccept;
+  if (!(ssa->ssa_ssl_ctx = bk_ssl_create_context(B, cert_path, key_path, dhparam_path, ca_file, ctx_flags)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create SSL context\n");
+    goto error;
+  }
 
-  if (bk_netutils_start_service_verbose(B, run, url, defhoststr, defservstr, defprotostr, securenets,
-					ssl_newsock, ssa, backlog, flags) < 0)
+  if (bk_netutils_start_service_verbose_std(B, run, url, defhoststr, defservstr, defprotostr, 
+					    securenets, ssl_newsock, ssa, backlog, flags) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to start service.\n");
     goto error;
@@ -494,7 +590,7 @@ bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_
 
  error:
   if (ssa)
-    free(ssa);
+    ssa_destroy(B, ssa);
 
   BK_RETURN(B, -1);
 }
@@ -517,23 +613,28 @@ bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_
  *	@param timeout Abort connection after @a timeout seconds.
  *	@param callback Function to call when start is complete.
  *	@param args User args for @a callback.
+ * 	@param key_path (file) path to private key file in PEM format
+ * 	@param cert_path (file) path to certificate file in PEM format
+ * 	@param dhparam_path (file) path to dh param file in PEM format
+ * 	@param ca_file file to dh param file in PEM format
+ *	@param ctx_flags SSL context flags (see bk_ssl_create_context())
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags )
+bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, const char *key_path, const char *cert_path, const char *ca_file, const char *dhparam_path, bk_flags ctx_flags, bk_flags flags )
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
   struct start_service_args *ssa = NULL;
 
-  if (!ssl_ctx || !ssl_ctx->bsc_ssl_ctx)
+  if (!run)
   {
     bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments\n");
     BK_RETURN(B, -1);
   }
 
-  if (!BK_CALLOC(ssa))
+  if (!(ssa = ssa_create(B, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Calloc failed: %s.\n", strerror(errno));
     goto error;
@@ -542,11 +643,15 @@ bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx,
   ssa->ssa_user_callback = callback;
   ssa->ssa_user_args = args;
   ssa->ssa_run = run;
-  ssa->ssa_ssl_ctx = ssl_ctx->bsc_ssl_ctx;
   ssa->ssa_task = SslTaskConnect;
+  if (!(ssa->ssa_ssl_ctx = bk_ssl_create_context(B, cert_path, key_path, dhparam_path, ca_file, ctx_flags)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create SSL context\n");
+    goto error;
+  }
 
-  if (bk_netutils_make_conn_verbose(B, run, rurl, defrhost, defrserv, lurl, deflhost, deflserv,
-				    defproto, timeout, ssl_newsock, ssa, flags) < 0)
+  if (bk_netutils_make_conn_verbose_std(B, run, rurl, defrhost, defrserv, lurl, deflhost, 
+					deflserv, defproto, timeout, ssl_newsock, ssa, flags) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to make connection.\n");
     goto error;
@@ -556,7 +661,7 @@ bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx,
 
  error:
   if (ssa)
-    free(ssa);
+    ssa_destroy(B, ssa);
 
   BK_RETURN(B, -1);
 }
@@ -597,7 +702,7 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
   }
 
   // Create ioh
-  if (!(ioh = bk_ioh_init(B, fdin, fdout, handler, opaque, inbufhint, inbufmax, outbufmax, run, flags | BK_IOH_DONT_ACTIVATE)))
+  if (!(ioh = bk_ioh_init_std(B, fdin, fdout, handler, opaque, inbufhint, inbufmax, outbufmax, run, flags | BK_IOH_DONT_ACTIVATE)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to create ioh.\n");
     goto error;
@@ -645,23 +750,28 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
  *	@param securenets IP address filtering.
  *	@param callback Function to call back when there's a connection
  *	@param args User arguments to supply to above.
+ * 	@param key_path (file) path to private key file in PEM format
+ * 	@param cert_path (file) path to certificate file in PEM format
+ * 	@param dhparam_path (file) path to dh param file in PEM format
+ * 	@param ca_file file to dh param file in PEM format
+ *	@param ctx_flags SSL context flags (see bk_ssl_create_context())
  *	@param flags User flags.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, struct bk_ssl_ctx *ssl_ctx, int s, const char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags)
+bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, const char *securenets, bk_bag_callback_f callback, void *args, const char *key_path, const char *cert_path, const char *ca_file, const char *dhparam_path, bk_flags ctx_flags, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct start_service_args *ssa = NULL;
 
-  if (!ssl_ctx || !ssl_ctx->bsc_ssl_ctx)
+  if (!run)
   {
     bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments\n");
     BK_RETURN(B, -1);
   }
 
-  if (!BK_CALLOC(ssa))
+  if (!(ssa = ssa_create(B, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Calloc failed: %s.\n", strerror(errno));
     goto error;
@@ -670,10 +780,14 @@ bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, struct bk_ssl_ctx
   ssa->ssa_user_callback = callback;
   ssa->ssa_user_args = args;
   ssa->ssa_run = run;
-  ssa->ssa_ssl_ctx = ssl_ctx->bsc_ssl_ctx;
   ssa->ssa_task = SslTaskAccept;
+  if (!(ssa->ssa_ssl_ctx = bk_ssl_create_context(B, cert_path, key_path, dhparam_path, ca_file, ctx_flags)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create SSL context\n");
+    goto error;
+  }
 
-  if (bk_netutils_commandeer_service(B, run, s, securenets, ssl_newsock, ssa, flags) < 0)
+  if (bk_netutils_commandeer_service_std(B, run, s, securenets, ssl_newsock, ssa, flags) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to commandeer service for SSL.\n");
     goto error;
@@ -683,7 +797,7 @@ bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, struct bk_ssl_ctx
 
  error:
   if (ssa)
-    free(ssa);
+    ssa_destroy(B, ssa);
 
   BK_RETURN(B, -1);
 
@@ -751,7 +865,7 @@ ssl_newsock(bk_s B, void *opaque, int newsock, struct bk_addrgroup *bag, void *s
     aha->aha_server_handle = server_handle;
     aha->aha_task = ssa->ssa_task;
 
-    if (!(aha->aha_ssl = SSL_new(ssa->ssa_ssl_ctx)))
+    if (!(aha->aha_ssl = SSL_new(ssa->ssa_ssl_ctx->bsc_ssl_ctx)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create SSL state for new connection: %s.\n", ERR_error_string(ERR_get_error(), NULL));
       goto error;
@@ -788,7 +902,7 @@ ssl_newsock(bk_s B, void *opaque, int newsock, struct bk_addrgroup *bag, void *s
     break;
 
   case BkAddrGroupStateClosing:
-    free(ssa);
+    ssa_destroy(B, ssa);
     break;
   }
 
@@ -1506,3 +1620,25 @@ verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
   return(preverify_ok);
 }
+
+
+
+/**
+ * Interface to bk_ssl_env_destroy that matches the bk_general_destroy API.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static void
+bk_ssl_env_destroy_funlist(bk_s B, void *args, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
+  
+  bk_ssl_env_destroy(B);
+
+  BK_VRETURN(B);  
+}
+
+

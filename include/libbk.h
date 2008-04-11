@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.349 2008/04/09 04:35:57 jtt Exp $
+ * $Id: libbk.h,v 1.350 2008/04/11 05:53:24 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -463,6 +463,8 @@ typedef struct __bk_thread
 #define BK_BT_THREADNAME(B)	((B)->bt_threadname) ///< Access the thread name
 #define BK_BT_GENERAL(B)	((B)->bt_general)    ///< Access the global shared info
 #define BK_BT_FLAGS(B)		((B)->bt_flags)      ///< Access thread-specific flags
+
+#define BK_B_FLAG_SSL_INITIALIZED	0x1	///< Set if ssl_env_init has already been called.
 // @}
 
 
@@ -1722,7 +1724,7 @@ typedef int (*bk_iorfunc_f)(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, ca
 typedef int (*bk_iowfunc_f)(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iovec *iov, __SIZE_TYPE__ size, bk_flags flags); ///< writev style I/O function for bk_ioh
 typedef void (*bk_iocfunc_f)(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int fdout, bk_flags flags); ///< close function for bk_ioh
 typedef void (*bk_iohhandler_f)(bk_s B, bk_vptr *data, void *opaque, struct bk_ioh *ioh, bk_ioh_status_e state_flags);  ///< User callback for bk_ioh w/zero terminated array of data ptrs free'd after handler returns
-extern struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
+extern struct bk_ioh *bk_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
 #define BK_IOH_STREAM		0x001		///< Stream (instead of datagram) oriented protocol, for bk_ioh
 #define BK_IOH_RAW		0x002		///< Any data is suitable, no special message blocking, for bk_ioh
 #define BK_IOH_BLOCKED		0x004		///< Must I/O in hint blocks: block size is required, for bk_ioh
@@ -1822,6 +1824,10 @@ extern void bk_warn(bk_s B, FILE *output, char *reason, bk_flags flags);
 #define BK_WARNDIE_WANTDETAILS		1	///< Verbose output of error logs during bk_die/bk_warn
 extern void bk_exit(bk_s B, u_char retcode);
 extern void bk_dmalloc_shutdown(bk_s B, void *opaque, u_int other);
+extern int bk_ssl_supported(bk_s B);
+#ifdef NO_SSL
+extern void bk_ssl_destroy(bk_s B, void *ssl, bk_flags flags);
+#endif /* NO_SSL */
 
 
 
@@ -2017,18 +2023,43 @@ extern struct bk_protoinfo *bk_protoinfo_protoentdup (bk_s B, struct protoent *p
 extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obsi);
 
 
+
+/* 
+ * These are flags jointly shared by all the various connection management
+ * routines. Some are useful only when connecting, others are useful only
+ * when receiving, still others are useful in both cases. They are all
+ * grouped together because, while there are still so few of them, it's
+ * fare more convientt.
+ */
+#define BK_NET_FLAG_ANY_ADDR 		0x01	///< Bind to INADDR_ANY
+#define BK_NET_FLAG_WANT_SSL 		0x02	///< Use SSL (fail if not supported)
+#define BK_NET_FLAG_STANDARD_UDP 	0x04	///< Don't send baka preamble/syn thing
+
+
 /* b_netutils.c */
 extern int bk_netutils_get_sa_len(bk_s B, struct sockaddr *sa);
 extern int bk_parse_endpt_spec(bk_s B, const char *urlstr, char **hoststr, const char *defhoststr, char **servicestr,  const char *defservicestr, char **protostr, const char *defprotostr);
 extern int bk_netutils_start_service(bk_s B, struct bk_run *run, const char *url, const char *defurl, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags);
-#define BK_NETUTILS_ANY_ADDR 0x01
-extern int bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags);
+extern int bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, const char *key_path, const char *cert_path, const char *ca_file, const char *dhparam_path, bk_flags ctx_flags, bk_flags flags);
 extern int bk_netutils_make_conn(bk_s B, struct bk_run *run, const char *url, const char *defurl, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags);
-#define BK_NET_STANDARD_UDP 0x01		///< Don't send baka preamble/syn thing
-extern int bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags );
+extern int bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, const char *key_path, const char *cert_path, const char *ca_file, const char *dhparam_path, bk_flags ctx_flags, bk_flags flags );
+extern int bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, const char *securenets, bk_bag_callback_f callback, void *args, const char *key_path, const char *cert_path, const char *ca_file, const char *dhparam_path, bk_flags ctx_flags, bk_flags flags);
 extern int bk_parse_endpt_no_defaults(bk_s B, const char *urlstr, char **hostname, char **servistr, char **protostr);
 extern char *bk_netutils_gethostname(bk_s B);
 extern char *bk_inet_ntoa(bk_s B, struct in_addr addr, char *buf);
+
+/* b_addrgroup.c */
+extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_f callback, void *args, int backlog);
+extern void bk_addrgroup_ref(bk_s B, struct bk_addrgroup *bag);
+extern void bk_addrgroup_unref(bk_s B, struct bk_addrgroup *bag);
+void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
+extern int bk_addrgroup_get_server_socket(bk_s B, void *server_handle);
+extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
+extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
+extern int bk_addressgroup_suspend(bk_s B, struct bk_run *run, void *server_handle, bk_flags flags);
+#define BK_ADDRESSGROUP_RESUME	1		///< Resume addressgroup instead of suspending it
+extern int bk_addrgroup_addr_type(bk_s B, struct bk_addrgroup *bag, bk_flags flags);
+extern int bk_addrgroup_network(bk_s B, struct bk_addrgroup *bag, bk_flags flags);
 
 
 /* b_signal.c */
@@ -2082,21 +2113,6 @@ extern int bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags);
 extern bk_vptr *bk_slurp(bk_s B, FILE *FH, int fd, const char *filename, int maxwastage, bk_flags flags);
 #define BK_SLURP_NULL_TERMINATE			0x01 ///< Ask for returned data to be null terminated
 
-
-
-/* b_addrgroup.c */
-extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_f callback, void *args, int backlog);
-extern void bk_addrgroup_ref(bk_s B, struct bk_addrgroup *bag);
-extern void bk_addrgroup_unref(bk_s B, struct bk_addrgroup *bag);
-void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
-extern int bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, const char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags);
-extern int bk_addrgroup_get_server_socket(bk_s B, void *server_handle);
-extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
-extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);
-extern int bk_addressgroup_suspend(bk_s B, struct bk_run *run, void *server_handle, bk_flags flags);
-#define BK_ADDRESSGROUP_RESUME	1		///< Resume addressgroup instead of suspending it
-extern int bk_addrgroup_addr_type(bk_s B, struct bk_addrgroup *bag, bk_flags flags);
-extern int bk_addrgroup_network(bk_s B, struct bk_addrgroup *bag, bk_flags flags);
 
 
 /* b_time.c */

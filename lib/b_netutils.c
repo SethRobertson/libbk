@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.35 2007/01/11 06:01:37 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.36 2008/04/11 05:53:25 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -25,6 +25,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 
 #include <libbk.h>
+#include "libbkssl.h"
 #include "libbk_internal.h"
 
 
@@ -58,7 +59,6 @@ static void sss_destroy(bk_s B, struct start_service_state *sss);
 static void sss_serv_gethost_complete(bk_s B, struct bk_run *run , struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state);
 static void sss_connect_rgethost_complete(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state);
 static void sss_connect_lgethost_complete(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state);
-
 
 
 
@@ -304,13 +304,62 @@ bk_parse_endpt_no_defaults(bk_s B, const char *urlstr, char **hostname, char **s
  *	@param callback Function to call when start is complete.
  *	@param args User args for @a callback.
  *	@param backlog Server @a listen(2) backlog
+ * 	@param key_path (file) path to private key file in PEM format
+ * 	@param cert_path (file) path to certificate file in PEM format
+ * 	@param dhparam_path (file) path to dh param file in PEM format
+ * 	@param ca_file file to dh param file in PEM format
+ *	@param ctx_flags SSL context flags (see bk_ssl_create_context())
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  *	@return <i>>1</i> if BK_NETUTILS_ANY_LOCAL set, and successfully created a socket
  */
 int
-bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
+bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, const char *key_path, const char *cert_path, const char *ca_file, const char *dhparam_path, bk_flags ctx_flags, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (BK_FLAG_ISSET(flags, BK_NET_FLAG_WANT_SSL))
+  {
+    if (!bk_ssl_supported(B))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "SSL support is not available\n");
+      BK_RETURN(B, -1);      
+    }
+
+#ifndef NO_SSL
+    BK_RETURN(B, bk_ssl_start_service_verbose(B, run, url, defhoststr, defservstr, defprotostr, securenets, callback, args, backlog, key_path, cert_path, ca_file, dhparam_path, ctx_flags, flags));
+#endif /* NO_SSL */
+  }
+  BK_RETURN(B, bk_netutils_start_service_verbose_std(B, run, url, defhoststr, defservstr, defprotostr, securenets, callback, args, backlog, flags));
+}
+
+
+
+/**
+ * Make a service with a user friendly string based interface (verbose
+ * format). The def* arguments will replace unfound elements of the url and
+ * so should be defined when possible or you risk having an incompletely
+ * specified local side.
+ *
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The @a bk_run structure.
+ *	@param url The local endpoint specification (may be NULL).
+ *	@param defhostsstr Host string to use if host part of url is not found. (may be NULL).
+ *	@param defservstr Service string to use if service part of url is not found. (may be NULL).
+ *	@param protostr Protocol string to use if protocol part of url is not found. (may be NULL).
+ *	@param securenets Address based security specification.
+ *	@param callback Function to call when start is complete.
+ *	@param args User args for @a callback.
+ *	@param backlog Server @a listen(2) backlog
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ *	@return <i>>1</i> if BK_NETUTILS_ANY_LOCAL set, and successfully created a socket
+ */
+int
+bk_netutils_start_service_verbose_std(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *hoststr = NULL;
@@ -378,7 +427,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, c
   securenets = NULL;
   sss->sss_backlog = backlog;
 
-  if (!(BK_FLAG_ISSET(flags, BK_NETUTILS_ANY_ADDR)))
+  if (!(BK_FLAG_ISSET(flags, BK_NET_FLAG_ANY_ADDR)))
   {
     if (BK_STREQ(protostr, BK_AF_LOCAL_STREAM_PROTO_STR) || BK_STREQ(protostr, BK_AF_LOCAL_DGRAM_PROTO_STR))
     {
@@ -499,7 +548,7 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, const char *url, const cha
     defurl="";
 
   if (((ret=bk_parse_endpt_no_defaults(B, defurl, &defhoststr, &defservstr, &defprotostr)) < 0) ||
-      ((ret=bk_netutils_start_service_verbose(B, run, url, defhoststr, defservstr, defprotostr, NULL, callback, args, backlog, flags)) < 0))
+      ((ret=bk_netutils_start_service_verbose(B, run, url, defhoststr, defservstr, defprotostr, NULL, callback, args, backlog, NULL, NULL, NULL, NULL, 0, flags)) < 0))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not start service\n");
   }
@@ -634,8 +683,7 @@ sss_destroy(bk_s B, struct start_service_state *sss)
 
 
 /**
- * Start up a connection with a user friendly interface.
- *
+ * Start up a connection with an interface only a systems programmer could love.
  *
  *	@param B BAKA thread/global state.
  *	@param run The @a bk_run structure.
@@ -654,7 +702,49 @@ sss_destroy(bk_s B, struct start_service_state *sss)
  *	@return <i>0</i> on success.
  */
 int
-bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags )
+bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, const char *key_path, const char *cert_path, const char *ca_file, const char *dhparam_path, bk_flags ctx_flags, bk_flags flags )
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if (BK_FLAG_ISSET(flags, BK_NET_FLAG_WANT_SSL))
+  {
+    if (!bk_ssl_supported(B))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "SSL support is not available\n");
+      BK_RETURN(B, -1);      
+    }
+
+#ifndef NO_SSL
+    BK_RETURN(B, bk_ssl_make_conn_verbose(B, run, rurl, defrhost, defrserv, lurl, deflhost, deflserv, defproto, timeout, callback, args, key_path, cert_path, ca_file, dhparam_path, ctx_flags, flags));
+#endif /* NO_SSL */
+  }
+
+  BK_RETURN(B, bk_netutils_make_conn_verbose_std(B, run, rurl, defrhost, defrserv, lurl, deflhost, deflserv, defproto, timeout, callback, args, flags));
+}
+
+
+
+/**
+ * Start up a connection with an interface only a systems programmer could love.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The @a bk_run structure.
+ *	@param rurl The remoe endpoint specification (may be NULL).
+ *	@param rdefhostsstr Remote host string to use if host part of url is not found. (may be NULL).
+ *	@param rdefservstr Remote service string to use if service part of url is not found. (may be NULL).
+ *	@param lurl The local endpoint specification (may be NULL).
+ *	@param ldefhostsstr Local host string to use if host part of url is not found. (may be NULL).
+ *	@param ldefservstr Local service string to use if service part of url is not found. (may be NULL).
+ *	@param protostr Protocol string to use if protocol part of url is not found. (may be NULL).
+ *	@param timeout Abort connection after @a timeout mseconds.
+ *	@param callback Function to call when start is complete.
+ *	@param args User args for @a callback.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_netutils_make_conn_verbose_std(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *rhoststr = NULL;
@@ -944,7 +1034,7 @@ bk_netutils_make_conn(bk_s B, struct bk_run *run, const char *url, const char *d
     defurl="";
 
   if (((ret=bk_parse_endpt_no_defaults(B, defurl, &defhoststr, &defservstr, &defprotostr)) < 0) ||
-      ((ret=bk_netutils_make_conn_verbose(B, run, url, defhoststr, defservstr, NULL, NULL, NULL, defprotostr, timeout, callback, args, flags)) < 0))
+      ((ret=bk_netutils_make_conn_verbose_std(B, run, url, defhoststr, defservstr, NULL, NULL, NULL, defprotostr, timeout, callback, args, flags)) < 0))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not start connection\n");
   }

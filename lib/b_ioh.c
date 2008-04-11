@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.119 2007/01/18 22:47:23 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.120 2008/04/11 05:53:24 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -298,6 +298,7 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk
  * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state
+ *	@param ssl SSL session state
  *	@param fdin The file descriptor to read from.  -1 if no input is desired.
  *	@param fdout The file descriptor to write to.  -1 if no output is desired.  (This will be different from fdin only for pipe(2) style fds where descriptors are only useful in one direction and occur in pairs.)
  *	@param handler The user callback to notify on complete I/O or other events
@@ -310,7 +311,41 @@ static int ioht_line_other(bk_s B, struct bk_ioh *ioh, u_int data, u_int cmd, bk
  *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
  *	@return <br><i>ioh structure</i> if successful.
  */
-struct bk_ioh *bk_ioh_init(bk_s B, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags)
+struct bk_ioh *bk_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+#ifndef NO_SSL
+  if (ssl)
+  {
+    BK_RETURN(B, bk_ssl_ioh_init(B, ssl, fdin, fdout, handler, opaque, inbufhint, inbufmax, outbufmax, run, flags));
+  }
+#endif /* NO_SSL */
+  
+  BK_RETURN(B, bk_ioh_init_std(B, fdin, fdout, handler, opaque, inbufhint, inbufmax, outbufmax, run, flags));
+}
+
+
+
+/**
+ * Create and initialize the ioh environment.
+ *
+ * THREADS: MT-SAFE
+ *
+ *	@param B BAKA thread/global state
+ *	@param fdin The file descriptor to read from.  -1 if no input is desired.
+ *	@param fdout The file descriptor to write to.  -1 if no output is desired.  (This will be different from fdin only for pipe(2) style fds where descriptors are only useful in one direction and occur in pairs.)
+ *	@param handler The user callback to notify on complete I/O or other events
+ *	@param opaque The opaque data for the user callback.
+ *	@param inbufhint A hint for the input routines (0 for 128 bytes)
+ *	@param inbufmax The maximum buffer size of incomplete data (0 for unlimited) -- note this is a hint not an absolute limit
+ *	@param outbufmax The maximum amount of data queued for transmission (0 for unlimited) -- note this is a hint not an absolute limit
+ *	@param run The bk run environment to use with the fd.
+ *	@param flags The type of data on the file descriptors.
+ *	@return <i>NULL</i> on call failure, allocation failure, or other fatal error.
+ *	@return <br><i>ioh structure</i> if successful.
+ */
+struct bk_ioh *bk_ioh_init_std(bk_s B, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ioh *curioh = NULL;
