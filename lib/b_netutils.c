@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.36 2008/04/11 05:53:25 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.37 2008/04/14 00:18:11 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -312,7 +312,6 @@ bk_parse_endpt_no_defaults(bk_s B, const char *urlstr, char **hostname, char **s
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
- *	@return <i>>1</i> if BK_NETUTILS_ANY_LOCAL set, and successfully created a socket
  */
 int
 bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, const char *key_path, const char *cert_path, const char *ca_file, const char *dhparam_path, bk_flags ctx_flags, bk_flags flags)
@@ -356,7 +355,6 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, c
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
- *	@return <i>>1</i> if BK_NETUTILS_ANY_LOCAL set, and successfully created a socket
  */
 int
 bk_netutils_start_service_verbose_std(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, bk_flags flags)

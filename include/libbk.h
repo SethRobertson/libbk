@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.350 2008/04/11 05:53:24 jtt Exp $
+ * $Id: libbk.h,v 1.351 2008/04/14 00:18:11 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1193,7 +1193,7 @@ struct bk_netinfo
 {
   bk_flags		bni_flags;		///< Everyone needs flags
   struct bk_netaddr *	bni_addr;		///< Primary address -- pointer into addrs CLC
-   struct bk_netaddr *	bni_addr2;		///< Secondary address -- pointer into addrs CLC
+  struct bk_netaddr *	bni_addr2;		///< Secondary address -- pointer into addrs CLC
   dict_h		bni_addrs;		///< dll of addrs
   struct bk_servinfo *	bni_bsi;		///< Service info
   struct bk_protoinfo *	bni_bpi;		///< Protocol info
