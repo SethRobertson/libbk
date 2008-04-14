@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.16 2008/04/11 20:51:08 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.17 2008/04/14 22:22:42 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1520,7 +1520,7 @@ int ssl_threads_init(bk_s B)
 
   for (i=0; i<CRYPTO_num_locks(); i++)
   {
-    lock_count[i]=0;
+    lock_count[i] = 0;
     pthread_mutex_init(&(lock_cs[i]),NULL);
   }
 

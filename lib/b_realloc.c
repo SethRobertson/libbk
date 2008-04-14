@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_realloc.c,v 1.5 2005/01/11 22:36:31 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_realloc.c,v 1.6 2008/04/14 22:22:41 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -315,7 +315,7 @@ bk_strdup_wrapper(const char *str)
     goto error;
     
   memmove(new_str, str, len);
-  new_str[len]='\0';
+  new_str[len] = '\0';
 
   return(new_str);
 
@@ -352,8 +352,7 @@ bk_strndup_wrapper(const char *str, size_t n)
     goto error;
     
   memmove(new_str, str, len);
-  new_str[len]='\0';
-
+  new_str[len] = '\0';
   
   return(new_str);
 

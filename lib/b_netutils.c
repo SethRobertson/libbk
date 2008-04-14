@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.37 2008/04/14 00:18:11 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netutils.c,v 1.38 2008/04/14 22:22:41 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -540,13 +540,13 @@ bk_netutils_start_service(bk_s B, struct bk_run *run, const char *url, const cha
   }
 
   if (!url)
-    url="";
+    url = "";
 
   if (!defurl)
-    defurl="";
+    defurl = "";
 
-  if (((ret=bk_parse_endpt_no_defaults(B, defurl, &defhoststr, &defservstr, &defprotostr)) < 0) ||
-      ((ret=bk_netutils_start_service_verbose(B, run, url, defhoststr, defservstr, defprotostr, NULL, callback, args, backlog, NULL, NULL, NULL, NULL, 0, flags)) < 0))
+  if (((ret = bk_parse_endpt_no_defaults(B, defurl, &defhoststr, &defservstr, &defprotostr)) < 0) ||
+      ((ret = bk_netutils_start_service_verbose(B, run, url, defhoststr, defservstr, defprotostr, NULL, callback, args, backlog, NULL, NULL, NULL, NULL, 0, flags)) < 0))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not start service\n");
   }

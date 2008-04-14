@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.54 2008/04/11 05:53:24 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.55 2008/04/14 22:22:41 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1070,7 +1070,7 @@ static void
 net_init_end(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_addrgroup *bag=NULL;
+  struct bk_addrgroup *bag = NULL;
 
   if (!as)
   {
@@ -2101,7 +2101,7 @@ int
 bk_addrgroup_server_close(bk_s B, void *server_handle)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct addrgroup_state *as=server_handle;
+  struct addrgroup_state *as = server_handle;
 
   if (!as)
   {
