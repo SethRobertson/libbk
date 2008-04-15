@@ -1,3 +1,8 @@
+2008-04-15  James Tanis  <jtt@stockade.tanis.org>
+
+	* lib/b_url.c (bk_url_parse_authority): Change bk_url_authority to
+	look like other libbk structs.
+
 2008-04-09  James Tanis  <jtt@localhost.localdomain>
 
 	* ssl/b_ssl.c: Avoid a dangling reference by withdrawing the iofun

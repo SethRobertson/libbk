@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.351 2008/04/14 00:18:11 jtt Exp $
+ * $Id: libbk.h,v 1.352 2008/04/15 06:29:40 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1347,11 +1347,11 @@ struct bk_url
  */
 struct bk_url_authority
 {
-  bk_flags	flags;				///< Everyone needs flags
-  char	       *auth_user;			///< username
-  char	       *auth_pass;			///< password
-  char	       *auth_host;			///< host
-  char	       *auth_port;			///< port
+  char *	bua_user;			///< username
+  char *	bua_pass;			///< password
+  char *	bua_host;			///< host
+  char *	bua_port;			///< port
+  bk_flags	bua_flags;			///< Everyone needs flags
 };
 // @}
 

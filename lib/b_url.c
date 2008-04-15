@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_url.c,v 1.36 2004/07/08 04:40:18 lindauer Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_url.c,v 1.37 2008/04/15 06:29:40 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -778,7 +778,7 @@ struct bk_url_authority *
 bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_url_authority *auth = NULL;
+  struct bk_url_authority *bua = NULL;
   char *amp = NULL;
   char *col = NULL;
 
@@ -788,7 +788,7 @@ bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags)
     goto error;
   }
 
-  if (!BK_CALLOC(auth))
+  if (!BK_CALLOC(bua))
   {
     bk_error_printf(B, BK_ERR_ERR, "malloc failed\n");
     goto error;
@@ -801,13 +801,13 @@ bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags)
     if (col = (char*) memchr(auth_str, ':', userdata_len))
     {
       u_int16_t user_len = col - auth_str;	// don't include :
-      auth->auth_user = bk_strndup(B, auth_str, user_len);
-      auth->auth_pass = bk_strndup(B, col + 1, userdata_len - user_len - 1);
+      bua->bua_user = bk_strndup(B, auth_str, user_len);
+      bua->bua_pass = bk_strndup(B, col + 1, userdata_len - user_len - 1);
     }
     else
     {
       // whole userdata is just the user
-      auth->auth_user = bk_strndup(B, auth_str, userdata_len);
+      bua->bua_user = bk_strndup(B, auth_str, userdata_len);
     }
     auth_str = amp + 1;
   }
@@ -815,20 +815,20 @@ bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags)
   // host and port
   if (col = strchr(auth_str, ':'))
   {
-    auth->auth_host = bk_strndup(B, auth_str, col - auth_str);
-    auth->auth_port = strdup(col + 1);
+    bua->bua_host = bk_strndup(B, auth_str, col - auth_str);
+    bua->bua_port = strdup(col + 1);
   }
   else
   {
     // no port, only host
-    auth->auth_host = strdup(auth_str);
+    bua->bua_host = strdup(auth_str);
   }
 
-  BK_RETURN(B, auth);
+  BK_RETURN(B, bua);
 
  error:
-  if (auth)
-    bk_url_authority_destroy(B, auth);
+  if (bua)
+    bk_url_authority_destroy(B, bua);
 
   BK_RETURN(B, NULL);
 }
@@ -844,25 +844,25 @@ bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags)
  * @param auth ptr to struct
  */
 void
-bk_url_authority_destroy(bk_s B, struct bk_url_authority *auth)
+bk_url_authority_destroy(bk_s B, struct bk_url_authority *bua)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
-  if (auth)
+  if (bua)
   {
-    if (auth->auth_user)
-      free(auth->auth_user);
+    if (bua->bua_user)
+      free(bua->bua_user);
 
-    if (auth->auth_pass)
-      free(auth->auth_pass);
+    if (bua->bua_pass)
+      free(bua->bua_pass);
 
-    if (auth->auth_host)
-      free(auth->auth_host);
+    if (bua->bua_host)
+      free(bua->bua_host);
 
-    if (auth->auth_port)
-      free(auth->auth_port);
+    if (bua->bua_port)
+      free(bua->bua_port);
 
-    free(auth);
+    free(bua);
   }
 
   BK_VRETURN(B);

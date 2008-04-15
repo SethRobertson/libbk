@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.25 2005/09/02 17:13:53 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_netinfo.c,v 1.26 2008/04/15 06:29:40 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -301,7 +301,7 @@ update_bni_pretty(bk_s B, struct bk_netinfo *bni)
   bni->bni_pretty = NULL;
 
   snprintf(scratch, SCRATCHLEN, "[%s:%s:%s]",
-	   (bni->bni_addr && bni->bni_addr->bna_pretty)?bni->bni_addr->bna_pretty:"NO_ADDDR",
+	   (bni->bni_addr && bni->bni_addr->bna_pretty)?bni->bni_addr->bna_pretty:"NO_ADDR",
 	   (bni->bni_bsi && bni->bni_bsi->bsi_servstr)?bni->bni_bsi->bsi_servstr:"NO_SERV",
 	   (bni->bni_bpi && bni->bni_bpi->bpi_protostr)?bni->bni_bpi->bpi_protostr:"NO_PROTO");
 
