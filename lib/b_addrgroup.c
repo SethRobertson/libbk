@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.57 2008/04/16 17:04:05 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.58 2008/04/16 21:56:56 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -70,6 +70,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 struct addrgroup_state
 {
   bk_flags		as_flags;		///< Everyone needs flags
+#define AS_FLAG_CLOSING		0x1		///< Close loop protecton.
   bk_addrgroup_state_e	as_state;		///< Our state.
   int			as_sock;		///< Socket
   struct bk_addrgroup *	as_bag;			///< Addrgroup info
@@ -1307,8 +1308,13 @@ stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void 
 
   if (BK_FLAG_ISSET(gottype, BK_RUN_CLOSE))
   {
-    // We're looping around in our own callbacks (most likely)
-    BK_VRETURN(B);
+    if (BK_FLAG_ISSET(as->as_flags, AS_FLAG_CLOSING))
+    {
+      // We're probably looping, so just return
+      BK_VRETURN(B);    
+    }
+    BK_FLAG_SET(as->as_flags, AS_FLAG_CLOSING);
+    goto error;
   }
 
   bag = as->as_bag;
