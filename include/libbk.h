@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.352 2008/04/15 06:29:40 jtt Exp $
+ * $Id: libbk.h,v 1.353 2008/04/16 00:41:54 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2033,7 +2033,8 @@ extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obs
  */
 #define BK_NET_FLAG_ANY_ADDR 		0x01	///< Bind to INADDR_ANY
 #define BK_NET_FLAG_WANT_SSL 		0x02	///< Use SSL (fail if not supported)
-#define BK_NET_FLAG_STANDARD_UDP 	0x04	///< Don't send baka preamble/syn thing
+#define BK_NET_FLAG_STANDARD_UDP 	0x04	///< Don't send baka preamble/syn thing (This option is no longer used, but maintained for backwards compat).
+#define BK_NET_FLAG_BAKA_UDP 		0x08	///< Use the deprecated BAKA UDP preamble thing. 
 
 
 /* b_netutils.c */
@@ -2052,7 +2053,7 @@ extern char *bk_inet_ntoa(bk_s B, struct in_addr addr, char *buf);
 extern int bk_net_init(bk_s B, struct bk_run *run, struct bk_netinfo *local, struct bk_netinfo *remote, u_long timeout, bk_flags flags, bk_bag_callback_f callback, void *args, int backlog);
 extern void bk_addrgroup_ref(bk_s B, struct bk_addrgroup *bag);
 extern void bk_addrgroup_unref(bk_s B, struct bk_addrgroup *bag);
-void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
+extern void bk_addrgroup_destroy(bk_s B,struct bk_addrgroup *bag);
 extern int bk_addrgroup_get_server_socket(bk_s B, void *server_handle);
 extern int bk_addrgroup_server_close(bk_s B, void *server_handle);
 extern bk_addrgroup_state_e bk_net_init_sys_error(bk_s B, int lerrno);

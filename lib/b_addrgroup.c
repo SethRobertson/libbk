@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.55 2008/04/14 22:22:41 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.56 2008/04/16 00:41:55 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -752,7 +752,18 @@ do_net_init_dgram_connect(bk_s B, struct addrgroup_state *as)
     goto error;
   }
 
-  if (BK_FLAG_ISCLEAR(as->as_user_flags, BK_NET_FLAG_STANDARD_UDP))
+  /*
+   * <WARNING>
+   * THIS IS TOTALLY UNNECESSARY CODE WHICH IS MAITAINED ONLY FOR
+   * BACKWARD COMPATIBILITY WITH THINGS COMPILED AGAINST AN OLDER
+   * VERSION OF LIBBK. YOU DO NOT NEED TO READ ANY DATA IN ORDER TO
+   * OBTAIN THE REMOTE ADDRESS AND WHY JTT DIDN'T REALIZE THIS IN 2001
+   * PASSES ALL UNDERSTANDING.
+   *
+   * Anyway do not set BK_NET_FLAG_BAKA_UDP unless you absolutely have to.
+   * </WARNING>
+   */
+  if (BK_FLAG_ISSET(as->as_user_flags, BK_NET_FLAG_BAKA_UDP))
   {
     cnt = 0;
     while(cnt < sizeof(DGRAM_PREAMBLE))
@@ -1660,39 +1671,65 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
     char buf[sizeof(DGRAM_PREAMBLE)];
     int one = 1;
 
-    /*
-     * Simulate accept(2) for DGRAM service. Obtain the preamble (which is
-     * really mostly just a "dummy" client write so the server has something
-     * to recvfrom(2) on before real data comes). Connect the server socket
-     * to the client and the create a *new* server socket. It *must* be
-     * done in this order or the second bind(2) will fail with
-     * EADDRINUSE). Finally swap the descriptors so as->as_sock is the
-     * server descriptor and newfd is the "accept(2)" descriptor, just as
-     * would the case in the STREAM situation.
-     */
     memset(&bs, 0, sizeof(bs));
     memset(buf, sizeof(buf), 0);
     bs_len = sizeof(bs);
 
-    // Receive the preamble and verify it. Then connect to peer so read/write work
-    if (recvfrom(as->as_sock, buf, sizeof(buf), 0, &(bs.bs_sa), &bs_len) < 0)
+    if (BK_FLAG_ISSET(as->as_user_flags, BK_NET_FLAG_BAKA_UDP))
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not receive dgram preamble: %s\n", strerror(errno));
-      goto error;
+      /*
+       * <WARNING>
+       * THIS IS TOTALLY UNNECESSARY CODE WHICH IS MAITAINED ONLY FOR
+       * BACKWARD COMPATIBILITY WITH THINGS COMPILED AGAINST AN OLDER
+       * VERSION OF LIBBK. YOU DO NOT NEED TO READ ANY DATA IN ORDER TO
+       * OBTAIN THE REMOTE ADDRESS AND WHY JTT DIDN'T REALIZE THIS IN 2001
+       * PASSES ALL UNDERSTANDING.
+       *
+       * Anyway do not set BK_NET_FLAG_BAKA_UDP unless you absolutely have to.
+       * </WARNING>
+       */
+
+      /*
+       * Simulate accept(2) for DGRAM service. Obtain the preamble (which is
+       * really mostly just a "dummy" client write so the server has something
+       * to recvfrom(2) on before real data comes). Connect the server socket
+       * to the client and the create a *new* server socket. It *must* be
+       * done in this order or the second bind(2) will fail with
+       * EADDRINUSE). Finally swap the descriptors so as->as_sock is the
+       * server descriptor and newfd is the "accept(2)" descriptor, just as
+       * would the case in the STREAM situation.
+       */
+      // Receive the preamble and verify it. Then connect to peer so read/write work
+      if (recvfrom(as->as_sock, buf, sizeof(buf), 0, &(bs.bs_sa), &bs_len) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not receive dgram preamble: %s\n", strerror(errno));
+	goto error;
+      }
+
+      if (!BK_STREQ(buf, DGRAM_PREAMBLE))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Did not receive proper dgram preamble\n");
+	goto error;
+      }
+    }
+    else
+    {
+      // Use a 0 length receive buffer to extract remote sockaddr without actually reading data.
+      if (recvfrom(as->as_sock, NULL, 0, MSG_PEEK, &(bs.bs_sa), &bs_len) < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not receive dgram preamble: %s\n", strerror(errno));
+	goto error;
+      }
     }
 
-    if (!BK_STREQ(buf, DGRAM_PREAMBLE))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Did not receive proper dgram preamble\n");
-      goto error;
-    }
-
+    // bk_run_close is a misleading name. We're just withdrawing the socket from bk_run.
     if (bk_run_close(B, run, as->as_sock, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not withdraw newly connected DGRAM socket from serving\n");
       goto error;
     }
 
+    // Connect with client.
     if (connect(as->as_sock, &(bs.bs_sa), bs_len) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create server dgram connection: %s\n", strerror(errno));
@@ -1706,6 +1743,7 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
       goto error;
     }
 
+    // Create a new server
     if ((newfd = socket(bs.bs_sa.sa_family, SOCK_DGRAM, (bag->bag_proto == BK_GENERIC_DGRAM_PROTO)?0:bag->bag_proto)) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create socket: %s\n", strerror(errno));

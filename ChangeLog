@@ -1,5 +1,11 @@
 2008-04-15  James Tanis  <jtt@stockade.tanis.org>
 
+	* lib/b_addrgroup.c (listen_activity): For UDP obtain the remote
+	address with a NULL read and MSG_PEEK.
+
+	* include/libbk.h (BK_NET_FLAG_STANDARD_UDP): BAKA UDP is
+	officially deprecated (it was stupid and unnecessary).
+
 	* lib/b_url.c (bk_url_parse_authority): Change bk_url_authority to
 	look like other libbk structs.
 

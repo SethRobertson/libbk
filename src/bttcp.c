@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.64 2008/04/14 00:18:11 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: bttcp.c,v 1.65 2008/04/16 00:41:55 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -474,6 +474,7 @@ static int
 proginit(bk_s B, struct program_config *pc)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
+  bk_flags conn_flags = 0;
 
   if (!pc)
   {
@@ -502,39 +503,31 @@ proginit(bk_s B, struct program_config *pc)
   bk_signal(B, SIGCHLD, bk_reaper, BK_RUN_SIGNAL_RESTART);
   bk_signal(B, SIGINT, finish, BK_RUN_SIGNAL_RESTART);
 
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
+  {
+    BK_FLAG_SET(conn_flags, BK_NET_FLAG_WANT_SSL);
+  }
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_BAKAUDP))
+  {
+    BK_FLAG_SET(conn_flags, BK_NET_FLAG_BAKA_UDP);
+  }
+
   switch (pc->pc_role)
   {
   case BttcpRoleReceive:
     {
-      bk_flags start_service_flags = 0;
-      if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
-      {
-	BK_FLAG_SET(start_service_flags, BK_NET_FLAG_WANT_SSL);
-      }
-      if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto, NULL, connect_complete, pc, 0, pc->pc_ssl_key_file, pc->pc_ssl_cert_file, pc->pc_ssl_cafile, pc->pc_ssl_dhparam_file, 0, start_service_flags))
+      if (bk_netutils_start_service_verbose(B, pc->pc_run, pc->pc_localurl, BK_ADDR_ANY, DEFAULT_PORT_STR, pc->pc_proto, NULL, connect_complete, pc, 0, pc->pc_ssl_key_file, pc->pc_ssl_cert_file, pc->pc_ssl_cafile, pc->pc_ssl_dhparam_file, 0, conn_flags))
 	bk_die(B, 1, stderr, "Could not start receiver (Port in use?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
     }
-
     break;
 
   case BttcpRoleTransmit:
     {
-      bk_flags make_conn_flags = 0;
-      if (BK_FLAG_ISSET(pc->pc_flags, PC_SSL))
-      {
-	BK_FLAG_SET(make_conn_flags, BK_NET_FLAG_WANT_SSL);
-      }
-      if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_BAKAUDP))
-      {
-	BK_FLAG_SET(make_conn_flags, BK_NET_FLAG_STANDARD_UDP);
-      }
-
-      if (bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, pc->pc_proto, pc->pc_timeout, connect_complete, pc, pc->pc_ssl_key_file, pc->pc_ssl_cert_file, pc->pc_ssl_cafile, pc->pc_ssl_dhparam_file, 0, make_conn_flags) < 0)
+      if (bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, pc->pc_proto, pc->pc_timeout, connect_complete, pc, pc->pc_ssl_key_file, pc->pc_ssl_cert_file, pc->pc_ssl_cafile, pc->pc_ssl_dhparam_file, 0, conn_flags) < 0)
       {
 	bk_die(B, 1, stderr, "Could not start transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
       }
     }
-
     break;
 
   default:
