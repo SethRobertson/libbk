@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.56 2008/04/16 00:41:55 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.57 2008/04/16 17:04:05 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -30,7 +30,6 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 // Preamble sent in dgram service. If this changes *all* libbk dgram clients must change.
 #define DGRAM_PREAMBLE	"PjIRi6yAvs3r4BG1"
-
 
 /**
  * @Section README DEVELOPERS
