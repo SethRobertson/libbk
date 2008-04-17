@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.353 2008/04/16 00:41:54 jtt Exp $
+ * $Id: libbk.h,v 1.354 2008/04/17 16:18:10 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -1686,6 +1686,7 @@ extern int bk_run_handle(bk_s B, struct bk_run *run, int fd, bk_fd_handler_t han
 #define BK_RUN_USERFLAG4			0x8000 ///< Reserved for user use
 #define BK_RUN_THREADREADY			0x10000 ///< Handler is prepared to run in a thread
 extern int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags);
+#define BK_RUN_CLOSE_FLAG_NO_HANDLER		0x01 ///< We do not want the handler run while closing this FD.
 extern u_int bk_run_getpref(bk_s B, struct bk_run *run, int fd, bk_flags flags);
 extern int bk_run_setpref(bk_s B, struct bk_run *run, int fd, u_int wanttypes, u_int wantmask, bk_flags flags);
 #define BK_RUN_WANTREAD				0x01 ///< Specify to bk_run_setpref that we want read notification for this fd

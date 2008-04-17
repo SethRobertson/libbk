@@ -1,3 +1,11 @@
+2008-04-17  James Tanis  <jtt@stockade.tanis.org>
+
+	* lib/b_addrgroup.c: Don't run FD handler in some calls to
+	bk_run_close. 
+
+	* lib/b_run.c (bk_run_close): Option to bk_run_close to be called
+	without running the FD handler.
+
 2008-04-15  James Tanis  <jtt@stockade.tanis.org>
 
 	* lib/b_addrgroup.c (listen_activity): For UDP obtain the remote

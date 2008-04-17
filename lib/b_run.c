@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.84 2007/01/18 22:47:23 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_run.c,v 1.85 2008/04/17 16:18:10 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1990,8 +1990,11 @@ int bk_run_close(bk_s B, struct bk_run *run, int fd, bk_flags flags)
   BK_SIMPLE_UNLOCK(B, &run->br_lock);
 
   // Optionally tell user handler that he will never be called again.
-  gettimeofday(&curtime, NULL);
-  bk_run_runfd(B, run, fd, BK_RUN_CLOSE, brf->brf_handler, brf->brf_opaque, &curtime, brf->brf_flags);
+  if (BK_FLAG_ISCLEAR(flags, BK_RUN_CLOSE_FLAG_NO_HANDLER))
+  {
+    gettimeofday(&curtime, NULL);
+    bk_run_runfd(B, run, fd, BK_RUN_CLOSE, brf->brf_handler, brf->brf_opaque, &curtime, brf->brf_flags);
+  }
 
   brf_destroy(B, brf);
 

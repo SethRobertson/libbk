@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.58 2008/04/16 21:56:56 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.59 2008/04/17 16:18:10 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -26,7 +26,6 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 #include <libbk.h>
 #include "libbk_internal.h"
-
 
 // Preamble sent in dgram service. If this changes *all* libbk dgram clients must change.
 #define DGRAM_PREAMBLE	"PjIRi6yAvs3r4BG1"
@@ -70,7 +69,6 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 struct addrgroup_state
 {
   bk_flags		as_flags;		///< Everyone needs flags
-#define AS_FLAG_CLOSING		0x1		///< Close loop protecton.
   bk_addrgroup_state_e	as_state;		///< Our state.
   int			as_sock;		///< Socket
   struct bk_addrgroup *	as_bag;			///< Addrgroup info
@@ -1272,10 +1270,10 @@ stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void 
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_sockaddr_t bs;
   struct bk_addrgroup *bag;
-  struct addrgroup_state *as;
+  struct addrgroup_state *as = (struct addrgroup_state *)args;
   socklen_t socklen;
 
-  if (!run || !(as = args))
+  if (!run || !as)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
@@ -1308,12 +1306,7 @@ stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void 
 
   if (BK_FLAG_ISSET(gottype, BK_RUN_CLOSE))
   {
-    if (BK_FLAG_ISSET(as->as_flags, AS_FLAG_CLOSING))
-    {
-      // We're probably looping, so just return
-      BK_VRETURN(B);    
-    }
-    BK_FLAG_SET(as->as_flags, AS_FLAG_CLOSING);
+    bk_error_printf(B, BK_ERR_NOTICE, "Connection closing while waiting for connect activity\n");
     goto error;
   }
 
@@ -1337,7 +1330,7 @@ stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void 
    * want to let the caller take over the socket with a "clean slate" as it
    * were.
    */
-  if (bk_run_close(B, as->as_run, as->as_sock, 0) < 0)
+  if (bk_run_close(B, as->as_run, as->as_sock, BK_RUN_CLOSE_FLAG_NO_HANDLER) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not withdraw socket from run\n");
   }
@@ -1728,7 +1721,7 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
     }
 
     // bk_run_close is a misleading name. We're just withdrawing the socket from bk_run.
-    if (bk_run_close(B, run, as->as_sock, 0) < 0)
+    if (bk_run_close(B, run, as->as_sock, BK_RUN_CLOSE_FLAG_NO_HANDLER) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not withdraw newly connected DGRAM socket from serving\n");
       goto error;
@@ -1839,6 +1832,7 @@ static void
 net_close(bk_s B, struct addrgroup_state *as)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  bk_flags bk_run_close_flags = 0;
 
   if (!as)
   {
@@ -1852,7 +1846,16 @@ net_close(bk_s B, struct addrgroup_state *as)
     BK_VRETURN(B);
   }
 
-  if (bk_run_close(B, as->as_run, as->as_sock, 0) < 0)
+  /*
+   *  If we're here because we're allready in the process of closing we
+   *  don't need the handler notification.
+   */
+  if (as->as_state == BkAddrGroupStateClosing)
+  {
+    BK_FLAG_SET(bk_run_close_flags, BK_RUN_CLOSE_FLAG_NO_HANDLER);
+  }
+
+  if (bk_run_close(B, as->as_run, as->as_sock, bk_run_close_flags) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not withdraw socket from run\n");
   }
