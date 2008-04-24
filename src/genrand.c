@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: genrand.c,v 1.12 2005/09/02 17:13:55 dupuy Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: genrand.c,v 1.13 2008/04/24 21:43:32 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -50,13 +50,14 @@ struct global_structure
  */
 struct program_config
 {
-  u_int			pc_bytes;		///< How much output
+  u_long		pc_bytes;		///< How much output
   u_int			pc_reinit;		///< Reinit interval
   u_int			pc_maxnum;		///< Maximum number in range
   bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x001			///< Verbose output
 #define PC_MULTI	0x002			///< Ascii-output
 #define PC_HEX		0x004			///< Hex-output
+#define PC_MT19937	0x008			///< Twister PRNG
 };
 
 
@@ -92,9 +93,9 @@ main(int argc, char **argv, char **envp)
     {"rawoutput", 'r', POPT_ARG_NONE, NULL, 'r', N_("Produce 8-bit output"), NULL },
     {"hexoutput", 'h', POPT_ARG_NONE, NULL, 'h', N_("Produce hex output"), NULL },
     {"multioutput", 'm', POPT_ARG_NONE, NULL, 'm', N_("Produce ascii output"), NULL },
-    {"outbytes", 's', POPT_ARG_INT, NULL, 's', "Number of bytes of output", "bytes" },
-    {"reinit", 'R', POPT_ARG_INT, NULL, 'R', "Refresh pool every Exponent (2^N) words", "exponent" },
-    {"number", 'n', POPT_ARG_INT, NULL, 'n', "Integers between 0 and n", "max number" },
+    {"outbytes", 's', POPT_ARG_INT, NULL, 's', N_("Number of bytes of output"), "bytes" },
+    {"reinit", 'R', POPT_ARG_INT, NULL, 'R', N_("Refresh pool every Exponent (2^N) words"), "exponent" },
+    {"mt19937", 'T', POPT_ARG_NONE, NULL, 'T', N_("Use Mersenne Twister pseudorandom number instead of true random number generator"), NULL },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -147,7 +148,7 @@ main(int argc, char **argv, char **envp)
       getopterr++;
       break;
 
-    case 'b':					// bit
+    case 'r':					// bit/raw
       BK_FLAG_CLEAR(pconfig->pc_flags, PC_MULTI);
       BK_FLAG_CLEAR(pconfig->pc_flags, PC_HEX);
       break;
@@ -160,9 +161,17 @@ main(int argc, char **argv, char **envp)
       BK_FLAG_SET(pconfig->pc_flags, PC_HEX);
       break;
     case 's':					// Bytes of output
-      pconfig->pc_bytes=atoi(poptGetOptArg(optCon));
+      {
+	double tmplimit = bk_string_demagnify(B, poptGetOptArg(optCon), 0);
+	if (isnan(tmplimit))
+	  getopterr++;
+	pconfig->pc_bytes = tmplimit;
+      }
       break;
-    case 'r':					// Bits of entropy
+    case 'T':					// Twister PNRG
+      BK_FLAG_SET(pconfig->pc_flags, PC_MT19937);
+      break;
+    case 'R':					// Bits of entropy
       pconfig->pc_reinit=atoi(poptGetOptArg(optCon));
       break;
     case 'n':					// Number
@@ -198,15 +207,26 @@ main(int argc, char **argv, char **envp)
 static void runit(bk_s B, struct program_config *pconfig)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "SIMPLE");
-  u_int32_t number;
+  u_int64_t number;
   u_char *data = (u_char *)&number;
-  u_int32_t cntr = 0;
-  u_int32_t used = 0;
-  struct bk_truerandinfo *R;
+  u_long cntr = 0;
+  u_long used = 0;
+  struct bk_truerandinfo *R = NULL;
+  struct mt_state *M = NULL;
 
-  if (!(R = bk_truerand_init(B, pconfig->pc_reinit, 0)))
+  if (BK_FLAG_ISSET(pconfig->pc_flags, PC_MT19937))
   {
-    bk_die(B, 1, stderr, "Could not initialize random number generator\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+    if (!(M = mt19937_truerand_init()))
+    {
+      bk_die(B, 1, stderr, "Could not initialize Twister random number generator\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+    }
+  }
+  else
+  {
+    if (!(R = bk_truerand_init(B, pconfig->pc_reinit, 0)))
+    {
+      bk_die(B, 1, stderr, "Could not initialize random number generator\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+    }
   }
 
   if (pconfig->pc_maxnum)
@@ -217,7 +237,14 @@ static void runit(bk_s B, struct program_config *pconfig)
     {
       u_int64_t first, second;
 
-      first = ((u_int64_t)bk_truerand_getword(B, R, NULL, 0))<<32 | ((u_int64_t)bk_truerand_getword(B, R, NULL, 0));
+      if (BK_FLAG_ISSET(pconfig->pc_flags, PC_MT19937))
+      {
+	first = mt19937_genrand64_int64(M);
+      }
+      else
+      {
+	first = ((u_int64_t)bk_truerand_getword(B, R, NULL, 0))<<32 | ((u_int64_t)bk_truerand_getword(B, R, NULL, 0));
+      }
       second = UINT64_MAX;
 
       fraction = (double)first/(double)second;
@@ -232,8 +259,16 @@ static void runit(bk_s B, struct program_config *pconfig)
   {
     if (used < 1)
     {
-      number = bk_truerand_getword(B, R, NULL, 0);
-      used = 4;
+      if (BK_FLAG_ISSET(pconfig->pc_flags, PC_MT19937))
+      {
+	number = mt19937_genrand64_int64(M);
+	used = 8;
+      }
+      else
+      {
+	number = bk_truerand_getword(B, R, NULL, 0);
+	used = 4;
+      }
     }
 
     if (BK_FLAG_ISSET(pconfig->pc_flags, PC_MULTI))
@@ -249,11 +284,11 @@ static void runit(bk_s B, struct program_config *pconfig)
     }
     else if (BK_FLAG_ISSET(pconfig->pc_flags, PC_HEX))
     {
-      if (!pconfig->pc_bytes || cntr + 8 <= pconfig->pc_bytes)
+      if (!pconfig->pc_bytes || cntr + used*2 <= pconfig->pc_bytes)
       {
-	printf("%08x", number);
+	printf("%0*lx", (int)used*2,number);
+	cntr += used*2;
 	used = 0;
-	cntr += 8;
       }
       else
       {
@@ -263,11 +298,11 @@ static void runit(bk_s B, struct program_config *pconfig)
     }
     else
     {
-      if (!pconfig->pc_bytes || cntr + 4 <= pconfig->pc_bytes)
+      if (!pconfig->pc_bytes || cntr + used <= pconfig->pc_bytes)
       {
-	printf("%1c%1c%1c%1c",data[0],data[1],data[2],data[3]);
+	fwrite(data,1,used,stdout);
+	cntr += used;
 	used = 0;
-	cntr += 4;
       }
       else
       {
