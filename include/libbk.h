@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.354 2008/04/17 16:18:10 jtt Exp $
+ * $Id: libbk.h,v 1.355 2008/04/24 23:26:21 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -2149,6 +2149,8 @@ extern char *bk_url_reconstruct(bk_s B, struct bk_url *bu, bk_flags sections, bk
 /* b_nvmap.c */
 extern int bk_nvmap_name2value(bk_s B, struct bk_name_value_map *nvmap, const char *name);
 extern const char *bk_nvmap_value2name(bk_s B, struct bk_name_value_map *nvmap, int val);
+extern int bk_flags2value(bk_s B, struct bk_name_value_map *nvmap, const char *flags_str, const char *separator, bk_flags *output_flagsp, bk_flags flags);
+extern char *bk_value2flags(bk_s B, struct bk_name_value_map *nvmap, bk_flags input_flags, const char *separator, bk_flags flags);
 
 
 /* b_exec.c */

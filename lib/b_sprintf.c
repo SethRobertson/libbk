@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_sprintf.c,v 1.1 2008/04/09 21:28:11 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_sprintf.c,v 1.2 2008/04/24 23:26:21 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -28,15 +28,14 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 /* 
  * This file exists SOLELY because Inusre can't deal with this
  * function. The reasons for this are very much unclear as it seems to deal
- * with outher very similiar to it just fine. With this one, however, there
- * seems to be trouble with the both the function prototype and the
- * function body. At any rate, this function is exerpted because when
- * Insure can't instrument a function, it stops intrumenting the entire
- * file. And there are few files where you want Insure's guards *more* that
+ * with other functions very similiar to it just fine. With this one,
+ * however, there seems to be trouble with both the function prototype and
+ * the function body. At any rate, this function is exerpted because when
+ * Insure can't instrument a function, it stops intrumenting the *entire8
+ * file. And there are few files where you want Insure's guards *more* than
  * b_string.c. So this file with its one function is not expected to pass
  * Insure's instrumentation, but that's OK.
  */
-
 
 /**
  * Allocate a string based on a printf like format. This algorithm does
