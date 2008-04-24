@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: genrand.c,v 1.13 2008/04/24 21:43:32 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: genrand.c,v 1.14 2008/04/24 23:06:56 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -58,6 +58,7 @@ struct program_config
 #define PC_MULTI	0x002			///< Ascii-output
 #define PC_HEX		0x004			///< Hex-output
 #define PC_MT19937	0x008			///< Twister PRNG
+#define PC_PRETTY	0x016			///< Pretty (return terminated)
 };
 
 
@@ -94,6 +95,7 @@ main(int argc, char **argv, char **envp)
     {"hexoutput", 'h', POPT_ARG_NONE, NULL, 'h', N_("Produce hex output"), NULL },
     {"multioutput", 'm', POPT_ARG_NONE, NULL, 'm', N_("Produce ascii output"), NULL },
     {"outbytes", 's', POPT_ARG_INT, NULL, 's', N_("Number of bytes of output"), "bytes" },
+    {"pretty", 'p', POPT_ARG_NONE, NULL, 'p', N_("Return termination"), NULL },
     {"reinit", 'R', POPT_ARG_INT, NULL, 'R', N_("Refresh pool every Exponent (2^N) words"), "exponent" },
     {"mt19937", 'T', POPT_ARG_NONE, NULL, 'T', N_("Use Mersenne Twister pseudorandom number instead of true random number generator"), NULL },
     POPT_AUTOHELP
@@ -170,6 +172,9 @@ main(int argc, char **argv, char **envp)
       break;
     case 'T':					// Twister PNRG
       BK_FLAG_SET(pconfig->pc_flags, PC_MT19937);
+      break;
+    case 'p':					// Pretty
+      BK_FLAG_SET(pconfig->pc_flags, PC_PRETTY);
       break;
     case 'R':					// Bits of entropy
       pconfig->pc_reinit=atoi(poptGetOptArg(optCon));
@@ -257,6 +262,8 @@ static void runit(bk_s B, struct program_config *pconfig)
 
   while (!pconfig->pc_bytes || cntr < pconfig->pc_bytes)
   {
+    int wanted, ret = 0;
+
     if (used < 1)
     {
       if (BK_FLAG_ISSET(pconfig->pc_flags, PC_MT19937))
@@ -271,6 +278,8 @@ static void runit(bk_s B, struct program_config *pconfig)
       }
     }
 
+    wanted = pconfig->pc_bytes - cntr;
+
     if (BK_FLAG_ISSET(pconfig->pc_flags, PC_MULTI))
     {
       data[--used] &= 0x7f;
@@ -278,7 +287,7 @@ static void runit(bk_s B, struct program_config *pconfig)
 	  (data[used] >= 'A' && data[used] <= 'Z') ||
 	  (data[used] >= 'a' && data[used] <= 'z'))
       {
-	printf("%c",data[used]);
+	ret = printf("%c",data[used]);
 	cntr++;
       }
     }
@@ -286,31 +295,41 @@ static void runit(bk_s B, struct program_config *pconfig)
     {
       if (!pconfig->pc_bytes || cntr + used*2 <= pconfig->pc_bytes)
       {
-	printf("%0*lx", (int)used*2,number);
+	ret = printf("%0*lx", (int)used*2,number);
 	cntr += used*2;
 	used = 0;
       }
       else
       {
-	printf("%02x", (unsigned) data[--used]);
+	ret = printf("%0*x", wanted, (unsigned) data[--used]);
 	cntr += 2;
       }
     }
     else
     {
-      if (!pconfig->pc_bytes || cntr + used <= pconfig->pc_bytes)
+      u_int towrite = used;
+
+      if (pconfig->pc_bytes)
       {
-	fwrite(data,1,used,stdout);
-	cntr += used;
-	used = 0;
+	towrite = pconfig->pc_bytes - cntr;
+	if (used < towrite)
+	  towrite = used;
       }
-      else
-      {
-	printf("%1c",data[--used]);
-	cntr++;
-      }
+
+      ret = fwrite(data,1,towrite,stdout);
+      cntr += ret;
+      used -= ret;
+    }
+
+    if (ret < 0)
+    {
+      fprintf(stderr,"Output failed: %s\n",strerror(errno));
+      break;
     }
   }
+
+  if (BK_FLAG_ISSET(pconfig->pc_flags, PC_PRETTY))
+    printf("\n");
 
   bk_truerand_destroy(B, R);
 
