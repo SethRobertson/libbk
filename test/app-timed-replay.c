@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: app-timed-replay.c,v 1.3 2008/04/11 05:53:26 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: app-timed-replay.c,v 1.4 2008/04/24 20:24:34 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -413,7 +413,7 @@ proginit(bk_s B, struct program_config *pc)
       bk_flags make_conn_flags = 0;
       if (BK_FLAG_ISCLEAR(pc->pc_flags, PC_BAKAUDP))
       {
-	BK_FLAG_ISSET(make_conn_flags, BK_NET_FLAG_STANDARD_UDP);
+	BK_FLAG_SET(make_conn_flags, BK_NET_FLAG_STANDARD_UDP);
       }
       if (bk_netutils_make_conn_verbose(B, pc->pc_run, pc->pc_remoteurl, NULL, DEFAULT_PORT_STR, pc->pc_localurl, NULL, NULL, pc->pc_proto, pc->pc_timeout, connect_complete, pc, NULL, NULL, NULL, NULL, 0, make_conn_flags) < 0)
 	bk_die(B, 1, stderr, "Could not start transmitter (Remote not ready?)\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
