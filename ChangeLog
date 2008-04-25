@@ -1,3 +1,8 @@
+2008-04-25  James Tanis  <jtt@stockade.tanis.org>
+
+	* include/libbk.h (BK_INITIAL_STREQ): Macro for safely (I hope)
+	checking the initial substring (proper or not) of a string.
+
 2008-04-17  James Tanis  <jtt@stockade.tanis.org>
 
 	* lib/b_addrgroup.c: Don't run FD handler in some calls to

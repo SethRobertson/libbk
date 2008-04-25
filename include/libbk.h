@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.355 2008/04/24 23:26:21 jtt Exp $
+ * $Id: libbk.h,v 1.356 2008/04/25 20:59:10 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -152,6 +152,8 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_STREQN(a,b,n) ((a) && (b) && ((int)n>=0) && !strncmp(a,b,n)) ///< Are two strings equal for the first n characters?
 #define BK_STREQCASE(a,b) ((a) && (b) && !strcasecmp((a),(b))) ///< Are two strings equal (ignoring case)
 #define BK_STREQNCASE(a,b,n) ((a) && (b) && ((int)n>=0) && !strncasecmp(a,b,n)) ///< Are two strings equal (ignoring case) for the first n characters?
+#define BK_INITIAL_STREQ(str, initial_str) ((strlen(str) >= strlen(initial_str)) && (BK_STREQN(str, initial_str, strlen(initial_str))))  ///< Check for a match on the initial part of a string.
+
 #define BK_STRDUP(a) ((a) ? strdup((a)) : NULL) ///< Dup a string if it's not NULL
 
 #define BK_CALLOC(p) BK_CALLOC_LEN(p,sizeof(*(p))) ///< Structure allocation calloc with assignment and type cast
