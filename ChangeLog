@@ -1,3 +1,8 @@
+2008-05-06  James Tanis  <jtt@stockade.tanis.org>
+
+	* lib/b_string.c (bk_string_tokenize_split): := should have been
+	:- from the begining. We now support both.
+
 2008-04-25  James Tanis  <jtt@stockade.tanis.org>
 
 	* include/libbk.h (BK_INITIAL_STREQ): Macro for safely (I hope)

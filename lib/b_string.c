@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.129 2008/04/09 04:35:57 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_string.c,v 1.130 2008/05/06 23:50:34 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -813,7 +813,7 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	      goto error;
 	    }
 
-	    if (default_val = strstr(envvar, ":="))
+	    if ((default_val = (strstr(envvar, ":="))) || (default_val = strstr(envvar, ":-")))
 	    {
 	      // We have a variable which contains a default value.
 	      *default_val = '\0';
