@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: genrand.c,v 1.14 2008/04/24 23:06:56 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: genrand.c,v 1.15 2008/05/15 21:00:50 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -295,7 +295,7 @@ static void runit(bk_s B, struct program_config *pconfig)
     {
       if (!pconfig->pc_bytes || cntr + used*2 <= pconfig->pc_bytes)
       {
-	ret = printf("%0*lx", (int)used*2,number);
+	ret = printf("%0*llx", (int)used*2,(long long unsigned int)number);
 	cntr += used*2;
 	used = 0;
       }
