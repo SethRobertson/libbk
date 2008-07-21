@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.59 2008/04/17 16:18:10 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.60 2008/07/21 23:33:34 seth Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1657,6 +1657,11 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
      */
     if ((newfd = accept(as->as_sock, &sa, &len)) < 0)
     {
+      if (errno == EAGAIN)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "accept got EAGAIN after presumably being told it was ready: %s\n", strerror(errno));
+	BK_VRETURN(B);
+      }
       bk_error_printf(B, BK_ERR_ERR, "accept failed: %s\n", strerror(errno));
       as->as_state = bk_net_init_sys_error(B, errno);
       goto error;
