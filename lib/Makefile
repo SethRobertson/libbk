@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.60 2008/04/09 04:35:57 jtt Exp $
+# $Id: Makefile,v 1.61 2008/07/22 03:48:18 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -91,3 +91,16 @@ $(BK_LARGE_LIBSRC): $(GROUPTOP)/include/libbk_autoconf.h
 
 $(GROUPTOP)/include/libbk_autoconf.h: $(GROUPTOP)/$(PKGTOP)/bkmk/libbk_autoconf.h
 	cd $(@D) && $(LN_S) -f $< $(@F)
+
+ifneq ($(findstring -i686,$(BK_ARCHNAME)),)
+# <HACK>
+# For unknown reasons gcc 4.1.1 on x86_64 seems to flag no-undefined less
+# strictly than i386. This is very odd. JTT hopes that this can go away
+# soon.
+#
+# Look for copy/pasted versions of this in other Makefiles
+#
+# </HACK>
+TEMP_LT_LDFLAGS := $(LT_LDFLAGS)
+LT_LDFLAGS = $(filter-out -no-undefined, $(TEMP_LT_LDFLAGS))
+endif
