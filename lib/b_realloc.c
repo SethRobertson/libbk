@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_realloc.c,v 1.6 2008/04/14 22:22:41 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_realloc.c,v 1.7 2008/08/17 00:36:40 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -166,14 +166,14 @@ bk_malloc_wrapper(size_t size)
     /* 
      * For some reason we have started to miss (evidently) some legimate
      * free(3)'s. I have no idea why, but we take a positive view of uniq
-     * insert failures and simply nuke the (hopefull stale) vector and try
+     * insert failures and simply nuke the (hopefully stale) vector and try
      * again.
      */
     buffer_pool_delete(buffer_pool, ovector);
 
     free(ovector);
 
-    if (buffer_pool_insert_uniq(buffer_pool, vector, &ovector) != DICT_OK)
+    if (buffer_pool_insert_uniq(buffer_pool, vector, NULL) != DICT_OK)
       goto error;
   }
 
@@ -240,7 +240,8 @@ bk_free_wrapper(void *buf)
 
   if (vector = buffer_pool_search(buffer_pool, buf))
   {
-    buffer_pool_delete(buffer_pool, vector);
+    if (buffer_pool_delete(buffer_pool, vector) != DICT_OK)
+      goto error;
     free(vector);
   }
 
@@ -367,13 +368,13 @@ bk_strndup_wrapper(const char *str, size_t n)
 /** CLC helper functions and structures for buffer_pool_clc */
 static int buffer_pool_oo_cmp(bk_vptr *a, bk_vptr *b)
 {
-  return((int)a->ptr - (int)b->ptr);
+  return((int)((unsigned int)a->ptr - (unsigned int)b->ptr));
 }
 
 /** CLC helper functions and structures for buffer_pool_clc */
 static int buffer_pool_ko_cmp(char *a, bk_vptr *b)
 {
-  return((int)a - (int)b->ptr);
+  return((int)((unsigned int)a - (unsigned int)b->ptr));
 }
 
 /** CLC helper functions and structures for buffer_pool_clc */

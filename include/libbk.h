@@ -1,5 +1,5 @@
 /*
- * $Id: libbk.h,v 1.356 2008/04/25 20:59:10 jtt Exp $
+ * $Id: libbk.h,v 1.357 2008/08/17 00:36:40 jtt Exp $
  *
  * ++Copyright LIBBK++
  *
@@ -183,6 +183,7 @@ typedef u_int32_t bk_flags;			///< Normal bitfield type
 #define BK_ALLOCA_LEN(p,l) ((p) = (typeof(p))bk_alloca(l))	///< Malloc with assignment and type cast
 
 #ifdef __INSURE__
+#define BK_NO_MALLOC_WRAP
 #ifndef BK_NO_MALLOC_WRAP
 
 #define malloc(s)	(bk_malloc_wrapper(s))
@@ -791,6 +792,20 @@ typedef int (*bk_bag_callback_f)(bk_s B, void *args, int sock, struct bk_addrgro
  * Structure which describes a network "association". This name is slightly
  * bogus owing to the fact that server listens (which aren't tehcnically
  * associations) and unconnected udp use this structure too.
+ *
+ * <HACK degree="good-lord">
+ * The bag_bs_desatroy argument is a totally abusive. We need to be able to
+ * free the SSL state when we destroy the bag, but we don't want to create
+ * a dependency on b_ssl.c because of compilations reasons. So when we need
+ * destruction we fill out this function pointer (with bk_ssl_destroy())
+ * and call that instead. It allows for bk_sll_destroy() to be called
+ * without alerting the compiler.
+ *
+ * Fortunately it's unclear that this ever gets called and if so it's only
+ * under exceptional conditions. It is important, however, to make sure
+ * that any future added calss to bk_bag_destroy() do the Right Thing.
+ *
+ * </HACK>
  */
 struct bk_addrgroup
 {
@@ -801,6 +816,7 @@ struct bk_addrgroup
   int			bag_proto;		///< Cached proto */
   bk_netaddr_type_e	bag_type;		///< Cached address family */
   struct bk_ssl	    *	bag_ssl;		///< SSL state for connection
+  void 			(*bag_ssl_destroy)(bk_s B, struct bk_ssl *ssl, bk_flags flags); // Hack to allow bk_ssl_destroy to be called without creating a compilation dependency.
   int32_t		bag_refcount;		///< Don't free until this refcount is zero.
 };
 

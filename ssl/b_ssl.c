@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.17 2008/04/14 22:22:42 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ssl.c,v 1.18 2008/08/17 00:36:40 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -515,12 +515,6 @@ bk_ssl_destroy(bk_s B, struct bk_ssl *ssl, bk_flags flags)
     SSL_free(ssl->bs_ssl);
   }
 
-  /*
-   * At this point we're done. We don't need the IOH level to inform us of
-   * this and it creates a dangling reference which annoys Insure. So
-   * withdraw the iofun from the ioh.
-   */
-  bk_ioh_update(B, ssl->bs_ioh, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0, BK_IOH_UPDATE_HANDLER);
   free(ssl);
 
   BK_VRETURN(B);
@@ -1089,11 +1083,8 @@ ssl_connect_accept_handler(bk_s B, struct bk_run *run, int fd, u_int gottype, vo
 
     bs->bs_ssl = aha->aha_ssl;
     bs->bs_run = run;
-    /*
-     * <TODO>There needs to be a better place b/c the bag can leak the ssl state &
-     * we don't b_addrgroup to call back into b_ssl.</TODO>
-     */
     bag->bag_ssl = bs;
+    bag->bag_ssl_destroy = bk_ssl_destroy; // See libb.h for explanation of this hack.
 
     free(aha);
     aha = NULL;
@@ -1326,7 +1317,18 @@ void ssl_closefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int fdout,
     BK_VRETURN(B);
   }
 
-  bs = (struct bk_ssl *) opaque;
+  bs = (struct bk_ssl *)opaque;
+  /* 
+   * No matter what happens in this function, bs is getting destroyed, so
+   * we NULL out the iofunopaque so we can't refer to bs any more. 
+   *
+   * <WARN>
+   * BTW: updating the ioh directly is WRONG WRONG WRONG but use
+   * bk_ioh_update() deadlocks because we already have the lock at this
+   * point. So we bypass the API and update the structure directly.
+   * </WARN>
+   */
+  ioh->ioh_iofunopaque = NULL;
 
   if (fdout >= 0)
   {
@@ -1346,7 +1348,9 @@ void ssl_closefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int fdout,
     }
   }
 
-  ssl_shutdown_handler(B, bs->bs_run, fdout, BK_RUN_READREADY | BK_RUN_WRITEREADY, bs, NULL);
+  ssl_shutdown_handler(B, bs->bs_run, fdout, BK_RUN_CLOSE, bs, NULL);
+
+  bk_ssl_destroy(B, bs, BK_SSL_DESTROY_DONTCLOSEFDS);
 
   BK_VRETURN(B);
 

@@ -1,6 +1,6 @@
 #if !defined(lint)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.120 2008/04/11 05:53:24 jtt Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_ioh.c,v 1.121 2008/08/17 00:36:40 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1401,10 +1401,8 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
     // Forge on
   }
 
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_unlock(&ioh->ioh_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_UNLOCK(B, &ioh->ioh_lock);
+
   /*
    * Bug 7666: Ensure we do not have ioh lock when acquiring bk_run's
    * brf pseudo-lock Do this by ensuring that read and write
@@ -1424,10 +1422,7 @@ static void bk_ioh_destroy(bk_s B, struct bk_ioh *ioh)
   if (ioh->ioh_readallowedevent)
     bk_run_dequeue(B, ioh->ioh_run, ioh->ioh_readallowedevent, BK_RUN_DEQUEUE_EVENT);
 
-#ifdef BK_USING_PTHREADS
-  if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&ioh->ioh_lock) != 0)
-    abort();
-#endif /* BK_USING_PTHREADS */
+  BK_SIMPLE_LOCK(B, &ioh->ioh_lock);
 
   if (ioh->ioh_readallowedevent)
     ioh->ioh_readallowedevent = NULL;
