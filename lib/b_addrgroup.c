@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(__INSIGHT__)
 #include "libbk_compiler.h"
-UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.60 2008/07/21 23:33:34 seth Exp $";
+UNUSED static const char libbk__rcsid[] = "$Id: b_addrgroup.c,v 1.61 2008/08/22 06:10:30 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
@@ -1301,13 +1301,14 @@ stream_connect_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void 
   if (BK_FLAG_ISSET(gottype, BK_RUN_BAD_FD))
   {
     bk_error_printf(B, BK_ERR_ERR, "%d has become a bad fd\n", fd);
-    goto error;
+    goto error;  // Goto error is quite possibly wrong, in which case BK_RETURN(B) is probably right.
   }
 
   if (BK_FLAG_ISSET(gottype, BK_RUN_CLOSE))
   {
     bk_error_printf(B, BK_ERR_NOTICE, "Connection closing while waiting for connect activity\n");
-    goto error;
+    //goto error;
+    BK_VRETURN(B);
   }
 
   bag = as->as_bag;
@@ -1864,6 +1865,7 @@ net_close(bk_s B, struct addrgroup_state *as)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not withdraw socket from run\n");
   }
+
   close(as->as_sock);				// Actually close the socket
   as->as_sock = -1;
 

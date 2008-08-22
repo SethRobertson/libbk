@@ -1,3 +1,8 @@
+2008-08-22  James Tanis  <jtt@stockade.tanis.org>
+
+	* lib/b_addrgroup.c (stream_connect_activity): Simply return if
+	the FD is closed; no need to cal net_init_abort().
+
 2008-06-04  James Tanis  <jtt@stockade.tanis.org>
 
 	* xml/b_search.c (bkxml_attrnode_valbyname): Pass flags to
