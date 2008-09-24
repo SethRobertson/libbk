@@ -1,5 +1,5 @@
 ######################################################################
-# $Id: Makefile,v 1.40 2008/04/11 05:53:25 jtt Exp $
+# $Id: Makefile,v 1.41 2008/09/24 20:52:10 jtt Exp $
 #
 # ++Copyright LIBBK++
 #
@@ -35,6 +35,7 @@ BK_SIMPLE_PROGS=			\
 	bkrelay				\
 	bttcp				\
 	genrand				\
+	iprewrite			\
 	mmcat				\
 	runsize				\
 	shmadm				\
@@ -70,6 +71,8 @@ endif # BK_WANT_LIBTOOL
 else
 #LOCAL_DEFINES+=-DNO_SSL
 endif # BK_USING_SSL
+
+LOCAL_LIBS+=-lpcap
 
 ifneq ($(BK_WANT_LIBTOOL),false)
 
