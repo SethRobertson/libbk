@@ -18,3 +18,4 @@ tmp.c
 adjtime
 shmadm
 shmcat
+iprewrite
