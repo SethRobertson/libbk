@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_inline.h,v 1.17 2007/12/06 20:50:26 jtt Exp $
+ * 
  *
  * ++Copyright LIBBK++
  *

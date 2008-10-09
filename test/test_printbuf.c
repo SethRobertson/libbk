@@ -1,5 +1,5 @@
 /*
- * $Id: test_printbuf.c,v 1.4 2003/09/05 18:41:46 seth Exp $
+ * 
  *
  * ++Copyright LIBBK++
  *

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
-# $Id: b_stats.pl,v 1.3 2003/09/05 18:41:46 seth Exp $
+# 
 #
-# $Id: b_stats.pl,v 1.3 2003/09/05 18:41:46 seth Exp $
+# 
 #
 # ++Copyright LIBBK++
 #

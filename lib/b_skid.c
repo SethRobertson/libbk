@@ -1,5 +1,4 @@
 #if !defined(lint) && !defined(__INSIGHT__)
-UNUSED static const char libbk__rcsid[] = "$Id: b_skid.c,v 1.8 2005/03/17 06:20:04 jtt Exp $";
 UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
 UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */

@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_net.h,v 1.18 2006/12/07 21:20:01 lindauer Exp $
+ * 
  *
  * ++Copyright LIBBK++
  *

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: test_ioh.sh,v 1.3 2003/09/05 18:41:46 seth Exp $
+# 
 #
 # ++Copyright LIBBK++
 #

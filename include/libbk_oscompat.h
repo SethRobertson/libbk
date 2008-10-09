@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_oscompat.h,v 1.53 2006/08/11 19:02:35 dupuy Exp $
+ * 
  *
  * ++Copyright LIBBK++
  *

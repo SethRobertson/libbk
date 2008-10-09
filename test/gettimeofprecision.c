@@ -1,5 +1,5 @@
 /*
- * $Id: gettimeofprecision.c,v 1.2 2003/09/05 18:41:46 seth Exp $
+ * 
  *
  * ++Copyright LIBBK++
  *

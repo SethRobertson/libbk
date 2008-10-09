@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_include.h,v 1.43 2006/07/20 20:45:50 lindauer Exp $
+ * 
  *
  * ++Copyright LIBBK++
  *

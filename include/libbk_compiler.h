@@ -1,5 +1,5 @@
 /*
- * $Id: libbk_compiler.h,v 1.1 2004/07/08 04:40:15 lindauer Exp $
+ * 
  *
  * ++Copyright LIBBK++
  *

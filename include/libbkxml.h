@@ -1,5 +1,5 @@
 /*
- * $Id: libbkxml.h,v 1.11 2004/09/27 15:03:42 jtt Exp $
+ * 
  *
  * ++Copyright LIBBK++
  *
