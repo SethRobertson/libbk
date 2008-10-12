@@ -170,6 +170,9 @@ bag_destroy(bk_s B, struct bk_addrgroup *bag)
     if (bag->bag_local) bk_netinfo_destroy(B, bag->bag_local);
     if (bag->bag_remote) bk_netinfo_destroy(B, bag->bag_remote);
 
+    if (bag->bag_ssl && bag->bag_ssl_destroy)
+      (*bag->bag_ssl_destroy)(B, bag->bag_ssl, 0);
+
     free(bag);
   }
 
