@@ -2016,10 +2016,10 @@ bk_addressgroup_suspend(bk_s B, struct bk_run *run, void *server_handle, bk_flag
  *	@param sercurenets IP address filtering.
  *	@param callback Function to call back when there's a connection
  *	@param args User arguments to supply to above.
- * 	@param key_path (file) path to private key file in PEM format
- * 	@param cert_path (file) path to certificate file in PEM format
- * 	@param dhparam_path (file) path to dh param file in PEM format
- * 	@param ca_file file to dh param file in PEM format
+ *	@param key_path (file) path to private key file in PEM format
+ *	@param cert_path (file) path to certificate file in PEM format
+ *	@param dhparam_path (file) path to dh param file in PEM format
+ *	@param ca_file file to dh param file in PEM format
  *	@param ctx_flags SSL context flags (see bk_ssl_create_context())
  *	@param flags User flags.
  *	@return <i>-1</i> on failure.<br>
@@ -2034,7 +2034,7 @@ bk_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, const char *se
     if (!bk_ssl_supported(B))
     {
       bk_error_printf(B, BK_ERR_ERR, "SSL support is not available\n");
-      BK_RETURN(B, -1);      
+      BK_RETURN(B, -1);
     }
 
 #ifndef NO_SSL

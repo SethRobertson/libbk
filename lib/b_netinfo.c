@@ -1073,7 +1073,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
       goto error;
     }
 
-        snprintf(scratch, 100, "%d", ntohs(bs.bs_sin.sin_port));
+	snprintf(scratch, 100, "%d", ntohs(bs.bs_sin.sin_port));
     if (bk_getservbyfoo(B, scratch, bni->bni_bpi->bpi_protostr, NULL, bni, 0)<0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
@@ -1174,7 +1174,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
       bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
       goto error;
     }
-    
+
     break;
 
   default:
@@ -1309,13 +1309,13 @@ bk_netinfo_addr_type(bk_s B, struct bk_netinfo *bni, bk_flags flags)
   if (!bni)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
-    BK_RETURN(B, -1);    
+    BK_RETURN(B, -1);
   }
-  
+
   if (!(bna = netinfo_addrs_minimum(bni->bni_addrs)))
     BK_RETURN(B, BkNetinfoTypeUnknown);
 
-  BK_RETURN(B, bna->bna_type);  
+  BK_RETURN(B, bna->bna_type);
 }
 
 

@@ -80,14 +80,14 @@ bri_create(bk_s B, bk_flags flags)
   }
 
   // We only support IP for now.
-  
-  BK_RETURN(B, bri);  
-  
+
+  BK_RETURN(B, bri);
+
  error:
   if (bri)
     bri_destroy(B, bri);
 
-  BK_RETURN(B, NULL);      
+  BK_RETURN(B, NULL);
 }
 
 
@@ -108,13 +108,13 @@ bri_destroy(bk_s B, struct bk_route_info *bri)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   if (bri->bri_if_name)
     free((char *)bri->bri_if_name);
-    
+
   free(bri);
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -141,7 +141,7 @@ bk_rtinfo_list_create(bk_s B, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   dict_h bri_list = NULL;
-  
+
   if (!(bri_list = rtinfo_list_create((dict_function)rtinfo_oo_cmp, (dict_function)rtinfo_ko_cmp, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create route info list: %s\n", rtinfo_list_error_reason(NULL, NULL));
@@ -154,13 +154,13 @@ bk_rtinfo_list_create(bk_s B, bk_flags flags)
     goto error;
   }
 
-  BK_RETURN(B, (bk_rtinfo_list_t)bri_list);  
+  BK_RETURN(B, (bk_rtinfo_list_t)bri_list);
 
  error:
   if (bri_list)
     bk_rtinfo_list_destroy(B, bri_list);
 
-  BK_RETURN(B, NULL);  
+  BK_RETURN(B, NULL);
 }
 
 
@@ -195,7 +195,7 @@ bk_rtinfo_list_destroy(bk_s B, bk_rtinfo_list_t rtlist)
   }
   rtinfo_list_destroy(bri_list);
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -221,7 +221,7 @@ bk_rtinfo_list_minimum(bk_s B, bk_rtinfo_list_t rtlist, bk_flags flags)
     BK_RETURN(B, NULL);
   }
 
-  BK_RETURN(B, rtinfo_list_minimum(bri_list));  
+  BK_RETURN(B, rtinfo_list_minimum(bri_list));
 }
 
 
@@ -247,8 +247,8 @@ bk_rtinfo_list_successor(bk_s B, bk_rtinfo_list_t rtlist, struct bk_route_info *
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
-  BK_RETURN(B, rtinfo_list_successor(bri_list, bri));  
+
+  BK_RETURN(B, rtinfo_list_successor(bri_list, bri));
 }
 
 
@@ -285,7 +285,7 @@ bk_rtinfo_get_route(bk_s B, bk_rtinfo_list_t rtlist, struct in_addr *dst, bk_fla
   }
 
   for (bri = rtinfo_list_minimum(bri_list);
-       bri; 
+       bri;
        bri = rtinfo_list_successor(bri_list, bri))
   {
    if (BK_INET_NET_MATCH((&((struct sockaddr_in *)(&bri->bri_dst))->sin_addr), dst, (&((struct sockaddr_in *)(&bri->bri_mask))->sin_addr)))
@@ -293,13 +293,13 @@ bk_rtinfo_get_route(bk_s B, bk_rtinfo_list_t rtlist, struct in_addr *dst, bk_fla
       if (bri->bri_flags & RTF_REJECT)
       {
 	errno = ENETUNREACH;
-	BK_RETURN(B, NULL);	
+	BK_RETURN(B, NULL);
       }
-      BK_RETURN(B, bri);      
+      BK_RETURN(B, bri);
     }
   }
 
-  BK_RETURN(B, NULL);  
+  BK_RETURN(B, NULL);
 }
 
 
@@ -329,10 +329,10 @@ bk_rtinfo_get_route_by_string(bk_s B, bk_rtinfo_list_t rtlist, const char *dst_s
   if (!inet_aton(dst_str, &addr))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not convert %s to address structure: %s\n", dst_str, strerror(errno));
-    BK_RETURN(B, NULL);    
+    BK_RETURN(B, NULL);
   }
 
-  BK_RETURN(B, bk_rtinfo_get_route(B, rtlist, &addr, flags));  
+  BK_RETURN(B, bk_rtinfo_get_route(B, rtlist, &addr, flags));
 }
 
 
@@ -402,7 +402,7 @@ obtain_route_table(bk_s B, dict_h bri_list, bk_flags flags)
       bk_error_printf(B, BK_ERR_ERR, "Could not copy interface name from route: %s\n", strerror(errno));
       goto error;
     }
-    
+
     sock_in = (struct sockaddr_in *)(&bri->bri_dst);
     sock_in->sin_family = AF_INET;
     BK_SET_SOCKADDR_LEN(B, sock_in, sizeof(struct in_addr));
@@ -453,23 +453,23 @@ obtain_route_table(bk_s B, dict_h bri_list, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "An error occured while reading from %s: %s\n", NET_ROUTE_FILE, strerror(errno));
     goto error;
   }
-  
+
   fclose(fp);
   fp = NULL;
 
-  BK_RETURN(B, 0);  
+  BK_RETURN(B, 0);
 
  error:
   if (fp)
     fclose(fp);
-  
+
   if (bri)
     bri_destroy(B, bri);
 
   if (tokens)
     bk_string_tokenize_destroy(B, tokens);
 
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 #else /* Do not have any route obtaining method for this platform */
@@ -507,8 +507,8 @@ obtain_route_table(bk_s B, dict_h bri_list, bk_flags flags)
     goto error;
   }
 
- error:  
-  BK_RETURN(B, -1);  
+ error:
+  BK_RETURN(B, -1);
 }
 
 #endif /* Platform specific route obtaining function */
@@ -519,7 +519,7 @@ static int rtinfo_oo_cmp(struct bk_route_info *a, struct bk_route_info *b)
 {
   int ret;
   if (ret = b->bri_mask_len - a->bri_mask_len) return(ret);
-  
+
   if (a->bri_flags & RTF_REJECT)
     return(-1);
 

@@ -231,7 +231,7 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
 	bk_error_printf(B, BK_ERR_ERR, "dup failed: %s\n", strerror(errno));
 	goto error;
       }
-      if (c2p[1] != fdout && (BK_FLAG_ISCLEAR(flags, BK_PIPE_FLAG_STDERR_ON_STDOUT) || 
+      if (c2p[1] != fdout && (BK_FLAG_ISCLEAR(flags, BK_PIPE_FLAG_STDERR_ON_STDOUT) ||
 			      (c2p[1] != fderr)))
       {
 	if (close(c2p[1]) == 0)
@@ -239,7 +239,7 @@ bk_pipe_to_process(bk_s B, int *fdinp, int *fdoutp, bk_flags flags)
       }
     }
 
-    /* 
+    /*
      * If you have a process which isn't going to use unredirected stdin or stdout, you
      * might want to set BK_PIPE_FLAG_CLOSE_UNNEEDED_STDINOUT
      */

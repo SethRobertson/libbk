@@ -60,7 +60,7 @@ bk_dll_insert_internal(struct bk_generic_dll_handle *gdh, struct bk_generic_dll_
     int ordered = flags & DICT_ORDERED;
     int unique_keys = flags & DICT_UNIQUE_KEYS;
 
-    if (old_gdep) 
+    if (old_gdep)
       *old_gdep = NULL;
 
     for (g = gdh->gdh_head; g; g = g->gde_next)
@@ -94,14 +94,14 @@ bk_dll_insert_internal(struct bk_generic_dll_handle *gdh, struct bk_generic_dll_
 	}
       }
     }
-    
+
     if (ret == DICT_OK)
     {
       if (ordered && ret == DICT_OK)
       {
 	BK_DLL_INSERT_AFTER(gdh, gde, gdh->gdh_tail);
       }
-      else 
+      else
       {
 	if (append)
 	  BK_DLL_INSERT_AFTER(gdh, gde, gdh->gdh_tail);
@@ -110,6 +110,6 @@ bk_dll_insert_internal(struct bk_generic_dll_handle *gdh, struct bk_generic_dll_
       }
     }
   }
-  
+
   return(ret);
 }

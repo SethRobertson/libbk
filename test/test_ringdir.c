@@ -260,7 +260,7 @@ static int proginit(bk_s B, struct program_config *pc)
 }
 
 
-struct bk_ringdir_callbacks jtt_ringdir_callbacks = 
+struct bk_ringdir_callbacks jtt_ringdir_callbacks =
 {
   bk_ringdir_standard_init,
   bk_ringdir_standard_destroy,
@@ -291,7 +291,7 @@ static void progrun(bk_s B, struct program_config *pc)
 
   if (!(brdh = bk_ringdir_init(B, "/tmp/jtt-ringdir/", 1024, 100, "%02ujtt", NULL, &jtt_ringdir_callbacks, 0)))
   {
-    fprintf(stderr, "Could not initialize ring dir\n");    
+    fprintf(stderr, "Could not initialize ring dir\n");
     goto error;
   }
 
@@ -300,7 +300,7 @@ static void progrun(bk_s B, struct program_config *pc)
     fprintf(stderr, "Could not open workds file: %s\n", strerror(errno));
     goto error;
   }
-  
+
   while(fgets(buf, sizeof(buf), fp))
   {
     int len = strlen(buf);
@@ -317,7 +317,7 @@ static void progrun(bk_s B, struct program_config *pc)
       len -= nbytes;
       start += nbytes;
     } while (len);
-    
+
     if (bk_ringdir_rotate(B, brdh, 0) < 0)
     {
       fprintf(stderr,"Failed to rotate\n");
@@ -333,9 +333,9 @@ static void progrun(bk_s B, struct program_config *pc)
     printf("%s\n", filename);
   }
   free(filename);
-	
+
   bk_ringdir_destroy(B, brdh, 0);
-  
+
  error:
   BK_VRETURN(B);
 }

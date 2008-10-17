@@ -46,10 +46,10 @@ bpi_create(bk_s B)
   if (!BK_CALLOC(bpi))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate bpi: %s\n", strerror(errno));
-    BK_RETURN(B, NULL);    
+    BK_RETURN(B, NULL);
   }
 
-  BK_RETURN(B, bpi);  
+  BK_RETURN(B, bpi);
 }
 
 
@@ -70,7 +70,7 @@ bpi_destroy(bk_s B, struct bk_procinfo *bpi)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   if (bpi->bpi_exec_path)
     free(bpi->bpi_exec_path);
 
@@ -85,7 +85,7 @@ bpi_destroy(bk_s B, struct bk_procinfo *bpi)
 
   free(bpi);
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -97,7 +97,7 @@ bpi_destroy(bk_s B, struct bk_procinfo *bpi)
  *	@return <i>1</i> if PID match.<br>
  *	@return <i>0</i> if not PID match.
  */
-static int 
+static int
 pid_filter(const struct dirent *entry)
 {
   pid_t pid;
@@ -136,10 +136,10 @@ readfile(bk_s B, const char *name, char **bufp, off_t *sizep)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   *bufp = NULL;
   *sizep = -1;
-  
+
   if ((fd = open(name, O_RDONLY)) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not open %s: %s\n", name, strerror(errno));
@@ -177,7 +177,7 @@ readfile(bk_s B, const char *name, char **bufp, off_t *sizep)
       break;
     }
   }
-    
+
   if (nbytes < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not read from %s: %s\n", name, strerror(errno));
@@ -189,8 +189,8 @@ readfile(bk_s B, const char *name, char **bufp, off_t *sizep)
 
   *bufp = contents;
   *sizep = filesize;
-  
-  BK_RETURN(B, 0);  
+
+  BK_RETURN(B, 0);
 
  error:
   if (contents)
@@ -200,7 +200,7 @@ readfile(bk_s B, const char *name, char **bufp, off_t *sizep)
     close(fd);
 
 
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -270,9 +270,9 @@ bk_procinfo_create(bk_s B, bk_flags flags)
 
       bk_error_printf(B, BK_ERR_ERR, "Could not access %s for reading: %s\n", tmpname, strerror(errno));
       goto error;
-      
+
     }
-      
+
     if (readfile(B, tmpname, &tmpbuf, &tmpsz) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Failed to obtain environment data from %s\n", tmpname);
@@ -294,11 +294,11 @@ bk_procinfo_create(bk_s B, bk_flags flags)
       bk_error_printf(B, BK_ERR_ERR, "Could not extract environment from %s\n", tmpbuf);
       goto error;
     }
-    
+
     free(tmpbuf);
     tmpbuf = NULL;
 
-    
+
     // Extract PID
     if (bk_string_atou32(NULL, procdir->d_name, &(bpi->bpi_pid), 0) < 0)
     {
@@ -345,7 +345,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
 	bk_error_printf(B, BK_ERR_ERR, "Could not read symlink %s: %s\n", tmpname, strerror(errno));
 	goto error;
       }
-      
+
       // NB bpi->bpi_exec_path MAY BE NULL
     }
     else
@@ -386,7 +386,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
       goto error;
     }
 
-    sscanf(tmpbuf, "%d %s %c %d %d %d %d %d %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld %ld 0 %ld %lu %lu %ld %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %d %d %lu %lu", 
+    sscanf(tmpbuf, "%d %s %c %d %d %d %d %d %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld %ld 0 %ld %lu %lu %ld %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %d %d %lu %lu",
 	   &bpi->bpi_pid,
 	   comm,
 	   &bpi->bpi_state,
@@ -399,7 +399,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
 	   &dummy_ulong,			// minflt
 	   &dummy_ulong,			// cminflt
 	   &dummy_ulong,			// majflt
-	   &dummy_ulong, 			// cmajflt
+	   &dummy_ulong,			// cmajflt
 	   &bpi->bpi_utime,
 	   &bpi->bpi_stime,
 	   &dummy_long,				// cutime
@@ -429,7 +429,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
 	   &dummy_ulong,			// rt_priority
 	   &dummy_ulong				// policy
 	   );
-    
+
     // the "comm" field is surronded by parenthesis. Drop them.
     comm[strlen(comm)-1] = '\0';
     if (!(bpi->bpi_comm = strdup(comm+1)))
@@ -447,7 +447,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
       goto error;
     }
     bpi = NULL;
-    
+
     free(procdir_name);
     procdir_name = NULL;
 
@@ -455,7 +455,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
     if  (tmpname)
       free(tmpname);
     tmpname = NULL;
-    
+
     if (tmpbuf)
       free(tmpbuf);
     tmpbuf = NULL;
@@ -463,13 +463,13 @@ bk_procinfo_create(bk_s B, bk_flags flags)
     if (procdir)
       free(procdir);
     procdir = NULL;
-    
+
     if (bpi)
       bpi_destroy(B, bpi);
     bpi = NULL;
   }
 
-  BK_RETURN(B, bpi_list);  
+  BK_RETURN(B, bpi_list);
 
  error:
   if (bpi)
@@ -480,7 +480,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
 
   if (tmpname)
     free(tmpname);
-  
+
   if (procdir_name)
     free(procdir_name);
 
@@ -490,7 +490,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
   if (comm)
     free(comm);
 
-  BK_RETURN(B, NULL);  
+  BK_RETURN(B, NULL);
 }
 
 
@@ -514,7 +514,7 @@ bk_procinfo_destroy(bk_s B, dict_h bpi_list)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_VRETURN(B);
   }
-  
+
   while(bpi = procinfo_list_minimum(bpi_list))
   {
     if (procinfo_list_delete(bpi_list, bpi) != DICT_OK)
@@ -543,7 +543,7 @@ dict_h
 bk_procinfo_create(bk_s B, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -560,6 +560,6 @@ void
 bk_procinfo_destroy(bk_s B, dict_h bpi_list)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 #endif /* HAVE_PROCFS */

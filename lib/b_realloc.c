@@ -18,7 +18,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 /**
  * @file
- * 
+ *
  *
  * Also other bitish functions
  */
@@ -29,9 +29,9 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 
-#ifdef malloc 
+#ifdef malloc
 #undef malloc
-#endif 
+#endif
 
 #ifdef realloc
 #undef realloc
@@ -139,7 +139,7 @@ bk_malloc_wrap_destroy(bk_flags flags)
 
 
 /**
- * Wrapper around malloc(3). Allocate vptr and buffer. Insert vptr in list. 
+ * Wrapper around malloc(3). Allocate vptr and buffer. Insert vptr in list.
  *
  */
 void *
@@ -162,7 +162,7 @@ bk_malloc_wrapper(size_t size)
     if (!ovector)
       goto error;
 
-    /* 
+    /*
      * For some reason we have started to miss (evidently) some legimate
      * free(3)'s. I have no idea why, but we take a positive view of uniq
      * insert failures and simply nuke the (hopefully stale) vector and try
@@ -177,7 +177,7 @@ bk_malloc_wrapper(size_t size)
   }
 
   vector->len = size;
-  
+
   return(vector->ptr);
 
  error:
@@ -313,7 +313,7 @@ bk_strdup_wrapper(const char *str)
 
   if (!(new_str = bk_malloc_wrapper(len + 1)))
     goto error;
-    
+
   memmove(new_str, str, len);
   new_str[len] = '\0';
 
@@ -350,10 +350,10 @@ bk_strndup_wrapper(const char *str, size_t n)
 
   if (!(new_str = bk_malloc_wrapper(len + 1)))
     goto error;
-    
+
   memmove(new_str, str, len);
   new_str[len] = '\0';
-  
+
   return(new_str);
 
  error:

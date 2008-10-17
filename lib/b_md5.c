@@ -209,7 +209,7 @@ void bk_MD5Update(bk_s B, bk_MD5_CTX *mdContext, const unsigned char *inBuf, uns
     if (mdi == 0x40)
     {
       for (i = 0, ii = 0; i < 16; i++, ii += 4)
-        in[i] = (((u_int32_t)mdContext->in[ii+3]) << 24) |
+	in[i] = (((u_int32_t)mdContext->in[ii+3]) << 24) |
 	  (((u_int32_t)mdContext->in[ii+2]) << 16) |
 	  (((u_int32_t)mdContext->in[ii+1]) << 8) |
 	  ((u_int32_t)mdContext->in[ii]);
@@ -416,5 +416,5 @@ bk_MD5_extract_printable(bk_s B, char *str, bk_MD5_CTX *ctx, bk_flags flags)
   }
   str[cnt*2] = 0;				// Null terminate
 
-  BK_RETURN(B,0); 
+  BK_RETURN(B,0);
 }

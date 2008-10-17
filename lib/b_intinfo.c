@@ -31,14 +31,14 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 struct bk_name_value_map intinfo_ioctl_map[] =
 {
-  { "SIOCGIFADDR", 	SIOCGIFADDR 		},
-  { "SIOCGIFBRDADDR", 	SIOCGIFBRDADDR 		},
-  { "SIOCGIFCONF", 	SIOCGIFCONF		},
-  { "SIOCGIFDSTADDR", 	SIOCGIFDSTADDR		},
-  { "SIOCGIFFLAGS", 	SIOCGIFFLAGS		},
-  { "SIOCGIFMETRIC", 	SIOCGIFMETRIC		},
+  { "SIOCGIFADDR",	SIOCGIFADDR		},
+  { "SIOCGIFBRDADDR",	SIOCGIFBRDADDR		},
+  { "SIOCGIFCONF",	SIOCGIFCONF		},
+  { "SIOCGIFDSTADDR",	SIOCGIFDSTADDR		},
+  { "SIOCGIFFLAGS",	SIOCGIFFLAGS		},
+  { "SIOCGIFMETRIC",	SIOCGIFMETRIC		},
   { "SIOCGIFMTU",	SIOCGIFMTU		},
-  { "SIOCGIFNETMASK", 	SIOCGIFNETMASK		},
+  { "SIOCGIFNETMASK",	SIOCGIFNETMASK		},
   { NULL, 0, },
 };
 
@@ -92,13 +92,13 @@ bii_create(bk_s B, bk_flags flags)
     goto error;
   }
 
-  BK_RETURN(B, bii);  
+  BK_RETURN(B, bii);
 
  error:
   if (bii)
     bii_destroy(B, bii);
-  
-  BK_RETURN(B, NULL);  
+
+  BK_RETURN(B, NULL);
 }
 
 
@@ -125,12 +125,12 @@ bii_destroy(bk_s B, struct bk_interface_info *bii)
 
   free(bii);
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
 
-#define IF_GET_INFO(B, s, n, i) 							\
+#define IF_GET_INFO(B, s, n, i)							\
 do {											\
   if (ioctl((s), (n), (i)) < 0)								\
   {											\
@@ -174,7 +174,7 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
   }
 
   // Get interface list
-  if (ioctl(s, SIOCGIFCONF, &ifc) < 0) 
+  if (ioctl(s, SIOCGIFCONF, &ifc) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not obtain interface list from kernel: %s\n", strerror(errno));
     goto error;
@@ -228,9 +228,9 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
     if (flags & IFF_BROADCAST)
     {
       IF_GET_INFO(B, s, SIOCGIFBRDADDR, ifr);
-      
+
       bii->bii_broadaddr = ifr->ifr_broadaddr;
-      
+
       BK_FLAG_SET(bii->bii_avail, BK_INTINFO_FIELD_BROADCAST);
     }
 
@@ -238,9 +238,9 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
     if (flags & IFF_POINTOPOINT)
     {
       IF_GET_INFO(B, s, SIOCGIFDSTADDR, ifr);
-      
+
       bii->bii_dstaddr = ifr->ifr_dstaddr;
-      
+
       BK_FLAG_SET(bii->bii_avail, BK_INTINFO_FIELD_DSTADDR);
     }
 
@@ -252,15 +252,15 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
 #else
     bii->bii_netmask = ifr->ifr_addr;
 #endif
-    
+
     // Get MTU
     IF_GET_INFO(B, s, SIOCGIFMTU, ifr);
-    
+
     bii->bii_mtu = ifr->ifr_mtu;
-    
+
     // Get metric
     IF_GET_INFO(B, s, SIOCGIFMETRIC, ifr);
-    
+
     bii->bii_metric = ifr->ifr_metric;
 
 #ifdef SIOCGIFHWADDR
@@ -268,9 +268,9 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
     if (!(bii->bii_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)))
     {
       IF_GET_INFO(B, s, SIOCGIFHWADDR, ifr);
-    
+
       bii->bii_hwaddr = ifr->ifr_hwaddr;
-      
+
       BK_FLAG_SET(bii->bii_avail, BK_INTINFO_FIELD_HARDWARE);
     }
 #endif /* SIOCGIFHWADDR */
@@ -300,7 +300,7 @@ bk_intinfo_list_create(bk_s B, int pos_filter, int neg_filter, bk_flags flags)
   if (bii)
     bii_destroy(B, bii);
 
-  BK_RETURN(B, NULL);  
+  BK_RETURN(B, NULL);
 }
 
 
@@ -335,7 +335,7 @@ bk_intinfo_list_destroy(bk_s B, bk_intinfo_list_t list)
   }
   intinfo_list_destroy(bii_list);
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -359,7 +359,7 @@ bk_intinfo_list_minimum(bk_s B, bk_intinfo_list_t list)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   BK_RETURN(B, intinfo_list_minimum(bii_list));
 }
 
@@ -385,7 +385,7 @@ bk_intinfo_list_successor(bk_s B, bk_intinfo_list_t list, struct bk_interface_in
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-  
+
   BK_RETURN(B, intinfo_list_successor(bii_list, bii));
 }
 
@@ -421,5 +421,5 @@ bk_intinfo_list_search(bk_s B, bk_intinfo_list_t list, const char *name, bk_flag
     if (BK_STREQ(bii->bii_name, name))
       break;
   }
-  BK_RETURN(B, bii);  
+  BK_RETURN(B, bii);
 }

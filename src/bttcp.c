@@ -453,7 +453,7 @@ main(int argc, char **argv, char **envp)
   {
     bk_die(B, 1, stderr, "Failure during run_run\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
-  
+
   cleanup(B, pc);
   bk_exit(B, 0);
   return(255);
@@ -606,7 +606,7 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     }
 
     if (BK_FLAG_ISSET(pc->pc_flags, PC_SERVER))
-    { 
+    {
       switch (fork())
       {
       case -1:
@@ -979,7 +979,7 @@ static void finish(int signum)
  *	@param starttime The start time of the latest invocation of @a bk_run_once.
  *	@param flags Flags for your enjoyment.
  */
-static int 
+static int
 do_cancel(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const struct timeval *starttime, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"bttcp");
@@ -992,7 +992,7 @@ do_cancel(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const 
   }
 
   if (!*demand) // Protect against bizzare recursion (shouldn't happen but does)
-    BK_RETURN(B, 0);    
+    BK_RETURN(B, 0);
 
   *demand = 0;
 
@@ -1001,7 +1001,7 @@ do_cancel(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const 
     bk_addrgroup_server_close(B, pc->pc_server);
     pc->pc_server = NULL;
   }
-    
+
   if (pc->pc_brc.brc_ioh1)
   {
     if (bk_relay_cancel(B, &pc->pc_brc, 0) < 0)
@@ -1017,10 +1017,10 @@ do_cancel(bk_s B, struct bk_run *run, void *opaque, volatile int *demand, const 
     goto error;
   }
 
-  BK_RETURN(B, 0);  
+  BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -1046,18 +1046,18 @@ set_run_over(bk_s B, struct program_config *pc, bk_flags flags)
   }
 
   if (BK_FLAG_ISSET(pc->pc_flags, PC_RUN_OVER))
-    BK_RETURN(B, 0);    
+    BK_RETURN(B, 0);
 
   if (bk_run_set_run_over(B, pc->pc_run) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not set run over\n");
     goto error;
   }
-  
+
   BK_FLAG_SET(pc->pc_flags, PC_RUN_OVER);
 
-  BK_RETURN(B, 0);  
-  
+  BK_RETURN(B, 0);
+
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }

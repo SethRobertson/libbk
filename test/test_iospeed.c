@@ -269,7 +269,7 @@ relay_finish(bk_s B, void *args, struct bk_ioh *read_ioh, struct bk_ioh *write_i
 
   // We only want to process on shutdown.
   if (data)
-    BK_VRETURN(B);    
+    BK_VRETURN(B);
 
   if (!(pc = args))
   {

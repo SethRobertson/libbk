@@ -40,7 +40,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
  *
  * THREADS: MT-SAFE
  *
- * 	@param m Null terminated array of vectored pointers to data
+ *	@param m Null terminated array of vectored pointers to data
  *	@param len Length of data in m that should be checksummed
  *	@return 16-bit <i>checksum</i> of data
  */

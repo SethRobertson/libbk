@@ -1596,7 +1596,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (BK_FLAG_ISSET(flags, BK_RINGDIR_FLAG_EWARN))
   {
     errlevel = BK_ERR_WARN;

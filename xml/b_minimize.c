@@ -202,13 +202,13 @@ bkxml_md5_doc(bk_s B, xmlDocPtr input, char **digestp, char **min_textp, bk_flag
 
   if (min_textp)
     *min_textp = NULL;
-  
+
   if (!(min_doc = bkxml_minimize_doc(B, input, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not minimize xml doc\n");
     goto error;
   }
-	
+
   xmlDocDumpMemory(min_doc, (xmlChar **)&min_text, NULL);
   xmlFreeDoc(min_doc);
   min_doc = NULL;
@@ -224,7 +224,7 @@ bkxml_md5_doc(bk_s B, xmlDocPtr input, char **digestp, char **min_textp, bk_flag
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for hash output\n");
     goto error;
   }
-     
+
   bk_MD5Init(B, &context);
   bk_MD5Update(B, &context, min_text, strlen(min_text));
   bk_MD5Final(B, &context);
@@ -247,7 +247,7 @@ bkxml_md5_doc(bk_s B, xmlDocPtr input, char **digestp, char **min_textp, bk_flag
     xmlFree(min_text);
   min_text = NULL;
 
-  BK_RETURN(B,0);  
+  BK_RETURN(B,0);
 
  error:
   if (min_doc)
@@ -258,12 +258,6 @@ bkxml_md5_doc(bk_s B, xmlDocPtr input, char **digestp, char **min_textp, bk_flag
 
   if (min_text)
     xmlFree(min_text);
-  
-  BK_RETURN(B,-1);  
+
+  BK_RETURN(B,-1);
 }
-
-
-
-
-
-

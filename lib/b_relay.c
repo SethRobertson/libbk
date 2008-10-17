@@ -223,7 +223,7 @@ static void bk_relay_iohhandler(bk_s B, bk_vptr *data, void *opaque, struct bk_i
     }
 
     bk_debug_printf_and(B,128,"Reading data on descriptor pair (%d:%d)\n", ioh->ioh_fdin, ioh->ioh_fdout);
-    
+
     if (relay->br_callback)
     {
       bk_debug_printf_and(B,64,"Making relay callback\n");
@@ -396,10 +396,10 @@ bk_relay_cancel(bk_s B, struct bk_relay_cancel *brc, bk_flags flags)
   }
 
   if (BK_FLAG_ISSET(brc->brc_flags, BK_RELAY_CANCEL_FLAG_SHUTODWN))
-    BK_RETURN(B, 0);    
-  
+    BK_RETURN(B, 0);
+
   bk_relay_iohhandler(B, NULL, brc->brc_opaque, brc->brc_ioh1, BkIohStatusIohReadEOF);
   bk_relay_iohhandler(B, NULL, brc->brc_opaque, brc->brc_ioh2, BkIohStatusIohReadEOF);
 
-  BK_RETURN(B, 0);  
+  BK_RETURN(B, 0);
 }

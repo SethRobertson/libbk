@@ -82,7 +82,7 @@ bk_netaddr_create(bk_s B)
   if (!(bna = bna_create(B)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create bk_netaddr\n");
-    BK_RETURN(B, NULL);    
+    BK_RETURN(B, NULL);
   }
 
   BK_RETURN(B, bna);

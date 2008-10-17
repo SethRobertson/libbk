@@ -313,13 +313,13 @@ static int proginit(bk_s B, struct program_config *pc, char **argv, int argc)
     *colon = '\0';
     orig = argv[c];
     rewr = colon + 1;
-    
+
     if (!(BK_MALLOC(rn)))
     {
       fprintf(stderr, "Could not allocate rewrite node: %s\n", strerror(errno));
       goto error;
     }
-    
+
     if (!inet_aton(orig, &(rn->rn_orig)))
     {
       fprintf(stderr, "'%s' is not a valid IP address: %s\n", orig, strerror(errno));
@@ -333,7 +333,7 @@ static int proginit(bk_s B, struct program_config *pc, char **argv, int argc)
     }
 
     *colon = ':'; // Pendantic
-    
+
     if (rewrite_list_append(pc->pc_rewrites, rn) != DICT_OK)
     {
       fprintf(stderr, "Could not insert rewrite node in list: %s\n", rewrite_list_error_reason(pc->pc_rewrites, NULL));
@@ -344,7 +344,7 @@ static int proginit(bk_s B, struct program_config *pc, char **argv, int argc)
   BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -395,15 +395,15 @@ static void progrun(bk_s B, struct program_config *pc)
 
     if (pkt_eth->pkt_eth_ltype != ip_ltype)
       continue;
-    
+
     pkt_ip = (struct baka_iphdr *)(pkt_data+sizeof(*pkt_eth));
-    
+
     if (replace_ip(B, (struct in_addr *)&pkt_ip->pkt_ip_src, pc, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not replace src IP address\n");
       goto error;
     }
-    
+
     if (replace_ip(B, (struct in_addr *)&pkt_ip->pkt_ip_dst, pc, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not replace dst IP address\n");
@@ -457,5 +457,5 @@ replace_ip(bk_s B, struct in_addr *addr, struct program_config *pc, bk_flags fla
       continue;
     }
   }
-  BK_RETURN(B, 0);  
+  BK_RETURN(B, 0);
 }

@@ -1,5 +1,5 @@
 /*
- * 
+ *
  *
  * ++Copyright LIBBK++
  *
@@ -269,13 +269,13 @@ struct bk_interface_info
   struct sockaddr	bii_netmask;		///< Protocol netmask
   struct sockaddr	bii_hwaddr;		///< Hardware address
   short			bii_flags;		///< Basic interface flags
-  int 			bii_mtu;		///< Maximum tx pkt size.
-  int 			bii_metric;		///< Metric.
+  int			bii_mtu;		///< Maximum tx pkt size.
+  int			bii_metric;		///< Metric.
 };
 
 
-#define bii_dstaddr 	bii_addr_un.bau_dstaddr
-#define bii_broadaddr 	bii_addr_un.bau_broadaddr
+#define bii_dstaddr	bii_addr_un.bau_dstaddr
+#define bii_broadaddr	bii_addr_un.bau_broadaddr
 
 typedef void *bk_intinfo_list_t;
 

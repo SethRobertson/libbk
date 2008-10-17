@@ -134,12 +134,12 @@ bk_flags2value(bk_s B, struct bk_name_value_map *nvmap, const char *flags_str, c
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not tokenize flags string: %s (using '%s' as the separator)\n", separator, flags_str);
     goto error;
-    
+
   }
-  
+
   for(tokenp = tokens; *tokenp; tokenp++)
   {
-    int new_flag; 
+    int new_flag;
     if ((new_flag = bk_nvmap_name2value(B, nvmap, *tokenp)) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not translate to a flag value: %s\n", *tokenp);
@@ -153,13 +153,13 @@ bk_flags2value(bk_s B, struct bk_name_value_map *nvmap, const char *flags_str, c
 
   *output_flagsp = output_flags;
 
-  BK_RETURN(B, 0);  
+  BK_RETURN(B, 0);
 
  error:
   if (tokens)
     bk_string_tokenize_destroy(B, tokens);
 
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -209,12 +209,12 @@ bk_value2flags(bk_s B, struct bk_name_value_map *nvmap, bk_flags input_flags, co
       free(output_string);
     output_string = tmp;
   }
-  
-  BK_RETURN(B, output_string);  
+
+  BK_RETURN(B, output_string);
 
  error:
   if (output_string)
     free(output_string);
 
-  BK_RETURN(B, NULL);  
+  BK_RETURN(B, NULL);
 }

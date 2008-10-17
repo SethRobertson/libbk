@@ -48,7 +48,7 @@
 #elif defined(__svr4__)		/* Generic SYSV box */
 #define TIME
 #define TIMES
-#else  				/* Generic BSD box */
+#else				/* Generic BSD box */
 #define TIMEOFDAY
 #define RUSAGE
 #endif
@@ -185,7 +185,7 @@ int main(int argc,char *argv[])
       fprintf(stderr,"Cannot open file %s\n",argv[optind]);
       errflg++;
     }
-     
+
   if (errflg)
     {
       fprintf(stderr,"Usage: %s [-w] [-p] [-f filename] [-b buffer size] [-n num buffer/test] [-r num tests ]\n",argv[0]);
@@ -241,7 +241,7 @@ int main(int argc,char *argv[])
 	  perror("ftruncate");
 	  exit(5);
 	}
-     
+
       bytes = 0;
 
       /**************************************************/
@@ -323,7 +323,7 @@ int main(int argc,char *argv[])
 void
 prep_timer()
 {
- 
+
 #if defined(HRTIME)
   start.real = gethrtime();
 #elif defined(TIMEOFDAY)
@@ -384,7 +384,7 @@ zero_timer(struct timer_info *timer)
   timer->systime.ru_stime.tv_sec = 0;
   timer->systime.ru_stime.tv_usec = 0;
 #endif
-} 
+}
 
 /*
  * Add two timers together

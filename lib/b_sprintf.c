@@ -24,7 +24,7 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <libbk.h>
 #include "libbk_internal.h"
 
-/* 
+/*
  * This file exists SOLELY because Inusre can't deal with this
  * function. The reasons for this are very much unclear as it seems to deal
  * with other functions very similiar to it just fine. With this one,

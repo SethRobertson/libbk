@@ -141,7 +141,7 @@ void bk_ring_destroy(bk_s B, struct bk_ring *ring, bk_flags flags)
     pthread_cond_broadcast(&ring->br_cond);	// Double-check
     pthread_cond_wait(&ring->br_cond, &ring->br_lock);
   }
-  
+
   BK_SIMPLE_UNLOCK(B, &ring->br_lock);
 
   if (pthread_mutex_destroy(&ring->br_lock) != 0)
@@ -217,7 +217,7 @@ int bk_ring_write(bk_s B, struct bk_ring *ring, void *opaque, bk_flags flags)
 
 #ifdef BK_USING_PTHREADS
     BK_SIMPLE_LOCK(B, &ring->br_lock);
-    
+
     ring->br_writeasleep = 1;
     pthread_cond_broadcast(&ring->br_cond);	// Ensure noone is accidentially asleep
 

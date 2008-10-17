@@ -1,5 +1,5 @@
 ######################################################################
-# 
+#
 #
 # ++Copyright LIBBK++
 #
@@ -32,16 +32,16 @@ BK_SIMPLE_INTERNALPROGS=		\
 		test_getbyfoo		\
 		test_ioh		\
 		test_iospeed		\
-		test_locks 		\
+		test_locks		\
 		test_mt19937		\
-		test_printbuf 		\
-		test_proc 		\
+		test_printbuf		\
+		test_proc		\
 		test_ringdir		\
-		test_string	 	\
-		test_stringconv 	\
+		test_string		\
+		test_stringconv	\
 		test_threads		\
-		test_time	 	\
-		test_url	 	\
+		test_time		\
+		test_url		\
 		testhashspeed		\
 		testrandidea		\
 		writev			\

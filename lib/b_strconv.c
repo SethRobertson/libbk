@@ -987,35 +987,35 @@ bk_string_atof(bk_s B, const char *string, float *value, bk_flags flags)
  *
  * Valid from 0 -> 10^27-1 or 0 -> 2^90-1
  *
- * yocto-  	y  	10^-24   \
- * zepto- 	z 	10^-21   |
- * atto- 	a 	10^-18   |  Not use by these routines,
- * femto- 	f 	10^-15   |  since small case used by power 10,
- * pico- 	p 	10^-12   |  but here for reference purposes
- * nano- 	n 	10^-9    |
- * micro- 	u 	10^-6    |
- * milli- 	m 	10^-3   /
- * (none) 	-- 	10^0	2^0
- * kilo- 	K       10^3 	2^10
- * mega- 	M 	10^6 	2^20
- * giga- 	G 	10^9 	2^30
- * tera- 	T 	10^12 	2^40
- * peta- 	P 	10^15 	2^50
- * exa- 	E 	10^18 	2^60
- * zetta- 	Z 	10^21 	2^70
- * yotta- 	Y 	10^24 	2^80
+ * yocto-	y	10^-24   \
+ * zepto-	z	10^-21   |
+ * atto-	a	10^-18   |  Not use by these routines,
+ * femto-	f	10^-15   |  since small case used by power 10,
+ * pico-	p	10^-12   |  but here for reference purposes
+ * nano-	n	10^-9    |
+ * micro-	u	10^-6    |
+ * milli-	m	10^-3   /
+ * (none)	--	10^0	2^0
+ * kilo-	K       10^3	2^10
+ * mega-	M	10^6	2^20
+ * giga-	G	10^9	2^30
+ * tera-	T	10^12	2^40
+ * peta-	P	10^15	2^50
+ * exa-	E	10^18	2^60
+ * zetta-	Z	10^21	2^70
+ * yotta-	Y	10^24	2^80
  *
  *
  *
  * Updated news: binary (power 2) SI names have been changed for
  * clarity:
  *
- * 2^10 	kibi 	Ki 	kilobinary: (2^10)^1 	kilo: (10^3)^1
- * 2^20 	mebi 	Mi 	megabinary: (2^10)^2  	mega: (10^3)^2
- * 2^30 	gibi 	Gi 	gigabinary: (2^10)^3 	giga: (10^3)^3
- * 2^40 	tebi 	Ti 	terabinary: (2^10)^4 	tera: (10^3)^4
- * 2^50 	pebi 	Pi 	petabinary: (2^10)^5 	peta: (10^3)^5
- * 2^60 	exbi 	Ei 	exabinary: (2^10)^6 	exa: (10^3)^6
+ * 2^10	kibi	Ki	kilobinary: (2^10)^1	kilo: (10^3)^1
+ * 2^20	mebi	Mi	megabinary: (2^10)^2	mega: (10^3)^2
+ * 2^30	gibi	Gi	gigabinary: (2^10)^3	giga: (10^3)^3
+ * 2^40	tebi	Ti	terabinary: (2^10)^4	tera: (10^3)^4
+ * 2^50	pebi	Pi	petabinary: (2^10)^5	peta: (10^3)^5
+ * 2^60	exbi	Ei	exabinary: (2^10)^6	exa: (10^3)^6
  *
  * Despite this technically more correct representation, I am being
  * lazy and not updating this function at this time.  There is not

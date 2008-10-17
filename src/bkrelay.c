@@ -407,7 +407,7 @@ main(int argc, char **argv, char **envp)
 	case -1:
 	  bk_error_printf(B, BK_ERR_ERR, "Could not create child process to handle accepted fd: %s\n", strerror(errno));
 	  bk_die(B, 1, stderr, "Fork failure--assuming worst case and going away\n", BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
-          break;
+	  break;
 	default:					// Parent
 	  waitpid(retcode, &retcode, 0);
 	  sleep(1);

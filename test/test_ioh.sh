@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# 
+#
 #
 # ++Copyright LIBBK++
 #

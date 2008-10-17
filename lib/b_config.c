@@ -706,7 +706,7 @@ config_manage(bk_s B, struct bk_config *bc, const char *key, const char *value, 
   // Null values should be OK and result simply in the key being ignored.
   // <TODO> There should be a way to enter the empty string, but that's a parsing issue, not a management one </TODO>
   if (!value && !ovalue)
-    BK_RETURN(B, 0);    
+    BK_RETURN(B, 0);
 
   if (!(bck=config_kv_search(bc->bc_kv,(char *)key)))
   {

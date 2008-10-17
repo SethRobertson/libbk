@@ -114,7 +114,7 @@ static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
 static struct start_service_args *ssa_create(bk_s B, bk_flags flags);
 static void ssa_destroy(bk_s B, struct start_service_args *ssa);
 static int bk_ssl_env_init(bk_s B);
-/* 
+/*
  * This is called by bk_general_destroy(). We thus can't make it static but
  * neither do we want to advertise it in libbkssl.h.
  */
@@ -145,10 +145,10 @@ ssa_create(bk_s B, bk_flags flags)
   if (!BK_CALLOC(ssa))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate space for new service args: %s\n", strerror(errno));
-    BK_RETURN(B, NULL);    
+    BK_RETURN(B, NULL);
   }
 
-  BK_RETURN(B, ssa);  
+  BK_RETURN(B, ssa);
 }
 
 
@@ -174,7 +174,7 @@ ssa_destroy(bk_s B, struct start_service_args *ssa)
     bk_ssl_destroy_context(B, ssa->ssa_ssl_ctx);
 
   free(ssa);
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 
 
@@ -197,7 +197,7 @@ bk_ssl_env_init(bk_s B)
 
   if (BK_FLAG_ISSET(BK_BT_FLAGS(B), BK_B_FLAG_SSL_INITIALIZED))
   {
-    BK_RETURN(B, 0);    
+    BK_RETURN(B, 0);
   }
 
   BK_FLAG_SET(BK_BT_FLAGS(B), BK_B_FLAG_SSL_INITIALIZED);
@@ -269,7 +269,7 @@ bk_ssl_env_destroy(bk_s B)
 
   if (BK_FLAG_ISCLEAR(BK_BT_FLAGS(B), BK_B_FLAG_SSL_INITIALIZED))
   {
-    BK_RETURN(B, 0);    
+    BK_RETURN(B, 0);
   }
 
   BK_FLAG_CLEAR(BK_BT_FLAGS(B), BK_B_FLAG_SSL_INITIALIZED);
@@ -319,7 +319,7 @@ bk_ssl_create_context(bk_s B, const char *cert_path, const char *key_path, const
   if (bk_ssl_env_init(B) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not initialize SSL environment\n");
-    BK_RETURN(B, NULL);    
+    BK_RETURN(B, NULL);
   }
 
   if (!BK_CALLOC(ssl_ctx))
@@ -538,10 +538,10 @@ bk_ssl_destroy(bk_s B, struct bk_ssl *ssl, bk_flags flags)
  *	@param callback Function to call when start is complete.
  *	@param args User args for @a callback.
  *	@param backlog Server @a listen(2) backlog
- * 	@param key_path (file) path to private key file in PEM format
- * 	@param cert_path (file) path to certificate file in PEM format
- * 	@param dhparam_path (file) path to dh param file in PEM format
- * 	@param ca_file file to dh param file in PEM format
+ *	@param key_path (file) path to private key file in PEM format
+ *	@param cert_path (file) path to certificate file in PEM format
+ *	@param dhparam_path (file) path to dh param file in PEM format
+ *	@param ca_file file to dh param file in PEM format
  *	@param ctx_flags SSL context flags (see bk_ssl_create_context())
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
@@ -575,7 +575,7 @@ bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const 
     goto error;
   }
 
-  if (bk_netutils_start_service_verbose_std(B, run, url, defhoststr, defservstr, defprotostr, 
+  if (bk_netutils_start_service_verbose_std(B, run, url, defhoststr, defservstr, defprotostr,
 					    securenets, ssl_newsock, ssa, backlog, flags) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to start service.\n");
@@ -609,10 +609,10 @@ bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const 
  *	@param timeout Abort connection after @a timeout seconds.
  *	@param callback Function to call when start is complete.
  *	@param args User args for @a callback.
- * 	@param key_path (file) path to private key file in PEM format
- * 	@param cert_path (file) path to certificate file in PEM format
- * 	@param dhparam_path (file) path to dh param file in PEM format
- * 	@param ca_file file to dh param file in PEM format
+ *	@param key_path (file) path to private key file in PEM format
+ *	@param cert_path (file) path to certificate file in PEM format
+ *	@param dhparam_path (file) path to dh param file in PEM format
+ *	@param ca_file file to dh param file in PEM format
  *	@param ctx_flags SSL context flags (see bk_ssl_create_context())
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
@@ -646,7 +646,7 @@ bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, const cha
     goto error;
   }
 
-  if (bk_netutils_make_conn_verbose_std(B, run, rurl, defrhost, defrserv, lurl, deflhost, 
+  if (bk_netutils_make_conn_verbose_std(B, run, rurl, defrhost, defrserv, lurl, deflhost,
 					deflserv, defproto, timeout, ssl_newsock, ssa, flags) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Failed to make connection.\n");
@@ -746,10 +746,10 @@ bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f
  *	@param securenets IP address filtering.
  *	@param callback Function to call back when there's a connection
  *	@param args User arguments to supply to above.
- * 	@param key_path (file) path to private key file in PEM format
- * 	@param cert_path (file) path to certificate file in PEM format
- * 	@param dhparam_path (file) path to dh param file in PEM format
- * 	@param ca_file file to dh param file in PEM format
+ *	@param key_path (file) path to private key file in PEM format
+ *	@param cert_path (file) path to certificate file in PEM format
+ *	@param dhparam_path (file) path to dh param file in PEM format
+ *	@param ca_file file to dh param file in PEM format
  *	@param ctx_flags SSL context flags (see bk_ssl_create_context())
  *	@param flags User flags.
  *	@return <i>-1</i> on failure.<br>
@@ -1317,9 +1317,9 @@ void ssl_closefun(bk_s B, struct bk_ioh *ioh, void *opaque, int fdin, int fdout,
   }
 
   bs = (struct bk_ssl *)opaque;
-  /* 
+  /*
    * No matter what happens in this function, bs is getting destroyed, so
-   * we NULL out the iofunopaque so we can't refer to bs any more. 
+   * we NULL out the iofunopaque so we can't refer to bs any more.
    *
    * <WARN>
    * BTW: updating the ioh directly is WRONG WRONG WRONG but use
@@ -1641,10 +1641,8 @@ static void
 bk_ssl_env_destroy_funlist(bk_s B, void *args, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
-  
+
   bk_ssl_env_destroy(B);
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
-
-

@@ -1,5 +1,5 @@
 ######################################################################
-# 
+#
 #
 # ++Copyright LIBBK++
 #
@@ -18,4 +18,3 @@ LOCAL_LDS=-L$(BK_SSL_LIBDIR)
 LOCAL_INCS=-I$(BK_SSL_INCLUDE)
 
 BK_EXTERNAL_RPATH=-R $(BK_SSL_RPATH)
-

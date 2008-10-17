@@ -95,12 +95,12 @@ UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #if defined(HAVE_VALGRIND_MEMCHECK_H) && !defined(__x86_64)
 #include <valgrind/memcheck.h>
-#else  /* !HAVE_VALGRIND_MEMCHECK_H */ 
+#else  /* !HAVE_VALGRIND_MEMCHECK_H */
 #define RUNNING_ON_VALGRIND 0
-#endif /* !HAVE_VALGRIND_MEMCHECK_H */ 
+#endif /* !HAVE_VALGRIND_MEMCHECK_H */
 
 #define USE_MEM_ENTROPY !RUNNING_ON_VALGRIND
-#endif /* !__INSURE__ */ 
+#endif /* !__INSURE__ */
 
 
 

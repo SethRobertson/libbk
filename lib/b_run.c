@@ -875,8 +875,8 @@ int bk_run_enqueue_cron(bk_s B, struct bk_run *run, time_t msec, void (*event)(b
  *	@param run The baka run environment state
  *	@param handle The handle to dequeue the event in the future
  *	@param flags BK_RUN_DEQUEUE_EVENT normal event
- * 		     BK_RUN_DEQUEUE_CRON cron class event
- * 		     BK_RUN_DEQUEUE_WAIT wait for current execution to complete before return -- watch for lock inheritance bug
+ *		     BK_RUN_DEQUEUE_CRON cron class event
+ *		     BK_RUN_DEQUEUE_WAIT wait for current execution to complete before return -- watch for lock inheritance bug
  *	@return <i><0</i> on call failure, or other error.
  *	@return <br><i>0</i> on success.
  *	@return <br><i>1</i> on pending success (event is executing now, but it will be the last time).

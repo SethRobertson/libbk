@@ -1,5 +1,5 @@
 ######################################################################
-# 
+#
 #
 # ++Copyright LIBBK++
 #
@@ -16,7 +16,7 @@
 #
 BK_LARGE_LIB=libbkssl$(LIBEXT)
 
-BK_LARGE_LIBSRC=		       		\
+BK_LARGE_LIBSRC=				\
 		b_ssl.c				\
 # Line eater fodder -- leave
 

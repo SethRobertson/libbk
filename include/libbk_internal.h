@@ -1,5 +1,5 @@
 /*
- * 
+ *
  *
  * ++Copyright LIBBK++
  *
@@ -39,7 +39,7 @@ struct bk_ioh_queue
   {
     struct
     {
-      u_int32_t 	remaining;		///< Number of bytes in previous complete block remaining
+      u_int32_t	remaining;		///< Number of bytes in previous complete block remaining
       bk_flags		flags;			///< Private flags
     }			block;			///< Block message types
     /* Space for future private info of additional message types */
@@ -60,7 +60,7 @@ struct bk_ioh
 #define IOH_NUKED_LINGER	0x04		///< SO_LINGER was deleted from the fd
   int			ioh_fdout;		///< Output file descriptor
   u_int32_t		ioh_fdout_savestate;	///< Information about fdout which we changed
-  bk_iorfunc_f 		ioh_readfun;		///< Function to read data
+  bk_iorfunc_f		ioh_readfun;		///< Function to read data
   bk_iowfunc_f		ioh_writefun;		///< Function to write data
   bk_iocfunc_f		ioh_closefun;		///< Function to close fds
   void		       *ioh_iofunopaque;	///< Opaque data for iofuns

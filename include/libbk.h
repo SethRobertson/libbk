@@ -1,5 +1,5 @@
 /*
- * 
+ *
  *
  * ++Copyright LIBBK++
  *
@@ -816,7 +816,7 @@ struct bk_addrgroup
   int			bag_proto;		///< Cached proto */
   bk_netaddr_type_e	bag_type;		///< Cached address family */
   struct bk_ssl	    *	bag_ssl;		///< SSL state for connection
-  void 			(*bag_ssl_destroy)(bk_s B, struct bk_ssl *ssl, bk_flags flags); // Hack to allow bk_ssl_destroy to be called without creating a compilation dependency.
+  void			(*bag_ssl_destroy)(bk_s B, struct bk_ssl *ssl, bk_flags flags); // Hack to allow bk_ssl_destroy to be called without creating a compilation dependency.
   int32_t		bag_refcount;		///< Don't free until this refcount is zero.
 };
 
@@ -2043,17 +2043,17 @@ extern struct bk_protoinfo *bk_protoinfo_clone (bk_s B, struct bk_protoinfo *obs
 
 
 
-/* 
+/*
  * These are flags jointly shared by all the various connection management
  * routines. Some are useful only when connecting, others are useful only
  * when receiving, still others are useful in both cases. They are all
  * grouped together because, while there are still so few of them, it's
  * fare more convientt.
  */
-#define BK_NET_FLAG_ANY_ADDR 		0x01	///< Bind to INADDR_ANY
-#define BK_NET_FLAG_WANT_SSL 		0x02	///< Use SSL (fail if not supported)
-#define BK_NET_FLAG_STANDARD_UDP 	0x04	///< Don't send baka preamble/syn thing (This option is no longer used, but maintained for backwards compat).
-#define BK_NET_FLAG_BAKA_UDP 		0x08	///< Use the deprecated BAKA UDP preamble thing. 
+#define BK_NET_FLAG_ANY_ADDR		0x01	///< Bind to INADDR_ANY
+#define BK_NET_FLAG_WANT_SSL		0x02	///< Use SSL (fail if not supported)
+#define BK_NET_FLAG_STANDARD_UDP	0x04	///< Don't send baka preamble/syn thing (This option is no longer used, but maintained for backwards compat).
+#define BK_NET_FLAG_BAKA_UDP		0x08	///< Use the deprecated BAKA UDP preamble thing.
 
 
 /* b_netutils.c */

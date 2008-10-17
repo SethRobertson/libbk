@@ -79,7 +79,7 @@ foreach $name (keys %count)
   my ($n1,$n2) = split(/</,$name);
 
   printf(qq^<tr><td>%s</td><td>%s</td><td align="right">%u</td><td align="right">%.3f</td><td align="right">%u</td><td align="right">%u</td><td align="right">%.6f</td></tr>\n^,
-         $n1, $n2, $min{$name}, $sum{$name}*1000000/$count{$name}, $max{$name}, $count{$name},$sum{$name});
+	 $n1, $n2, $min{$name}, $sum{$name}*1000000/$count{$name}, $max{$name}, $count{$name},$sum{$name});
 }
 print @trailer;
 

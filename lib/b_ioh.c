@@ -320,7 +320,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_i
     BK_RETURN(B, bk_ssl_ioh_init(B, ssl, fdin, fdout, handler, opaque, inbufhint, inbufmax, outbufmax, run, flags));
   }
 #endif /* NO_SSL */
-  
+
   BK_RETURN(B, bk_ioh_init_std(B, fdin, fdout, handler, opaque, inbufhint, inbufmax, outbufmax, run, flags));
 }
 
@@ -3994,7 +3994,7 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
   /* If this is an AF_LOCAL socket, then remove the associated file */				\
   if (getsockname((fdin), (struct sockaddr *)(&__sun), &__len) > 0)				\
   {												\
-    if (__sun.sun_family == AF_LOCAL && __sun.sun_path && 					\
+    if (__sun.sun_family == AF_LOCAL && __sun.sun_path &&					\
 	(!BK_STREQ(__sun.sun_path, "")) && (unlink(__sun.sun_path) < 0))			\
     {												\
       if (errno != ENOENT)									\
@@ -4006,7 +4006,7 @@ int bk_ioh_stdwrfun(bk_s B, struct bk_ioh *ioh, void *opaque, int fd, struct iov
 
 
 /**
- * Standard close() functionality in IOH API. 
+ * Standard close() functionality in IOH API.
  *
  * It's totally bogus to check for the AF_LOCAL file here, but since it
  * gets *created* automatically (by the kernel), it would be nice to have

@@ -171,7 +171,7 @@ bk_time_iso_format(bk_s B, char *str, size_t max, const struct timespec *timep, 
   if (!(tp = gmtime_r(&ts.tv_sec, &t)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not convert timespec to UTC: %s\n", strerror(errno));
-    BK_RETURN(B, 0);    
+    BK_RETURN(B, 0);
   }
 
   if (!(len = strftime(str, max - 1 - precision, format, tp)))
@@ -591,7 +591,7 @@ bk_time_ntp_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
 
 
 /**
- * Parses a duration string in the format [Dd][Hh][Mm][Ss] and returns the 
+ * Parses a duration string in the format [Dd][Hh][Mm][Ss] and returns the
  * duration in seconds.  The string must not exceed 128 bytes.
  *
  * Example: 4d7h35m is 4 days, 7 hours, and 35 minutes.

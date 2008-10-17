@@ -195,6 +195,6 @@ void
 bk_ssl_destroy(bk_s B, void *ssl, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }
 #endif /* NO_SSL */

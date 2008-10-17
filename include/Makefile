@@ -1,5 +1,5 @@
 ######################################################################
-# 
+#
 #
 # ++Copyright LIBBK++
 #
@@ -15,12 +15,12 @@
 # libbk Makefile
 #
 BK_PUBLIC_INC=				\
-		libbk.h 		\
+		libbk.h		\
 		libbk_autoconf.h	\
 		libbk_compiler.h	\
 		libbk_i18n.h		\
 		libbk_include.h		\
-		libbk_inline.h 		\
+		libbk_inline.h		\
 		libbk_net.h		\
 		libbk_oscompat.h	\
 # Line fodder. Don not remove.

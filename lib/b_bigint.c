@@ -43,11 +43,11 @@ bk_bigint_init(bk_s B, struct bk_bigint *bb, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   bb->bb_cur_uint = 0;
   bb->bb_overflow = 0;
 
-  BK_RETURN(B, 0);  
+  BK_RETURN(B, 0);
 }
 
 
@@ -72,7 +72,7 @@ bk_bigint_accumulate(bk_s B, struct bk_bigint *bb, u_int val, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if ((u_int64_t)(bb->bb_cur_uint + val) >= (u_int64_t)UINT_MAX)
   {
     // We have rolled over.
@@ -80,7 +80,7 @@ bk_bigint_accumulate(bk_s B, struct bk_bigint *bb, u_int val, bk_flags flags)
   }
 
   bb->bb_cur_uint = val;
-  BK_RETURN(B, 0);  
+  BK_RETURN(B, 0);
 }
 
 
@@ -105,6 +105,6 @@ bk_bigint_value(bk_s B, struct bk_bigint *bb, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, (u_int64_t)-1);
   }
-  
-  BK_RETURN(B, bb->bb_overflow + (u_int64_t)bb->bb_cur_uint);  
+
+  BK_RETURN(B, bb->bb_overflow + (u_int64_t)bb->bb_cur_uint);
 }

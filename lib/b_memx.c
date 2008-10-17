@@ -381,5 +381,5 @@ bk_memx_info(bk_s B, struct bk_memx *bm, void **arrayp, size_t *unitesizep, size
   if (incrp) *incrp = bm->bm_incr;
   if (flagsp) *flagsp = bm->bm_flags;
 
-  BK_RETURN(B, 0);  
+  BK_RETURN(B, 0);
 }

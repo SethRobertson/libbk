@@ -1025,7 +1025,7 @@ bk_ether_aton(bk_s B, const char *ether_addr_str, struct ether_addr *ether_addr,
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (!(ether_toks = bk_string_tokenize_split(B, ether_addr_str, 0, ":", NULL, NULL, NULL, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not tokenize the ether address\n");
@@ -1060,14 +1060,14 @@ bk_ether_aton(bk_s B, const char *ether_addr_str, struct ether_addr *ether_addr,
     element &= 0xff; // Just be certain
     ether_addr->ether_addr_octet[cnt] = element;
   }
-  
+
   bk_string_tokenize_destroy(B, ether_toks);
-  BK_RETURN(B, 0);  
-  
+  BK_RETURN(B, 0);
+
  error:
   if (ether_toks)
     bk_string_tokenize_destroy(B, ether_toks);
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -1093,10 +1093,10 @@ bk_ether_ntoa(bk_s B, struct ether_addr *ether_addr, char *ether_addr_str, bk_fl
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
-  
+
   if (BK_FLAG_ISSET(flags, BK_ETHER_NTOA_FLAG_UPPER))
   {
-    ret = snprintf(ether_addr_str, 18, "%02X:%02X:%02X:%02X:%02X:%02X", 
+    ret = snprintf(ether_addr_str, 18, "%02X:%02X:%02X:%02X:%02X:%02X",
 		   ether_addr->ether_addr_octet[0],
 		   ether_addr->ether_addr_octet[1],
 		   ether_addr->ether_addr_octet[2],
@@ -1106,7 +1106,7 @@ bk_ether_ntoa(bk_s B, struct ether_addr *ether_addr, char *ether_addr_str, bk_fl
   }
   else
   {
-    ret = snprintf(ether_addr_str, 18, "%02x:%02x:%02x:%02x:%02x:%02x", 
+    ret = snprintf(ether_addr_str, 18, "%02x:%02x:%02x:%02x:%02x:%02x",
 		   ether_addr->ether_addr_octet[0],
 		   ether_addr->ether_addr_octet[1],
 		   ether_addr->ether_addr_octet[2],
@@ -1124,5 +1124,5 @@ bk_ether_ntoa(bk_s B, struct ether_addr *ether_addr, char *ether_addr_str, bk_fl
   BK_RETURN(B, 0);
 
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }

@@ -121,7 +121,7 @@ bk_protoinfo_create(bk_s B, int proto, const char *proto_str, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Could not create the protoinfo\n");
     goto error;
   }
-  
+
   bpi->bpi_flags = flags;
   bpi->bpi_proto = proto;
   if (!(bpi->bpi_protostr = strdup(proto_str)))
@@ -130,12 +130,12 @@ bk_protoinfo_create(bk_s B, int proto, const char *proto_str, bk_flags flags)
     goto error;
   }
 
-  BK_RETURN(B, bpi);  
+  BK_RETURN(B, bpi);
 
  error:
   if (bpi)
     bpi_destroy(B, bpi);
-  BK_RETURN(B, NULL);  
+  BK_RETURN(B, NULL);
 }
 
 

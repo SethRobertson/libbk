@@ -172,7 +172,7 @@ xmlAttrPtr bkxml_attrsearch(bk_s B, xmlNodePtr node, const char *findname, bk_fl
  *	@param doc The XML document header for special entities (not required for normal entities)
  *	@param attrnode The XML attribute or node whose data you wish to copy
  *	@param flags BKXML_MISSING_TEXT_ARE_NULL, BKXML_EXPAND_VARS
- * 	@return <i>NULL</i> on call failure
+ *	@return <i>NULL</i> on call failure
  *	@return <br><i>allocated string</i> on success
  */
 char *bkxml_attrnode_data(bk_s B, xmlDocPtr doc, xmlNodePtr attrnode, bk_flags flags)
@@ -235,10 +235,10 @@ bkxml_attrnode_valbyname(bk_s B, xmlNodePtr node, const char *findname, bk_flags
   if (!(attr = bkxml_attrsearch(B, node, findname, 0)))
   {
     bk_error_printf(B, BK_ERR_NOTICE, "Could not locate attribute: %s\n", findname);
-    BK_RETURN(B,NULL);    
+    BK_RETURN(B,NULL);
   }
-  
-  BK_RETURN(B, bkxml_attrnode_data(B, NULL, (xmlNodePtr)attr, flags));  
+
+  BK_RETURN(B, bkxml_attrnode_data(B, NULL, (xmlNodePtr)attr, flags));
 }
 
 

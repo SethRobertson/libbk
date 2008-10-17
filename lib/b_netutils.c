@@ -303,10 +303,10 @@ bk_parse_endpt_no_defaults(bk_s B, const char *urlstr, char **hostname, char **s
  *	@param callback Function to call when start is complete.
  *	@param args User args for @a callback.
  *	@param backlog Server @a listen(2) backlog
- * 	@param key_path (file) path to private key file in PEM format
- * 	@param cert_path (file) path to certificate file in PEM format
- * 	@param dhparam_path (file) path to dh param file in PEM format
- * 	@param ca_file file to dh param file in PEM format
+ *	@param key_path (file) path to private key file in PEM format
+ *	@param cert_path (file) path to certificate file in PEM format
+ *	@param dhparam_path (file) path to dh param file in PEM format
+ *	@param ca_file file to dh param file in PEM format
  *	@param ctx_flags SSL context flags (see bk_ssl_create_context())
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
@@ -322,7 +322,7 @@ bk_netutils_start_service_verbose(bk_s B, struct bk_run *run, const char *url, c
     if (!bk_ssl_supported(B))
     {
       bk_error_printf(B, BK_ERR_ERR, "SSL support is not available\n");
-      BK_RETURN(B, -1);      
+      BK_RETURN(B, -1);
     }
 
 #ifndef NO_SSL
@@ -708,7 +708,7 @@ bk_netutils_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, cons
     if (!bk_ssl_supported(B))
     {
       bk_error_printf(B, BK_ERR_ERR, "SSL support is not available\n");
-      BK_RETURN(B, -1);      
+      BK_RETURN(B, -1);
     }
 
 #ifndef NO_SSL

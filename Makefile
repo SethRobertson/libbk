@@ -1,5 +1,5 @@
 ######################################################################
-# 
+#
 #
 # ++Copyright LIBBK++
 #
@@ -46,7 +46,7 @@ endif # BK_USING_SSL
 
 # Suppress building of BK programs (like bttcp and bchill). Includes suppresion of test
 ifneq ($(strip $(WANT_BK_PROCS)),false)
-BK_SUBDIR+=src 
+BK_SUBDIR+=src
 # Even if BK programs are wanted, suppress building of test
 ifneq ($(strip $(WANT_BK_TEST)),false)
 BK_SUBDIR+=test
