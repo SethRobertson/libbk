@@ -1,19 +1,18 @@
 #if !defined(lint)
-#include "libbk_compiler.h"
-UNUSED static const char libbk__copyright[] = "Copyright (c) 2003";
-UNUSED static const char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__copyright[] = "Copyright © 2001-2008";
+static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
- * ++Copyright LIBBK++
+ * ++Copyright BAKA++
  *
- * Copyright (c) 2001-2003 The Authors.  All rights reserved.
+ * Copyright © 2001-2008 The Authors. All rights reserved.
  *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
  *
- * Mail <projectbaka@baka.org> for further information
+ * Send e-mail to <projectbaka@baka.org> for further information.
  *
- * --Copyright LIBBK--
+ * - -Copyright BAKA- -
  */
 
 /**
