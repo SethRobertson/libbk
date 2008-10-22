@@ -34,7 +34,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define PREVIOUS_FILE_NUM(brd,num)	(((num)==0)?((brd)->brd_max_num_files-1):((num)-1))
 
 #define INCREMENT_FILE_NUM(brd)	 do { (brd)->brd_cur_file_num = NEXT_FILE_NUM(brd, (brd)->brd_cur_file_num); } while(0)
-
+#define CHECK_ESTIMATE_EVERY		512	// How often to double-check state estimate
 
 
 /**
@@ -49,6 +49,8 @@ struct bk_ring_directory
   const char *			brd_pattern;	///< File name pattern.
   const char *			brd_path;	////< Full path with pattern.
   u_int32_t			brd_cur_file_num; ///< Index of current file.
+  u_int32_t			brd_offset_level;
+  off_t				brd_offset_estimate; ///< The current estimate of where we are
   const char *			brd_cur_filename; ///< The current file we are updating.
   void *			brd_opaque;	///< User data.
   struct bk_ringdir_callbacks	brd_brc;	///< Callback structure.
@@ -340,7 +342,7 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
     if (BK_FLAG_ISSET(ringdir_open_flags, BK_RINGDIR_FLAG_OPEN_APPEND))
     {
       // Check that we did just *happen* to check point a file which is full.
-      if (bk_ringdir_rotate(B, brd, 0) < 0)
+      if (bk_ringdir_rotate(B, brd, 0, 0) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Failed to perform rotate check\n");
 	goto error;
@@ -455,12 +457,13 @@ bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags)
  *
  *	@param B BAKA thread/global state.
  *	@param brdh Ring directory handle.
+ *	@param estimate_size_increment An estimate as to how much bigger the file may have gotten since the last call (0 means don't know)
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
+bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, u_int estimate_size_increment, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
@@ -480,20 +483,28 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags)
   }
   else
   {
-    off_t size;
+    brd->brd_offset_estimate += estimate_size_increment;
 
-    if ((size = (*brd->brd_brc.brc_get_size)(B, brd->brd_opaque, brd->brd_cur_filename, 0)) == (off_t)BK_RINGDIR_GET_SIZE_ERROR)
+    // If we have an estimate, bypass state unless
+    if (!estimate_size_increment ||
+	brd->brd_offset_estimate >= brd->brd_rotate_size ||
+	(brd->brd_offset_level++ % CHECK_ESTIMATE_EVERY) == 1)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not obtain size of %s\n", brd->brd_cur_filename);
-      goto error;
-    }
+      if ((brd->brd_offset_estimate = (*brd->brd_brc.brc_get_size)(B, brd->brd_opaque, brd->brd_cur_filename, 0)) == (off_t)BK_RINGDIR_GET_SIZE_ERROR)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not obtain size of %s\n", brd->brd_cur_filename);
+	goto error;
+      }
 
-    if (size >= brd->brd_rotate_size)
-      need_rotate = 1;
+      if (brd->brd_offset_estimate >= brd->brd_rotate_size)
+	need_rotate = 1;
+    }
   }
 
   if (need_rotate)
   {
+    brd->brd_offset_level = brd->brd_offset_estimate = 0;
+
     if ((*brd->brd_brc.brc_close)(B, brd->brd_opaque, brd->brd_cur_filename, BkRingDirCallbackSourceRotate, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not close %s\n", brd->brd_cur_filename);

@@ -2530,7 +2530,7 @@ struct bk_ringdir_callbacks
 
 extern bk_ringdir_t bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *file_name_pattern, void *private, struct bk_ringdir_callbacks *callbacks, bk_flags flags);
 extern void bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags);
-extern int bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, bk_flags flags);
+extern int bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, u_int estimate_size_increment, bk_flags flags);
 extern void *bk_ringdir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern int bk_ringdir_did_rotate_occur(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern char *bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, bk_flags flags);

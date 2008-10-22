@@ -317,7 +317,7 @@ static void progrun(bk_s B, struct program_config *pc)
       start += nbytes;
     } while (len);
 
-    if (bk_ringdir_rotate(B, brdh, 0) < 0)
+    if (bk_ringdir_rotate(B, brdh, 0, 0) < 0)
     {
       fprintf(stderr,"Failed to rotate\n");
       goto error;
