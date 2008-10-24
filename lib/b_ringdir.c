@@ -65,6 +65,8 @@ struct bk_ringdir_standard
 {
   bk_flags	brs_flags;			///< Everyone needs flags.
   int		brs_fd;				///< Currently active fd
+  void		*brs_filehandle;			///< Currently active file handle
+  off_t		(*brs_ftell)(void *);		///< File handle tell function
   const char *	brs_chkpnt_filename;		///< Name of checkpoint file.
   const char *	brs_cur_filename;		///< Current filename (for sanity check).
   void *	brs_opaque;			///< Private data for those who are only using some of the standard callbacks.
@@ -809,25 +811,33 @@ bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flag
     goto error;
   }
 
-  if (fstat(brs->brs_fd, &st) < 0)
+  if (brs->brs_fd >= 0)
   {
-    if (errno == EBADF)
+    if (fstat(brs->brs_fd, &st) < 0)
     {
-      // If the FD is bad, try again with the name. Happens occasionally during opens.
-      if (stat(filename, &st) < 0)
+      if (errno == EBADF)
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not stat %s (fd: %d): %s\n", filename, brs->brs_fd, strerror(errno));
+	// If the FD is bad, try again with the name. Happens occasionally during opens.
+	if (stat(filename, &st) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not stat %s (fd: %d): %s\n", filename, brs->brs_fd, strerror(errno));
+	  goto error;
+	}
+      }
+      else
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not stat %s: %s\n", filename, strerror(errno));
 	goto error;
       }
     }
-    else
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not stat %s: %s\n", filename, strerror(errno));
-      goto error;
-    }
+
+    BK_RETURN(B,st.st_size);
+  }
+  else if (brs->brs_filehandle && brs->brs_ftell)
+  {
+    BK_RETURN(B, (*brs->brs_ftell)(brs->brs_filehandle));
   }
 
-  BK_RETURN(B,st.st_size);
 
  error:
   BK_RETURN(B,BK_RINGDIR_GET_SIZE_ERROR);
@@ -1149,7 +1159,6 @@ bk_ringdir_standard_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags)
 
 
 
-
 /**
  * Retrieve the fd of the standard sttruct
  *
@@ -1173,7 +1182,6 @@ bk_ringdir_standard_get_fd(bk_s B, bk_ringdir_t brdh, bk_flags flags)
 
   BK_RETURN(B,brs->brs_fd);
 }
-
 
 
 
@@ -1204,6 +1212,62 @@ bk_ringdir_standard_set_fd(bk_s B, bk_ringdir_t brdh, int fd, bk_flags flags)
   BK_RETURN(B, 0);
 }
 
+
+
+/**
+ * Retrieve the private file handle of the standard struct
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@param flags Flags for future use.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>private data</i> on success.
+ */
+void *
+bk_ringdir_standard_get_fh(bk_s B, bk_ringdir_t brdh, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ringdir_standard *brs;
+
+  if (!brdh || !(brs = bk_ringdir_get_private_data(B, brdh, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  BK_RETURN(B,brs->brs_filehandle);
+}
+
+
+
+/**
+ * Insert a file handle and tell function
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@param fh File handle to add.
+ *	@param ftell Tell function to add.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_ringdir_standard_set_fh(bk_s B, bk_ringdir_t brdh, void *fh, off_t (*ssftell)(void *), bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ringdir_standard *brs;
+
+  if (!brdh || !(brs = bk_ringdir_get_private_data(B, brdh, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  brs->brs_filehandle = fh;
+  brs->brs_ftell = ssftell;
+
+  BK_RETURN(B, 0);
+}
 
 
 
@@ -1409,6 +1473,33 @@ bk_ringdir_filename_current(bk_s B, bk_ringdir_t brdh, bk_flags flags)
   }
 
   BK_RETURN(B,strdup(brd->brd_cur_filename));
+}
+
+
+
+
+/**
+ * Obtain the current file pattern, as constant memory
+ * which will not be valid after the ringdir is destroyed
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brdh Ring directory handle.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>pattern</i> on success.
+ */
+const char *
+bk_ringdir_getpattern(bk_s B, bk_ringdir_t brdh)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
+
+  if (!brd)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  BK_RETURN(B,brd->brd_path);
 }
 
 
