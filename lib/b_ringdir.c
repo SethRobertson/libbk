@@ -817,12 +817,7 @@ bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flag
     {
       if (errno == EBADF)
       {
-	// If the FD is bad, try again with the name. Happens occasionally during opens.
-	if (stat(filename, &st) < 0)
-	{
-	  bk_error_printf(B, BK_ERR_ERR, "Could not stat %s (fd: %d): %s\n", filename, brs->brs_fd, strerror(errno));
-	  goto error;
-	}
+	goto filename_stat;
       }
       else
       {
@@ -836,6 +831,17 @@ bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flag
   else if (brs->brs_filehandle && brs->brs_ftell)
   {
     BK_RETURN(B, (*brs->brs_ftell)(brs->brs_filehandle));
+  }
+  else
+  {
+  filename_stat:
+    if (stat(filename, &st) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not stat %s: %s\n", filename, strerror(errno));
+      goto error;
+    }
+
+    BK_RETURN(B,st.st_size);
   }
 
 
