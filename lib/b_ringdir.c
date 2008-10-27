@@ -35,6 +35,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 #define INCREMENT_FILE_NUM(brd)	 do { (brd)->brd_cur_file_num = NEXT_FILE_NUM(brd, (brd)->brd_cur_file_num); } while(0)
 #define CHECK_ESTIMATE_EVERY		512	// How often to double-check state estimate
+#define MAXIMUM_LEVELS			10	// Maximum number of levels we support
 
 
 /**
@@ -48,11 +49,14 @@ struct bk_ring_directory
   const char *			brd_directory;	///< Directory name;
   const char *			brd_pattern;	///< File name pattern.
   const char *			brd_path;	////< Full path with pattern.
+  const char *			brd_pathext;	////< Full path with pattern.
   u_int32_t			brd_cur_file_num; ///< Index of current file.
   u_int32_t			brd_offset_level;
   off_t				brd_offset_estimate; ///< The current estimate of where we are
   const char *			brd_cur_filename; ///< The current file we are updating.
   void *			brd_opaque;	///< User data.
+  int				brd_split_levels; ///< How many times pattern is subdivided (typically into subdirectories)
+  int				brd_perlevel;	  ///< How many items per level
   struct bk_ringdir_callbacks	brd_brc;	///< Callback structure.
 };
 
@@ -74,30 +78,46 @@ struct bk_ringdir_standard
 
 
 
-static struct bk_ring_directory *brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *pattern, struct bk_ringdir_callbacks *callbacks, bk_flags flags);
-static void brd_destroy(bk_s B, struct bk_ring_directory *brd);
-static int write_settings(bk_s B, struct bk_ring_directory *brd, const char *directory, const char *pattern, bk_flags flags);
+/**
+ * Standard list of callbacks for people where is is sufficient
+ */
+struct bk_ringdir_callbacks bk_ringdir_standard_callbacks =
+{
+  bk_ringdir_standard_init,
+  bk_ringdir_standard_destroy,
+  bk_ringdir_standard_get_size,
+  bk_ringdir_standard_open,
+  bk_ringdir_standard_close,
+  bk_ringdir_standard_unlink,
+  bk_ringdir_standard_chkpnt,
+};
+
+
+
+static int write_settings(bk_s B, struct bk_ring_directory *brd, bk_flags flags);
+static u_int32_t get_filenumber_from_path(bk_s B, struct bk_ring_directory *brd, const char *filename, bk_flags flags);
 
 
 #define TEST_FILE_NUM 1
 
 /**
- * Create a @a bk_ring_directory
+ * Create a @a bk_ring_directory -- typically called for you by bk_ringdir_init
  *
  *	@param B BAKA thread/global state.
- *	@param flags Flags for future use.
+ *	@param flags BK_RINGDIR_FLAG_CREATE_NOWRITE
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
-static struct bk_ring_directory *
-brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *pattern, struct bk_ringdir_callbacks *callbacks, bk_flags flags)
+bk_ringdir_t
+bk_ringdir_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *pattern, struct bk_ringdir_callbacks *callbacks, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ring_directory *brd = NULL;
   char *tmp_filename = NULL;
-  u_int32_t tmp_num;
+  const char *levelloc = NULL;
+  char *tmpc;
 
-  if (!directory || !rotate_size || !max_num_files || !callbacks)
+  if (!directory || !rotate_size || !callbacks)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
@@ -113,12 +133,6 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
   brd->brd_max_num_files = max_num_files;
   brd->brd_brc = *callbacks;			// Structure copy.
   brd->brd_flags = flags;
-
-  if (write_settings(B, brd, directory, pattern, 0) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Failed to write settings file.\n");
-    goto error;
-  }
 
   if (rotate_size == (off_t)BK_RINGDIR_GET_SIZE_ERROR)
   {
@@ -165,29 +179,88 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
     goto error;
   }
 
+  if (!(brd->brd_pathext = bk_string_alloc_sprintf(B, 0, 0, "%s%s", brd->brd_directory, pattern)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create file name pattern: %s\n", strerror(errno));
+    goto error;
+  }
+  for (tmpc = (char *)brd->brd_pathext + strlen(brd->brd_directory); *tmpc; tmpc++)
+  {
+    if (*tmpc == '/')
+      *tmpc = '_';
+  }
+
+  levelloc = brd->brd_pattern;
+  while (levelloc = strchr(levelloc, '%'))
+  {
+    if (levelloc[1] == '%')
+    {
+      levelloc++;
+    }
+    else
+    {
+      brd->brd_split_levels++;
+    }
+    levelloc++;
+  }
+
+  if (!max_num_files)
+  {
+    u_int32_t cur, old;
+
+    if (max_num_files < 1)
+    {
+      bk_ringdir_get_status(B, brd, &cur, &old, &max_num_files, BK_RINGDIR_FLAG_INTERNAL);
+    }
+  }
+  brd->brd_max_num_files = max_num_files;
+
+  if (!max_num_files)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Maximum number of files neither specified nor intuitable\n");
+    goto error;
+  }
+
+  brd->brd_perlevel = (int)ceil(pow(max_num_files,1.0/(double)brd->brd_split_levels));
+
+  if (brd->brd_split_levels > MAXIMUM_LEVELS)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "We only support at most %d levels of pattern levels, you have %d\n", MAXIMUM_LEVELS, brd->brd_split_levels);
+    goto error;
+  }
+
   //Test pattern by attempting to create filename with TEST_FILE_NUM.
-  if (!(tmp_filename = bk_ringdir_create_file_name(B, brd->brd_path, TEST_FILE_NUM, 0)))
+  if (!(tmp_filename = bk_ringdir_create_file_name(B, brd, TEST_FILE_NUM, BK_RINGDIR_FLAG_DO_NOT_CREATE)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create valid filename. Is the pattern OK: %s\n", brd->brd_pattern);
     goto error;
   }
 
   // Now convert *back* and make sure we still have TEST_FILE_NUM.
-  if (!sscanf(tmp_filename, brd->brd_path, &tmp_num) || (tmp_num != TEST_FILE_NUM))
+  if (get_filenumber_from_path(B, brd, tmp_filename, 0) != TEST_FILE_NUM)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Failed to properly create valid filename. Is the pattern OK: %s\n", brd->brd_pattern);
+    bk_error_printf(B, BK_ERR_ERR, "Failed to properly create valid filename. Is the pattern OK? %s\n", brd->brd_pattern);
     goto error;
   }
 
   free(tmp_filename);
   tmp_filename = NULL;
 
+  if (BK_FLAG_ISCLEAR(flags, BK_RINGDIR_FLAG_CREATE_NOWRITE))
+  {
+    if (write_settings(B, brd, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Failed to write settings file.\n");
+      goto error;
+    }
+  }
 
-  BK_RETURN(B,brd);
+
+  BK_RETURN(B,(bk_ringdir_t)brd);
 
  error:
   if (brd)
-    brd_destroy(B, brd);
+    bk_ringdir_idestroy(B, brd);
 
   if (tmp_filename)
     free(tmp_filename);
@@ -203,10 +276,11 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
  *	@param B BAKA thread/global state.
  *	@param brd The @a bk_ring_directory to nuke.
  */
-static void
-brd_destroy(bk_s B, struct bk_ring_directory *brd)
+void
+bk_ringdir_idestroy(bk_s B, bk_ringdir_t brdh)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
 
   if (!brd)
   {
@@ -222,6 +296,9 @@ brd_destroy(bk_s B, struct bk_ring_directory *brd)
 
   if (brd->brd_path)
     free((char *)brd->brd_path);
+
+  if (brd->brd_pathext)
+    free((char *)brd->brd_pathext);
 
   if (brd->brd_cur_filename)
     free((char *)brd->brd_cur_filename);
@@ -256,7 +333,10 @@ brd_destroy(bk_s B, struct bk_ring_directory *brd)
  *	@param directory The name of the ring "directory"
  *	@param rotate_size The size threshold which triggers a rotation on the next check.
  *	@param max_num_files How many "files" to create in the "directory" before reuse kicks in.
- *	@param file_name_pattern sprintf(3) pattern (must contain %u) from which the "directory" "file" names will be generated. May be NULL.
+ *	@param file_name_pattern sprintf(3) pattern (must contain %u or similar) from which the
+ *			"directory" "file" names will be generated--%u. May be NULL.
+ *			If there are multiple %u or similar character, the assumption is you desire something like
+ *			a directory heirarchy with a smaller number of files per directory.
  *	@param private Private data for the init() <b>callback</b>.
  *	@param callbacks Ponter to the structure summarizing the underlying implementation callbacks.
  *	@param flags Flags for future use.
@@ -275,13 +355,13 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
     BK_RETURN(B, NULL);
   }
 
-  if (!(brd = brd_create(B, directory, rotate_size, max_num_files, file_name_pattern, callbacks, flags)))
+  if (!(brd = bk_ringdir_create(B, directory, rotate_size, max_num_files, file_name_pattern, callbacks, flags)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create bk ring directory state\n");
     goto error;
   }
 
-  if (brd->brd_brc.brc_init && !(brd->brd_opaque = (*brd->brd_brc.brc_init)(B, directory, rotate_size, max_num_files, file_name_pattern, private, flags & BK_RINGDIR_FLAG_DO_NOT_CREATE)))
+  if (brd->brd_brc.brc_init && !(brd->brd_opaque = (*brd->brd_brc.brc_init)(B, directory, rotate_size, max_num_files, file_name_pattern, private, ((flags & BK_RINGDIR_FLAG_DO_NOT_CREATE)||(brd->brd_flags & BK_RINGDIR_FLAG_DO_NOT_CREATE)))))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create user state\n");
     goto error;
@@ -320,7 +400,7 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
       break;
     }
 
-    if (!(brd->brd_cur_filename = bk_ringdir_create_file_name(B, brd->brd_path, brd->brd_cur_file_num, 0)))
+    if (!(brd->brd_cur_filename = bk_ringdir_create_file_name(B, brd, brd->brd_cur_file_num, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create filename from pattern\n");
       goto error;
@@ -354,7 +434,7 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
 
  error:
   if (brd)
-    brd_destroy(B, brd);
+    bk_ringdir_idestroy(B, brd);
 
   BK_RETURN(B,NULL);
 }
@@ -414,7 +494,7 @@ bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     BK_FLAG_SET(destroy_callback_flags, BK_RINGDIR_FLAG_NUKE_DIR_ON_DESTROY);
     for(cnt = 0; cnt < brd->brd_max_num_files; cnt++)
     {
-      if (!(filename = bk_ringdir_create_file_name(B, brd->brd_path, cnt, 0)))
+      if (!(filename = bk_ringdir_create_file_name(B, brd, cnt, 0)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not create filename\n");
 	goto error;
@@ -436,7 +516,7 @@ bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags)
   if (brd->brd_brc.brc_destroy)
     (*brd->brd_brc.brc_destroy)(B, brd->brd_opaque, brd->brd_directory, destroy_callback_flags);
 
-  brd_destroy(B, brd);
+  bk_ringdir_idestroy(B, brd);
 
   BK_VRETURN(B);
 
@@ -524,7 +604,7 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, u_int estimate_size_increment, bk_f
 
     INCREMENT_FILE_NUM(brd);
 
-    if (!(brd->brd_cur_filename = bk_ringdir_create_file_name(B, brd->brd_path, brd->brd_cur_file_num, 0)))
+    if (!(brd->brd_cur_filename = bk_ringdir_create_file_name(B, brd, brd->brd_cur_file_num, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create filename from pattern\n");
       goto error;
@@ -590,26 +670,84 @@ bk_ringdir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags)
  * Create a filename based on the directoy, pattern, and cnt.
  *
  *	@param B BAKA thread/global state.
- *	@param flags Flags for future use.
+ *	@param brdh Ring directory handle
+ *	@param cnt What file number we are expanding to
+ *	@param flags BK_RINGDIR_FLAG_DO_NOT_CREATE
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>filename</i> on success.
  */
 char *
-bk_ringdir_create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags)
+bk_ringdir_create_file_name(bk_s B, bk_ringdir_t brdh, u_int32_t cnt, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  char *filename;
+  struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
+  char *filename = NULL;
+  int levelnums[MAXIMUM_LEVELS];
+  int levelcounter;
+  char *dupname = NULL;
+  char *curname;
+  u_int32_t origcnt = cnt;
 
-  if (!pattern)
+  if (!brd)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
 
-  if (!(filename = bk_string_alloc_sprintf(B, 0, 0, pattern, cnt)))
+  for(levelcounter=brd->brd_split_levels-1; levelcounter >= 0; levelcounter--)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create file name\n");
+    levelnums[levelcounter] = cnt % brd->brd_perlevel;
+    cnt /= brd->brd_perlevel;
+  }
+
+  // I don't think you are allowed to portably construct a stdargs :-(
+  switch(brd->brd_split_levels)
+  {
+  case 1: filename = bk_string_alloc_sprintf(B, 0, 0, brd->brd_path, origcnt); break;
+  case 2: filename = bk_string_alloc_sprintf(B, 0, 0, brd->brd_path, levelnums[1], origcnt); break;
+  case 3: filename = bk_string_alloc_sprintf(B, 0, 0, brd->brd_path, levelnums[2], levelnums[1], origcnt); break;
+  case 4: filename = bk_string_alloc_sprintf(B, 0, 0, brd->brd_path, levelnums[3], levelnums[2], levelnums[1], origcnt); break;
+  case 5: filename = bk_string_alloc_sprintf(B, 0, 0, brd->brd_path, levelnums[4], levelnums[3], levelnums[2], levelnums[1], origcnt); break;
+  case 6: filename = bk_string_alloc_sprintf(B, 0, 0, brd->brd_path, levelnums[5], levelnums[4], levelnums[3], levelnums[2], levelnums[1], origcnt); break;
+  case 7: filename = bk_string_alloc_sprintf(B, 0, 0, brd->brd_path, levelnums[6], levelnums[5], levelnums[4], levelnums[3], levelnums[2], levelnums[1], origcnt); break;
+  case 8: filename = bk_string_alloc_sprintf(B, 0, 0, brd->brd_path, levelnums[7], levelnums[6], levelnums[5], levelnums[4], levelnums[3], levelnums[2], levelnums[1], origcnt); break;
+  case 9: filename = bk_string_alloc_sprintf(B, 0, 0, brd->brd_path, levelnums[8], levelnums[7], levelnums[6], levelnums[5], levelnums[4], levelnums[3], levelnums[2], levelnums[1], origcnt); break;
+  case 10: filename = bk_string_alloc_sprintf(B, 0, 0, brd->brd_path, levelnums[9], levelnums[8], levelnums[7], levelnums[6], levelnums[5], levelnums[4], levelnums[3], levelnums[2], levelnums[1], origcnt); break;
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Invalid number of split levels: %d\n", brd->brd_split_levels);
     goto error;
+  }
+
+  if (!filename)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create file name: %s\n", strerror(errno));
+    goto error;
+  }
+
+  if (BK_FLAG_ISCLEAR(flags, BK_RINGDIR_FLAG_DO_NOT_CREATE) && BK_FLAG_ISCLEAR(brd->brd_flags, BK_RINGDIR_FLAG_DO_NOT_CREATE))
+  {
+    if (!(curname = dupname = strdup(filename)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not duplicate file name: %s\n", strerror(errno));
+      goto error;
+    }
+
+    while (curname = strchr(curname + 1, '/'))
+    {
+      *curname = 0;
+      if (mkdir(dupname, 0777) < 0)
+      {
+	if (errno != EEXIST)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not make path component %s: %s\n", dupname, strerror(errno));
+	  goto error;
+	}
+      }
+      *curname = '/';
+    }
+
+    free(dupname);
+    dupname = NULL;
   }
 
   BK_RETURN(B,filename);
@@ -617,6 +755,10 @@ bk_ringdir_create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags
  error:
   if (filename)
     free(filename);
+
+  if (dupname)
+    free(dupname);
+
   BK_RETURN(B,NULL);
 }
 
@@ -658,6 +800,7 @@ bk_ringdir_standard_init(bk_s B, const char *directory, off_t rotate_size, u_int
   int does_not_exist = 0;
   int created_directory = 1;
   bk_flags destroy_flags = 0;
+  char *tmpc;
 
   if (!directory || !file_name_pattern)
   {
@@ -683,6 +826,11 @@ bk_ringdir_standard_init(bk_s B, const char *directory, off_t rotate_size, u_int
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create checkpoint file name\n");
     goto error;
+  }
+  for (tmpc = (char *)brs->brs_chkpnt_filename + strlen(directory); *tmpc; tmpc++)
+  {
+    if (*tmpc == '/')
+      *tmpc = '_';
   }
 
   if (stat(directory, &st) < 0)
@@ -879,7 +1027,7 @@ bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, enum bk_rin
   }
 
   if (BK_FLAG_ISSET(flags, BK_RINGDIR_FLAG_OPEN_APPEND))
-    open_flags |= O_APPEND;
+    open_flags |= O_CREAT | O_APPEND;
   else
     open_flags |= O_CREAT | O_TRUNC;
 
@@ -1382,7 +1530,7 @@ bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, bk_flags flags)
 
   oldest_num = NEXT_FILE_NUM(brd, brd->brd_cur_file_num);
 
-  if (!(filename = bk_ringdir_create_file_name(B, brd->brd_path, oldest_num, 0)))
+  if (!(filename = bk_ringdir_create_file_name(B, brd, oldest_num, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;
@@ -1424,7 +1572,7 @@ bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, b
     BK_RETURN(B, NULL);
   }
 
-  if (!sscanf(filename, brd->brd_path, &file_num))
+  if ((file_num = get_filenumber_from_path(B, brd, filename, 0)) == (u_int32_t)-1)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not extract file number from %s\n", filename);
     goto error;
@@ -1432,7 +1580,7 @@ bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, b
 
   next_num = NEXT_FILE_NUM(brd, file_num);
 
-  if (!(next_filename = bk_ringdir_create_file_name(B, brd->brd_path, next_num, 0)))
+  if (!(next_filename = bk_ringdir_create_file_name(B, brd, next_num, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;
@@ -1533,7 +1681,7 @@ bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename,
     BK_RETURN(B, NULL);
   }
 
-  if (!sscanf(filename, brd->brd_path, &file_num))
+  if ((file_num = get_filenumber_from_path(B, brd, filename, 0)) == (u_int32_t)-1)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not extract file number from %s with pattern %s\n", filename, brd->brd_path);
     goto error;
@@ -1541,7 +1689,7 @@ bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename,
 
   previous_num = PREVIOUS_FILE_NUM(brd, file_num);
 
-  if (!(previous_filename = bk_ringdir_create_file_name(B, brd->brd_path, previous_num, 0)))
+  if (!(previous_filename = bk_ringdir_create_file_name(B, brd, previous_num, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;
@@ -1580,6 +1728,7 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
   char *dir_name = NULL;
   char *pattern = NULL;
   char *tmp_path = NULL;
+  char save;
 
   if (!path || !dir_namep || !patternp)
   {
@@ -1628,13 +1777,8 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
   }
 
   // Null terminate the directory name
-  *pattern++ = 0;
-
-  if (!(tmp_path = strdup(path)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not make private copy of path for base name extraction: %s\n", strerror(errno));
-    goto error;
-  }
+  save = *++pattern;
+  *pattern = 0;
 
   if (!(dir_name = strdup(tmp_path)))
   {
@@ -1642,6 +1786,7 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
     goto error;
   }
 
+  *pattern = save;
   if (!(pattern = strdup(pattern)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not copy pattern: %s\n", strerror(errno));
@@ -1677,7 +1822,6 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
  *
  * @param B BAKA Thread/global state
  * @param brd ring directory info
- * @param pattern template for ring filenames (full path)
  * @param current copy-out current file
  * @param oldest copy-out oldest file
  * @param max copy-out max number of files
@@ -1686,9 +1830,10 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
  * @return <i>-1</i> on failure
  */
 int
-bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t *oldest, u_int32_t *max, bk_flags flags)
+bk_ringdir_get_status(bk_s B, bk_ringdir_t brdh, u_int32_t *current, u_int32_t *oldest, u_int32_t *max, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
   char *max_filename = NULL;
   char *chkpnt_filename = NULL;
   char *oldest_filename = NULL;
@@ -1697,7 +1842,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
   int fd = -1;
   int errlevel;
 
-  if (!pattern || !current || !oldest || !max)
+  if (!current || !oldest || !max || !brd)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
@@ -1712,13 +1857,13 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
     errlevel = BK_ERR_ERR;
   }
 
-  if (!(max_filename = bk_string_alloc_sprintf(B, 0, 0, "%s.max", pattern)))
+  if (!(max_filename = bk_string_alloc_sprintf(B, 0, 0, "%s.max", brd->brd_pathext)))
   {
     bk_error_printf(B, errlevel, "Could not create max file name\n");
     goto error;
   }
 
-  if (!(chkpnt_filename = bk_string_alloc_sprintf(B, 0, 0, "%s", pattern)))
+  if (!(chkpnt_filename = bk_string_alloc_sprintf(B, 0, 0, "%s", brd->brd_pathext)))
   {
     bk_error_printf(B, errlevel, "Could not create cache file name\n");
     goto error;
@@ -1751,6 +1896,9 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
   fd = -1;
 
   *max = ntohl(*max);
+
+  if (BK_FLAG_ISSET(flags, BK_RINGDIR_FLAG_INTERNAL))
+    BK_RETURN(B, 0);
 
   // Read the ringdir cache file
   if ((fd = open(chkpnt_filename, O_RDONLY)) < 0)
@@ -1798,7 +1946,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
     *oldest = (*current + 1) % *max;
 
     // Special check in case this ring buffer is new
-    if (!(oldest_filename = bk_ringdir_create_file_name(B, pattern, *oldest, 0)))
+    if (!(oldest_filename = bk_ringdir_create_file_name(B, brd, *oldest, 0)))
     {
       bk_error_printf(B, errlevel, "Could not build filename for oldest file.\n");
       goto error;
@@ -1815,7 +1963,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
 	  *oldest = (*oldest + 1) % *max;
 
 	free(oldest_filename);
-	if (!(oldest_filename = bk_ringdir_create_file_name(B, pattern, *oldest, 0)))
+	if (!(oldest_filename = bk_ringdir_create_file_name(B, brd, *oldest, 0)))
 	{
 	  bk_error_printf(B, errlevel, "Could not build filename for oldest file.\n");
 	  goto error;
@@ -1867,7 +2015,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
  * @return <i>-1</i> on failure
  */
 static int
-write_settings(bk_s B, struct bk_ring_directory *brd, const char *directory, const char *pattern, bk_flags flags)
+write_settings(bk_s B, struct bk_ring_directory *brd, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int fd = -1;
@@ -1876,13 +2024,13 @@ write_settings(bk_s B, struct bk_ring_directory *brd, const char *directory, con
   char *max_filename = NULL;
   u_int32_t value;
 
-  if (!brd || !directory || !pattern)
+  if (!brd)
   {
     bk_error_printf(B, BK_ERR_ERR, "Internal error: illegal arguments\n");
     BK_RETURN(B, -1);
   }
 
-  if (!(max_filename = bk_string_alloc_sprintf(B, 0, 0, "%s%s.max", directory, pattern)))
+  if (!(max_filename = bk_string_alloc_sprintf(B, 0, 0, "%s.max", brd->brd_pathext)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create max file name\n");
     goto error;
@@ -1924,4 +2072,56 @@ write_settings(bk_s B, struct bk_ring_directory *brd, const char *directory, con
     free(max_filename);
 
   BK_RETURN(B, -1);
+}
+
+
+
+/**
+ * Determine test file number from path
+ *
+ *	@param B BAKA thread/global state.
+ *	@param brd Ring Directory
+ *	@param filename Name of file to convert
+ *	@param flags Fun for the future
+ *	@return <i>-1</i> on failure.<br />
+ *	@return <i>number</i> on success
+ */
+static u_int32_t
+get_filenumber_from_path(bk_s B, struct bk_ring_directory *brd, const char *filename, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int state = 0;
+  u_int32_t levelnums[MAXIMUM_LEVELS];
+
+  if (!filename || !brd)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  // I don't think you are allowed to portably construct a stdargs :-(
+  switch(brd->brd_split_levels)
+  {
+  case 1: state = sscanf(filename, brd->brd_path, &levelnums[0]); break;
+  case 2: state = sscanf(filename, brd->brd_path, &levelnums[1], &levelnums[0]); break;
+  case 3: state = sscanf(filename, brd->brd_path, &levelnums[2], &levelnums[1], &levelnums[0]); break;
+  case 4: state = sscanf(filename, brd->brd_path, &levelnums[3], &levelnums[2], &levelnums[1], &levelnums[0]); break;
+  case 5: state = sscanf(filename, brd->brd_path, &levelnums[4], &levelnums[3], &levelnums[2], &levelnums[1], &levelnums[0]); break;
+  case 6: state = sscanf(filename, brd->brd_path, &levelnums[5], &levelnums[4], &levelnums[3], &levelnums[2], &levelnums[1], &levelnums[0]); break;
+  case 7: state = sscanf(filename, brd->brd_path, &levelnums[6], &levelnums[5], &levelnums[4], &levelnums[3], &levelnums[2], &levelnums[1], &levelnums[0]); break;
+  case 8: state = sscanf(filename, brd->brd_path, &levelnums[7], &levelnums[6], &levelnums[5], &levelnums[4], &levelnums[3], &levelnums[2], &levelnums[1], &levelnums[0]); break;
+  case 9: state = sscanf(filename, brd->brd_path, &levelnums[8], &levelnums[7], &levelnums[6], &levelnums[5], &levelnums[4], &levelnums[3], &levelnums[2], &levelnums[1], &levelnums[0]); break;
+  case 10: state = sscanf(filename, brd->brd_path, &levelnums[9], &levelnums[8], &levelnums[7], &levelnums[6], &levelnums[5], &levelnums[4], &levelnums[3], &levelnums[2], &levelnums[1], &levelnums[0]); break;
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Invalid number of split levels: %d\n", brd->brd_split_levels);
+    BK_RETURN(B, -1);
+  }
+
+  if (state != brd->brd_split_levels)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Failed to parse path %s, got %d/%d items", filename, state, brd->brd_split_levels);
+    BK_RETURN(B, -1);
+  }
+
+  BK_RETURN(B, levelnums[0]);
 }
