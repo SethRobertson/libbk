@@ -2537,6 +2537,7 @@ extern char *bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, bk_flags flag
 extern char *bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, bk_flags flags);
 extern char *bk_ringdir_filename_current(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern char *bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename, bk_flags flags);
+extern char *bk_ringdir_create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags);
 extern const char *bk_ringdir_getpattern(bk_s B, bk_ringdir_t brdh);
 #define BK_RINGDIR_FILENAME_ITERATE_FLAG_FREE	0x1 ///< For successor/predecessor free the input filename.
 

@@ -76,7 +76,6 @@ struct bk_ringdir_standard
 
 static struct bk_ring_directory *brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_files, const char *pattern, struct bk_ringdir_callbacks *callbacks, bk_flags flags);
 static void brd_destroy(bk_s B, struct bk_ring_directory *brd);
-static char *create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags);
 static int write_settings(bk_s B, struct bk_ring_directory *brd, const char *directory, const char *pattern, bk_flags flags);
 
 
@@ -167,7 +166,7 @@ brd_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_num_f
   }
 
   //Test pattern by attempting to create filename with TEST_FILE_NUM.
-  if (!(tmp_filename = create_file_name(B, brd->brd_path, TEST_FILE_NUM, 0)))
+  if (!(tmp_filename = bk_ringdir_create_file_name(B, brd->brd_path, TEST_FILE_NUM, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create valid filename. Is the pattern OK: %s\n", brd->brd_pattern);
     goto error;
@@ -231,7 +230,6 @@ brd_destroy(bk_s B, struct bk_ring_directory *brd)
 
   BK_VRETURN(B);
 }
-
 
 
 
@@ -322,7 +320,7 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
       break;
     }
 
-    if (!(brd->brd_cur_filename = create_file_name(B, brd->brd_path, brd->brd_cur_file_num, 0)))
+    if (!(brd->brd_cur_filename = bk_ringdir_create_file_name(B, brd->brd_path, brd->brd_cur_file_num, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create filename from pattern\n");
       goto error;
@@ -416,7 +414,7 @@ bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     BK_FLAG_SET(destroy_callback_flags, BK_RINGDIR_FLAG_NUKE_DIR_ON_DESTROY);
     for(cnt = 0; cnt < brd->brd_max_num_files; cnt++)
     {
-      if (!(filename = create_file_name(B, brd->brd_path, cnt, 0)))
+      if (!(filename = bk_ringdir_create_file_name(B, brd->brd_path, cnt, 0)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not create filename\n");
 	goto error;
@@ -526,7 +524,7 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, u_int estimate_size_increment, bk_f
 
     INCREMENT_FILE_NUM(brd);
 
-    if (!(brd->brd_cur_filename = create_file_name(B, brd->brd_path, brd->brd_cur_file_num, 0)))
+    if (!(brd->brd_cur_filename = bk_ringdir_create_file_name(B, brd->brd_path, brd->brd_cur_file_num, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create filename from pattern\n");
       goto error;
@@ -596,8 +594,8 @@ bk_ringdir_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags)
  *	@return <i>NULL</i> on failure.<br>
  *	@return <i>filename</i> on success.
  */
-static char *
-create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags)
+char *
+bk_ringdir_create_file_name(bk_s B, const char *pattern, u_int32_t cnt, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *filename;
@@ -1384,7 +1382,7 @@ bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, bk_flags flags)
 
   oldest_num = NEXT_FILE_NUM(brd, brd->brd_cur_file_num);
 
-  if (!(filename = create_file_name(B, brd->brd_path, oldest_num, 0)))
+  if (!(filename = bk_ringdir_create_file_name(B, brd->brd_path, oldest_num, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;
@@ -1434,7 +1432,7 @@ bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, b
 
   next_num = NEXT_FILE_NUM(brd, file_num);
 
-  if (!(next_filename = create_file_name(B, brd->brd_path, next_num, 0)))
+  if (!(next_filename = bk_ringdir_create_file_name(B, brd->brd_path, next_num, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;
@@ -1543,7 +1541,7 @@ bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename,
 
   previous_num = PREVIOUS_FILE_NUM(brd, file_num);
 
-  if (!(previous_filename = create_file_name(B, brd->brd_path, previous_num, 0)))
+  if (!(previous_filename = bk_ringdir_create_file_name(B, brd->brd_path, previous_num, 0)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create name of oldest file\n");
     goto error;
@@ -1565,9 +1563,7 @@ bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename,
 
 
 /**
- * Split up a ring directory pattern path into its directory and pattern components
- *
- * THREADS: NON-REENTRANT (due to use of dirname() and basename())
+ * Split up a ring directory pattern path into its constant base directory and pattern components
  *
  *	@param B BAKA thread/global state.
  *	@param path path to split
@@ -1583,9 +1579,6 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   char *dir_name = NULL;
   char *pattern = NULL;
-  char *tmp_dir_name = NULL;
-  const char *dirname_ret = NULL;
-  const char *basename_ret = NULL;
   char *tmp_path = NULL;
 
   if (!path || !dir_namep || !patternp)
@@ -1603,33 +1596,39 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
     goto error;
   }
 
-  if (!(tmp_dir_name = strdup(path)))
+  if (*path != '/')
+  {
+    bk_error_printf(B, BK_ERR_ERR, "The path must be absolute (begin with /): %s\n", path);
+    goto error;
+  }
+
+  if (!(tmp_path = strdup(path)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not make private copy of path for directory name extraction: %s\n", strerror(errno));
     goto error;
   }
 
-  if (!(dirname_ret = dirname(tmp_dir_name)))
+  // Look for first ocurrence of % not followed by %
+  while ((pattern = strchr(tmp_path, '%')) && pattern[1] == '%') ;
+
+  if (!pattern)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not extract directory name from: %s\n", path);
+    bk_error_printf(B, BK_ERR_ERR, "Not a valid bk_ringdir path %s: missing dymamic %% components\n",path);
     goto error;
   }
 
-  // dirname never returns a trailing slash
-  if (!(dir_name = bk_string_alloc_sprintf(B, 0, 0, "%s/", dirname_ret)))
+  // Look for the directory seperator between the path component with the % in it and everything before it
+  while (--pattern && pattern > tmp_path && pattern[0] != '/') ;
+
+  // There must be something before it, and no, the root directory does not count
+  if (pattern <= tmp_path)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not append '/' on directory name\n");
+    bk_error_printf(B, BK_ERR_ERR, "No directory names in the path name before the component with the first `%%' in it: %s\n",path);
     goto error;
   }
 
-  free(tmp_dir_name);
-  tmp_dir_name = NULL;
-
-  if (BK_STREQ(dir_name, "./") || BK_STREQ(dir_name, "../"))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Ring directory paths must be absolute: %s\n", path);
-    goto error;
-  }
+  // Null terminate the directory name
+  *pattern++ = 0;
 
   if (!(tmp_path = strdup(path)))
   {
@@ -1637,13 +1636,13 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
     goto error;
   }
 
-  if (!(basename_ret = basename(tmp_path)))
+  if (!(dir_name = strdup(tmp_path)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not extract the pattern from: %s\n", path);
+    bk_error_printf(B, BK_ERR_ERR, "Could not copy directory name: %s\n", strerror(errno));
     goto error;
   }
 
-  if (!(pattern = strdup(basename_ret)))
+  if (!(pattern = strdup(pattern)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not copy pattern: %s\n", strerror(errno));
     goto error;
@@ -1658,11 +1657,11 @@ bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patt
   BK_RETURN(B,0);
 
  error:
-  if (tmp_dir_name)
-    free(tmp_dir_name);
-
   if (tmp_path)
     free(tmp_path);
+
+  if (dir_name)
+    free(dir_name);
 
   BK_RETURN(B,-1);
 }
@@ -1799,7 +1798,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
     *oldest = (*current + 1) % *max;
 
     // Special check in case this ring buffer is new
-    if (!(oldest_filename = create_file_name(B, pattern, *oldest, 0)))
+    if (!(oldest_filename = bk_ringdir_create_file_name(B, pattern, *oldest, 0)))
     {
       bk_error_printf(B, errlevel, "Could not build filename for oldest file.\n");
       goto error;
@@ -1816,7 +1815,7 @@ bk_ringdir_get_status(bk_s B, const char *pattern, u_int32_t *current, u_int32_t
 	  *oldest = (*oldest + 1) % *max;
 
 	free(oldest_filename);
-	if (!(oldest_filename = create_file_name(B, pattern, *oldest, 0)))
+	if (!(oldest_filename = bk_ringdir_create_file_name(B, pattern, *oldest, 0)))
 	{
 	  bk_error_printf(B, errlevel, "Could not build filename for oldest file.\n");
 	  goto error;
