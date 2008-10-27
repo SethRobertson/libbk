@@ -210,14 +210,14 @@ bk_ringdir_create(bk_s B, const char *directory, off_t rotate_size, u_int32_t ma
 
     if (max_num_files < 1)
     {
-      bk_ringdir_get_status(B, brd, &cur, &old, &max_num_files, BK_RINGDIR_FLAG_INTERNAL);
+      bk_ringdir_get_status(B, brd, &cur, &old, &max_num_files, BK_RINGDIR_FLAG_INTERNAL|flags);
     }
   }
   brd->brd_max_num_files = max_num_files;
 
   if (!max_num_files)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Maximum number of files neither specified nor intuitable\n");
+    bk_error_printf(B, (flags&BK_RINGDIR_FLAG_EWARN)?BK_ERR_WARN:BK_ERR_ERR, "Maximum number of files neither specified nor intuitable\n");
     goto error;
   }
 
