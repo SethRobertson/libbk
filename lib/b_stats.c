@@ -573,7 +573,7 @@ char *bk_stat_dump(bk_s B, struct bk_stat_list *blist, bk_flags flags)
       abort();
 #endif /* BK_USING_PTHREADS */
 
-    if (bk_vstr_cat(B, 0, &ostring, perfbuf) < 0)
+    if (bk_vstr_cat(B, 0, &ostring, "%s", perfbuf) < 0)
       goto error;
   }
 

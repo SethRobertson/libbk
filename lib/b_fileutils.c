@@ -380,7 +380,13 @@ bk_file_unlock(bk_s B, void *opaque, bk_flags flags)
   // Only write back if we weren't the last lock.
   if (line_cnt > 1)
   {
-    fwrite(tmpbuf, 1, strlen(tmpbuf), fp);
+    size_t nmemb = strlen(tmpbuf);
+
+    if (fwrite(tmpbuf, 1, nmemb, fp) < nmemb)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Failed to write %zu bytes.\n", nmemb);
+      goto error;
+    }
   }
   else
   {

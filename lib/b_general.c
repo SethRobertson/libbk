@@ -421,7 +421,10 @@ void bk_general_thread_destroy(bk_s B)
 	char *data = bk_stat_dump(B, BK_BT_FUNSTATS(B), BK_STAT_DUMP_HTML);
 	if (data)
 	{
-	  fwrite(data, strlen(data), 1, FH);
+	  if (fwrite(data, strlen(data), 1, FH) < 1)
+	  {
+	    // We probably don't care, and might not even be able to safely write an error using B.
+	  }
 	  free(data);
 	}
 	fclose(FH);

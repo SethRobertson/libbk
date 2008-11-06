@@ -106,8 +106,7 @@ static __inline__ dict_obj	bk_dll_search(dict_h handle, dict_key key);
 static __inline__ dict_iter	bk_dll_iterate(dict_h handle, enum dict_direction direction);
 static __inline__ void		bk_dll_iterate_done(dict_h handle, dict_iter iter);
 static __inline__ dict_obj	bk_dll_nextobj(dict_h handle, dict_iter iter);
-static __inline__ char *	bk_dll_error_reason(dict_h handle, int *errnop);
-static __inline__ char *	bk_dll_error_reason(dict_h handle, int *errnop);
+static char *			bk_dll_error_reason(dict_h handle, int *errnop) __attribute__ ((unused));
 /* defined in b_dll.c */
 extern int		bk_dll_insert_internal(struct bk_generic_dll_handle *gdh, struct bk_generic_dll_element *gde, struct bk_generic_dll_element **old_gdep, int flags, int append);
 
@@ -553,7 +552,7 @@ bk_dll_nextobj(dict_h handle, dict_iter iter)
  *	@return <i>NULL</i> on failure.
  *	@return <i>error string</i> on success.
  */
-static __inline__ char *
+static char *
 bk_dll_error_reason(dict_h handle, int *errnop)
 {
   int dicterrno;

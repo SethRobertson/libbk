@@ -641,7 +641,7 @@ void bk_debug_iprintbuf(bk_s B, struct bk_debug *bdinfo, const char *intro, cons
     return;
   }
 
-  bk_debug_iprintf(B, bdinfo, out);
+  bk_debug_iprintf(B, bdinfo, "%s", out);
   free(out);
 
   return;
