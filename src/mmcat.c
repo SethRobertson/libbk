@@ -204,7 +204,9 @@ main(int argc, char **argv, char **envp)
       if (!(out = bk_encode_base64(B, &tmp, NULL)))
 	bk_die(B,1,stderr,"Could not encode input string\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 
-      fwrite(out, strlen(out), 1, pconfig->pc_output);
+      if (fwrite(out, strlen(out), 1, pconfig->pc_output) < 1)
+	bk_die(B,1,stderr,"Could not write encoded string.\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+
       free(out);
     }
   }
@@ -217,7 +219,9 @@ main(int argc, char **argv, char **envp)
       if (!(tmp = bk_decode_base64(B, buf)))
 	bk_die(B, 1, stderr,"Could not decode input string\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
 
-      fwrite(tmp->ptr, tmp->len, 1, pconfig->pc_output);
+      if (fwrite(tmp->ptr, tmp->len, 1, pconfig->pc_output) < 1)
+	bk_die(B,1,stderr,"Could not write encoded string.\n", BK_FLAG_ISSET(pconfig->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+
       free(tmp->ptr);
       free(tmp);
     }

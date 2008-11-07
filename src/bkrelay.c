@@ -623,7 +623,13 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     if (side_a)
     {
       if (pc->pc_announce_a && BK_FLAG_ISCLEAR(pc->pc_flags, PC_ANNOUNCE_ON_RELAY))
-	write(sock, pc->pc_announce_a, strlen(pc->pc_announce_a)+1);
+      {
+	if (write(sock, pc->pc_announce_a, strlen(pc->pc_announce_a)+1) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Write failed: %s.\n", strerror(errno));
+	  goto error;
+	}
+      }
 
       if (pc->pc_password_a)
       {
@@ -694,7 +700,11 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     else
     {
       if (pc->pc_announce_b && BK_FLAG_ISCLEAR(pc->pc_flags, PC_ANNOUNCE_ON_RELAY))
-	write(sock, pc->pc_announce_b, strlen(pc->pc_announce_b)+1);
+	if (write(sock, pc->pc_announce_b, strlen(pc->pc_announce_b)+1) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Write failed: %s\n", strerror(errno));
+	  goto error;
+	}
 
       if (pc->pc_password_b)
       {
@@ -752,9 +762,17 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     if (pc->pc_fd_a >= 0 && pc->pc_fd_b >= 0 && BK_FLAG_ISSET(pc->pc_flags, PC_ANNOUNCE_ON_RELAY))
     {
       if (pc->pc_announce_a)
-	write(pc->pc_fd_a, pc->pc_announce_a, strlen(pc->pc_announce_a)+1);
+	if (write(pc->pc_fd_a, pc->pc_announce_a, strlen(pc->pc_announce_a)+1) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Write failed: %s\n", strerror(errno));
+	  goto error;
+	}
       if (pc->pc_announce_b)
-	write(pc->pc_fd_b, pc->pc_announce_b, strlen(pc->pc_announce_b)+1);
+	if (write(pc->pc_fd_b, pc->pc_announce_b, strlen(pc->pc_announce_b)+1) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Write failed: %s\n", strerror(errno));
+	  goto error;
+	}
     }
 
     break;
