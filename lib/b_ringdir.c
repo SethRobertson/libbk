@@ -694,7 +694,7 @@ bk_ringdir_create_file_name(bk_s B, bk_ringdir_t brdh, u_int32_t cnt, bk_flags f
     BK_RETURN(B, NULL);
   }
 
-  for(levelcounter=0; levelcounter < brd->brd_split_levels-1; levelcounter++)
+  for(levelcounter=0; levelcounter < brd->brd_split_levels; levelcounter++)
   {
     levelnums[levelcounter] = cnt % brd->brd_perlevel;
     cnt /= brd->brd_perlevel;
@@ -2119,7 +2119,7 @@ get_filenumber_from_path(bk_s B, struct bk_ring_directory *brd, const char *file
 
   if (state != brd->brd_split_levels)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Failed to parse path %s, got %d/%d items", filename, state, brd->brd_split_levels);
+    bk_error_printf(B, BK_ERR_ERR, "Failed to parse path %s with pattern %s, got %d/%d items\n", filename, brd->brd_path, state, brd->brd_split_levels);
     BK_RETURN(B, -1);
   }
 
