@@ -733,7 +733,7 @@ bk_ringdir_create_file_name(bk_s B, bk_ringdir_t brdh, u_int32_t cnt, bk_flags f
       goto error;
     }
 
-    if (!(curname = strrchr(chrname+1,'/')))
+    if (!(curname = strrchr(curname+1,'/')))
     {
       bk_error_printf(B, BK_ERR_ERR, "Must have a directory in the file pattern\n");
       goto error;
