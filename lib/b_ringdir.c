@@ -687,6 +687,7 @@ bk_ringdir_create_file_name(bk_s B, bk_ringdir_t brdh, u_int32_t cnt, bk_flags f
   char *dupname = NULL;
   char *curname;
   u_int32_t origcnt = cnt;
+  int needfullmkdir = 1;
 
   if (!brd)
   {
@@ -732,18 +733,33 @@ bk_ringdir_create_file_name(bk_s B, bk_ringdir_t brdh, u_int32_t cnt, bk_flags f
       goto error;
     }
 
-    while (curname = strchr(curname + 1, '/'))
+    if (!(curname = strrchr(chrname+1,'/')))
     {
-      *curname = 0;
-      if (mkdir(dupname, 0777) < 0)
-      {
-	if (errno != EEXIST)
-	{
-	  bk_error_printf(B, BK_ERR_ERR, "Could not make path component %s: %s\n", dupname, strerror(errno));
-	  goto error;
-	}
-      }
+      bk_error_printf(B, BK_ERR_ERR, "Must have a directory in the file pattern\n");
+      goto error;
+    }
+    *curname = 0;
+
+    if (mkdir(dupname, 0777) >= 0 || errno == EEXIST)
+      needfullmkdir = 0;
+
+    if (needfullmkdir)
+    {
       *curname = '/';
+      curname = dupname;
+      while (curname = strchr(curname + 1, '/'))
+      {
+	*curname = 0;
+	if (mkdir(dupname, 0777) < 0)
+	{
+	  if (errno != EEXIST)
+	  {
+	    bk_error_printf(B, BK_ERR_ERR, "Could not make path component %s: %s\n", dupname, strerror(errno));
+	    goto error;
+	  }
+	}
+	*curname = '/';
+      }
     }
 
     free(dupname);
