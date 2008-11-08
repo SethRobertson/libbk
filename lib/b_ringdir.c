@@ -694,7 +694,7 @@ bk_ringdir_create_file_name(bk_s B, bk_ringdir_t brdh, u_int32_t cnt, bk_flags f
     BK_RETURN(B, NULL);
   }
 
-  for(levelcounter=0; levelcount < brd->brd_split_levels-1; levelcounter++)
+  for(levelcounter=0; levelcounter < brd->brd_split_levels-1; levelcounter++)
   {
     levelnums[levelcounter] = cnt % brd->brd_perlevel;
     cnt /= brd->brd_perlevel;
