@@ -106,9 +106,9 @@ static __inline__ dict_obj	bk_dll_search(dict_h handle, dict_key key);
 static __inline__ dict_iter	bk_dll_iterate(dict_h handle, enum dict_direction direction);
 static __inline__ void		bk_dll_iterate_done(dict_h handle, dict_iter iter);
 static __inline__ dict_obj	bk_dll_nextobj(dict_h handle, dict_iter iter);
-static char *			bk_dll_error_reason(dict_h handle, int *errnop) __attribute__ ((unused));
 /* defined in b_dll.c */
-extern int		bk_dll_insert_internal(struct bk_generic_dll_handle *gdh, struct bk_generic_dll_element *gde, struct bk_generic_dll_element **old_gdep, int flags, int append);
+extern char *			bk_dll_error_reason(dict_h handle, int *errnop);
+extern int			bk_dll_insert_internal(struct bk_generic_dll_handle *gdh, struct bk_generic_dll_element *gde, struct bk_generic_dll_element **old_gdep, int flags, int append);
 
 
 /**
@@ -543,29 +543,5 @@ bk_dll_nextobj(dict_h handle, dict_iter iter)
   return(cur);
 }
 
-
-/**
- * Get an error string describing bk_dll error.
- *
- *	@param handle The bk_dll handle
- *	@param errnop Optional copy out of the current errno value
- *	@return <i>NULL</i> on failure.
- *	@return <i>error string</i> on success.
- */
-static char *
-bk_dll_error_reason(dict_h handle, int *errnop)
-{
-  int dicterrno;
-  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
-
-  if (!handle)
-    dicterrno = dict_errno;
-  else
-    dicterrno = gdh->gdh_errno;
-
-  if (errnop) *errnop = dicterrno;
-
-  return(dict_error_reason(dicterrno));
-}
 
 #endif /* _libbk_inline_h_ */

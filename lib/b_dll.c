@@ -112,3 +112,29 @@ bk_dll_insert_internal(struct bk_generic_dll_handle *gdh, struct bk_generic_dll_
 
   return(ret);
 }
+
+
+
+/**
+ * Get an error string describing bk_dll error.
+ *
+ *	@param handle The bk_dll handle
+ *	@param errnop Optional copy out of the current errno value
+ *	@return <i>NULL</i> on failure.
+ *	@return <i>error string</i> on success.
+ */
+char *
+bk_dll_error_reason(dict_h handle, int *errnop)
+{
+  int dicterrno;
+  struct bk_generic_dll_handle *gdh = (struct bk_generic_dll_handle *)handle;
+
+  if (!handle)
+    dicterrno = dict_errno;
+  else
+    dicterrno = gdh->gdh_errno;
+
+  if (errnop) *errnop = dicterrno;
+
+  return(dict_error_reason(dicterrno));
+}
