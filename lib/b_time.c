@@ -270,17 +270,48 @@ bk_timegm(bk_s B, struct tm *timep, bk_flags flags)
     }
 
     /*
-     * Don't bother with time before 1970, or after 2105; this not only
-     * prevents long ("infinite") loops, it allows us to check for overflow,
-     * as unsigned 32 bit time_t wraps in 2106, but signed 32 bit time_t
-     * will wrap in 2038.  Of course, this all goes out the window if you
+     * Don't bother with time before 1970, or after 2105 (32bit)/20000
+     * (64bit); this not only prevents long ("infinite") loops
+     * counting years, it allows us to check for overflow on 32bits,
+     * as unsigned 32 bit time_t wraps in 2106, but signed 32 bit
+     * time_t will wrap in 2038.  Also note the year 20000 includes
+     * BK_MAX_TIME_T at year 17420 or thereabouts, but not support
+     * 64bit LONG_MAX). Of course, this all goes out the window if you
      * set tm_mday to INT_MAX, but whatever.
      */
+#if SIZEOF_LONG > 4
+    if (timep->tm_year < 70 || timep->tm_year > 18100)
+      BK_RETURN(B, -1);
+#else
     if (timep->tm_year < 70 || timep->tm_year > 205)
       BK_RETURN(B, -1);
+#endif
 
-    for (i = 70; i < timep->tm_year; ++i)
-      res += is_leap(i) ? 366 : 365;
+    year = timep->tm_year;
+
+    /* Count down by 400 years for large values of year, starting at 2000 */
+    if (year >= 100)
+    {
+      // Rebase to year 2000
+      res = 10957;
+      year -= 100;
+      for (;year >= 400; year -= 400)
+      {
+	res += 146097;
+      }
+
+      // At this point, res is the number of days since 1970 to the closest (lower) multiple of 400 years
+      // At this point, year is the number of years after the multiple of 400 years
+
+      // Count up from the multiple--we use 2000 (a multiple of 400) as a base for convenience
+      for (i = 0; i < year; ++i)
+	res += is_leap(i+100) ? 366 : 365;
+    }
+    else
+    {
+      for (i = 70; i < timep->tm_year; ++i)
+	res += is_leap(i) ? 366 : 365;
+    }
 
     for (i = 0; i < timep->tm_mon; ++i)
       res += ndays[is_leap(timep->tm_year)][i];
