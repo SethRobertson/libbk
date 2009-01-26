@@ -1,3 +1,8 @@
+2009-01-25  James Tanis  <jtt@mission.tanis.org>
+
+	* src/proto.c (proginit): C'mon! proginit should really have
+	argc/argv, right?
+
 2008-08-22  James Tanis  <jtt@stockade.tanis.org>
 
 	* lib/b_addrgroup.c (stream_connect_activity): Simply return if
@@ -22,7 +27,7 @@
 2008-04-17  James Tanis  <jtt@stockade.tanis.org>
 
 	* lib/b_addrgroup.c: Don't run FD handler in some calls to
-	bk_run_close. 
+	bk_run_close.
 
 	* lib/b_run.c (bk_run_close): Option to bk_run_close to be called
 	without running the FD handler.
@@ -64,10 +69,10 @@
 	* lib/b_getbyfoo.c (bk_ether_aton): Convert a string ethernet
 	address to struct ether.
 	(bk_ether_ntoa): Convert a struct ether to a ethernet address
-	string. 
+	string.
 
  2007-06-19  James Tanis  <jtt@outpost.tanis.org>
-	
+
 	* lib/b_ringdir.c (bk_ringdir_get_status): Work aroundf fencepost
 	error. May need to be reworked later.
 
@@ -102,7 +107,7 @@
 2007-01-11  Alex Dupuy  <alex.dupuy@counterstorm.com>
 
 	* lib/b_string.c (bk_vstr_cat): fix problems with "improved" allocation
-	
+
 2007-01-11  James Tanis  <jtt@swift.sysdetect.com>
 
 	* lib/b_procinfo.c: Routines which handle the process table.

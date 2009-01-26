@@ -60,7 +60,7 @@ struct program_config
 
 
 
-static int proginit(bk_s B, struct program_config *pc);
+static int proginit(bk_s B, struct program_config *pc, int argc, char **argv);
 static void progrun(bk_s B, struct program_config *pc);
 
 
@@ -226,7 +226,7 @@ main(int argc, char **argv, char **envp)
     bk_exit(B, 254);
   }
 
-  if (proginit(B, pc) < 0)
+  if (proginit(B, pc, argc, argv) < 0)
   {
     bk_die(B, 254, stderr, _("Could not perform program initialization\n"), BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   }
@@ -248,7 +248,7 @@ main(int argc, char **argv, char **envp)
  *	@return <i>0</i> Success
  *	@return <br><i>-1</i> Total terminal failure
  */
-static int proginit(bk_s B, struct program_config *pc)
+static int proginit(bk_s B, struct program_config *pc, int argc, char **argv)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
 
