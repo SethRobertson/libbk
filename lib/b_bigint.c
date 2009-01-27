@@ -44,7 +44,7 @@ bk_bigint_init(bk_s B, struct bk_bigint *bb, bk_flags flags)
   }
 
   bb->bb_cur_uint = 0;
-  bb->bb_overflow = 0;
+  bb->bb_curval = 0;
 
   BK_RETURN(B, 0);
 }
@@ -52,11 +52,14 @@ bk_bigint_init(bk_s B, struct bk_bigint *bb, bk_flags flags)
 
 
 /**
- * Accumulate u_int values with overflow protection
+ * Accumulate a value from u_int "new values" with u_int overflow
+ * detection.  The input is a sequence of absolute u_int values,
+ * the accumulation will continue to count upwards even when the input
+ * u_int wraps.
  *
  *	@param B BAKA thread/global state.
  *	@param bb The bigint structure to use.
- *	@param val The value to accumulate.
+ *	@param val The absolute values to accumulate.
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
@@ -72,11 +75,19 @@ bk_bigint_accumulate(bk_s B, struct bk_bigint *bb, u_int val, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  if ((u_int64_t)(bb->bb_cur_uint + val) >= (u_int64_t)UINT_MAX)
+  // Shortcut success
+  if (val == bb->bb_cur_uint)
+    BK_RETURN(B, 0);
+
+  // Detect wraps
+  if (val < bb->bb_cur_uint)
   {
-    // We have rolled over.
-    bb->bb_overflow += (u_int64_t)UINT_MAX;
+    bb->bb_curval += (u_int64_t)UINT_MAX - (u_int64_t)bb->bb_cur_uint;
+    bb->bb_cur_uint = 0;
   }
+
+  // Handle increments
+  bb->bb_curval += val - bb->bb_curval;
 
   bb->bb_cur_uint = val;
   BK_RETURN(B, 0);
@@ -105,5 +116,5 @@ bk_bigint_value(bk_s B, struct bk_bigint *bb, bk_flags flags)
     BK_RETURN(B, (u_int64_t)-1);
   }
 
-  BK_RETURN(B, bb->bb_overflow + (u_int64_t)bb->bb_cur_uint);
+  BK_RETURN(B, bb->bb_curval);
 }

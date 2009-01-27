@@ -2588,8 +2588,8 @@ extern char *bk_strndup_wrapper(const char *str, size_t n);
  */
 struct bk_bigint
 {
-  u_int		bb_cur_uint;	///< The value of the last u_int update;
-  u_int64_t	bb_overflow;	///< The accumulations of overflow.
+  u_int		bb_cur_uint;	///< The value of the last u_int
+  u_int64_t	bb_curval;	///< The actual value being accumulated
 };
 extern int bk_bigint_accumulate(bk_s B, struct bk_bigint *bb, u_int val, bk_flags flags);
 extern u_int64_t bk_bigint_value(bk_s B, struct bk_bigint *bb, bk_flags flags);
