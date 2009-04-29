@@ -1009,7 +1009,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   static const fd_set zeroset;
   static const struct timeval tzero = {0, 0};
   fd_set readset, writeset, xcptset;
-  struct timeval timenow, deltaevent, deltapoll, timeout;
+  struct timeval timenow, deltaevent, deltapoll;
   struct timeval *curtime = NULL;
   const struct timeval *selectarg = NULL;
   int ret;
@@ -1424,9 +1424,13 @@ do {									\
   }
   else
   {
+#ifdef NO_PSELECT
+    struct timeval timeout;
+
     // use a copy of timeout, since Linux (only) will update time left
     if (selectarg)
       timeout = *selectarg;
+#endif /* NO_PSELECT */
 
     /*
      * <BUG>Other thread could insert something into select/eventq etc
@@ -1449,6 +1453,7 @@ do {									\
     islocked = 0;
 #endif /* BK_USING_PTHREADS */
 
+#ifdef NO_PSELECT
     /*
      * <KLUDGE>Linux does not have a working pselect(2) system call as
      * far as I can see.  glibc emulates it like we do below.  Right
@@ -1468,7 +1473,8 @@ do {									\
 
     if (!br_beensignaled)
     {
-      struct timeval *tp = selectarg ? &timeout : NULL;
+      struct timeval *tp = selectarg?&timeout:NULL;
+
       if ((run->br_selectn == 0) && !tp &&
 	  BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_ALLOW_DEAD_SELECT))
       {
@@ -1486,6 +1492,33 @@ do {									\
 
     if (wantsignals)
       sigprocmask(SIG_BLOCK, &run->br_runsignals, NULL);
+#else /* NO_PSELECT */
+    {
+      struct timespec ts;
+      const struct timespec *tp = NULL;
+
+      if (selectarg)
+      {
+	tp = &ts;
+	ts.tv_sec = selectarg->tv_sec;
+	ts.tv_nsec = selectarg->tv_usec*1000;
+      }
+
+      if ((run->br_selectn == 0) && !tp &&
+	  BK_FLAG_ISCLEAR(run->br_flags, BK_RUN_FLAG_ALLOW_DEAD_SELECT))
+      {
+	if (bk_run_set_run_over(B, run) < 0)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not stop run after losing all descriptors and events\n");
+	  goto error;
+	}
+      }
+      else
+      {
+	ret = pselect(run->br_selectn, &readset, &writeset, &xcptset, tp, &run->br_runsignals);
+      }
+    }
+#endif /* NO_PSELECT */
 
 #ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADON(B) && pthread_mutex_lock(&run->br_lock) != 0)
@@ -1512,6 +1545,7 @@ do {									\
 
     BK_RUN_ONCE_ABORT_CHECK();
 
+#ifdef NO_PSELECT
     /*
      * Time may have changed drastically during select, but it probably didn't.
      * Check selectarg and saved timeout to see if selectarg was updated
@@ -1534,6 +1568,9 @@ do {									\
       // too much time may have gone by; we don't know any more
       curtime = NULL;
     }
+#else /* NO_PSELECT */
+    curtime = NULL;
+#endif /* NO_PSELECT */
   }
 
   // Are there any I/O events pending?
