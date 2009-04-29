@@ -1515,7 +1515,9 @@ do {									\
       }
       else
       {
-	ret = pselect(run->br_selectn, &readset, &writeset, &xcptset, tp, &run->br_runsignals);
+	sigset_t empty;
+	sigemptyset(&empty);
+	ret = pselect(run->br_selectn, &readset, &writeset, &xcptset, tp, &empty);
       }
     }
 #endif /* NO_PSELECT */
