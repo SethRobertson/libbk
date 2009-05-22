@@ -12,7 +12,7 @@ genrand
 mmcat
 proto
 runsize
-timeout
+bk_timeout
 tmp
 tmp.c
 adjtime

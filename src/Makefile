@@ -31,6 +31,7 @@ BK_SIMPLE_PROGS=			\
 	bk_daemon			\
 	bk_funi				\
 	bk_pty				\
+	bk_timeout			\
 	bk_trunc			\
 	bkrelay				\
 	bttcp				\
@@ -40,7 +41,6 @@ BK_SIMPLE_PROGS=			\
 	runsize				\
 	shmadm				\
 	shmcat				\
-	timeout				\
 	$(BK_TMP_PROG)			\
 #line fodder eater. Do not remove.
 
@@ -97,6 +97,8 @@ LDLIBS=$(filter-out -lpq -lssl -lcrypt -lcrypto -lbkxml -lxml2 -lm -lz,$(BK_ALLL
 
 # these are not really baka programs, despite their names, and need only -lc
 adjtime bk_daemon bk_funi: LDLIBS=
+
+bk_timeout: LDLIBS+=-lrt
 
 ifneq ($(strip $(BK_USING_SSL)),false)
 bttcp: LDLIBS=$(filter-out -lpq -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))

@@ -805,6 +805,12 @@ bk_search_path(bk_s B, const char *proc, const char *path, int mode, bk_flags fl
 
   proc_len = strlen(proc);
 
+  // Path names with embedded slashes do not need a search path
+  if (strchr(proc, '/'))
+  {
+    BK_RETURN(B,strdup(proc));
+  }
+
   if (!path)
   {
     if (!(p = (char *)bk_getenv(B, "PATH")))
