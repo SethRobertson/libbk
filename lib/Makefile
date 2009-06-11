@@ -36,6 +36,7 @@ BK_LARGE_LIBSRC=				\
 		b_intinfo.c			\
 		b_ioh.c				\
 		b_listnum.c			\
+		b_math.c			\
 		b_md5.c				\
 		b_memx.c			\
 		b_netaddr.c			\

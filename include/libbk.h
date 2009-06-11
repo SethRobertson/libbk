@@ -2685,5 +2685,11 @@ extern void bk_procinfo_destroy(bk_s B, dict_h bpi_list);
 #define procinfo_list_iterate_done(h,i)		dll_iterate_done((h),(i))
 #define procinfo_list_error_reason(h,i)		dll_error_reason((h),(i))
 
+/* Gaussian Error Function Estimates */
+#define BK_ERF(x) erf(x)
+// Inverse of erf().
+extern double bk_erfinv(double x);
+#define BK_ERFINV(x) bk_erfinv(x)
+
 
 #endif /* _BK_h_ */
