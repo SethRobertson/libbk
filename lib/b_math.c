@@ -43,5 +43,3 @@ bk_erfinv(double x)
   inv = sqrt(inv);
   return(inv);
 }
-
-#include <libbk.h>
