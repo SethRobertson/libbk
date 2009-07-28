@@ -306,7 +306,7 @@ static int proginit(bk_s B, struct program_config *pc)
 static int progrun(bk_s B, struct program_config *pc)
 {
   BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
-  char *buf;
+  char *buf = NULL;
   int len;
   struct timeval start, end, delta;
   char speed[128];
@@ -414,6 +414,9 @@ static int progrun(bk_s B, struct program_config *pc)
   fprintf(stderr, "High water mark: %d bytes\n", highwater);
 
   bk_shmipc_destroy(B, pc->pc_bsi, 0);
+
+  free(buf);
+  buf = NULL;
 
   BK_RETURN(B, 0);
 }

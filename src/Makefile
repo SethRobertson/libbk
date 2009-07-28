@@ -74,6 +74,9 @@ endif # BK_USING_SSL
 
 LOCAL_LIBS+=-lpcap
 
+bk_timeout: LDLIBS+=-lrt
+
+ifneq ($(strip $(BK_USING_SSL)),false)
 ifneq ($(BK_WANT_LIBTOOL),false)
 
 # If we are using libtool, we can rely on libraries to specify their own
@@ -98,9 +101,6 @@ LDLIBS=$(filter-out -lpq -lssl -lcrypt -lcrypto -lbkxml -lxml2 -lm -lz,$(BK_ALLL
 # these are not really baka programs, despite their names, and need only -lc
 adjtime bk_daemon bk_funi: LDLIBS=
 
-bk_timeout: LDLIBS+=-lrt
-
-ifneq ($(strip $(BK_USING_SSL)),false)
 bttcp: LDLIBS=$(filter-out -lpq -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
 endif
 

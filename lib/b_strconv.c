@@ -1150,7 +1150,7 @@ double bk_string_demagnify(bk_s B, const char *number, bk_flags flags)
   ret = strtod(number, &endptr);
   if (endptr == number)
   {
-    bk_error_printf(B, BK_ERR_ERR, "No number foun d in %s\n", number);
+    bk_error_printf(B, BK_ERR_ERR, "No number found in %s\n", number);
 #ifdef FP_NAN
     BK_RETURN(B, FP_NAN);
 #else /* FP_NAN */
