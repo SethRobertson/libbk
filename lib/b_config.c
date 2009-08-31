@@ -54,6 +54,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * - line continuations with \ aren't supported
  *
  * - \a, \b, \f, \v are treated as ANSI C escapes (BEL, BS, FF, VT)
+ *   NEW CHANGE--NO LONGER SUPPORTED
  *
  * - lines with no separator character generate a warning and are ignored
  *   libbk sez these are symbols that are present with the null value.
@@ -593,6 +594,7 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
     while (isspace(*rest))			// skip leading space in rest
       rest++;
 
+#ifdef WANT_BACKSLASH_INTERPOLATION
     /*
      * "start" now points at the key and "rest" at the value.  In order to
      * handle backslash escapes, we (ab)use bk_string_tokenize_split to convert
@@ -600,6 +602,10 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
      */
     key = bk_string_tokenize_split(B, start, 1, "", NULL, NULL, NULL, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR|BK_STRING_TOKENIZE_BACKSLASH);
     value = bk_string_tokenize_split(B, rest, 1, "", NULL, NULL, NULL, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR|BK_STRING_TOKENIZE_BACKSLASH);
+#else
+    key = bk_string_tokenize_split(B, start, 1, "", NULL, NULL, NULL, 0);
+    value = bk_string_tokenize_split(B, rest, 1, "", NULL, NULL, NULL, 0);
+#endif
 
     // check for include tag before ignoring comments
     if (BK_STREQ(start, bc->bc_bcup.bcup_include_tag))
