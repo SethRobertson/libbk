@@ -425,7 +425,7 @@ static inline int bytes_available_read(u_int32_t writehand, u_int32_t readhand, 
  *	@param data Data to write
  *	@param len Number of bytes to write
  *	@param timeoutus Timeout override (0 for default)
- *	@param flags BK_SHMIPC_WRITEALL|BK_SHMIPC_NOBLOCK
+ *	@param flags BK_SHMIPC_WRITEALL|BK_SHMIPC_NOBLOCK|BK_SHMIPC_DROP2BLOCK
  *	@return <i>-1</i> on failure
  *	@return <br><i>bytes written</i> on success
  */
@@ -477,6 +477,12 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
   delta.tv_sec = timeoutus / 1000000;
   delta.tv_usec = timeoutus % 1000000;
   BK_TV_ADD(&endtime,&endtime,&delta);
+
+  if (BK_FLAG_ISSET(flags,BK_SHMIPC_DROP2BLOCK) && (len > (size_t)bytes_available_write(writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes)))
+  {
+    // EWOULDBLOCK
+    BK_RETURN(B, 0);
+  }
 
   while (len)
   {

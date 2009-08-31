@@ -2621,6 +2621,7 @@ extern void bk_shmipc_destroy(bk_s B, struct bk_shmipc *bsi, bk_flags flags);
 extern ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_int timeoutus, bk_flags flags);
 #define BK_SHMIPC_NOBLOCK	0x01		///< Do not block
 #define BK_SHMIPC_WRITEALL	0x02		///< Do not succeed without writing everything
+#define BK_SHMIPC_DROP2BLOCK	0x04		///< Drop entire message if it will not fit in current free space
 extern ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_int timeout, bk_flags flags);
 //#define BK_SHMIPC_NOBLOCK	0x01		///< Do not block
 #define BK_SHMIPC_READALL	0x02		///< Do not succeed without reading everything
