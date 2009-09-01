@@ -480,6 +480,8 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
 
   if (BK_FLAG_ISSET(flags,BK_SHMIPC_DROP2BLOCK) && (len > (size_t)bytes_available_write(writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes)))
   {
+    int numreader = 0;
+
     bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numreader, 0);
 
     if (numreader < 1)
