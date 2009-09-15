@@ -357,6 +357,7 @@ void bk_error_irepeater_flush(bk_s B, struct bk_error *beinfo, bk_flags flags)
 
 
 
+#define FMT "%s/%n%s: %s"
 /**
  * Add an error string to the error queue -- timestamp, buffer marked up with
  * function name and error level, and if necessary, output.
@@ -374,7 +375,6 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
   time_t curtime = time(NULL);
   struct bk_error_node *node = NULL;
   const char *level = bk_general_errorstr(B, sysloglevel);
-  const char fmt[]="%s/%n%s: %s";
   int len = -8;					// -(total %. chars in fmt)
   char *msg = NULL;
   int origoffset;
@@ -390,13 +390,13 @@ void bk_error_iprint(bk_s B, int sysloglevel, struct bk_error *beinfo, const cha
     funname = "?";
   }
 
-  len += strlen(funname) + strlen(buf) + strlen(level) + sizeof(fmt);
+  len += strlen(funname) + strlen(buf) + strlen(level) + sizeof(FMT);
   if (!(msg = malloc(len)))
   {
     /* <KLUDGE>cannot allocate storage for error message</KLUDGE> */
     goto error;
   }
-  snprintf(msg, len, fmt, funname, &origoffset, level, buf);
+  snprintf(msg, len, FMT, funname, &origoffset, level, buf);
 
   if (beinfo->be_last.ben_msg && BK_STREQ(msg, beinfo->be_last.ben_msg))
   {

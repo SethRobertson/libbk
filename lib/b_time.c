@@ -404,7 +404,9 @@ bk_time_iso_parse(bk_s B, const char *string, struct timespec *date, bk_flags fl
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct tm t;
+#ifndef USE_STRPTIME
   const char *format = "%4u-%2u-%2u%c%2u:%2u:%2u%n";
+#endif
   const char *fraction = NULL;
   size_t precision = 0;
   unsigned long decimal = 0;
