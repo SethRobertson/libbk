@@ -1,3 +1,8 @@
+2009-10-01  James Tanis  <jtt@outpost.tanis.org>
+
+	* lib/b_string.c (bk_string_tokenize_split): Also conf expand VARs
+	(not just their default values) when asked.
+
 2009-01-25  James Tanis  <jtt@mission.tanis.org>
 
 	* src/proto.c (proginit): C'mon! proginit should really have

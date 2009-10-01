@@ -820,6 +820,25 @@ char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char
 	    replace = bk_getenv(B, envvar);
 	    environ = tmpenv;
 
+	    /*
+	     * <WARNING>
+	     * This was added on 2009-10-01 in response to a need to have
+	     * some job file variables expand to conf values. If this
+	     * seems to have caused problems which cannot be corrected
+	     * easily, this code *might* need to be removed again
+	     * (although it really seems like a righteous change, so
+	     * hopefully anything that it might break can be adapted). If
+	     * it has to be removed alert jtt. jtt: this code was added so
+	     * that job file entries (like upad_threshold) could expand to
+	     * conf values which in turn could be managed by
+	     * admin-menu/admin-lib/engine-manage.pl
+	     * </WARNING>
+	     */
+	    if (!replace && BK_FLAG_ISSET(flags, BK_STRING_TOKENIZE_CONF_EXPAND))
+	    {
+	      replace = BK_GWD(B, envvar, NULL);
+	    }
+
 	    if ((!replace || BK_STREQ(replace, "")) && default_val)
 	    {
 	      if (!(expanded_default = bk_string_expand(B, default_val, kvht_vardb, variabledb, 0)))
