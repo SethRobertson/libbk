@@ -87,7 +87,7 @@ bk_bigint_accumulate(bk_s B, struct bk_bigint *bb, u_int val, bk_flags flags)
   }
 
   // Handle increments
-  bb->bb_curval += val - bb->bb_curval;
+  bb->bb_curval += val - bb->bb_cur_uint;
 
   bb->bb_cur_uint = val;
   BK_RETURN(B, 0);
