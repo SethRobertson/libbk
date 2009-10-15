@@ -38,7 +38,8 @@ BK_SIMPLE_INTERNALPROGS=		\
 		test_proc		\
 		test_ringdir		\
 		test_string		\
-		test_stringconv	\
+		test_string_expand	\
+		test_stringconv		\
 		test_threads		\
 		test_time		\
 		test_url		\
