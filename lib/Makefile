@@ -88,6 +88,9 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
 
+# don't embed dependencies on extraneous libraries
+AC_LIBS:=$(filter-out -lcrypt -lcrypto,$(AC_LIBS))
+
 $(BK_LARGE_LIBSRC): $(GROUPTOP)/include/libbk_autoconf.h
 
 $(GROUPTOP)/include/libbk_autoconf.h: $(GROUPTOP)/$(PKGTOP)/bkmk/libbk_autoconf.h
