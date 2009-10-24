@@ -95,12 +95,13 @@ ifneq ($(BK_WANT_LIBTOOL),false)
 # to override, but it works until somebody breaks it by getting fancy.</TRICKY>
 
 # basic dependencies for typical baka programs
-LDLIBS=$(filter-out -lpq -lssl -lcrypt -lcrypto -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
+LDLIBS=$(filter-out -lpq -lssl -lcrypt -lcrypto -lbkxml -lbkssl -lxml2 -lm -lz,$(BK_ALLLIBS))
 
 # these are not really baka programs, despite their names, and need only -lc
 adjtime bk_daemon bk_funi: LDLIBS=
 
 ifneq ($(strip $(BK_USING_SSL)),false)
+# if bkrelay ever uses SSL, it should be added here
 bttcp: LDLIBS=$(filter-out -lpq -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
 endif
 

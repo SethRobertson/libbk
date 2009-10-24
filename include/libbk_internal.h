@@ -123,15 +123,31 @@ extern int bk_netutils_start_service_verbose_std(bk_s B, struct bk_run *run, con
 /* b_addrgroup (why?) */
 extern int bk_netutils_commandeer_service_std(bk_s B, struct bk_run *run, int s, const char *securenets, bk_bag_callback_f callback, void *args, bk_flags flags);
 
-/* b_ssl.c */
-extern int bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, const char *key_file, const char *cert_file, const char *ca_file, const char *dhparam_file, bk_flags ctx_flags, bk_flags flags);
-extern int bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, const char *key_file, const char *cert_file, const char *ca_file, const char *dhparam_file, bk_flags ctx_flags, bk_flags flags);
-extern int bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, const char *securenets, bk_bag_callback_f callback, void *args, const char *key_file, const char *cert_file, const char *ca_file, const char *dhparam_file, bk_flags ctx_flags, bk_flags flags);
-extern struct bk_ioh *bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
-
-
 /* b_ioh.c */
 extern struct bk_ioh *bk_ioh_init_std(bk_s B, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags);
+
+
+/*
+
+ * <TRICKY>The b_ssl.c source is actually part of libbkssl, not libbk, so we use
+ * weak extern so that -lbk doesn't require -lbkssl; if -lbkssl is not linked or
+ * available at runtime (no link error will be generated in this case) these
+ * function references will be NULL.  There are two versions of the GCC
+ * attribute: weak and weak_import; the latter is a Mach-O/Darwin/MacOSX-ism
+ * that predates support of weak, which is an ELF thing.  We use weak as it
+ * works in most "modern" compilation environments - #ifdef this MacOS X breaks
+ * (see http://developer.apple.com/mac/library/technotes/tn2002/tn2064.html).
+ * In compilation environments where there is no weak support you will just end
+ * up with the normal extern symbol and linking requirements.
+ * 
+</TRICKY>
+ */
+
+/* b_ssl.c */
+extern int bk_ssl_start_service_verbose(bk_s B, struct bk_run *run, const char *url, const char *defhoststr, const char *defservstr, const char *defprotostr, const char *securenets, bk_bag_callback_f callback, void *args, int backlog, const char *key_file, const char *cert_file, const char *ca_file, const char *dhparam_file, bk_flags ctx_flags, bk_flags flags) __attribute__((weak));
+extern int bk_ssl_make_conn_verbose(bk_s B, struct bk_run *run, const char *rurl, const char *defrhost, const char *defrserv, const char *lurl, const char *deflhost, const char *deflserv, const char *defproto, u_long timeout, bk_bag_callback_f callback, void *args, const char *key_file, const char *cert_file, const char *ca_file, const char *dhparam_file, bk_flags ctx_flags, bk_flags flags) __attribute__((weak));
+extern int bk_ssl_netutils_commandeer_service(bk_s B, struct bk_run *run, int s, const char *securenets, bk_bag_callback_f callback, void *args, const char *key_file, const char *cert_file, const char *ca_file, const char *dhparam_file, bk_flags ctx_flags, bk_flags flags) __attribute__((weak));
+extern struct bk_ioh *bk_ssl_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_iohhandler_f handler, void *opaque, u_int32_t inbufhint, u_int32_t inbufmax, u_int32_t outbufmax, struct bk_run *run, bk_flags flags) __attribute__((weak));
 
 
 

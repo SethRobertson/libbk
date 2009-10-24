@@ -314,7 +314,7 @@ struct bk_ioh *bk_ioh_init(bk_s B, struct bk_ssl *ssl, int fdin, int fdout, bk_i
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
 
 #ifndef NO_SSL
-  if (ssl)
+  if (ssl && bk_ssl_supported(B))
   {
     BK_RETURN(B, bk_ssl_ioh_init(B, ssl, fdin, fdout, handler, opaque, inbufhint, inbufmax, outbufmax, run, flags));
   }

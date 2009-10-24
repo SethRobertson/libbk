@@ -29,11 +29,12 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  *	--log <filename> log data going back and forth
  *	Modify command line args to show who is connected
  *	Securenets for inbound connections
+ *	SSL relay
  */
 
 #include <libbk.h>
 #include <libbk_net.h>
-#include <libbkssl.h>
+/* #include <libbkssl.h> */
 
 
 #define ERRORQUEUE_DEPTH	32		///< Default depth

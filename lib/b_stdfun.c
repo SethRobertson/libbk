@@ -16,6 +16,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 
 #include <libbk.h>
+#include <libbkssl.h>
 #include "libbk_internal.h"
 
 
@@ -171,19 +172,26 @@ bk_ssl_supported(bk_s B)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
 
 #ifndef NO_SSL
-  BK_RETURN(B, 1);
-#else /* NO_SSL */
-  BK_RETURN(B, 0);
+  /* runtime check for successful link of libbkssl */
+  if (bk_ssl_start_service_verbose)
+    BK_RETURN(B, 1);
 #endif /* NO_SSL */
+  BK_RETURN(B, 0);
 }
 
 
 
-#ifdef NO_SSL
+#if defined(NO_SSL) || defined(__ELF__)
 /**
  * This is merely a compatibility version of this function for use when
  * NO_SSL is set. By supporting this version, users do not have to worry
  * about remembering to compile this function conditionally on NO_SSL.
+ *
+ * <TRICKY>Unless NO_SSL is defined, this function has the WEAK attribute, which
+ * means that the non-WEAK definition in libbkssl:b_ssl.c will be used instead.
+ * For Insure builds it may be preferable to omit even the weak definition here
+ * (as is done for non-ELF systems), but James can fix that if it is really a
+ * problem.</TRICKY>
  *
  *	@param B BAKA thread/global state.
  *	@param flags Flags for future use.
@@ -191,9 +199,12 @@ bk_ssl_supported(bk_s B)
  *	@return <i>0</i> on success.
  */
 void
-bk_ssl_destroy(bk_s B, void *ssl, bk_flags flags)
+#ifndef NO_SSL
+__attribute__((weak))
+#endif /* NO_SSL */
+bk_ssl_destroy(bk_s B, struct bk_ssl *ssl, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbkssl");
   BK_VRETURN(B);
 }
-#endif /* NO_SSL */
+#endif /* NO_SSL || __ELF__ */
