@@ -1079,6 +1079,116 @@ static inline int BK_BTS_CMP(struct bk_timespec *a, struct bk_timespec *b)
 }
 
 
+
+/*
+ * Murmurhash "functions" -- see http://murmurhash.googlepages.com
+ *
+ * Our version of this algorithm is not test vector compatible
+ * due to our treatment of length (only allret hashes the length
+ * explicitly and it does it in a different place to save a mix
+ * operation).  However, their example code is not vector compatible
+ * with the example incremental version so I am not concerned.
+ */
+#define MURMURHASH2A_R 24
+#define MURMURHASH2A_MULTIPLIER 0x5bd1e995
+#define MURMURHASH2A_SEED 2166136261		// No seed suggested, so using FNV32_OFFSET_BASIS randomly
+
+
+
+/**
+ * Initialize u_int32_t hash variable to ``random'' value.  You can initialize to other values if desired
+ *
+ * h - variable which will be modified to contain new seed
+ */
+#define murmurhash2a_init(h) do { h = MURMURHASH2A_SEED; } while (0)
+
+
+
+/**
+ * Update the hash with a 32 bit word's worth of new hashable data
+ *
+ * h - variable which will be modified due to hashing
+ * word - the data to update h with
+ */
+#define murmurhash2a_update(h,word)			\
+do {							\
+  u_int mmh2ak = (word) * MURMURHASH2A_MULTIPLIER;	\
+  mmh2ak ^= mmh2ak >> MURMURHASH2A_R;			\
+  mmh2ak *= MURMURHASH2A_MULTIPLIER;			\
+  h *= MURMURHASH2A_MULTIPLIER;				\
+  h ^= mmh2ak;						\
+ } while (0)
+
+
+
+/**
+ * Update the hash with a buffer of data
+ *
+ * h - variable which will be modified due to hashing
+ * ptr - pointer to data to update h with
+ * len - length of data in ptr to update h with
+ */
+#define murmurhash2a_updatebuf(h,ptr,len)	\
+do {						\
+  u_int mmh2al = (len);				\
+  u_char *mmh2ad = (u_char *)(ptr);		\
+  u_int mmh2akk = mmh2al;			\
+  for(;mmh2al >= 4; mmh2ad += 4,mmh2al -= 4)	\
+  {						\
+    murmurhash2a_update(h,*(u_int *)mmh2ad);	\
+  }						\
+  switch(mmh2al)				\
+  {						\
+  case 3: mmh2akk ^= mmh2ad[2] << 16;		\
+  case 2: mmh2akk ^= mmh2ad[1] << 8;		\
+  case 1: mmh2akk ^= mmh2ad[0];			\
+  }						\
+  murmurhash2a_update(h,mmh2akk);		\
+ } while (0)
+
+
+
+/**
+ * Perform final avalanch and otherwise ready h for usage
+ *
+ * h - 32bit hash variable which will be modified and readied for use
+ */
+#define murmurhash2a_final(h)			\
+do {						\
+  h ^= h >> 13;					\
+  h *= MURMURHASH2A_MULTIPLIER;			\
+  h ^= h >> 15;					\
+ } while (0)
+
+
+
+/**
+ * Return a u_int32_t hash of a buffer
+ *
+ * ptr - pointer to data to be hashed
+ * len - length of data to be hash
+ */
+#define murmurhash2a_allret(ptr,len)		\
+({						\
+  u_int mmh2ah;					\
+  murmurhash2a_init(mmh2ah);			\
+  murmurhash2a_updatebuf(mmh2ah,ptr,len);	\
+  murmurhash2a_final(mmh2ah);			\
+  mmh2ah;					\
+ })
+
+
+
+/**
+ * Perform final mixing operation as a rvalue
+ * Can be used to better distribute some non-murmurhash algorithm
+ *
+ * hh - hash value to analanch and finalize
+ */
+#define murmurhash2a_mixret(hh) ({ u_int h = (hh); murmurhash2a_final(h); h; })
+
+
+
 /** @brief Special symbol which means resolve to "any" address. */
 #define BK_ADDR_ANY "bk_addr_any"
 
