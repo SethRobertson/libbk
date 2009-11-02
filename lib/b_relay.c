@@ -398,6 +398,10 @@ bk_relay_cancel(bk_s B, struct bk_relay_cancel *brc, bk_flags flags)
     BK_RETURN(B, 0);
 
   bk_relay_iohhandler(B, NULL, brc->brc_opaque, brc->brc_ioh1, BkIohStatusIohReadEOF);
+
+  if (BK_FLAG_ISSET(brc->brc_flags, BK_RELAY_CANCEL_FLAG_SHUTODWN))
+    BK_RETURN(B, 0);
+
   bk_relay_iohhandler(B, NULL, brc->brc_opaque, brc->brc_ioh2, BkIohStatusIohReadEOF);
 
   BK_RETURN(B, 0);
