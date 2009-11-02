@@ -2031,10 +2031,13 @@ extern double bk_string_demagnify(bk_s B, const char *number, bk_flags flags);
 
 /* b_string.c */
 extern u_int bk_strhash(const char *a, bk_flags flags);
-#define BK_HASH_V2		0x02		///< Better/slower hashing
+// RESERVED FOR BK_HASH_STRING  0x01 NOT NEEDED BY THIS FUNCTION
+#define BK_HASH_V2		0x02		///< Jenkinshash -- slow, better distribution, poorly understood
 #define BK_HASH_MODULUS		0x04		///< Modulus by large prime
+#define BK_HASH_V1		0x08		///< K&R hash -- slowish, not so great
+#define BK_HASH_V3		0x10		///< murmurhash -- fast, good distribution
 extern u_int bk_bufhash(const bk_vptr *b, bk_flags flags);
-#define BK_HASH_STRING		0x01		///< String hash if len=1/2/4/8
+#define BK_HASH_STRING		0x01		///< String hash if len=1/2/4/8 (UNUSED AND DEPRECATED!!!!)
 
 extern char **bk_string_tokenize_split(bk_s B, const char *src, u_int limit, const char *spliton, const char *braces, const dict_h kvht_vardb, const char **variabledb, bk_flags flags);
 #define BK_WHITESPACE					" \t\r\n" ///< General definition of horizonal and vertical whitespace

@@ -102,7 +102,9 @@ static void bsre_destroy(bk_s B, struct bk_str_registry_element *bsre);
  *
  *	@param k The string to be hashed
  *	@param flags BK_HASH_MODULUS perform modulus by large prime<br>
- *	BK_HASH_V2 use better, but slower hashing function
+ *	BK_HASH_V1 use traditional, but slowish hashing function
+ *	BK_HASH_V2 use Jenkins-hash, slow hasher producing better distribution (but poorly understood)
+ *	BK_HASH_V3 use murmurhash, faster (but requires two passes) and good  (default)
  *	@return <i>hash</i> of number
  */
 u_int
@@ -111,7 +113,7 @@ bk_strhash(const char *k, bk_flags flags)
   const u_int32_t P = 2147486459U;		// Arbitrary large prime
   u_int h;
 
-  if (BK_FLAG_ISCLEAR(flags, BK_HASH_V2))
+  if (BK_FLAG_ISSET(flags, BK_HASH_V1))
   {
     /*
      * Hash a string.
@@ -128,7 +130,7 @@ bk_strhash(const char *k, bk_flags flags)
     for (h = 17; *k; k++)
       h = h * M + *k;
   }
-  else
+  else if (BK_FLAG_ISSET(flags, BK_HASH_V2))
   {
     /*
      * Hash a string into tiny little bits.
@@ -225,8 +227,12 @@ bk_strhash(const char *k, bk_flags flags)
       // case 0: nothing left to add
     }
     mix(a,b,h);
-  }
 #undef mix
+  }
+  else						// V3 murmurhash, now the default
+  {
+    h = murmurhash2a_allret(k, strlen(k));
+  }
 
   if (BK_FLAG_ISCLEAR(flags, BK_HASH_MODULUS))
     return(h);
@@ -243,53 +249,60 @@ bk_strhash(const char *k, bk_flags flags)
  * these are actually byte/short/int/long or double values rather than strings.
  * For other lengths, string hashing is used.
  *
- * <WARNING>For numeric values, this prevents endian bias in the hash, but for
- * IPv4 addresses or string types, it creates an endian bias; to prevent that,
- * the BK_HASH_STRING flag should be passed.  For CLC hash tables, this isn't
- * an issue, but for hash tables that may be exported (e.g. FAD hash models)
- * this is significant.</WARNING>
+ * <WARNING>When using BK_HASH_V2, for numeric values, there may be
+ * endian bias in the hash, but for IPv4 addresses or string types, it
+ * creates an endian bias.  For CLC hash tables, this isn't an issue, but
+ * for hash tables that may be exported (e.g. FAD hash models) this is
+ * significant.  Use BK_HASH_V3 to resolve this problem</WARNING>
  *
  * THREADS: MT-SAFE
  *
  *	@param b The buffer to be hashed
  *	@param flags BK_HASH_MODULUS perform modulus by large prime<br>
- *	BK_HASH_STRING string hash all buffers, even for small powers of 2
+ *	BK_HASH_V1 use traditional, but slower hashing function
+ *	BK_HASH_V2 IS NOT AVAILABLE
+ *	BK_HASH_V3 use murmurhash, fast and good (default)
  *	@return <i>hash</i> of number
- *
- * <TODO>BK_HASH_V2 use better, but slower hashing function, e.g. as above or
- * http://www.concentric.net/~Ttwang/tech/inthash.htm for numerics</TODO>
  */
 u_int
 bk_bufhash(const bk_vptr *b, bk_flags flags)
 {
-  const u_int M = 37U;				// Multiplier
-  const u_int P = 2147486459U;			// Arbitrary large prime
   u_int h;
-  size_t i;
-  const char *p = (const char *)b->ptr;
+  const u_int P = 2147486459U;			// Arbitrary large prime
 
-  switch (b->len)
+  if (BK_FLAG_ISSET(flags, BK_HASH_V1))
   {
-  case 1:
-    h = *p;
-    break;
+    const u_int M = 37U;				// Multiplier
+    size_t i;
+    const char *p = (const char *)b->ptr;
 
-  case 2:
-    h = *(const short *)p;
-    break;
+    switch (b->len)
+    {
+    case 1:
+      h = *p;
+      break;
 
-  case 4:
-    h = *(const int *)p;
-    break;
+    case 2:
+      h = *(const short *)p;
+      break;
 
-  case 8:
-    h = ((const int *)p)[0] ^ ((const int *)p)[1];
-    break;
+    case 4:
+      h = *(const int *)p;
+      break;
 
-  default:
-    for (h = 17, i = 0; i < b->len; p++, i++)
-      h = h * M + *p;
-    break;
+    case 8:
+      h = ((const int *)p)[0] ^ ((const int *)p)[1];
+      break;
+
+    default:
+      for (h = 17, i = 0; i < b->len; p++, i++)
+	h = h * M + *p;
+      break;
+    }
+  }
+  else						// V3 murmurhash, now the default
+  {
+    h = murmurhash2a_allret(b->ptr, b->len);
   }
 
   if (BK_FLAG_ISCLEAR(flags, BK_HASH_MODULUS))
