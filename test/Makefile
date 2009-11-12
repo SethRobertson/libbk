@@ -40,6 +40,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		test_string		\
 		test_string_expand	\
 		test_stringconv		\
+		test_syscall		\
 		test_threads		\
 		test_time		\
 		test_url		\
