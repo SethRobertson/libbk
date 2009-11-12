@@ -406,7 +406,7 @@ bk_ringdir_init(bk_s B, const char *directory, off_t rotate_size, u_int32_t max_
       goto error;
     }
 
-    if ((*brd->brd_brc.brc_open)(B, brd->brd_opaque, brd->brd_cur_filename, BkRingDirCallbackSourceInit, ringdir_open_flags))
+    if ((*brd->brd_brc.brc_open)(B, brd->brd_opaque, brd->brd_cur_filename, brd->brd_cur_file_num, BkRingDirCallbackSourceInit, ringdir_open_flags))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open %s\n", brd->brd_cur_filename);
       goto error;
@@ -471,7 +471,7 @@ bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags)
 
   if (brd->brd_cur_filename)
   {
-    if ((*brd->brd_brc.brc_close)(B, brd->brd_opaque, brd->brd_cur_filename, BkRingDirCallbackSourceDestroy, 0) < 0)
+    if ((*brd->brd_brc.brc_close)(B, brd->brd_opaque, brd->brd_cur_filename, brd->brd_cur_file_num, BkRingDirCallbackSourceDestroy, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not close %s\n", brd->brd_cur_filename);
       goto error;
@@ -500,7 +500,7 @@ bk_ringdir_destroy(bk_s B, bk_ringdir_t brdh, bk_flags flags)
 	goto error;
       }
 
-      if ((*brd->brd_brc.brc_unlink)(B, brd->brd_opaque, filename, BkRingDirCallbackSourceDestroy, 0) < 0)
+      if ((*brd->brd_brc.brc_unlink)(B, brd->brd_opaque, filename, cnt, BkRingDirCallbackSourceDestroy, 0) < 0)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not unlink %s\n", filename);
       }
@@ -570,7 +570,7 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, u_int estimate_size_increment, bk_f
 	brd->brd_offset_estimate >= brd->brd_rotate_size ||
 	(brd->brd_offset_level++ % CHECK_ESTIMATE_EVERY) == 1)
     {
-      if ((brd->brd_offset_estimate = (*brd->brd_brc.brc_get_size)(B, brd->brd_opaque, brd->brd_cur_filename, 0)) == (off_t)BK_RINGDIR_GET_SIZE_ERROR)
+      if ((brd->brd_offset_estimate = (*brd->brd_brc.brc_get_size)(B, brd->brd_opaque, brd->brd_cur_filename, brd->brd_cur_file_num, 0)) == (off_t)BK_RINGDIR_GET_SIZE_ERROR)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not obtain size of %s\n", brd->brd_cur_filename);
 	goto error;
@@ -585,7 +585,7 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, u_int estimate_size_increment, bk_f
   {
     brd->brd_offset_level = brd->brd_offset_estimate = 0;
 
-    if ((*brd->brd_brc.brc_close)(B, brd->brd_opaque, brd->brd_cur_filename, BkRingDirCallbackSourceRotate, 0) < 0)
+    if ((*brd->brd_brc.brc_close)(B, brd->brd_opaque, brd->brd_cur_filename, brd->brd_cur_file_num, BkRingDirCallbackSourceRotate, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not close %s\n", brd->brd_cur_filename);
       goto error;
@@ -610,13 +610,13 @@ bk_ringdir_rotate(bk_s B, bk_ringdir_t brdh, u_int estimate_size_increment, bk_f
       goto error;
     }
 
-    if ((*brd->brd_brc.brc_unlink)(B, brd->brd_opaque, brd->brd_cur_filename, BkRingDirCallbackSourceRotate, 0) < 0)
+    if ((*brd->brd_brc.brc_unlink)(B, brd->brd_opaque, brd->brd_cur_filename, brd->brd_cur_file_num, BkRingDirCallbackSourceRotate, 0) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not unlink %s\n", brd->brd_cur_filename);
       goto error;
     }
 
-    if ((*brd->brd_brc.brc_open)(B, brd->brd_opaque, brd->brd_cur_filename, BkRingDirCallbackSourceRotate, 0))
+    if ((*brd->brd_brc.brc_open)(B, brd->brd_opaque, brd->brd_cur_filename, brd->brd_cur_file_num, BkRingDirCallbackSourceRotate, 0))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not open %s\n", brd->brd_cur_filename);
       goto error;
@@ -955,13 +955,14 @@ bk_ringdir_standard_destroy(bk_s B, void *opaque, const char *directory, bk_flag
  *
  *	@param B BAKA thread/global state.
  *	@param opaque Your private data.
- *	@param directory The directory you may be asked to nuke.
+ *	@param filename The filename you are operating on
+ *	@param filenum The filenumber/index you are operating on
  *	@param flags Flags for future use.
  *	@return <i>BK_RINGDIR_GET_SIZE_ERROR</i> on failure.<br>
  *	@return <i>non-negative</i> on success.
  */
 off_t
-bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flags flags)
+bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, u_int filenum, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)opaque;
@@ -1018,7 +1019,8 @@ bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flag
  *
  *	@param B BAKA thread/global state.
  *	@param opaque Your private data.
- *	@param directory The directory you may be asked to nuke.
+ *	@param filename The filename you are operating on
+ *	@param filenum The filenumber/index you are operating on
  *	@param flags Flags for future use.
  *
  * BK_RINGDIR_FLAG_OPEN_APPEND: If you are passed this flag you should
@@ -1030,7 +1032,7 @@ bk_ringdir_standard_get_size(bk_s B, void *opaque, const char *filename, bk_flag
  *	@return <i>0</i> on success.
  */
 int
-bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, enum bk_ringdir_callback_source source, bk_flags flags)
+bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, u_int filenum, enum bk_ringdir_callback_source source, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)opaque;
@@ -1063,7 +1065,7 @@ bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, enum bk_rin
   BK_RETURN(B,0);
 
  error:
-  bk_ringdir_standard_close(B, brs, filename, source, 0);
+  bk_ringdir_standard_close(B, brs, filename, filenum, source, 0);
   BK_RETURN(B,-1);
 }
 
@@ -1074,14 +1076,15 @@ bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, enum bk_rin
  *
  *	@param B BAKA thread/global state.
  *	@param opaque Your private data.
- *	@param directory The directory you may be asked to nuke.
+ *	@param filename The filename you are operating on
+ *	@param filenum The filenumber/index you are operating on
  *	@param source The ring direction action which triggerd this callback
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_ringdir_standard_close(bk_s B, void *opaque, const char *filename, enum bk_ringdir_callback_source source, bk_flags flags)
+bk_ringdir_standard_close(bk_s B, void *opaque, const char *filename, u_int filenum, enum bk_ringdir_callback_source source, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)opaque;
@@ -1116,14 +1119,15 @@ bk_ringdir_standard_close(bk_s B, void *opaque, const char *filename, enum bk_ri
  *
  *	@param B BAKA thread/global state.
  *	@param opaque Your private data.
- *	@param directory The directory you may be asked to nuke.
+ *	@param filename The filename you are operating on
+ *	@param filenum The filenumber/index you are operating on
  *	@param source The ring direction action which triggerd this callback
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_ringdir_standard_unlink(bk_s B, void *opaque, const char *filename, enum bk_ringdir_callback_source source, bk_flags flags)
+bk_ringdir_standard_unlink(bk_s B, void *opaque, const char *filename, u_int filenum, enum bk_ringdir_callback_source source, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ringdir_standard *brs = (struct bk_ringdir_standard *)opaque;
@@ -1526,12 +1530,13 @@ bk_ringdir_did_rotate_occur(bk_s B, bk_ringdir_t brdh, bk_flags flags)
  *
  *	@param B BAKA thread/global state.
  *	@param brdh Ring directory handle.
+ *	@param filenum Optional pointer to filenumber of oldest
  *	@param flags Flags for future use.
  *	@return <i>NULL</i> on failure.<br>
  *	@return allocated <i>filename</i> on success.
  */
 char *
-bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, bk_flags flags)
+bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, u_int *filenum, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
@@ -1545,6 +1550,9 @@ bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, bk_flags flags)
   }
 
   oldest_num = NEXT_FILE_NUM(brd, brd->brd_cur_file_num);
+
+  if (filenum)
+    *filenum = oldest_num;
 
   if (!(filename = bk_ringdir_create_file_name(B, brd, oldest_num, 0)))
   {
@@ -1570,12 +1578,13 @@ bk_ringdir_filename_oldest(bk_s B, bk_ringdir_t brdh, bk_flags flags)
  *	@param B BAKA thread/global state.
  *	@param brdh Ring directory handle.
  *	@param filename The filename for which you want the successor
+ *	@param filenum Optional pointer to filenumber of successor
  *	@param flags Flags for future use.
  *	@return <i>NULL</i> on failure.<br>
  *	@return allocated <i>filename</i> on success.
  */
 char *
-bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, bk_flags flags)
+bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, u_int *filenum, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
@@ -1595,6 +1604,9 @@ bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, b
   }
 
   next_num = NEXT_FILE_NUM(brd, file_num);
+
+  if (filenum)
+    *filenum = next_num;
 
   if (!(next_filename = bk_ringdir_create_file_name(B, brd, next_num, 0)))
   {
@@ -1624,12 +1636,13 @@ bk_ringdir_filename_successor(bk_s B, bk_ringdir_t brdh, const char *filename, b
  *
  *	@param B BAKA thread/global state.
  *	@param brdh Ring directory handle.
+ *	@param filenum Optional pointer to filenumber of current
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 char *
-bk_ringdir_filename_current(bk_s B, bk_ringdir_t brdh, bk_flags flags)
+bk_ringdir_filename_current(bk_s B, bk_ringdir_t brdh, u_int *filenum, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
@@ -1639,6 +1652,9 @@ bk_ringdir_filename_current(bk_s B, bk_ringdir_t brdh, bk_flags flags)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
+
+  if (filenum)
+    *filenum = brd->brd_cur_file_num;
 
   BK_RETURN(B,strdup(brd->brd_cur_filename));
 }
@@ -1679,12 +1695,13 @@ bk_ringdir_getpattern(bk_s B, bk_ringdir_t brdh)
  *	@param B BAKA thread/global state.
  *	@param brdh Ring directory handle.
  *	@param filename The filename for which you want the successor
+ *	@param filenum Optional pointer to filenumber of predecessor
  *	@param flags Flags for future use.
  *	@return <i>NULL</i> on failure.<br>
  *	@return allocated <i>filename</i> on success.
  */
 char *
-bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename, bk_flags flags)
+bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename, u_int *filenum, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_ring_directory *brd = (struct bk_ring_directory *)brdh;
@@ -1704,6 +1721,9 @@ bk_ringdir_filename_predecessor(bk_s B, bk_ringdir_t brdh, const char *filename,
   }
 
   previous_num = PREVIOUS_FILE_NUM(brd, file_num);
+
+  if (filenum)
+    *filenum = previous_num;
 
   if (!(previous_filename = bk_ringdir_create_file_name(B, brd, previous_num, 0)))
   {
