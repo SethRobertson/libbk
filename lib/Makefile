@@ -72,7 +72,7 @@ BK_LARGE_LIBSRC=				\
 		mt19937-64.c			\
 # Line eater fodder -- leave
 
-LT_LDLIBS=-ldict -lfsma -lpqueue  $(PTHREAD_LIBS)
+LT_LDLIBS=-ldict -lfsma -lpqueue  $(PTHREAD_LIBS) $(RT_LIBS)
 
 GROUPTOP=..
 GROUPSUBDIR=lib

@@ -71,7 +71,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define BK_TRUERAND_D		76.059		///< Additive factor
 #define BK_ROUND_SIZE		sizeof(u_int32_t) ///< Number of bytes produced per round
 #define BK_MIN_ROUNDS		3		///< Min rounds per byte
-#define BK_MAX_ROUNDS		100		///< Min rounds per byte
+#define BK_MAX_ROUNDS		100		///< Max rounds per byte
 #define BK_POOLSIZE		16		///< Size of pool in bytes (related to hash size)
 #define BK_MAJOR_REFRESH	12		///< How often to mix into a new full batch of entropy
 
@@ -109,6 +109,21 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * @param cntr The counter which will contain the random number
  * @param end struct timeval end
  */
+#ifdef CLOCK_MONOTONIC
+#ifdef CLOCK_MONOTONIC_RAW
+#define BAKA_CLOCK_MONOTONIC CLOCK_MONOTONIC_RAW
+#else /* CLOCK_MONOTONIC_RAW */
+#define BAKA_CLOCK_MONOTONIC CLOCK_MONOTONIC
+#endif /* CLOCK_MONOTONIC_RAW */
+#define BK_TRUERAND_GENROUND_TS(cntr,cur,end)				\
+do {									\
+  clock_gettime(BAKA_CLOCK_MONOTONIC, (end));				\
+  (end)->tv_nsec += BK_USECTONSEC(BK_TRUERAND_TIME);			\
+  BK_TS_RECTIFY(end);							\
+  while (clock_gettime(BAKA_CLOCK_MONOTONIC,(cur)) == 0 && BK_TS_CMP(cur,end) < 0) \
+    cntr++;								\
+} while (0)
+#else /* CLOCK_MONOTONIC */
 #define BK_TRUERAND_GENROUND(cntr,cur,end)				\
 do {									\
   gettimeofday((end),NULL);						\
@@ -117,6 +132,7 @@ do {									\
   while (gettimeofday(cur, NULL) == 0 && BK_TV_CMP(cur,end) < 0)	\
     cntr++;								\
 } while (0)
+#endif /* CLOCK_MONOTONIC */
 
 
 
@@ -365,7 +381,11 @@ static u_int bk_truerand_measuregen(bk_s B)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   volatile u_int32_t thisc;
   u_int32_t minc,maxc;
+#ifdef BK_TRUERAND_GENROUND_TS
+  struct timespec this,end;
+#else /* BK_TRUERAND_GENROUND_TS */
   struct timeval this,end;
+#endif /* BK_TRUERAND_GENROUND_TS */
   int x;
   u_int y;
 
@@ -375,10 +395,18 @@ static u_int bk_truerand_measuregen(bk_s B)
   for (x=10;x>0;x--)
   {
     thisc = 0;
+#ifdef BK_TRUERAND_GENROUND_TS
+    BK_TRUERAND_GENROUND_TS(thisc, &this, &end);
+#else /* BK_TRUERAND_GENROUND_TS */
     BK_TRUERAND_GENROUND(thisc, &this, &end);
+#endif /* BK_TRUERAND_GENROUND_TS */
     minc = MIN(minc,thisc);
     maxc = MAX(maxc,thisc);
+#ifdef BK_TRUERAND_GENROUND_TS
+    bk_debug_printf_and(B, 2, "Test %d: cur: %d, min %d, max %d, %d.%09d %d.%09d\n", x, thisc, minc, maxc, (int)this.tv_sec, (int)this.tv_nsec, (int)end.tv_sec, (int)end.tv_nsec);
+#else /* BK_TRUERAND_GENROUND_TS */
     bk_debug_printf_and(B, 2, "Test %d: cur: %d, min %d, max %d, %d.%06d %d.%06d\n", x, thisc, minc, maxc, (int)this.tv_sec, (int)this.tv_usec, (int)end.tv_sec, (int)end.tv_usec);
+#endif /* BK_TRUERAND_GENROUND_TS */
   }
 
   x = maxc - minc;
@@ -415,8 +443,11 @@ static void bk_truerand_generate(bk_s B, bk_MD5_CTX *ctx, int rounds)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   volatile u_int32_t thisc;
-  struct timeval this;
-  struct timeval end;
+#ifdef BK_TRUERAND_GENROUND_TS
+  struct timespec this,end;
+#else /* BK_TRUERAND_GENROUND_TS */
+  struct timeval this,end;
+#endif /* BK_TRUERAND_GENROUND_TS */
 
   if (!ctx)
   {
@@ -438,7 +469,11 @@ static void bk_truerand_generate(bk_s B, bk_MD5_CTX *ctx, int rounds)
 
   while (rounds--)
   {
-    BK_TRUERAND_GENROUND(thisc,&this,&end);
+#ifdef BK_TRUERAND_GENROUND_TS
+    BK_TRUERAND_GENROUND_TS(thisc, &this, &end);
+#else /* BK_TRUERAND_GENROUND_TS */
+    BK_TRUERAND_GENROUND(thisc, &this, &end);
+#endif /* BK_TRUERAND_GENROUND_TS */
 
     // Throw in one round's worth of data
     bk_MD5Update(B, ctx, (void *)&thisc, sizeof(thisc));
