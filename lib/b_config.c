@@ -16,129 +16,110 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 
 /**
- * @file This module implements the BAKA config file facility. Config files are
- * nothing more than key/value pairs. Keys are single words and values are
- * comprised of everything which follows the first instance of a key/value
- * separator character (by default, this is '=', whitespace, or ':').
+ * @file This module implements the BAKA config file facility. Config
+ * files are nothing more than key/value pairs. Keys are single words
+ * and values are comprised of everything which follows the first
+ * instance of a key/value separator character (by default, this is
+ * '=', though there may be one optional space before and after the
+ * equal sign.
  *
  * <TODO>Implement reconfig</TODO>
  *
- * The format of these files is intended to be not totally incompatible with the
- * java.util.Properties load/store file format described below.  Not all of
- * of the features supported by Properties.load are supported, but we attempt
- * to provide 99% compatibility with the canonical format written by
- * Properties.store.
+ * The format of these files is intended to be not totally
+ * incompatible with the java.util.Properties load/store file format
+ * described below but probably is after all.
  *
  * The BAKA config file facility also supports included config files with the
  *	#include file.name
  * directive (the particular token used for include can be changed from the
  * default "#include" in the BAKA config user preferences structure passed to
- * bk_configure_init.  Include loops are detected and quashed.  This
- * functionality is not present in java.util.Properties.
+ * bk_configure_init.  Include loops are detected and quashed.
  *
- * Differences from the format written by Properties.store are:
+ * No further interpolation of the key or value is performed.
+ * Backslashes, control characters, or whatever are just normal
+ * characters.
  *
- * - \uxxxx unicode character escapes aren't supported [for control/8bit chars]
- *    libbk sez just include them directly (NUL not supported) or use \ooo byte
- *    encoding
- *
- * Differences from format accepted by Properties.load are the above, plus:
- *
- * - line terminator must be \n or \r\n (on MacOS, stdio converts \r, if used)
- *   libbk only allows \n
- *
- * - ISO 8859-1 encoding is not explicitly specified (dependent on locale)
- *   libbk does not explictly support non-default encodings, but the people who
- *   use it could
- *
- * - line continuations with \ aren't supported
- *
- * - \a, \b, \f, \v are treated as ANSI C escapes (BEL, BS, FF, VT)
- *   NEW CHANGE--NO LONGER SUPPORTED
- *
- * - lines with no separator character generate a warning and are ignored
- *   libbk sez these are symbols that are present with the null value.
- *   Note that below in the "cheeses" example, it appears Java supports this as well.
+ * lines with no separator character generate a warning and are ignored
  */
 
-/*
- * For no apparent reason, we will now discuss in detail what some
- * random java routine does which is at most of interest to people
- * attempting to construct bk_config files which may be compatible.
- *
- * Properties.store is specified as follows:
- *
- * Every entry in this Properties table is written out, one per line. For each
- * entry the key string is written, then an ASCII =, then the associated
- * element string. Each character of the element string is examined to see
- * whether it should be rendered as an escape sequence. The ASCII characters \,
- * tab, newline, and carriage return are written as \\, \t, \n, and \r,
- * respectively. Characters less than \u0020 and characters greater than \u007E
- * are written as \uxxxx for the appropriate hexadecimal value xxxx. Leading
- * space characters, but not embedded or trailing space characters, are written
- * with a preceding \. The key and value characters #, !, =, and : are written
- * with a preceding slash to ensure that they are properly loaded.
- *
- * Properties.load is specified as follows:
- *
- * Reads a property list (key and element pairs) from the input stream. The
- * stream is assumed to be using the ISO 8859-1 character encoding.
- *
- * Every property occupies one line of the input stream. Each line is
- * terminated by a line terminator (\n or \r or \r\n). Lines from the input
- * stream are processed until end of file is reached on the input stream.
- *
- * A line that contains only whitespace or whose first non-whitespace character
- * is an ASCII # or ! is ignored (thus, # or ! indicate comment lines).
- *
- * Every line other than a blank line or a comment line describes one property
- * to be added to the table (except that if a line ends with \, then the
- * following line, if it exists, is treated as a continuation line, as
- * described below). The key consists of all the characters in the line
- * starting with the first non-whitespace character and up to, but not
- * including, the first ASCII =, :, or whitespace character. All of the key
- * termination characters may be included in the key by preceding them with a
- * \. Any whitespace after the key is skipped; if the first non-whitespace
- * character after the key is = or :, then it is ignored and any whitespace
- * characters after it are also skipped. All remaining characters on the line
- * become part of the associated element string. Within the element string, the
- * ASCII escape sequences \t, \n, \r, \\, \", \', \ (a backslash and a space),
- * and \uxxxx are recognized and converted to single characters. Moreover, if
- * the last character on the line is \, then the next line is treated as a
- * continuation of the current line; the \ and line terminator are simply
- * discarded, and any leading whitespace characters on the continuation line
- * are also discarded and are not part of the element string.
- *
- * As an example, each of the following four lines specifies the key "Truth"
- * and the associated element value "Beauty":
- *
- * Truth = Beauty
- *	Truth:Beauty
- * Truth	:Beauty
- *
- *
- * As another example, the following three lines specify a single property:
- *
- * fruits			apple, banana, pear, \
- *				cantaloupe, watermelon, \
- *				kiwi, mango
- *
- * The key is "fruits" and the associated element is:
- *
- * "apple, banana, pear, cantaloupe, watermelon, kiwi, mango"
- *
- * Note that a space appears before each \ so that a space will appear after
- * each comma in the final result; the \, line terminator, and leading
- * whitespace on the continuation line are merely discarded and are not
- * replaced by one or more other characters.
- *
- * As a third example, the line:
- *
- * cheeses
- *
- * specifies that the key is "cheeses" and the associated element is the empty
- * string.
- */
+/*IGNORE*
+ *IGNORE* For no apparent reason, we will now discuss in detail what some
+ *IGNORE* random java routine does which is at most of interest to people
+ *IGNORE* attempting to construct bk_config files which may be compatible.
+ *IGNORE*
+ *IGNORE* Properties.store is specified as follows:
+ *IGNORE*
+ *IGNORE* Every entry in this Properties table is written out, one per line. For each
+ *IGNORE* entry the key string is written, then an ASCII =, then the associated
+ *IGNORE* element string. Each character of the element string is examined to see
+ *IGNORE* whether it should be rendered as an escape sequence. The ASCII characters \,
+ *IGNORE* tab, newline, and carriage return are written as \\, \t, \n, and \r,
+ *IGNORE* respectively. Characters less than \u0020 and characters greater than \u007E
+ *IGNORE* are written as \uxxxx for the appropriate hexadecimal value xxxx. Leading
+ *IGNORE* space characters, but not embedded or trailing space characters, are written
+ *IGNORE* with a preceding \. The key and value characters #, !, =, and : are written
+ *IGNORE* with a preceding slash to ensure that they are properly loaded.
+ *IGNORE*
+ *IGNORE* Properties.load is specified as follows:
+ *IGNORE*
+ *IGNORE* Reads a property list (key and element pairs) from the input stream. The
+ *IGNORE* stream is assumed to be using the ISO 8859-1 character encoding.
+ *IGNORE*
+ *IGNORE* Every property occupies one line of the input stream. Each line is
+ *IGNORE* terminated by a line terminator (\n or \r or \r\n). Lines from the input
+ *IGNORE* stream are processed until end of file is reached on the input stream.
+ *IGNORE*
+ *IGNORE* A line that contains only whitespace or whose first non-whitespace character
+ *IGNORE* is an ASCII # or ! is ignored (thus, # or ! indicate comment lines).
+ *IGNORE*
+ *IGNORE* Every line other than a blank line or a comment line describes one property
+ *IGNORE* to be added to the table (except that if a line ends with \, then the
+ *IGNORE* following line, if it exists, is treated as a continuation line, as
+ *IGNORE* described below). The key consists of all the characters in the line
+ *IGNORE* starting with the first non-whitespace character and up to, but not
+ *IGNORE* including, the first ASCII =, :, or whitespace character. All of the key
+ *IGNORE* termination characters may be included in the key by preceding them with a
+ *IGNORE* \. Any whitespace after the key is skipped; if the first non-whitespace
+ *IGNORE* character after the key is = or :, then it is ignored and any whitespace
+ *IGNORE* characters after it are also skipped. All remaining characters on the line
+ *IGNORE* become part of the associated element string. Within the element string, the
+ *IGNORE* ASCII escape sequences \t, \n, \r, \\, \", \', \ (a backslash and a space),
+ *IGNORE* and \uxxxx are recognized and converted to single characters. Moreover, if
+ *IGNORE* the last character on the line is \, then the next line is treated as a
+ *IGNORE* continuation of the current line; the \ and line terminator are simply
+ *IGNORE* discarded, and any leading whitespace characters on the continuation line
+ *IGNORE* are also discarded and are not part of the element string.
+ *IGNORE*
+ *IGNORE* As an example, each of the following four lines specifies the key "Truth"
+ *IGNORE* and the associated element value "Beauty":
+ *IGNORE*
+ *IGNORE* Truth = Beauty
+ *IGNORE*	Truth:Beauty
+ *IGNORE* Truth	:Beauty
+ *IGNORE*
+ *IGNORE*
+ *IGNORE* As another example, the following three lines specify a single property:
+ *IGNORE*
+ *IGNORE* fruits			apple, banana, pear, \
+ *IGNORE*				cantaloupe, watermelon, \
+ *IGNORE*				kiwi, mango
+ *IGNORE*
+ *IGNORE* The key is "fruits" and the associated element is:
+ *IGNORE*
+ *IGNORE* "apple, banana, pear, cantaloupe, watermelon, kiwi, mango"
+ *IGNORE*
+ *IGNORE* Note that a space appears before each \ so that a space will appear after
+ *IGNORE* each comma in the final result; the \, line terminator, and leading
+ *IGNORE* whitespace on the continuation line are merely discarded and are not
+ *IGNORE* replaced by one or more other characters.
+ *IGNORE*
+ *IGNORE* As a third example, the line:
+ *IGNORE*
+ *IGNORE* cheeses
+ *IGNORE*
+ *IGNORE* specifies that the key is "cheeses" and the associated element is the empty
+ *IGNORE* string.
+ *IGNORE*/
 
 #include <libbk.h>
 #include "libbk_internal.h"
@@ -148,9 +129,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define LINELEN 8192				///< Initial size of one configuration line
 #define CONFIG_MANAGE_FLAG_NEW_KEY	0x1	///< Internal state info required for config_manage cleanup
 #define CONFIG_MANAGE_FLAG_NEW_VALUE	0x2	///< Internal state info required for config_manage cleanup
-#define BK_CONFIG_SEPARATORS "=:"BK_HWHITESPACE	///< Default configuration separators
+#define BK_CONFIG_SEPARATORS	"="		///< Default configuration separator
 #define BK_CONFIG_COMMENTCHARS	"#!"		///< Default configuration comments
-#define BK_CONFIG_INCLUDE_TAG	"#include"	///< Default include-command key
+#define BK_CONFIG_INCLUDE_TAG	"#include "	///< Default include-command key
 
 
 
@@ -464,8 +445,6 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
   char *line = NULL;
   int linelen = LINELEN;
   int lineno = 0;
-  char **key = NULL;				// (single) token array
-  char **value = NULL;				// (single) token array
 
   if (!bc || !bcf)
   {
@@ -512,7 +491,7 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
   while(!feof(fp) && fgets(line, linelen, fp))
   {
     char *start = line;
-    char *rest;
+    char *rest, *endofkey;
 
     // Check to see if we didn't read the entire line (presumably due to line length limitations)
     while (!memchr(line,'\n', linelen))
@@ -537,80 +516,20 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
 
     bk_string_rip(B, start, NULL, 0);		/* Nuke trailing CRLF */
 
-    while (isspace(*start))			// skip leading space in key
+    // Check for, and ignore, all-blank lines
+    while (isspace(*start))
       start++;
-
     if (BK_STREQ(start,""))
-    {
-      /*
-       * Blank lines are perfectly OK -- as are lines with only white space
-       * but we'll just issue the warning below for those.
-       */
       continue;
-    }
 
-    /*
-     * The separator for the key value is the first non-escaped instance of one
-     * of the separator chars.
-     */
-    rest = start;
-    while ((rest = strpbrk(rest, bc->bc_bcup.bcup_separators)))
-    {
-      char *escapes = rest;
-
-      // count back over all leading backslashes before separator char
-      while (--escapes >= start && *escapes == '\\')
-	;					// empty body
-
-      if ((rest - escapes + 1) % 2)
-	rest++;					// odd # of \; sep is escaped
-      else
-	break;					// 0 or even # of \; real sep
-    }
-    if (!rest)
-    {
-      if (strchr(bc->bc_bcup.bcup_commentchars, start[0]))
-	continue;				// don't complain about comment
-      bk_error_printf(B, BK_ERR_ERR, "%s:%d: no separator in line '%s'\n",
-		      bcf->bcf_filename, lineno, start);
-      continue;
-    }
-
-    if (isspace(*rest))
-    {
-      *rest++ = '\0';				// terminate key
-
-      while (isspace(*rest))			// skip trailing space in key
-	rest++;
-
-      if (strchr(bc->bc_bcup.bcup_separators, *rest))
-	rest++;					// skip one non-space separator
-
-      rest--;					// back up to final separator
-    }
-
-    *rest++ = '\0';				// terminate key (again?)
-
-    while (isspace(*rest))			// skip leading space in rest
-      rest++;
-
-#ifdef WANT_BACKSLASH_INTERPOLATION
-    /*
-     * "start" now points at the key and "rest" at the value.  In order to
-     * handle backslash escapes, we (ab)use bk_string_tokenize_split to convert
-     * the escapes without actually splitting the key or value further.
-     */
-    key = bk_string_tokenize_split(B, start, 1, "", NULL, NULL, NULL, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR|BK_STRING_TOKENIZE_BACKSLASH);
-    value = bk_string_tokenize_split(B, rest, 1, "", NULL, NULL, NULL, BK_STRING_TOKENIZE_BACKSLASH_INTERPOLATE_CHAR|BK_STRING_TOKENIZE_BACKSLASH);
-#else
-    key = bk_string_tokenize_split(B, start, 1, "", NULL, NULL, NULL, 0);
-    value = bk_string_tokenize_split(B, rest, 1, "", NULL, NULL, NULL, 0);
-#endif
-
-    // check for include tag before ignoring comments
-    if (BK_STREQ(start, bc->bc_bcup.bcup_include_tag))
+    // check for include tag
+    if (BK_STREQN(start, bc->bc_bcup.bcup_include_tag, strlen(bc->bc_bcup.bcup_include_tag)))
     {
       struct bk_config_fileinfo *nbcf;
+
+      rest = start + strlen(bc->bc_bcup.bcup_include_tag);
+      while (isspace(*rest))
+	rest++;
 
       // <TODO>should we be interpreting escape characters?</TODO>
       if (!(nbcf = bcf_create(B, rest, bcf)))
@@ -625,26 +544,61 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
 	bcf_destroy(B, nbcf);
 	// try to read rest of file anyway
       }
-    }
-    else if (strchr(bc->bc_bcup.bcup_commentchars, start[0]))
-      goto loopagain;					// ignore comment line
-    else if (config_manage(B, bc, *key, *value, NULL, lineno) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not add %s ==> %s to DB\n", *key, *value);
-      ret=-1;
-      goto done;
+      continue;
     }
 
-  loopagain:
-    if (key)
+    //  Skip comments
+    if (strchr(bc->bc_bcup.bcup_commentchars, start[0]))
+      continue;
+
+    // Reset from leading space bypass
+    start = line;
+
+    // Look for key/value separator
+    if (!(rest = strpbrk(start,bc->bc_bcup.bcup_separators)))
     {
-      bk_string_tokenize_destroy(B, key);
-      key = NULL;
+      //  Do not complain about comments, even with leading spaces
+      while (isspace(*start))
+	start++;
+      if (strchr(bc->bc_bcup.bcup_commentchars, start[0]))
+	continue;				// don't complain about comment
+      start = line;
+      bk_error_printf(B, BK_ERR_ERR, "%s:%d: no separator in line '%s'\n",
+		      bcf->bcf_filename, lineno, start);
+      continue;
     }
-    if (value)
+
+    endofkey = rest;
+
+    // Look for optional space before separator
+    if (rest > start && isspace(*(rest-1)))
     {
-      bk_string_tokenize_destroy(B, value);
-      value = NULL;
+      endofkey--;
+    }
+
+    // Look for missing key
+    if (endofkey == start)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "%s:%d: no key in line '%s'\n",
+		      bcf->bcf_filename, lineno, start);
+      continue;
+    }
+
+    // Null terminate key
+    *endofkey = 0;
+
+    // Focus to start of value
+    rest++;
+
+    // Look for optional space after separator
+    if (isspace(*rest))
+      rest++;					// Adjust start of value right
+
+    if (config_manage(B, bc, start, rest, NULL, lineno) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not add %s ==> %s to DB\n", start, rest);
+      ret=-1;
+      goto done;
     }
   }
 
@@ -658,8 +612,6 @@ load_config_from_file(bk_s B, struct bk_config *bc, struct bk_config_fileinfo *b
  done:
   if (line) free(line);
   if (fp) fclose(fp);
-  if (key) bk_string_tokenize_destroy(B, key);
-  if (value) bk_string_tokenize_destroy(B, value);
 
   BK_RETURN(B, ret);
 
