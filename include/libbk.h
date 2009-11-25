@@ -1083,6 +1083,8 @@ static inline int BK_BTS_CMP(struct bk_timespec *a, struct bk_timespec *b)
 /*
  * Murmurhash "functions" -- see http://murmurhash.googlepages.com
  *
+ * Copyright: None -- contributed to the public domain
+ *
  * Our version of this algorithm is not test vector compatible
  * due to our treatment of length (only allret hashes the length
  * explicitly and it does it in a different place to save a mix

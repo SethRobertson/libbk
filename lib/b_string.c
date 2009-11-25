@@ -92,7 +92,7 @@ static void bsre_destroy(bk_s B, struct bk_str_registry_element *bsre);
 /**
  * Hash a string into tiny little bits two different ways.
  *
- * Not covered under the LGPL
+ * Copyright -- None.  Contributed to the PUBLIC DOMAIN
  *
  * No 'B' passed in so that this can be used in CLC comparison functions.
  * (Huh?  That doesn't make sense.  The API is different.  SJR admits that
