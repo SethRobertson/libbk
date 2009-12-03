@@ -259,18 +259,6 @@ static int proginit(bk_s B, struct program_config *pc)
 }
 
 
-struct bk_ringdir_callbacks jtt_ringdir_callbacks =
-{
-  bk_ringdir_standard_init,
-  bk_ringdir_standard_destroy,
-  bk_ringdir_standard_get_size,
-  bk_ringdir_standard_open,
-  bk_ringdir_standard_close,
-  bk_ringdir_standard_unlink,
-  bk_ringdir_standard_chkpnt,
-};
-
-
 /**
  * Normal processing of program
  *
@@ -287,8 +275,9 @@ static void progrun(bk_s B, struct program_config *pc)
   char buf[2048];
   char *filename;
   int cnt;
+  u_int32_t num_files, max_files;
 
-  if (!(brdh = bk_ringdir_init(B, "/tmp/jtt-ringdir/", 1024, 100, "%02ujtt", NULL, &jtt_ringdir_callbacks, 0)))
+  if (!(brdh = bk_ringdir_init(B, "/tmp/jtt-ringdir/", 1024, 100, "%02ujtt", NULL, &bk_ringdir_standard_callbacks, 0)))
   {
     fprintf(stderr, "Could not initialize ring dir\n");
     goto error;
@@ -317,6 +306,12 @@ static void progrun(bk_s B, struct program_config *pc)
       start += nbytes;
     } while (len);
 
+    if (bk_ringdir_get_status(B, brdh, NULL, NULL, &num_files, &max_files, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not get the satus\n");
+      goto error;
+    }
+
     if (bk_ringdir_rotate(B, brdh, 0, 0) < 0)
     {
       fprintf(stderr,"Failed to rotate\n");
@@ -325,9 +320,9 @@ static void progrun(bk_s B, struct program_config *pc)
   }
   fclose(fp);
 
-  for(cnt = 0, filename = bk_ringdir_filename_oldest(B, brdh, 0);
+  for(cnt = 0, filename = bk_ringdir_filename_oldest(B, brdh, NULL, 0);
       cnt < 100;
-      cnt++, filename = bk_ringdir_filename_successor(B, brdh, filename, BK_RINGDIR_FILENAME_ITERATE_FLAG_FREE))
+      cnt++, filename = bk_ringdir_filename_successor(B, brdh, filename, NULL, BK_RINGDIR_FILENAME_ITERATE_FLAG_FREE))
   {
     printf("%s\n", filename);
   }
@@ -335,6 +330,9 @@ static void progrun(bk_s B, struct program_config *pc)
 
   bk_ringdir_destroy(B, brdh, 0);
 
+  BK_VRETURN(B);
+
  error:
+  bk_die(B, 254, stderr, _("Could not run the test\n"), BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
   BK_VRETURN(B);
 }

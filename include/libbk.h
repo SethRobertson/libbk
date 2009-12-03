@@ -2629,6 +2629,21 @@ struct bk_ringdir_callbacks
    *	@return <i>0</i> on success.
    */
   int (*brc_chkpnt)(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, enum bk_ringdir_callback_source source, bk_flags flags);
+
+
+  /**
+   *  Check for the existence of a "file" by whatever means are appropriate for your implementation.
+   *
+   *	@param B BAKA thread/global state.
+   *	@param opaque Your private data.
+   *	@param filename The filename to open
+   *	@param filenum Number/index of the file to open
+   *	@param flags Flags for future use.
+   *	@return <i>-1</i> on failure.<br>
+   *	@return <i>0</i> if filename does not exist.
+   *	@return <i>1</i> if filename exists.
+   */
+  int (*brc_exists)(bk_s B, void *opaque, const char *filename, int filenum, bk_flags flags);
 } bk_ringdir_standard_callbacks;
 
 
@@ -2671,6 +2686,7 @@ extern int bk_ringdir_standard_open(bk_s B, void *opaque, const char *filename, 
 extern int bk_ringdir_standard_close(bk_s B, void *opaque, const char *filename, u_int filenum, enum bk_ringdir_callback_source source, bk_flags flags);
 extern int bk_ringdir_standard_unlink(bk_s B, void *opaque, const char *filename, u_int filenum, enum bk_ringdir_callback_source source, bk_flags flags);
 extern int bk_ringdir_standard_chkpnt(bk_s B, void *opaque, enum bk_ringdir_chkpnt_actions action, const char *directory, const char *pattern, u_int32_t *valuep, enum bk_ringdir_callback_source source, bk_flags flags);
+extern int bk_ringdir_standard_exists(bk_s B, void *opaque, const char *filename, int filenum, bk_flags flags);
 extern int bk_ringdir_standard_update_private_data(bk_s B, bk_ringdir_t brdh, void *opaque, bk_flags flags);
 extern int bk_ringdir_standard_set_fd(bk_s B, bk_ringdir_t brdh, int fd, bk_flags flags);
 extern int bk_ringdir_standard_get_fd(bk_s B, bk_ringdir_t brdh, bk_flags flags);
@@ -2680,7 +2696,7 @@ extern void *bk_ringdir_standard_get_private_data(bk_s B, bk_ringdir_t brdh, bk_
 extern int bk_ringdir_standard_update_private_data_by_standard(bk_s B, void *brsh, void *opaque, bk_flags flags);
 extern void *bk_ringdir_standard_get_private_data_by_standard(bk_s B, void *brsh, bk_flags flags);
 extern int bk_ringdir_split_pattern(bk_s B, const char *path, char **dir_namep, char **patternp, bk_flags flags);
-extern int bk_ringdir_get_status(bk_s B, bk_ringdir_t brdh, u_int32_t *current, u_int32_t *oldest, u_int32_t *max, bk_flags flags);
+extern int bk_ringdir_get_status(bk_s B, bk_ringdir_t brdh, u_int32_t *current, u_int32_t *oldest, u_int32_t *num_filesp, u_int32_t *max, bk_flags flags);
 
 
 
