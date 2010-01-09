@@ -26,9 +26,11 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***argv, char ***envp, char **program, bk_flags flags);
 static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_flags flags);
+#if 0 /* GCC 4.2.2 dislikes this and we don't using BSD any more anyhow */
 #if #system(bsd) && !defined(HAVE_NSGETENVIRON)
 char **environ __attribute__ ((weak));
 #endif /* #system(bsd) */
+#endif
 
 
 /**
