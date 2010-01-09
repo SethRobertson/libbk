@@ -13,7 +13,7 @@
  * Copyright (c) 1992, 1995, 2004.  Seth Robertson
  * ++Copyright BAKA++
  *
- * Copyright © 2004-2008 The Authors. All rights reserved.
+ * Copyright © 2004-2010 The Authors. All rights reserved.
  *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
