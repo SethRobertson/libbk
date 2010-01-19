@@ -77,6 +77,7 @@ struct addrgroup_state
   struct bk_run *	as_run;			///< run handle.
   int			as_backlog;		///< Listen backlog.
   bk_flags		as_user_flags;		///< Flags passed in from user.
+#define AS_FLAG_SUBSEQUENT_CONNECT_CALL 0x1
   struct addrgroup_state *as_server;		///< Server as (generally pointing at myself).
 };
 
@@ -680,6 +681,24 @@ do_net_init_dgram_connect(bk_s B, struct addrgroup_state *as)
   local = bag->bag_local;
   remote = bag->bag_remote;
 
+  if (BK_FLAG_ISCLEAR(as->as_flags, AS_FLAG_SUBSEQUENT_CONNECT_CALL))
+  {
+    /*
+     * This is our first call to do_net_inet_dgram_connect (for this
+     * particular addrgroup_state), so we reset the address list so that
+     * the the call to bk_netinfo_advance_primary_address that immediately
+     * follows will chose the first address. Any subsequent call to this
+     * function (with this as structure) will then obtain either the next
+     * address or fail if there are no more addresses
+     */
+    BK_FLAG_SET(as->as_flags, AS_FLAG_SUBSEQUENT_CONNECT_CALL);
+    if (bk_netinfo_reset_primary_address(B, remote) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not reset the address list in the remote bni\n");
+      goto error;
+    }
+  }
+
   if (!(bna = bk_netinfo_advance_primary_address(B, remote)))
   {
     /*
@@ -824,6 +843,24 @@ do_net_init_stream_connect(bk_s B, struct addrgroup_state *as)
   bag = as->as_bag;
   local = bag->bag_local;
   remote = bag->bag_remote;
+
+  if (BK_FLAG_ISCLEAR(as->as_flags, AS_FLAG_SUBSEQUENT_CONNECT_CALL))
+  {
+    /*
+     * This is our first call to do_net_inet_stream_connect (for this
+     * particular addrgroup_state), so we reset the address list so that
+     * the the call to bk_netinfo_advance_primary_address that immediately
+     * follows will chose the first address. Any subsequent call to this
+     * function (with this as structure) will then obtain either the next
+     * address or fail if there are no more addresses
+     */
+    BK_FLAG_SET(as->as_flags, AS_FLAG_SUBSEQUENT_CONNECT_CALL);
+    if (bk_netinfo_reset_primary_address(B, remote) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not reset the address list in the remote bni\n");
+      goto error;
+    }
+  }
 
   if (!(bna = bk_netinfo_advance_primary_address(B, remote)))
   {

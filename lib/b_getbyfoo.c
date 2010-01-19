@@ -55,7 +55,7 @@ static int copy_hostent(bk_s B, struct hostent **ih, struct hostent *h);
 static void gethostbyfoo_callback(bk_s B, struct bk_run *run, void *args, const struct timeval starttime, bk_flags flags);
 static struct bk_gethostbyfoo_state *bgs_create(bk_s B);
 static void bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs);
-
+static void bk_gethostbyfoo_blocking_callback(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state);
 
 
 
@@ -520,7 +520,7 @@ bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct b
 
   inaddr_any.s_addr = INADDR_ANY;
 
-  if (!name || !callback)
+  if (!name || !run || !callback)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     goto error;
@@ -1124,4 +1124,116 @@ bk_ether_ntoa(bk_s B, struct ether_addr *ether_addr, char *ether_addr_str, bk_fl
 
  error:
   BK_RETURN(B, -1);
+}
+
+
+struct blocking_gethostbyfoo_state
+{
+  struct hostent **		bgfs_hp;	///< Pointer to a hostent C/O hostent struct.
+  bk_gethostbyfoo_state_e	bgfs_state;	///< The state passed to the handler
+  bk_flags			bgfs_flags;	///< Everyone needs flags
+#define BGFS_FLAG_HANDLER_RAN	0x1		///< Indicates that the handler has run.
+};
+
+
+/**
+ * A blocking version of bk_gethostbyfoo(). Do <em>not</em> use this
+ * function unless you know you are operating in (essentially) a blocking
+ * context.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_gethostbyfoo_blocking(bk_s B, char *name, int family, struct bk_netinfo *bni, struct hostent **hp, struct bk_run *run, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct blocking_gethostbyfoo_state bgfs;
+
+  if (!name || !run || !(bni || hp))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  memset(&bgfs, (char)0, sizeof(bgfs));
+
+  if (hp)
+    *hp = NULL;
+
+  if (!bk_gethostbyfoo(B, name, family, bni, run, bk_gethostbyfoo_blocking_callback, &bgfs, 0))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not start the hostname look up process\n");
+    goto error;
+  }
+
+  while(BK_FLAG_ISCLEAR(bgfs.bgfs_flags, BGFS_FLAG_HANDLER_RAN))
+  {
+    if (bk_run_once(B, run, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not execute bk_run_once\n");
+    }
+  }
+
+  if (bgfs.bgfs_state == BkGetHostByFooStateErr)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "An error occured attempting to look up hostent\n");
+    goto error;
+  }
+
+  /* 
+   * <TODO>
+   * Sigh...we are ignoring BkGetHostByFooStateNetinfoErr because it's
+   * unclear what to do in that case
+   * </TODO>
+   */
+  
+  if (hp)
+    hp = bgfs.bgfs_hp;
+
+  BK_RETURN(B, 0);
+  
+ error:
+  BK_RETURN(B, -1);  
+}
+
+
+/**
+ * Blocking gethostby foo callback
+ *
+ *	@param B BAKA thread/global state.
+ *	@param run The BAKA run structure.
+ *	@param h The @a hostent structure
+ *	@param bni @a bk_netinfo which was passed in (may be NULL).
+ *	@param args User arguments
+ */
+static void
+bk_gethostbyfoo_blocking_callback(bk_s B, struct bk_run *run, struct hostent *h, struct bk_netinfo *bni, void *args, bk_gethostbyfoo_state_e state)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct blocking_gethostbyfoo_state *bgfs = (struct blocking_gethostbyfoo_state *)args;
+  
+
+  if (!(h || bni) || !run || !bgfs) // args not expected
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  BK_FLAG_SET(bgfs->bgfs_flags, BGFS_FLAG_HANDLER_RAN);
+  
+  bgfs->bgfs_state = state;
+  
+  if (state == BkGetHostByFooStateErr)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "An error occured attempting to look up hostent\n");
+    BK_VRETURN(B);
+  }
+
+  if (bgfs->bgfs_hp)
+    *bgfs->bgfs_hp = h;
+
+  BK_VRETURN(B);  
 }

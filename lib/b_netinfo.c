@@ -166,7 +166,7 @@ bk_netinfo_add_addr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *ibna, str
 
   if (!netinfo_addrs_minimum(bni->bni_addrs))
   {
-    first_entry = 0;
+    first_entry = 1;
   }
 
   if (netinfo_addrs_insert_uniq(bni->bni_addrs, ibna, (dict_obj *)obna) != DICT_OK)
@@ -420,7 +420,7 @@ bk_netinfo_reset_primary_address(bk_s B, struct bk_netinfo *bni)
  *	@return a @a new bk_netaddr on success.
  */
 struct bk_netinfo *
-bk_netinfo_clone (bk_s B, struct bk_netinfo *obni)
+bk_netinfo_clone(bk_s B, struct bk_netinfo *obni)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_netinfo *nbni = NULL;
@@ -989,15 +989,11 @@ struct bk_netinfo *
 bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_netinfo *bni = NULL;
-  struct bk_netaddr *bna = NULL;
-  char scratch[100];
-  bk_netaddr_type_e netaddr_type;
-  socklen_t len;
   bk_sockaddr_t bs;
+  socklen_t len;
+  bk_netaddr_type_e netaddr_type;
   int socket_type;
   socklen_t socket_type_len;
-  const char *proto_str = NULL;
 
   memset(&bs, 0,sizeof(bs));
 
@@ -1028,27 +1024,20 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
     break;
   }
 
-  if (!(bni = bk_netinfo_create(B)))
+  if (!proto)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create bni\n");
-    goto error;
-  }
+    socket_type_len = sizeof(socket_type);
 
-  netaddr_type = bk_netaddr_af2nat(B, bs.bs_sa.sa_family);
-
-  socket_type_len = sizeof(socket_type);
-
-  if (getsockopt(s, SOL_SOCKET, SO_TYPE, &socket_type, &socket_type_len)<0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not get socket type: %s\n", strerror(errno));
-    goto error;
-  }
-
-  switch (netaddr_type)
-  {
-  case BkNetinfoTypeInet:
-    if (!proto)
+    if (getsockopt(s, SOL_SOCKET, SO_TYPE, &socket_type, &socket_type_len)<0)
     {
+      bk_error_printf(B, BK_ERR_ERR, "Could not get socket type: %s\n", strerror(errno));
+      goto error;
+    }
+
+    netaddr_type = bk_netaddr_af2nat(B, bs.bs_sa.sa_family);
+    switch (netaddr_type)
+    {
+    case BkNetinfoTypeInet:
       /* Guess the protocol */
       switch (socket_type)
       {
@@ -1063,33 +1052,8 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 	goto error;
 	break;
       }
-    }
-
-    snprintf(scratch, 100, "%d", proto);
-    if (bk_getprotobyfoo(B, scratch, NULL, bni, 0)<0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not set protoent\n");
-      goto error;
-    }
-
-	snprintf(scratch, 100, "%d", ntohs(bs.bs_sin.sin_port));
-    if (bk_getservbyfoo(B, scratch, bni->bni_bpi->bpi_protostr, NULL, bni, 0)<0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
-      goto error;
-    }
-
-    /*BK_GET_SOCKADDR_LEN(B, bs.bs_sin, len);*/
-    if (!(bna = bk_netaddr_user(B, netaddr_type, &(bs.bs_sin.sin_addr), sizeof(bs.bs_sin.sin_addr), 0)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
-      goto error;
-    }
-    break;
-
-  case BkNetinfoTypeInet6:
-    if (!proto)
-    {
+      break;
+    case BkNetinfoTypeInet6:
       switch (socket_type)
       {
       case SOCK_STREAM:
@@ -1103,33 +1067,8 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 	goto error;
 	break;
       }
-    }
-
-    snprintf(scratch, 100, "%d", proto);
-    if (bk_getprotobyfoo(B, scratch, NULL, bni, 0) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not set protoent\n");
-      goto error;
-    }
-
-    snprintf(scratch, 100, "%d", ntohs(bs.bs_sin6.sin6_port));
-    if (bk_getservbyfoo(B, scratch, bni->bni_bpi->bpi_protostr, NULL, bni, 0) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
-      goto error;
-    }
-
-    /*BK_GET_SOCKADDR_LEN(B, bs.bs_sin6, len);*/
-    if (!(bna = bk_netaddr_user(B, netaddr_type, &(bs.bs_sin6.sin6_addr), sizeof(bs.bs_sin6.sin6_addr), 0)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
-      goto error;
-    }
-    break;
-
-  case BkNetinfoTypeLocal:
-    if (!proto)
-    {
+      break;
+    case BkNetinfoTypeLocal:
       switch (socket_type)
       {
       case SOCK_STREAM:
@@ -1145,8 +1084,103 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 	goto error;
 	break;
       }
+      break;
+    default:
+      bk_error_printf(B, BK_ERR_ERR,"Unknown netaddr_type: %d\n", netaddr_type);
+      break;
     }
 
+  }
+
+  BK_RETURN(B, bk_netinfo_from_sockaddr(B, &bs, proto, 0));  
+
+ error:
+  BK_RETURN(B, NULL);  
+}
+
+
+/**
+ * Create a bk_netinfo structure from a sockaddr
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bs The bk_sockaddr_t from which to create the bni
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+struct bk_netinfo *
+bk_netinfo_from_sockaddr(bk_s B, bk_sockaddr_t *bs, int proto, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_netinfo *bni = NULL;
+  struct bk_netaddr *bna = NULL;
+  char scratch[100];
+  bk_netaddr_type_e netaddr_type;
+  const char *proto_str = NULL;
+
+  if (!bs)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  if (!(bni = bk_netinfo_create(B)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create bni\n");
+    goto error;
+  }
+
+  netaddr_type = bk_netaddr_af2nat(B, bs->bs_sa.sa_family);
+
+  switch (netaddr_type)
+  {
+  case BkNetinfoTypeInet:
+    snprintf(scratch, 100, "%d", proto);
+    if (bk_getprotobyfoo(B, scratch, NULL, bni, 0)<0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set protoent\n");
+      goto error;
+    }
+
+    snprintf(scratch, 100, "%d", ntohs(bs->bs_sin.sin_port));
+    if (bk_getservbyfoo(B, scratch, bni->bni_bpi->bpi_protostr, NULL, bni, 0)<0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
+      goto error;
+    }
+
+    /*BK_GET_SOCKADDR_LEN(B, bs->bs_sin, len);*/
+    if (!(bna = bk_netaddr_user(B, netaddr_type, &(bs->bs_sin.sin_addr), sizeof(bs->bs_sin.sin_addr), 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
+      goto error;
+    }
+    break;
+
+  case BkNetinfoTypeInet6:
+    snprintf(scratch, 100, "%d", proto);
+    if (bk_getprotobyfoo(B, scratch, NULL, bni, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set protoent\n");
+      goto error;
+    }
+
+    snprintf(scratch, 100, "%d", ntohs(bs->bs_sin6.sin6_port));
+    if (bk_getservbyfoo(B, scratch, bni->bni_bpi->bpi_protostr, NULL, bni, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set servent\n");
+      goto error;
+    }
+
+    /*BK_GET_SOCKADDR_LEN(B, bs->bs_sin6, len);*/
+    if (!(bna = bk_netaddr_user(B, netaddr_type, &(bs->bs_sin6.sin6_addr), sizeof(bs->bs_sin6.sin6_addr), 0)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
+      goto error;
+    }
+    break;
+
+  case BkNetinfoTypeLocal:
     switch (proto)
     {
     case BK_GENERIC_STREAM_PROTO:
@@ -1168,7 +1202,7 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
       goto error;
     }
 
-    if (!(bna = bk_netaddr_user(B, BkNetinfoTypeLocal, bs.bs_sun.sun_path, 0, 0)))
+    if (!(bna = bk_netaddr_user(B, BkNetinfoTypeLocal, bs->bs_sun.sun_path, 0, 0)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create netaddr\n");
       goto error;
@@ -1254,7 +1288,6 @@ bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni)
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
-
   if (!bni->bni_addr)
   {
     if (bk_netinfo_set_primary_address(B, bni, NULL)<0)
@@ -1315,6 +1348,117 @@ bk_netinfo_addr_type(bk_s B, struct bk_netinfo *bni, bk_flags flags)
     BK_RETURN(B, BkNetinfoTypeUnknown);
 
   BK_RETURN(B, bna->bna_type);
+}
+
+
+/**
+ * See if a bk_netinfo structure matches a sockaddr 
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bni The bk_netinfo to check
+ *	@param bs The sockaddr to match against.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on no match
+ *	@return <i>1</i> on match
+ */
+int
+bk_netinfo_match_sockaddr(bk_s B, struct bk_netinfo *bni, bk_sockaddr_t *bs, int proto, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_netaddr *addr = NULL;
+  struct bk_netaddr *addr2 = NULL;
+  struct bk_netaddr *bna;
+  int match = 0;
+
+  if (!bni || !bs)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (proto != bni->bni_bpi->bpi_proto)
+    goto done;
+
+  switch(bs->bs_sa.sa_family)
+  {
+  case AF_INET:
+    if (bs->bs_sin.sin_port != bni->bni_bsi->bsi_port)
+      goto done;
+    break;
+
+  case AF_INET6:
+    if (bs->bs_sin6.sin6_port != bni->bni_bsi->bsi_port)
+      goto done;
+    break;
+
+  case AF_LOCAL:
+    break;
+    
+  default:
+    bk_error_printf(B, BK_ERR_ERR, "Illegal network family: %d\n", bs->bs_sa.sa_family);
+    goto error;
+  }
+
+  addr = bni->bni_addr;
+  addr2 = bni->bni_addr2;
+
+  if (bk_netinfo_reset_primary_address(B, bni) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not reset the bni for searching\n");
+    goto error;
+  }
+
+  for (bna = bk_netinfo_advance_primary_address(B, bni);
+       bna; 
+       bna = bk_netinfo_advance_primary_address(B, bni))
+  {
+    switch(bs->bs_sa.sa_family)
+    {
+    case AF_INET:
+      if ((bna->bna_type == BkNetinfoTypeInet) &&
+	  !memcmp(&bs->bs_sin.sin_addr, &bna->bna_inet, bna->bna_len))
+      {
+	match = 1;
+	goto done;
+      }
+      break;
+
+    case AF_INET6:
+      if ((bna->bna_type == BkNetinfoTypeInet) &&
+	  !memcmp(&bs->bs_sin6.sin6_addr, &bna->bna_inet6, bna->bna_len))
+      {
+	match = 1;
+	goto done;
+      }
+      break;
+
+    case AF_LOCAL:
+    if ((bna->bna_type != BkNetinfoTypeLocal) &&
+	!strncmp(bs->bs_sun.sun_path, bna->bna_path, bna->bna_len))
+      {
+	match = 1;
+	goto done;
+      }
+      break;
+    }
+  }
+
+ done:
+  // Reset the primary and secondary addresses.
+  bni->bni_addr = addr;
+  bni->bni_addr2 = addr2;
+
+  BK_RETURN(B, match);
+
+ error:
+  if (addr)
+    bni->bni_addr = addr;
+  
+  if (addr2)
+    bni->bni_addr2 = addr2;
+  
+  BK_RETURN(B, -1);
 }
 
 

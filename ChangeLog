@@ -1,3 +1,23 @@
+2010-01-21  James Tanis  <jtt@outpost.tanis.org>
+
+	* lib/b_addrgroup.c (do_net_init_stream_connect): Fix a bug
+	introduced by the fixing of the bug mentioned below. This function
+	was taking improper advantage of the fact that the remote bni's
+	primary address was not yet set. With that fixed, this function
+	must now take note of the first time it is called (for a
+	particular addrgroup_state struct) and reset the address list.
+	(do_net_init_dgram_connect): ditto
+
+	* lib/b_netinfo.c (bk_netinfo_add_addr): Fix a bug introduced in
+	November 2001. When updating the bni with the first address, set
+	the primary address.
+
+2010-01-19  James Tanis  <jtt@outpost.tanis.org>
+
+	* lib/b_netinfo.c (bk_netinfo_from_sockaddr): Break up the
+	from_socket frunction so you that can also create a bni from a
+	sockaddr. 
+
 2009-10-01  James Tanis  <jtt@outpost.tanis.org>
 
 	* lib/b_string.c (bk_string_tokenize_split): Also conf expand VARs

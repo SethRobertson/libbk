@@ -1093,8 +1093,11 @@ static inline int BK_BTS_CMP(struct bk_timespec *a, struct bk_timespec *b)
  */
 #define MURMURHASH2A_R 24
 #define MURMURHASH2A_MULTIPLIER 0x5bd1e995
-#define MURMURHASH2A_SEED 2166136261		// No seed suggested, so using FNV32_OFFSET_BASIS randomly
-
+#if (SIZEOF_LONG == 8)
+# define MURMURHASH2A_SEED 2166136261		// No seed suggested, so using FNV32_OFFSET_BASIS randomly
+#else
+# define MURMURHASH2A_SEED 20472771		// No seed suggested, so using FNV32_OFFSET_BASIS randomly
+#endif
 
 
 /**
@@ -2108,6 +2111,7 @@ extern int bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent *
 extern void bk_servent_destroy(bk_s B, struct servent *s);
 void *bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct bk_run *br, bk_gethostbyfoo_callback_f callback, void *args, bk_flags user_flags);
 #define BK_GETHOSTBYFOO_FLAG_FQDN	0x1	///< Get the FQDN
+extern int bk_gethostbyfoo_blocking(bk_s B, char *name, int family, struct bk_netinfo *bni, struct hostent **hp, struct bk_run *run, bk_flags flags); // Same flags as bk_gethostbyfoo()
 extern void bk_destroy_hostent(bk_s B, struct hostent *h);
 extern void bk_gethostbyfoo_abort(bk_s B, void *opaque);
 extern int bk_ether_aton(bk_s B, const char *ether_addr_str, struct ether_addr *ether_addr, bk_flags flags);
@@ -2130,9 +2134,11 @@ extern struct bk_netaddr *bk_netinfo_get_addr(bk_s B, struct bk_netinfo *bni);
 extern int bk_netinfo_to_sockaddr(bk_s B, struct bk_netinfo *bni, struct bk_netaddr *bna, bk_netaddr_type_e type, bk_sockaddr_t *bs, bk_flags flags);
 #define BK_NETINFO2SOCKADDR_FLAG_FUZZY_ANY	0x1 ///< Allow bad address information to indicate ANY addresss.
 extern struct bk_netinfo *bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side);
+extern struct bk_netinfo *bk_netinfo_from_sockaddr(bk_s B, bk_sockaddr_t *bs, int proto, bk_flags flags);
 extern const char *bk_netinfo_info(bk_s B, struct bk_netinfo *bni);
 extern struct bk_netaddr * bk_netinfo_advance_primary_address(bk_s B, struct bk_netinfo *bni);
 extern int bk_netinfo_addr_type(bk_s B, struct bk_netinfo *bni, bk_flags flags);
+extern int bk_netinfo_match_sockaddr(bk_s B, struct bk_netinfo *bni, bk_sockaddr_t *bs, int proto, bk_flags flags);
 
 
 /* b_netaddr.c */
