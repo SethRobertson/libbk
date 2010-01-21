@@ -448,8 +448,8 @@ void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags)
 pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *threadname, void *(*start)(bk_s B, void *opaque), void *opaque, bk_flags flags)
 {
   BK_ENTRY_VOLATILE(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_threadnode *tnode = NULL;
-  struct bk_threadcomm *tcomm = NULL;
+  struct bk_threadnode * volatile tnode = NULL;
+  struct bk_threadcomm * volatile tcomm = NULL;
   pthread_attr_t attr;
   int ret;
 
