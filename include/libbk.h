@@ -2693,7 +2693,7 @@ extern int bk_ringdir_standard_update_private_data(bk_s B, bk_ringdir_t brdh, vo
 extern int bk_ringdir_standard_set_fd(bk_s B, bk_ringdir_t brdh, int fd, bk_flags flags);
 extern int bk_ringdir_standard_get_fd(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern void *bk_ringdir_standard_get_fh(bk_s B, bk_ringdir_t brdh, bk_flags flags);
-extern int bk_ringdir_standard_set_fh(bk_s B, bk_ringdir_t brdh, void *fh, off_t (*ftell)(void *), bk_flags flags);
+extern int bk_ringdir_standard_set_fh(bk_s B, bk_ringdir_t brdh, void *fh, off_t (*a_ftell)(void *), bk_flags flags);
 extern void *bk_ringdir_standard_get_private_data(bk_s B, bk_ringdir_t brdh, bk_flags flags);
 extern int bk_ringdir_standard_update_private_data_by_standard(bk_s B, void *brsh, void *opaque, bk_flags flags);
 extern void *bk_ringdir_standard_get_private_data_by_standard(bk_s B, void *brsh, bk_flags flags);
