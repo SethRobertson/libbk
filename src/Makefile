@@ -105,6 +105,8 @@ ifneq ($(strip $(BK_USING_SSL)),false)
 bttcp: LDLIBS=$(filter-out -lpq -lbkxml -lxml2 -lm -lz,$(BK_ALLLIBS))
 endif
 
+bk_timeout: LDLIBS+=-lrt
+else
+LDLIBS+=-lrt
 endif # BK_WANT_LIBTOOL
 
-bk_timeout: LDLIBS+=-lrt
