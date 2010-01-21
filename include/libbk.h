@@ -1093,11 +1093,7 @@ static inline int BK_BTS_CMP(struct bk_timespec *a, struct bk_timespec *b)
  */
 #define MURMURHASH2A_R 24
 #define MURMURHASH2A_MULTIPLIER 0x5bd1e995
-#if (SIZEOF_LONG == 8)
-# define MURMURHASH2A_SEED 2166136261		// No seed suggested, so using FNV32_OFFSET_BASIS randomly
-#else
-# define MURMURHASH2A_SEED 20472771		// No seed suggested, so using FNV32_OFFSET_BASIS randomly
-#endif
+#define MURMURHASH2A_SEED 2166136261U		// No seed suggested, so using FNV32_OFFSET_BASIS randomly
 
 
 /**
