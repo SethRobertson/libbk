@@ -351,12 +351,13 @@ struct bk_general
 #define BK_GENERAL_CONFIG(B)	(*((B) ? &((B)->bt_general->bg_config):(struct bk_config **)&bk_nullptr)) ///< Access the bk_general config info
 #define BK_GENERAL_PROGRAM(B)	(*((B) ? &((B)->bt_general->bg_program):(char **)&bk_nullptr)) ///< Access the bk_general program name
 #define BK_GENERAL_FLAGS(B)	(*((B) ? &((B)->bt_general->bg_flags):(unsigned *)&bk_zerouint)) ///< Access the bk_general flags
+#define BK_GENERAL_ISFLAG(B,flag) ((B) ? BK_FLAG_ISSET((B)->bt_general->bg_flags, flag):0) ///< Test the bk_general flags
 #define BK_GENERAL_WRMUTEX(B)	((B)->bt_general->bg_wrmutex) ///< Access to wrmutex (only if threading is on)
-#define BK_GENERAL_FLAG_ISFUNON(B)   BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON) ///< Is function tracing on?
-#define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_DEBUGON) ///< Is debugging on?
-#define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_SYSLOGON) ///< Is system logging on?
-#define BK_GENERAL_FLAG_ISTHREADON(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADON) ///< Is threading on?
-#define BK_GENERAL_FLAG_ISTHREADREADY(B) BK_FLAG_ISSET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_THREADREADY) ///< Is threading on?
+#define BK_GENERAL_FLAG_ISFUNON(B)    BK_GENERAL_ISFLAG((B), BK_BGFLAGS_FUNON) //< Is function tracing on?
+#define BK_GENERAL_FLAG_ISDEBUGON(B)  BK_GENERAL_ISFLAG((B), BK_BGFLAGS_DEBUGON) ///< Is debugging on?
+#define BK_GENERAL_FLAG_ISSYSLOGON(B) BK_GENERAL_ISFLAG((B), BK_BGFLAGS_SYSLOGON) ///< Is system logging on?
+#define BK_GENERAL_FLAG_ISTHREADON(B) BK_GENERAL_ISFLAG((B), BK_BGFLAGS_THREADON) ///< Is threading on?
+#define BK_GENERAL_FLAG_ISTHREADREADY(B) BK_GENERAL_ISFLAG((B), BK_BGFLAGS_THREADREADY) ///< Is libbk thread support available?
 #define bk_general_thread_create(B, name, start, opaque, flags) bk_thread_create(B, BK_GENERAL_TLIST(B), name, start, opaque, flags)
 // @}
 
