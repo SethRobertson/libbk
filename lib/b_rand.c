@@ -102,14 +102,13 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #endif /* !__INSURE__ */
 
 
-
 /**
  * "Function" to get one round's worth of random number
  *
  * @param cntr The counter which will contain the random number
  * @param end struct timeval end
  */
-#ifdef CLOCK_MONOTONIC
+#if defined(CLOCK_MONOTONIC) && !defined(__INSURE__)
 #ifdef CLOCK_MONOTONIC_RAW
 #define BAKA_CLOCK_MONOTONIC CLOCK_MONOTONIC_RAW
 #else /* CLOCK_MONOTONIC_RAW */
@@ -123,7 +122,7 @@ do {									\
   while (clock_gettime(BAKA_CLOCK_MONOTONIC,(cur)) == 0 && BK_TS_CMP(cur,end) < 0) \
     cntr++;								\
 } while (0)
-#else /* CLOCK_MONOTONIC */
+#else /* CLOCK_MONOTONIC && !__INSURE__ */
 #define BK_TRUERAND_GENROUND(cntr,cur,end)				\
 do {									\
   gettimeofday((end),NULL);						\
