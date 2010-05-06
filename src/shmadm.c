@@ -53,7 +53,7 @@ struct program_config
   bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x001			///< Verbose output
 #define PC_FORCE	0x002			///< Force attach even at potentially unsafe times
-#define PC_REMOVE	0x004			///< Remove rendevouz point
+#define PC_REMOVE	0x004			///< Remove rendezvous point
 };
 
 
@@ -94,7 +94,7 @@ main(int argc, char **argv, char **envp)
     {"force", 'f', POPT_ARG_NONE, NULL, 'f', N_("Force snoop even if unsafe"), NULL },
     {"remove", 'R', POPT_ARG_NONE, NULL, 'R', N_("Remove shared memory IPC"), NULL },
     {"write", 'w', POPT_ARG_NONE, NULL, 'w', N_("Write side of cat (otherwise is read side)"), NULL },
-    {"rendevouz", 'r', POPT_ARG_STRING, NULL, 'r', N_("Shared memory rendevouz name"), N_("name") },
+    {"rendezvous", 'r', POPT_ARG_STRING, NULL, 'r', N_("Shared memory rendezvous name"), N_("name") },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -188,10 +188,10 @@ main(int argc, char **argv, char **envp)
     case 'R':					// Remove
       BK_FLAG_SET(pc->pc_flags, PC_REMOVE);
       break;
-    case 'f':					// rendevouz name
+    case 'f':					// force attach even if unsafe
       BK_FLAG_CLEAR(pc->pc_flags, PC_FORCE);
       break;
-    case 'r':					// rendevouz name
+    case 'r':					// rendezvous name
       pc->pc_filename = poptGetOptArg(optCon);
       break;
     }

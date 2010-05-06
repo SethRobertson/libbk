@@ -91,7 +91,7 @@ static int genkeyfromname(bk_s B, const char *name, key_t *key, bk_flags flags);
  * THREADS: MT-SAFE
  *
  *	@param B BAKA Thread/global state
- *	@param name name to rendevouz on
+ *	@param name name to rendezvous on
  *	@param timeoutus Default timeout for I/O functions in microseconds
  *	@param spinus How often to check for available data/space for operations (microseconds)
  *	@param initus Timeout to wait for writer to become present or old instance to disappear

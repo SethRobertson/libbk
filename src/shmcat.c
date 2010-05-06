@@ -103,7 +103,7 @@ main(int argc, char **argv, char **envp)
     {"source", 0, POPT_ARG_INT, NULL, 0x100, N_("Source fake data to remote side"), N_("number of i/o buffers") },
     {"sink", 0, POPT_ARG_NONE, NULL, 0x101, N_("Sink/discard data from remote side"), NULL },
     {"write", 'w', POPT_ARG_NONE, NULL, 'w', N_("Write side of cat (otherwise is read side)"), NULL },
-    {"rendevouz", 'r', POPT_ARG_STRING, NULL, 'r', N_("Shared memory rendevouz name"), N_("name") },
+    {"rendezvous", 'r', POPT_ARG_STRING, NULL, 'r', N_("Shared memory rendezvous name"), N_("name") },
     {"timeout", 't', POPT_ARG_INT, NULL, 't', N_("Timeout"), N_("microseconds") },
     {"poll", 'p', POPT_ARG_INT, NULL, 'p', N_("How often to check for activity"), N_("microseconds") },
     {"length", 'l', POPT_ARG_INT, NULL, 'l', N_("Size of shared memory buffer"), N_("bytes") },
@@ -206,10 +206,10 @@ main(int argc, char **argv, char **envp)
     case 0x101:					// sink
       BK_FLAG_SET(pc->pc_flags, PC_SINK);
       break;
-    case 'w':					// rendevouz name
+    case 'w':					// write-side
       BK_FLAG_CLEAR(pc->pc_flags, PC_RDONLY);
       break;
-    case 'r':					// rendevouz name
+    case 'r':					// rendezvous name
       pc->pc_filename = poptGetOptArg(optCon);
       break;
     case 't':					// timeout usec
