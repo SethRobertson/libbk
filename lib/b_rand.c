@@ -494,6 +494,11 @@ static void bk_truerand_generate(bk_s B, bk_MD5_CTX *ctx, int rounds)
  * This could include things like vmstat/ps/netstat output, but we
  * currently just use /dev/{random,srandom}
  *
+ * <BUG bugzilla_id=9793>
+ * At the moment it appears that this function is FUBAR and requires at
+ * least the fixes outlined in the aforementioned ticket.
+ * <BUG/>
+ *
  * THREADS: MT-SAFE (assuming different ctx)
  *
  * @param B Baka thread/global environment
