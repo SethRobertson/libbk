@@ -16,7 +16,9 @@
 #ifndef _libbk_include_h_
 #define _libbk_include_h_
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE				// turn on all GNU extensions
+#endif /* !_GNU_SOURCE */
 
 #if defined(__INSURE__) && defined(__linux__)
 /*
@@ -108,7 +110,9 @@
 #include <assert.h>
 #include <dirent.h>
 #ifndef BK_MINGW32
+#ifndef BK_NO_WANT_LIBINTL
 #include <libintl.h>
+#endif /* !BK_NO_WANT_LIBINTL */
 #ifdef HAVE_PATHS_H
 #include <paths.h>
 #endif
