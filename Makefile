@@ -54,3 +54,6 @@ endif
 endif
 
 BK_SUBDIR+=man
+
+# Must install completely before anything else.
+install-first: install
