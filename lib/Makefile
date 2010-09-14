@@ -108,3 +108,5 @@ ifneq ($(findstring -i686,$(BK_ARCHNAME)),)
 TEMP_LT_LDFLAGS := $(LT_LDFLAGS)
 LT_LDFLAGS = $(filter-out -no-undefined, $(TEMP_LT_LDFLAGS))
 endif
+
+install-first:: install-normal
