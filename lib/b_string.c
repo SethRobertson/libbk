@@ -118,8 +118,11 @@ bk_strhash(const char *k, bk_flags flags)
     /*
      * Hash a string.
      *
-     * The Practice of Programming: Kernighan and Pike: 2.9 (i.e. not covered
-     * under LGPL)
+     * The Practice of Programming: Kernighan and Pike: 2.9
+     * Copyright (C) 1999 Lucent Technologies
+     *
+     * You may use this code for any purpose, as long as you leave the
+     * copyright notice and book citation attached.
      *
      * Note we may not be applying modulus in this function since this is
      * often used by CLC functions, CLC will supply its own modulus and
