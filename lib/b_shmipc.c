@@ -64,12 +64,12 @@ struct bk_shmipc
  */
 struct bk_shmipc_header
 {
-  u_int32_t	bsh_magic;			///< Set once everything is initialized
-  u_int32_t	bsh_generation;			///< Generation number, possibly resembling writer init time
-  u_int32_t	bsh_ringsize;			///< Size of ring
-  u_int32_t	bsh_ringoffset;			///< Offset of start of ring from base of shared memory
-  u_int32_t	bsh_writehand;			///< Byte offset of write hand
-  u_int32_t	bsh_readhand;			///< Byte offset of read hand
+  volatile u_int32_t	bsh_magic;		///< Set once everything is initialized
+  u_int32_t		bsh_generation;		///< Generation number, possibly resembling writer init time
+  u_int32_t		bsh_ringsize;		///< Size of ring
+  u_int32_t		bsh_ringoffset;		///< Offset of start of ring from base of shared memory
+  volatile u_int32_t	bsh_writehand;		///< Byte offset of write hand
+  volatile u_int32_t	bsh_readhand;		///< Byte offset of read hand
 };
 
 
@@ -93,8 +93,8 @@ static int genkeyfromname(bk_s B, const char *name, key_t *key, bk_flags flags);
  *	@param B BAKA Thread/global state
  *	@param name name to rendezvous on
  *	@param timeoutus Default timeout for I/O functions in microseconds
- *	@param spinus How often to check for available data/space for operations (microseconds)
  *	@param initus Timeout to wait for writer to become present or old instance to disappear
+ *	@param spinus How often to check for available data/space for operations (microseconds)
  *	@param size Desired size of buffers (writer only, ignored for reader)
  *	@param mode SHM permissions mode (writer only, ignored for reader)
  *	@param flags BK_SHMIPC_RDONLY, BK_SHMIPC_WRONLY
@@ -190,8 +190,10 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 	if (failure_reason) *failure_reason = BkShmIpcCreateFatal;
 	goto error;
       }
-      usleep(bsi->si_spinus);
-      gettimeofday(&delta, NULL);
+      if (bsi->si_spinus)
+	usleep(bsi->si_spinus);
+      if (initus)
+	gettimeofday(&delta, NULL);
     }
   }
 
@@ -238,8 +240,10 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 	goto error;
       }
 
-      usleep(bsi->si_spinus);
-      gettimeofday(&delta, NULL);
+      if (bsi->si_spinus)
+	usleep(bsi->si_spinus);
+      if (initus)
+	gettimeofday(&delta, NULL);
     }
 
     if (bsi->si_base->bsh_magic != SHMIPC_MAGIC_WINIT)
@@ -266,8 +270,10 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 	goto error;
       }
 
-      usleep(bsi->si_spinus);
-      gettimeofday(&delta, NULL);
+      if (bsi->si_spinus)
+	usleep(bsi->si_spinus);
+      if (initus)
+	gettimeofday(&delta, NULL);
     }
 
     if (bsi->si_base->bsh_magic != SHMIPC_MAGIC_RINIT)
@@ -300,8 +306,10 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 	goto error;
       }
 
-      usleep(bsi->si_spinus);
-      gettimeofday(&delta, NULL);
+      if (bsi->si_spinus)
+	usleep(bsi->si_spinus);
+      if (initus)
+	gettimeofday(&delta, NULL);
     }
 
     if (bsi->si_base->bsh_magic != SHMIPC_MAGIC)
@@ -471,12 +479,15 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
     BK_RETURN(B, -1);
   }
 
-  gettimeofday(&endtime, NULL);
   if (!timeoutus)
     timeoutus = bsi->si_timeoutus;
-  delta.tv_sec = timeoutus / 1000000;
-  delta.tv_usec = timeoutus % 1000000;
-  BK_TV_ADD(&endtime,&endtime,&delta);
+  if (timeoutus)
+  {
+    gettimeofday(&endtime, NULL);
+    delta.tv_sec = timeoutus / 1000000;
+    delta.tv_usec = timeoutus % 1000000;
+    BK_TV_ADD(&endtime,&endtime,&delta);
+  }
 
   if (BK_FLAG_ISSET(flags,BK_SHMIPC_DROP2BLOCK) && (len > (size_t)bytes_available_write(writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes)))
   {
@@ -534,7 +545,8 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
 	if (BK_TV_CMP(&endtime,&delta) < 0)
 	  goto wouldblock;
       }
-      usleep(bsi->si_spinus);
+      if (bsi->si_spinus)
+	usleep(bsi->si_spinus);
       continue;
     }
 
@@ -612,12 +624,15 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
     BK_RETURN(B, -1);
   }
 
-  gettimeofday(&endtime, NULL);
   if (!timeoutus)
     timeoutus = bsi->si_timeoutus;
-  delta.tv_sec = timeoutus / 1000000;
-  delta.tv_usec = timeoutus % 1000000;
-  BK_TV_ADD(&endtime,&endtime,&delta);
+  if (timeoutus)
+  {
+    gettimeofday(&endtime, NULL);
+    delta.tv_sec = timeoutus / 1000000;
+    delta.tv_usec = timeoutus % 1000000;
+    BK_TV_ADD(&endtime,&endtime,&delta);
+  }
 
   while (len)
   {
@@ -655,7 +670,8 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
 	if (BK_TV_CMP(&endtime,&delta) < 0)
 	  goto wouldblock;
       }
-      usleep(bsi->si_spinus);
+      if (bsi->si_spinus)
+	usleep(bsi->si_spinus);
       continue;
     }
 
@@ -679,6 +695,7 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
 
 /**
  * Read data via shmipc (will never block)
+ * Allocates point to allow read of however much data is queued
  *
  * THREADS: MT-SAFE
  *
@@ -713,12 +730,15 @@ bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes, u_int
     BK_RETURN(B, NULL);
   }
 
-  gettimeofday(&endtime, NULL);
   if (!timeoutus)
     timeoutus = bsi->si_timeoutus;
-  delta.tv_sec = timeoutus / 1000000;
-  delta.tv_usec = timeoutus % 1000000;
-  BK_TV_ADD(&endtime,&endtime,&delta);
+  if (timeoutus)
+  {
+    gettimeofday(&endtime, NULL);
+    delta.tv_sec = timeoutus / 1000000;
+    delta.tv_usec = timeoutus % 1000000;
+    BK_TV_ADD(&endtime,&endtime,&delta);
+  }
 
   while (!(readbytes = bytes_available_read(bsi->si_base->bsh_writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes)))
   {
@@ -752,7 +772,8 @@ bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes, u_int
       if (BK_TV_CMP(&endtime,&delta) < 0)
 	goto wouldblock;
     }
-    usleep(bsi->si_spinus);
+    if (bsi->si_spinus)
+      usleep(bsi->si_spinus);
   }
 
   if (maxbytes)
