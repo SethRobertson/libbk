@@ -37,27 +37,31 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define DEFAULT_SPINUS		0		///< Default, spin
 
 /*
- * Make explicit the atomic operations required to provide proper two
+ * Make explicit the concurrency operations required to provide proper two
  * party (single reader, single writer) IPC functionality without the
  * use of locks.  In addition to providing an atomic set operation,
  * the system must not reorder historical writes (specifically memcpy)
  * past an atomic set.
  *
  * This code should work on any system which allows for atomic int32
- * load/read and store/set operations, specifically for x86, amd64, arm, alpha
- * avr32, cris, frv, h9300, ia64, m32r, mips, parisc, sh, xtensa
+ * load/read and store/set operations, and which additionally forbid
+ * stores from passing loads and stores from passing stores
  *
- * Systems which do not perform atomic int32 load and store operations
- * (specifically need help doing so) will have significant problems.
- * Systems like the IBM s390, blackfin, powerpc, and tile.
- *
- * I don't know what the #ifdef is for blackfin
+ * Specifically, it should work on AMD64, PARISC, sparcs (in default
+ * TSO mode), x86
  */
 #if defined(__s390x__) || defined(__powerpc64__) || defined(__tilegx__)
 #error "Do not have an atomic read/set operation for this architecture"
-#else
+#elif defined(__alpha__) || defined(__ia64__) || defined(__arm__) || defined(__powerpc64__)
+#error "Do not have an implicit memory barrier"
+// __sync_synchronize() is a possibility, but is rather drastic and not always implemented
+#elif defined(__i386__) || defined(__x86_64__) || defined(__sparc__) || defined(__hppa__)
 #define shmipc_atomic32_read(x) (*(volatile u_int32_t *)&x)	// Atomic int load
 #define shmipc_atomic32_set(v,i) ((v) = (i))			// Atomic int store
+#define shmipc_sstore_fence() do { ; } while (0)		// Forbid Stores Reordered After Stores
+#define shmipc_lstore_fence() do { ; } while (0)		// Forbid Loads Reordered After Stores
+#else
+#error "Don't know about atomic read/set or memory fencing requirements for this architecture"
 #endif
 
 
@@ -576,7 +580,7 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
     writelen = MIN(writelen, len);
     writelen = MIN(writelen, bsi->si_ringbytes-writehand);
 
-    memcpy(bsi->si_ring + writehand, cdata, writelen);
+    memcpy((char *)bsi->si_ring + writehand, cdata, writelen);
     cdata += writelen;
     len -= writelen;
     writehand += writelen;
@@ -584,6 +588,7 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
 
     if (writehand == bsi->si_ringbytes)
       writehand = 0;
+    shmipc_sstore_fence();
     shmipc_atomic32_set(bsi->si_base->bsh_writehand, writehand);
   }
 
@@ -700,7 +705,7 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
 
     readlen = MIN(readlen, len);
     readlen = MIN(readlen, bsi->si_ringbytes-readhand);
-    memcpy(cdata, bsi->si_ring + readhand, readlen);
+    memcpy(cdata, (char *)bsi->si_ring + readhand, readlen);
     cdata += readlen;
     len -= readlen;
     readhand += readlen;
@@ -708,6 +713,7 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
 
     if (readhand == bsi->si_ringbytes)
       readhand = 0;
+    shmipc_lstore_fence();
     shmipc_atomic32_set(bsi->si_base->bsh_readhand, readhand);
   }
 
