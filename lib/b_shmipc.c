@@ -39,7 +39,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /*
  * Make explicit the atomic operations required to provide proper two
  * party (single reader, single writer) IPC functionality without the
- * use of locks.
+ * use of locks.  In addition to providing an atomic set operation,
+ * the system must not reorder historical writes (specifically memcpy)
+ * past an atomic set.
  *
  * This code should work on any system which allows for atomic int32
  * load/read and store/set operations, specifically for x86, amd64, arm, alpha
