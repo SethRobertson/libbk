@@ -36,6 +36,27 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define SHMIPC_MAGIC_EOF	0xdeadbeef	///< Magic cookie for death
 #define DEFAULT_SPINUS		0		///< Default, spin
 
+/*
+ * Make explicit the atomic operations required to provide proper two
+ * party (single reader, single writer) IPC functionality without the
+ * use of locks.
+ *
+ * This code should work on any system which allows for atomic int32
+ * load/read and store/set operations, specifically for x86, amd64, arm, alpha
+ * avr32, cris, frv, h9300, ia64, m32r, mips, parisc, sh, xtensa
+ *
+ * Systems which do not perform atomic int32 load and store operations
+ * (specifically need help doing so) will have significant problems.
+ * Systems like the IBM s390, blackfin, powerpc, and tile.
+ *
+ * I don't know what the #ifdef is for blackfin
+ */
+#if defined(__s390x__) || defined(__powerpc64__) || defined(__tilegx__)
+#error "Do not have an atomic read/set operation for this architecture"
+#else
+#define shmipc_atomic32_read(x) (*(volatile u_int32_t *)&x)	// Atomic int load
+#define shmipc_atomic32_set(v,i) ((v) = (i))			// Atomic int store
+#endif
 
 
 /**
@@ -66,9 +87,9 @@ struct bk_shmipc_header
 {
   volatile u_int32_t	bsh_magic;		///< Set once everything is initialized
   u_int32_t		bsh_generation;		///< Generation number, possibly resembling writer init time
+  volatile u_int32_t	bsh_writehand;		///< Byte offset of write hand
   u_int32_t		bsh_ringsize;		///< Size of ring
   u_int32_t		bsh_ringoffset;		///< Offset of start of ring from base of shared memory
-  volatile u_int32_t	bsh_writehand;		///< Byte offset of write hand
   volatile u_int32_t	bsh_readhand;		///< Byte offset of read hand
 };
 
@@ -218,15 +239,15 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
     bsi->si_base->bsh_generation = curtime;
     bsi->si_base->bsh_ringsize = size;
     bsi->si_base->bsh_ringoffset = sizeof(struct bk_shmipc_header);
-    bsi->si_base->bsh_writehand = 0;
-    bsi->si_base->bsh_readhand = 0;
-    bsi->si_base->bsh_magic = SHMIPC_MAGIC_WINIT; // Send SYN
+    shmipc_atomic32_set(bsi->si_base->bsh_writehand, 0);
+    shmipc_atomic32_set(bsi->si_base->bsh_readhand, 0);
+    shmipc_atomic32_set(bsi->si_base->bsh_magic, SHMIPC_MAGIC_WINIT); // Send SYN
   }
   else
   {						// Reader waits for initialization
-    while (bsi->si_base->bsh_magic != SHMIPC_MAGIC_WINIT && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
+    while (shmipc_atomic32_read(bsi->si_base->bsh_magic) != SHMIPC_MAGIC_WINIT && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
     {
-      if (bsi->si_base->bsh_magic == SHMIPC_MAGIC_EOF || bsi->si_base->bsh_magic == SHMIPC_MAGIC_RINIT || bsi->si_base->bsh_magic == SHMIPC_MAGIC)
+      if (shmipc_atomic32_read(bsi->si_base->bsh_magic) == SHMIPC_MAGIC_EOF || shmipc_atomic32_read(bsi->si_base->bsh_magic) == SHMIPC_MAGIC_RINIT || shmipc_atomic32_read(bsi->si_base->bsh_magic) == SHMIPC_MAGIC)
       {
 	bk_error_printf(B, BK_ERR_ERR, "Writer closed before we saw magic (%s)\n", bsi->si_filename);
 	if (failure_reason) *failure_reason = BkShmIpcCreateStale;
@@ -246,7 +267,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 	gettimeofday(&delta, NULL);
     }
 
-    if (bsi->si_base->bsh_magic != SHMIPC_MAGIC_WINIT)
+    if (shmipc_atomic32_read(bsi->si_base->bsh_magic) != SHMIPC_MAGIC_WINIT)
     {
       bk_error_printf(B, BK_ERR_ERR, "Writer has not initialized shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
       if (failure_reason) *failure_reason = BkShmIpcCreateTimeout;
@@ -254,14 +275,14 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
     }
 
     // Continue the dance -- send syn-ack
-    bsi->si_base->bsh_magic = SHMIPC_MAGIC_RINIT;
+    shmipc_atomic32_set(bsi->si_base->bsh_magic, SHMIPC_MAGIC_RINIT);
   }
 
   if (BK_FLAG_ISCLEAR(bsi->si_flags, SI_READONLY))
   {						// Writer waits for reader syn-ack
-    while (bsi->si_base->bsh_magic != SHMIPC_MAGIC_RINIT && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
+    while (shmipc_atomic32_read(bsi->si_base->bsh_magic) != SHMIPC_MAGIC_RINIT && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
     {
-      u_int32_t oldmagic = bsi->si_base->bsh_magic;
+      u_int32_t oldmagic = shmipc_atomic32_read(bsi->si_base->bsh_magic);
 
       if (oldmagic == SHMIPC_MAGIC_EOF || oldmagic == SHMIPC_MAGIC || (oldmagic != SHMIPC_MAGIC_RINIT && oldmagic != SHMIPC_MAGIC_WINIT))
       {
@@ -276,7 +297,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 	gettimeofday(&delta, NULL);
     }
 
-    if (bsi->si_base->bsh_magic != SHMIPC_MAGIC_RINIT)
+    if (shmipc_atomic32_read(bsi->si_base->bsh_magic) != SHMIPC_MAGIC_RINIT)
     {
       bk_error_printf(B, BK_ERR_ERR, "Reader has not acknowledged shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
       if (failure_reason) *failure_reason = BkShmIpcCreateTimeout;
@@ -284,13 +305,13 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
     }
 
     // Say we are connected
-    bsi->si_base->bsh_magic = SHMIPC_MAGIC;
+    shmipc_atomic32_set(bsi->si_base->bsh_magic, SHMIPC_MAGIC);
   }
   else
   {						// Reader waits for connected
-    while (bsi->si_base->bsh_magic != SHMIPC_MAGIC && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
+    while (shmipc_atomic32_read(bsi->si_base->bsh_magic) != SHMIPC_MAGIC && (!initus || BK_TV_CMP(&endtime,&delta) > 0))
     {
-      u_int32_t oldmagic = bsi->si_base->bsh_magic;
+      u_int32_t oldmagic = shmipc_atomic32_read(bsi->si_base->bsh_magic);
 
       if (oldmagic == SHMIPC_MAGIC_EOF || oldmagic == SHMIPC_MAGIC_WINIT || (oldmagic != SHMIPC_MAGIC && oldmagic != SHMIPC_MAGIC_RINIT))
       {
@@ -312,7 +333,7 @@ struct bk_shmipc *bk_shmipc_create(bk_s B, const char *name, u_int timeoutus, u_
 	gettimeofday(&delta, NULL);
     }
 
-    if (bsi->si_base->bsh_magic != SHMIPC_MAGIC)
+    if (shmipc_atomic32_read(bsi->si_base->bsh_magic) != SHMIPC_MAGIC)
     {
       bk_error_printf(B, BK_ERR_ERR, "Writer has not acknowledged reader shm within timeout of %u microseconds (%s)\n", initus, bsi->si_filename);
       if (failure_reason) *failure_reason = BkShmIpcCreateTimeout;
@@ -375,7 +396,7 @@ void bk_shmipc_destroy(bk_s B, struct bk_shmipc *bsi, bk_flags flags)
 
   if (bsi->si_base)
   {
-    bsi->si_base->bsh_magic = SHMIPC_MAGIC_EOF;
+    shmipc_atomic32_set(bsi->si_base->bsh_magic, SHMIPC_MAGIC_EOF);
     if (shmdt(bsi->si_base) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not detach shared memory: %s\n", strerror(errno));
@@ -472,7 +493,7 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
   }
 
   // Security check
-  if ((writehand = bsi->si_base->bsh_writehand) >= bsi->si_ringbytes)
+  if ((writehand = shmipc_atomic32_read(bsi->si_base->bsh_writehand)) >= bsi->si_ringbytes)
   {
     bk_error_printf(B, BK_ERR_ERR, "Memory corruption or attack to induce memory corruption\n");
     bsi->si_errno = EBADSLT;
@@ -489,7 +510,7 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
     BK_TV_ADD(&endtime,&endtime,&delta);
   }
 
-  if (BK_FLAG_ISSET(flags,BK_SHMIPC_DROP2BLOCK) && (len > (size_t)bytes_available_write(writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes)))
+  if (BK_FLAG_ISSET(flags,BK_SHMIPC_DROP2BLOCK) && (len > (size_t)bytes_available_write(writehand, shmipc_atomic32_read(bsi->si_base->bsh_readhand), bsi->si_ringbytes)))
   {
     int numreader = 0;
 
@@ -511,7 +532,7 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
   {
     u_int writelen;
 
-    if (!(writelen = bytes_available_write(writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes)))
+    if (!(writelen = bytes_available_write(writehand, shmipc_atomic32_read(bsi->si_base->bsh_readhand), bsi->si_ringbytes)))
     {
       int numreader = 0;
 
@@ -561,7 +582,7 @@ ssize_t bk_shmipc_write(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u
 
     if (writehand == bsi->si_ringbytes)
       writehand = 0;
-    bsi->si_base->bsh_writehand = writehand;
+    shmipc_atomic32_set(bsi->si_base->bsh_writehand, writehand);
   }
 
   BK_RETURN(B, ret);
@@ -617,7 +638,7 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
   }
 
   // Security check
-  if ((readhand = bsi->si_base->bsh_readhand) >= bsi->si_ringbytes)
+  if ((readhand = shmipc_atomic32_read(bsi->si_base->bsh_readhand)) >= bsi->si_ringbytes)
   {
     bk_error_printf(B, BK_ERR_ERR, "Memory corruption or attack to induce memory corruption\n");
     bsi->si_errno = EBADSLT;
@@ -636,7 +657,7 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
 
   while (len)
   {
-    if (!(readlen = bytes_available_read(bsi->si_base->bsh_writehand, readhand, bsi->si_ringbytes)))
+    if (!(readlen = bytes_available_read(shmipc_atomic32_read(bsi->si_base->bsh_writehand), readhand, bsi->si_ringbytes)))
     {
       int numwriter = 0;
 
@@ -648,7 +669,7 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
 
       bk_shmipc_peek(B, bsi, NULL, NULL, NULL, &numwriter, 0);
 
-      if (numwriter < 1 || bsi->si_base->bsh_magic == SHMIPC_MAGIC_EOF)
+      if (numwriter < 1 || shmipc_atomic32_read(bsi->si_base->bsh_magic) == SHMIPC_MAGIC_EOF)
       {
 	// EOF
 	BK_FLAG_SET(bsi->si_flags, SI_SAWEND);
@@ -685,7 +706,7 @@ ssize_t bk_shmipc_read(bk_s B, struct bk_shmipc *bsi, void *data, size_t len, u_
 
     if (readhand == bsi->si_ringbytes)
       readhand = 0;
-    bsi->si_base->bsh_readhand = readhand;
+    shmipc_atomic32_set(bsi->si_base->bsh_readhand, readhand);
   }
 
   BK_RETURN(B, ret);
@@ -740,7 +761,7 @@ bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes, u_int
     BK_TV_ADD(&endtime,&endtime,&delta);
   }
 
-  while (!(readbytes = bytes_available_read(bsi->si_base->bsh_writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes)))
+  while (!(readbytes = bytes_available_read(shmipc_atomic32_read(bsi->si_base->bsh_writehand), shmipc_atomic32_read(bsi->si_base->bsh_readhand), bsi->si_ringbytes)))
   {
     int numwriter;
 
@@ -750,7 +771,7 @@ bk_vptr *bk_shmipc_readall(bk_s B, struct bk_shmipc *bsi, size_t maxbytes, u_int
       goto error;
     }
 
-    if (numwriter < 1 || bsi->si_base->bsh_magic == SHMIPC_MAGIC_EOF)
+    if (numwriter < 1 || shmipc_atomic32_read(bsi->si_base->bsh_magic) == SHMIPC_MAGIC_EOF)
     {
       // EOF
       BK_FLAG_SET(bsi->si_flags, SI_SAWEND);
@@ -843,9 +864,9 @@ int bk_shmipc_peek(bk_s B, struct bk_shmipc *bsi, size_t *bytesreadable, size_t 
   }
 
   if (bytesreadable)
-    *bytesreadable = bytes_available_read(bsi->si_base->bsh_writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes);
+    *bytesreadable = bytes_available_read(shmipc_atomic32_read(bsi->si_base->bsh_writehand), shmipc_atomic32_read(bsi->si_base->bsh_readhand), bsi->si_ringbytes);
   if (byteswritable)
-    *byteswritable = bytes_available_write(bsi->si_base->bsh_writehand, bsi->si_base->bsh_readhand, bsi->si_ringbytes);
+    *byteswritable = bytes_available_write(shmipc_atomic32_read(bsi->si_base->bsh_writehand), shmipc_atomic32_read(bsi->si_base->bsh_readhand), bsi->si_ringbytes);
   if (buffersize)
     *buffersize = bsi->si_ringbytes;
 
@@ -922,7 +943,7 @@ int bk_shmipc_cancel(bk_s B, struct bk_shmipc *bsi, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  bsi->si_base->bsh_magic = SHMIPC_MAGIC_EOF;
+  shmipc_atomic32_set(bsi->si_base->bsh_magic, SHMIPC_MAGIC_EOF);
 
   BK_RETURN(B, 0);
 }
@@ -1094,11 +1115,11 @@ int bk_shmipc_peekbyname(bk_s B, const char *name, u_int32_t *magic, u_int32_t *
   if (buf.shm_nattch == 0)
     ret = 1;
 
-  if (base->bsh_ringsize+base->bsh_ringoffset != buf.shm_segsz || (base->bsh_magic != SHMIPC_MAGIC && base->bsh_magic != SHMIPC_MAGIC_EOF))
+  if (base->bsh_ringsize+base->bsh_ringoffset != buf.shm_segsz || (shmipc_atomic32_read(base->bsh_magic) != SHMIPC_MAGIC && shmipc_atomic32_read(base->bsh_magic) != SHMIPC_MAGIC_EOF))
     ret = 2;
 
   if (magic)
-    *magic = base->bsh_magic;
+    *magic = shmipc_atomic32_read(base->bsh_magic);
 
   if (generation)
     *generation = base->bsh_generation;
@@ -1110,16 +1131,16 @@ int bk_shmipc_peekbyname(bk_s B, const char *name, u_int32_t *magic, u_int32_t *
     *offset = base->bsh_ringoffset;
 
   if (writehand)
-    *writehand = base->bsh_writehand;
+    *writehand = shmipc_atomic32_read(base->bsh_writehand);
 
   if (readhand)
-    *readhand = base->bsh_readhand;
+    *readhand = shmipc_atomic32_read(base->bsh_readhand);
 
   if (bytesreadable)
-    *bytesreadable = bytes_available_read(base->bsh_writehand, base->bsh_readhand, base->bsh_ringsize);
+    *bytesreadable = bytes_available_read(shmipc_atomic32_read(base->bsh_writehand), shmipc_atomic32_read(base->bsh_readhand), base->bsh_ringsize);
 
   if (byteswritable)
-    *byteswritable = bytes_available_write(base->bsh_writehand, base->bsh_readhand, base->bsh_ringsize);
+    *byteswritable = bytes_available_write(shmipc_atomic32_read(base->bsh_writehand), shmipc_atomic32_read(base->bsh_readhand), base->bsh_ringsize);
 
   if (shmdt(base) < 0)
   {

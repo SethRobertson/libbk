@@ -22,6 +22,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		allocate_actual		\
 		app-timed-replay	\
 		diskspeed		\
+		ipctest			\
 		mutex			\
 		sourcesink		\
 		test_clc		\
