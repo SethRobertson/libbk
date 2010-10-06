@@ -64,16 +64,16 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 struct bk_shmipc
 {
-  const char   *si_filename;			///< Filename we are using
-  key_t		si_shmkey;			///< Key/nounce for the shm ipc we are using
-  int		si_shmid;			///< Shared memory id
-  u_int		si_timeoutus;			///< Default timeout in microseconds
-  u_int		si_spinus;			///< How often to check for more data, in microseconds
+  const char	       *si_filename;		///< Filename we are using
+  key_t			si_shmkey;		///< Key/nounce for the shm ipc we are using
+  int			si_shmid;		///< Shared memory id
+  u_int			si_timeoutus;		///< Default timeout in microseconds
+  u_int			si_spinus;		///< How often to check for more data, in microseconds
   struct bk_shmipc_header *si_base;		///< Start of shared memory segment
-  char	       *si_ring;			///< Start of data ring (character for pointer arithmetic)
-  u_int		si_ringbytes;			///< Number of bytes of ring space
-  u_int		si_errno;			///< Errno of last operation
-  bk_flags	si_flags;			///< Fun for the future
+  volatile char        *si_ring;		///< Start of data ring (character for pointer arithmetic)
+  u_int			si_ringbytes;		///< Number of bytes of ring space
+  u_int			si_errno;		///< Errno of last operation
+  bk_flags		si_flags;		///< Fun for the future
 #define SI_SAWEND	0x01			///< Saw EOF on way or another
 #define SI_READONLY	0x02			///< Readonly, otherwise writeonly
 };
