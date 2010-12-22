@@ -91,7 +91,7 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 # don't embed dependencies on extraneous libraries
 AC_LIBS:=$(filter-out -lcrypt -lcrypto,$(AC_LIBS))
 
-$(BK_LARGE_LIBSRC): $(GROUPTOP)/include/libbk_autoconf.h
+$(BK_LARGE_LIBOBJ): $(GROUPTOP)/include/libbk_autoconf.h $(GROUPTOP)/include/libbk.h $(GROUPTOP)/include/libbk_include.h $(GROUPTOP)/include/libbk_oscompat.h $(GROUPTOP)/include/libbk_inline.h $(GROUPTOP)/include/libbk_net.h
 
 $(GROUPTOP)/include/libbk_autoconf.h: $(GROUPTOP)/$(PKGTOP)/bkmk/libbk_autoconf.h
 	cd $(@D) && $(LN_S) -f $< $(@F)

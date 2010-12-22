@@ -1618,12 +1618,14 @@ struct bk_str_id
  */
 struct bk_vault_node
 {
-  char *	key;				///< Key index of data
+  const char *	key;				///< Key index of data
   void *	value;				///< Value of data being stored
 };
 
 
 typedef dict_h bk_vault_t;			///< Abbreviation for some vague notion of abstraction...
+typedef dict_h bk_bstvault_t;			///< Abbreviation for some vague notion of abstraction...
+typedef dict_h bk_dllvault_t;			///< Abbreviation for some vague notion of abstraction...
 // @}
 
 
@@ -2377,6 +2379,10 @@ extern int bk_pthread_mutex_lock(bk_s B, struct bk_run *run, pthread_mutex_t *mu
 
 /* b_vault.c */
 extern bk_vault_t bk_vault_create(bk_s B, int table_entries, int bucket_entries, bk_flags flags);
+extern int bk_vault_inserthelp(bk_vault_t V, const char *string, void *ptr);
+extern void *bk_vault_searchhelp(bk_vault_t V, const char *string);
+extern int bk_vault_deletehelp(bk_vault_t V, const char *string);
+extern int bk_vault_destroyhelp(bk_vault_t V);
 #define bk_vault_destroy(h)		ht_destroy(h)
 #define bk_vault_insert(h,o)		ht_insert((h),(o))
 #define bk_vault_insert_uniq(h,n,o)	ht_insert_uniq((h),(n),(o))
@@ -2392,6 +2398,46 @@ extern bk_vault_t bk_vault_create(bk_s B, int table_entries, int bucket_entries,
 #define bk_vault_nextobj(h,i)		ht_nextobj((h),(i))
 #define bk_vault_iterate_done(h,i)	ht_iterate_done((h),(i))
 #define bk_vault_error_reason(h,i)	ht_error_reason((h),(i))
+extern bk_bstvault_t bk_bstvault_create(bk_s B, bk_flags flags);
+extern int bk_bstvault_inserthelp(bk_vault_t V, const char *string, void *ptr);
+extern void *bk_bstvault_searchhelp(bk_vault_t V, const char *string);
+extern int bk_bstvault_deletehelp(bk_vault_t V, const char *string);
+extern int bk_bstvault_destroyhelp(bk_vault_t V);
+#define bk_bstvault_destroy(h)		bst_destroy(h)
+#define bk_bstvault_insert(h,o)		bst_insert((h),(o))
+#define bk_bstvault_insert_uniq(h,n,o)	bst_insert_uniq((h),(n),(o))
+#define bk_bstvault_append(h,o)		bst_append((h),(o))
+#define bk_bstvault_append_uniq(h,n,o)	bst_append_uniq((h),(n),(o))
+#define bk_bstvault_search(h,k)		bst_search((h),(k))
+#define bk_bstvault_delete(h,o)		bst_delete((h),(o))
+#define bk_bstvault_minimum(h)		bst_minimum(h)
+#define bk_bstvault_maximum(h)		bst_maximum(h)
+#define bk_bstvault_successor(h,o)	bst_successor((h),(o))
+#define bk_bstvault_predecessor(h,o)	bst_predecessor((h),(o))
+#define bk_bstvault_iterate(h,d)	bst_iterate((h),(d))
+#define bk_bstvault_nextobj(h,i)	bst_nextobj((h),(i))
+#define bk_bstvault_iterate_done(h,i)	bst_iterate_done((h),(i))
+#define bk_bstvault_error_reason(h,i)	bst_error_reason((h),(i))
+extern bk_dllvault_t bk_dllvault_create(bk_s B, bk_flags flags);
+extern int bk_dllvault_inserthelp(bk_vault_t V, const char *string, void *ptr);
+extern void *bk_dllvault_searchhelp(bk_vault_t V, const char *string);
+extern int bk_dllvault_deletehelp(bk_vault_t V, const char *string);
+extern int bk_dllvault_destroyhelp(bk_vault_t V);
+#define bk_dllvault_destroy(h)		dll_destroy(h)
+#define bk_dllvault_insert(h,o)		dll_insert((h),(o))
+#define bk_dllvault_insert_uniq(h,n,o)	dll_insert_uniq((h),(n),(o))
+#define bk_dllvault_append(h,o)		dll_append((h),(o))
+#define bk_dllvault_append_uniq(h,n,o)	dll_append_uniq((h),(n),(o))
+#define bk_dllvault_search(h,k)		dll_search((h),(k))
+#define bk_dllvault_delete(h,o)		dll_delete((h),(o))
+#define bk_dllvault_minimum(h)		dll_minimum(h)
+#define bk_dllvault_maximum(h)		dll_maximum(h)
+#define bk_dllvault_successor(h,o)	dll_successor((h),(o))
+#define bk_dllvault_predecessor(h,o)	dll_predecessor((h),(o))
+#define bk_dllvault_iterate(h,d)	dll_iterate((h),(d))
+#define bk_dllvault_nextobj(h,i)	dll_nextobj((h),(i))
+#define bk_dllvault_iterate_done(h,i)	dll_iterate_done((h),(i))
+#define bk_dllvault_error_reason(h,i)	dll_error_reason((h),(i))
 
 
 /* b_stats.c */
