@@ -44,10 +44,14 @@ struct bk_stat_node;
 struct bk_threadlist;
 struct bk_threadnode;
 
+#ifdef NEED_GLOBAL
+// Seth does not think we need a forward reference to global, but
+// if we do, we may need it to sometimes (always?) be weak.
+
 // These will be defined by each individual program.
 struct global_structure;
 extern struct global_structure Global;
-
+#endif
 
 
 #ifdef __INSURE__
