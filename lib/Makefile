@@ -55,6 +55,7 @@ BK_LARGE_LIBSRC=				\
 		b_run.c				\
 		b_servinfo.c			\
 		b_shmipc.c			\
+		b_shmmap.c			\
 		b_signal.c			\
 		b_sprintf.c			\
 		b_stats.c			\

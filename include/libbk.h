@@ -2794,6 +2794,95 @@ extern double mt19937_genrand64_real2(struct mt_state *mts);
 extern double mt19937_genrand64_real3(struct mt_state *mts);
 extern void mt19937_destroy(struct mt_state *mts);
 
+/* b_shmmap.c */
+#define BK_SHMMAP_MAXCLIENTNAME  64		///< Maximum size of a client's name
+#define BK_SHMMAP_DEFAULT_FRESH	 "15"		///< Default number of seconds an updated registration is considered fresh
+
+
+
+/**
+ * Information about a particular client stored in shared memory
+ */
+struct bk_shmmap_client
+{
+  char		su_name[BK_SHMMAP_MAXCLIENTNAME];	///< Name of client
+  pid_t		su_pid;					///< PID of client (mostly for debugging)
+  time_t	su_clienttime;				///< Freshness of client (not required to be within freshness range)
+  u_short	su_state;				///< Random information about bucket/client state
+#define BK_SHMMAP_USER_STATEEMPTY	0x0000		///< Unused
+#define BK_SHMMAP_USER_STATEPREP	0x55f8		///< Bucket allocated for client use
+#define BK_SHMMAP_USER_STATEINIT	0x1da8		///< Bucket initialized by client
+#define BK_SHMMAP_USER_STATEREADY	0xea7b		///< Bucket ready by client
+#define BK_SHMMAP_USER_STATECLOSE	0xfcc7		///< Bucket detached/closed by client
+};
+
+
+
+/**
+ * Shared memory segment header--stored at front of shared memory
+ * Kept fresh by creator.
+ *
+ * Dynamic array of sh_numclient clients at end of structure
+ */
+struct bk_shmmap_header
+{
+  void	       *sh_addr;				///< Desired mapping location
+  void	       *sh_user;				///< Start of user space
+  off_t		sh_size;				///< Actual segment size
+  off_t		sh_usersize;				///< User segment size
+  time_t	sh_creatortime;				///< Freshness of creator
+  u_int		sh_fresh;				///< How fresh creator's time must be for liveness
+  u_short	sh_numclients;				///< Number of clients in array
+  u_short	sh_numattach;				///< Number of clients known attached
+  u_short	sh_state;				///< State of SHMMAP (non-listed values == un-initialized)
+#define BK_SHMMAP_READY		0xfeed			///< Creator signal ready for operations (sh_creatortime must be sh_fresh)
+#define BK_SHMMAP_CLOSE		0xdead			///< Creator signal destroy
+  struct bk_shmmap_client sh_client[];			///< Array of clients
+};
+
+
+
+/**
+ * User data representing shared memory segment
+ */
+struct bk_shmmap
+{
+  char		          *sm_name;			///< Name of shm allocation
+  struct bk_shmmap_header *sm_addr;			///< Location of shared memory segment (starting with header)
+  struct bk_shmmap_client *sm_userbucket;		///< Pointer to client's userbucket (empty for creator)
+  mqd_t			   sm_creatorcmds;		///< OOB communication from client to shm creator
+  int			   sm_shmfd;			///< Result of shm_open
+};
+
+
+
+/**
+ * Internal command passing format
+ */
+enum bk_shmmap_ops { bk_shmmap_op_attach, bk_shmmap_op_detach, bk_shmmap_op_destroy };
+struct bk_shmmap_cmds
+{
+  enum bk_shmmap_ops	bsc_op;					///< Command being requested
+  pid_t			bsc_pid;				///< PID of requester (for debugging)
+  char			bsc_name[BK_SHMMAP_MAXCLIENTNAME];	///< Name of client (for non-destroy commands)
+};
+
+
+
+// Test if shmmap is active and fresh
+#define BK_SHMMAP_ISFRESH(sm) (((sm)->sm_addr->sh_state == BK_SHMMAP_READY) && (((sm)->sm_addr->sh_creatortime + (sm)->sm_addr->sh_fresh > time(NULL))))
+#define BK_SHMMAP_VALIDATE(sm) (BK_SHMMAP_ISFRESH(sm)) || bk_shmmap_validate(NULL, (sm)))
+
+
+
+extern struct bk_shmmap *bk_shmmap_create(bk_s B, const char *name, u_short max_clients, off_t size, mode_t mode, void *addr, u_int fresh, bk_flags flags);
+extern struct bk_shmmap *bk_shmmap_attach(bk_s B, const char *shmname, const char *myname, bk_flags flags);
+extern void bk_shmmap_destroy(bk_s B, struct bk_shmmap *shmmap, bk_flags flags);
+extern void bk_shmmap_manage(bk_s B, struct bk_shmmap *shmmap, bk_flags flags);
+#define BK_SHMMAP_MANAGE_POLL 1			///< Poll, do not sleep, for one group of management changes
+extern int bk_shmmap_validate(bk_s B, struct bk_shmmap *shmmap);
+
+
 /* b_shmipc.c */
 typedef enum
 {

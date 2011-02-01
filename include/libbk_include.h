@@ -172,6 +172,8 @@
 #include <pthread.h>
 #endif
 
+#include <mqueue.h>
+
 #include "fsma.h"
 #include "dict.h"
 #include "bst.h"
