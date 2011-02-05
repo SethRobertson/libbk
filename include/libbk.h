@@ -2477,6 +2477,7 @@ extern void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags 
 #define BK_THREADNODE_DESTROY_DESTROYSELF	0x1
 #ifdef BK_USING_PTHREADS
 extern pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *threadname, void *(*start)(bk_s B, void *opaque), void *opaque, bk_flags flags);
+#define BK_THREAD_CREATE_JOIN  1		///< Allow thread to be joinable
 extern void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadnode *tnode, bk_flags flags);
 extern void bk_thread_kill_others(bk_s B, bk_flags flags);
 extern void *bk_monitor_memory_thread(bk_s B, void *opaque);
@@ -2871,13 +2872,15 @@ struct bk_shmmap_cmds
 
 // Test if shmmap is active and fresh
 #define BK_SHMMAP_ISFRESH(sm) (((sm)->sm_addr->sh_state == BK_SHMMAP_READY) && (((sm)->sm_addr->sh_creatortime + (sm)->sm_addr->sh_fresh > time(NULL))))
-#define BK_SHMMAP_VALIDATE(sm) (BK_SHMMAP_ISFRESH(sm)) || bk_shmmap_validate(NULL, (sm)))
+#define BK_SHMMAP_VALIDATE(sm) (BK_SHMMAP_ISFRESH(sm)?1:bk_shmmap_validate(NULL, (sm)))
 
 
 
 extern struct bk_shmmap *bk_shmmap_create(bk_s B, const char *name, u_short max_clients, off_t size, mode_t mode, void *addr, u_int fresh, bk_flags flags);
 extern struct bk_shmmap *bk_shmmap_attach(bk_s B, const char *shmname, const char *myname, bk_flags flags);
+#define BK_SHMMAP_ATTACH_RETRYABLE ((void *)-1)
 extern void bk_shmmap_destroy(bk_s B, struct bk_shmmap *shmmap, bk_flags flags);
+extern pthread_t *bk_shmmap_manage_thread(bk_s B, struct bk_shmmap *shmmap);
 extern void bk_shmmap_manage(bk_s B, struct bk_shmmap *shmmap, bk_flags flags);
 #define BK_SHMMAP_MANAGE_POLL 1			///< Poll, do not sleep, for one group of management changes
 extern int bk_shmmap_validate(bk_s B, struct bk_shmmap *shmmap);

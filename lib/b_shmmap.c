@@ -28,6 +28,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 
 static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myname, u_short max_clients, off_t size, mode_t mode, void *addr, u_int fresh, bk_flags flags);
+static void *bk_shmmap_manage_thread_th(bk_s B, void *opaque);
 
 
 
@@ -152,7 +153,7 @@ static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myn
 
   if (shmmap->sm_creatorcmds < 0)
   {
-    if (!attach)
+    if (!attach || errno != ENOENT)
       errret = NULL;
     bk_error_printf(B, BK_ERR_ERR, "Could not open/create command message queue: %s\n", strerror(errno));
     goto error;
@@ -179,7 +180,7 @@ static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myn
     goto error;
   }
 
-  misc_flags = 0;
+  misc_flags = MAP_SHARED;
   if (!attach)
   {
     mgmt_size = sizeof(struct bk_shmmap_header)+sizeof(struct bk_shmmap_client)*max_clients;
@@ -209,7 +210,7 @@ static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myn
      * the correct address and size we should be using
      */
     size = sizeof(struct bk_shmmap_header);
-    if (!(shmmap->sm_addr = mmap(NULL, sizeof(struct bk_shmmap_header), PROT_READ, 0, shmmap->sm_shmfd, 0)))
+    if ((shmmap->sm_addr = mmap(NULL, sizeof(struct bk_shmmap_header), PROT_READ, MAP_SHARED, shmmap->sm_shmfd, 0)) == MAP_FAILED)
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not memory map shared memory segment: %s\n", strerror(errno));
       errret = NULL;
@@ -240,7 +241,7 @@ static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myn
   }
 
   // Memory map it
-  if (!(shmmap->sm_addr = mmap(addr, size, PROT_READ|PROT_WRITE|MAP_SHARED, misc_flags, shmmap->sm_shmfd, 0)))
+  if ((shmmap->sm_addr = mmap(addr, size, PROT_READ|PROT_WRITE, misc_flags, shmmap->sm_shmfd, 0)) == MAP_FAILED)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not memory map shared memory segment: %s\n", strerror(errno));
     errret = NULL;
@@ -262,7 +263,7 @@ static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myn
     shmmap->sm_addr->sh_size = size;
     shmmap->sm_addr->sh_usersize = size - mgmt_size;
     shmmap->sm_addr->sh_creatortime = time(NULL);
-    shmmap->sm_addr->sh_fresh = fresh || atoi(BK_GWD(B, "bk_shmmap_fresh", BK_SHMMAP_DEFAULT_FRESH));
+    shmmap->sm_addr->sh_fresh = fresh?fresh:(u_int)atoi(BK_GWD(B, "bk_shmmap_fresh", BK_SHMMAP_DEFAULT_FRESH));
     shmmap->sm_addr->sh_numclients = max_clients;
     shmmap->sm_addr->sh_state = BK_SHMMAP_READY;
   }
@@ -270,6 +271,18 @@ static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myn
   {
     int x;
     struct bk_shmmap_cmds bop;
+
+    while ((x = BK_SHMMAP_VALIDATE(shmmap)) != 1)
+    {
+      if (x < 0)
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not validate new shared memory segment attach\n");
+	errret = NULL;
+	goto error;
+      }
+      // Waiting for ready--should we time out?
+      sleep(1);
+    }
 
     bop.bsc_pid = getpid();
     strncpy(bop.bsc_name, myname,BK_SHMMAP_MAXCLIENTNAME);
@@ -410,6 +423,48 @@ void bk_shmmap_destroy(bk_s B, struct bk_shmmap *shmmap, bk_flags flags)
   mq_send(shmmap->sm_creatorcmds, (void *)&bop, sizeof(bop), 0);
 
   BK_VRETURN(B);
+}
+
+
+
+/**
+ * Fire off a thread to manage shared memory segment (respond to commands, etc)
+ *
+ * Thread does not return until shmmem destruction
+ *
+ * @param B BAKA World
+ * @param shmmap Shared memory map structure
+ * @return pthread_t* On thread creation and presumed subsequent management
+ * @return NULL On failure
+ */
+pthread_t *bk_shmmap_manage_thread(bk_s B, struct bk_shmmap *shmmap)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  pthread_t *ret;
+
+  if (!shmmap || !B)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  if (!(ret = bk_general_thread_create(B, "bk_shmmap_manage_thread", bk_shmmap_manage_thread_th, shmmap, 0)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not fire off shmmap manage thread\n");
+    BK_RETURN(B, NULL);
+  }
+
+  BK_RETURN(B, ret);
+}
+
+
+
+/* Internal thread wrapper */
+static void *bk_shmmap_manage_thread_th(bk_s B, void *opaque)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  bk_shmmap_manage(B, opaque, 0);
+  BK_RETURN(B, NULL);
 }
 
 

@@ -441,7 +441,7 @@ void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags)
  * @param threadname Name of thread for tracking purposes
  * @param start Function to call to start user processing
  * @param opaque Opaque data for function
- * @param flags Fun for the future
+ * @param flags BK_THREAD_CREATE_JOIN
  * @return <i>NULL</i> on error
  * @return <br><i>thread id</i> on success
  */
@@ -451,6 +451,7 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
   struct bk_threadnode * volatile tnode = NULL;
   struct bk_threadcomm * volatile tcomm = NULL;
   pthread_attr_t attr;
+  int joinstate = PTHREAD_CREATE_DETACHED;
   int ret;
 
   if (!start || !tlist || !threadname)
@@ -466,9 +467,13 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
 		    strerror(ret));
     BK_RETURN(B, NULL);				// *not* goto error
   }
-  if ((ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)))
+  if (BK_FLAG_ISSET(flags, BK_THREAD_CREATE_JOIN))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not set detached attribute: %s\n",
+    joinstate = PTHREAD_CREATE_JOINABLE;
+  }
+  if ((ret = pthread_attr_setdetachstate(&attr, joinstate)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not set join/detached attribute: %s\n",
 		    strerror(ret));
     goto error;
   }
