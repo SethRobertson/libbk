@@ -41,6 +41,7 @@ BK_SIMPLE_PROGS=			\
 	runsize				\
 	shmadm				\
 	shmcat				\
+	shmmapadm			\
 	$(BK_TMP_PROG)			\
 #line fodder eater. Do not remove.
 

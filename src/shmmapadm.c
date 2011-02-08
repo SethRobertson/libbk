@@ -18,7 +18,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /**
  * @file
  *
- * Shared memory segment test
+ * Shared memory mapping administrative interface
  */
 #include <libbk.h>
 #include <libbk_i18n.h>
@@ -48,18 +48,12 @@ struct global_structure
  */
 struct program_config
 {
-  pthread_t	        pc_manageth;		///< Manage thread
   struct bk_shmmap     *pc_shmmap;		////< Shared memory
-  int			pc_shmlen;		///< (user) size of shared memory
   char		       *pc_shmname;		///< Shared memory name
   bk_flags		pc_flags;		///< Flags are fun!
 #define PC_VERBOSE	0x001			///< Verbose output
+#define PC_UNLINK	0x002			///< Verbose output
 };
-
-
-
-static int proginit(bk_s B, struct program_config *pc, int argc, char **argv);
-static void progrun(bk_s B, struct program_config *pc);
 
 
 
@@ -92,13 +86,13 @@ main(int argc, char **argv, char **envp)
     {"seatbelts", 0, POPT_ARG_NONE, NULL, 0x1001, N_("Enable function tracing"), NULL },
     {"profiling", 0, POPT_ARG_STRING, NULL, 0x1002, N_("Enable and write profiling data"), N_("filename") },
 
+    {"unlink", 'u', POPT_ARG_NONE, NULL, 'u', N_("Unlink shmmap"), NULL },
     {"name", 'n', POPT_ARG_STRING, &Pconfig.pc_shmname, 0, N_("Shared memory to attach to"), N_("shm name") },
-    {"len", 'l', POPT_ARG_INT, &Pconfig.pc_shmlen, 0, N_("Length of shared memory"), N_("shm_length") },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
 
-  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(NULL, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_LOCAL0, BK_GENERAL_THREADREADY)))
+  if (!(B=bk_general_init(argc, &argv, &envp, BK_ENV_GWD(NULL, "BK_ENV_CONF_APP", BK_APP_CONF), NULL, ERRORQUEUE_DEPTH, LOG_LOCAL0, 0)))
   {
     fprintf(stderr,"Could not perform basic initialization\n");
     exit(254);
@@ -184,6 +178,9 @@ main(int argc, char **argv, char **envp)
       getopterr++;
       break;
 
+    case 'u':					// unlink
+      BK_FLAG_SET(pc->pc_flags, PC_UNLINK);
+      break;
     }
   }
 
@@ -215,141 +212,107 @@ main(int argc, char **argv, char **envp)
     bk_exit(B, 254);
   }
 
-  if (proginit(B, pc, argc, argv) < 0)
+  if (BK_FLAG_ISSET(pc->pc_flags, PC_UNLINK))
   {
-    bk_die(B, 254, stderr, _("Could not perform program initialization\n"), BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE)?BK_WARNDIE_WANTDETAILS:0);
+    int ret = 0;
+
+    if (mq_unlink(pc->pc_shmname))
+    {
+      if (errno != ENOENT)
+      {
+	fprintf(stderr, "Could not unlink message queue %s: %s\n",pc->pc_shmname,strerror(errno));
+	ret++;
+      }
+    }
+    if (shm_unlink(pc->pc_shmname))
+    {
+      if (errno != ENOENT)
+      {
+	fprintf(stderr, "Could not unlink shared memory %s: %s\n",pc->pc_shmname,strerror(errno));
+	ret++;
+      }
+    }
+    exit(ret);
   }
 
-  progrun(B, pc);
+  // Potentially recoverable.  Should we have a retry option?
+  mqd_t mq = mq_open(pc->pc_shmname, O_WRONLY, 0, NULL);
 
-  if (pc->pc_shmlen)
-    pthread_join(pc->pc_manageth, NULL);
-  else
-    bk_shmmap_destroy(B, pc->pc_shmmap, 0);
+  if (mq == -1)
+  {
+    fprintf(stderr,"Could not open message queue %s: %s: Ignoring\n", pc->pc_shmname, strerror(errno));
+  }
+
+  int shmfd = shm_open(pc->pc_shmname, O_RDONLY, 0);
+
+  if (shmfd == -1)
+  {
+    fprintf(stderr,"Could not open message queue %s: %s\n", pc->pc_shmname, strerror(errno));
+    exit(1);
+  }
+
+
+  int size = sizeof(struct bk_shmmap_header);
+  struct bk_shmmap_header *sm_addr = NULL;
+
+  if ((sm_addr = mmap(NULL, sizeof(struct bk_shmmap_header), PROT_READ, MAP_SHARED, shmfd, 0)) == MAP_FAILED)
+  {
+    fprintf(stderr,"Could not map shared memory %s: %s\n", pc->pc_shmname, strerror(errno));
+    exit(2);
+  }
+
+  printf("%20s %p\n","Address",sm_addr->sh_addr);
+  printf("%20s %p\n","User Address",sm_addr->sh_user);
+  printf("%20s %lld\n","Segment size",(long long)sm_addr->sh_size);
+  printf("%20s %lld\n","User size",(long long)sm_addr->sh_usersize);
+  printf("%20s %lld (%lld seconds old) %s","Creatortime",(long long)sm_addr->sh_creatortime, (long long)(time(NULL)-sm_addr->sh_creatortime),ctime(&sm_addr->sh_creatortime));
+  printf("%20s %u %s\n","Fresh interval",sm_addr->sh_fresh, sm_addr->sh_creatortime+sm_addr->sh_fresh > time(NULL)?"ISFRESH":"NOTFRESH");
+  printf("%20s %u\n","Num Client Slots",sm_addr->sh_numclients);
+  printf("%20s %u\n","Num Attaches",sm_addr->sh_numattach);
+  printf("%20s %04x %s\n","State",sm_addr->sh_state,sm_addr->sh_state==BK_SHMMAP_READY?"READY":sm_addr->sh_state==BK_SHMMAP_CLOSE?"CLOSE":"UNINITIALIZED");
+
+  if (sm_addr->sh_state==BK_SHMMAP_READY || sm_addr->sh_state==BK_SHMMAP_CLOSE)
+  {
+    struct bk_shmmap_header *tmp_addr = sm_addr->sh_addr;
+    size = sm_addr->sh_size-sm_addr->sh_usersize;
+
+    if (munmap(sm_addr, sizeof(struct bk_shmmap_header)) < 0)
+    {
+      fprintf(stderr, "Huh? Cannot unmap temporary memory segment: %s\n", strerror(errno));
+      exit(3);
+    }
+
+    if ((sm_addr = mmap(tmp_addr, size, PROT_READ, MAP_SHARED, shmfd, 0)) == MAP_FAILED)
+    {
+      fprintf(stderr,"Could not second-map shared memory %s: %s\n", pc->pc_shmname, strerror(errno));
+      exit(4);
+    }
+
+    int x;
+    for(x=0;x<sm_addr->sh_numclients;x++)
+    {
+      char *state;
+
+      switch (sm_addr->sh_client[x].su_state)
+      {
+      case BK_SHMMAP_USER_STATEEMPTY: state = "EMPTY"; break;
+      case BK_SHMMAP_USER_STATEPREP: state = "PREP "; break;
+      case BK_SHMMAP_USER_STATEINIT: state = "INIT "; break;
+      case BK_SHMMAP_USER_STATEREADY: state = "READY"; break;
+      case BK_SHMMAP_USER_STATECLOSE: state = "CLOSE"; break;
+      default: state="OTHER";
+      }
+
+      printf("-%64.64s %5d %04x %5s %11lld %s",sm_addr->sh_client[x].su_name,
+	     sm_addr->sh_client[x].su_pid,
+	     sm_addr->sh_client[x].su_state,
+	     state,
+	     (long long)sm_addr->sh_client[x].su_clienttime,
+	     ctime(&sm_addr->sh_client[x].su_clienttime));
+    }
+  }
 
   poptFreeContext(optCon);
   bk_exit(B, 0);
   return(255);					// Stupid INSIGHT stuff.
-}
-
-
-
-/**
- * General program initialization
- *
- *	@param B BAKA Thread/Global configuration
- *	@param pc Program configuration
- *	@return <i>0</i> Success
- *	@return <br><i>-1</i> Total terminal failure
- */
-static int proginit(bk_s B, struct program_config *pc, int argc, char **argv)
-{
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
-
-  if (!pc)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
-    BK_RETURN(B, -1);
-  }
-
-  if (pc->pc_shmlen)
-  {
-    pthread_t *pt = NULL;
-
-    if (!(pc->pc_shmmap = bk_shmmap_create(B, pc->pc_shmname, 10, pc->pc_shmlen, 0777, NULL, 0, 0)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not create shared memory segment\n");
-      BK_RETURN(B, -1);
-    }
-    fprintf(stderr,"shmmap-created\n");
-
-    if (!(pt = bk_shmmap_manage_thread(B, pc->pc_shmmap)))
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not start shared memory segment manager\n");
-      BK_RETURN(B, -1);
-    }
-    pc->pc_manageth = *pt;
-  }
-  else
-  {
-    while ((pc->pc_shmmap = bk_shmmap_attach(B, pc->pc_shmname, "shmmap", 0)) == BK_SHMMAP_ATTACH_RETRYABLE)
-    {
-      fprintf(stderr,"shmmap-attach (waiting for create)\n");
-      sleep(1);
-    }
-
-    if (!pc->pc_shmmap)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not attach to shared memory segment\n");
-      BK_RETURN(B, -1);
-    }
-
-    fprintf(stderr,"shmmap-attached\n");
-  }
-
-  BK_RETURN(B, 0);
-}
-
-
-
-/**
- * Normal processing of program
- *
- *	@param B BAKA Thread/Global configuration
- *	@param pc Program configuration
- *	@return <i>0</i> Success--program may terminate normally
- *	@return <br><i>-1</i> Total terminal failure
- */
-static void progrun(bk_s B, struct program_config *pc)
-{
-  BK_ENTRY(B, __FUNCTION__,__FILE__,"SIMPLE");
-
-  if (!pc)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid argument\n");
-    BK_VRETURN(B);
-  }
-
-  if (pc->pc_shmlen)
-  {
-    u_short x = 1;
-    while (x)
-    {
-      memset(pc->pc_shmmap->sm_addr->sh_user, x, pc->pc_shmmap->sm_addr->sh_usersize);
-      printf(".");
-      fflush(stdout);
-      x++;
-    }
-    printf("\n");
-
-    bk_shmmap_destroy(B, pc->pc_shmmap, 0);
-  }
-  else
-  {
-    int histo[256];
-
-    while (BK_SHMMAP_ISFRESH(pc->pc_shmmap))
-    {
-      int x;
-
-      memset(&histo,0, sizeof(histo));
-
-      for(x=0;x<pc->pc_shmmap->sm_addr->sh_usersize;x++)
-      {
-	u_char y = ((u_char *)pc->pc_shmmap->sm_addr->sh_user)[x];
-
-	histo[(int)y]++;
-      }
-
-      printf("-------------------- %d %u\n", (int)pc->pc_shmmap->sm_addr->sh_usersize,(u_int)pc->pc_shmmap->sm_addr->sh_creatortime);
-      for(x=0;x<256;x++)
-      {
-	if (histo[x])
-	  printf("%3d %d\n", x, histo[x]);
-      }
-    }
-    fprintf(stderr,"shmmap name=%s, creatortime=%u(%i), state=%x fresh=%d\n",pc->pc_shmmap->sm_name,(int)pc->pc_shmmap->sm_addr->sh_creatortime,(int)(time(NULL)-pc->pc_shmmap->sm_addr->sh_creatortime),pc->pc_shmmap->sm_addr->sh_state,pc->pc_shmmap->sm_addr->sh_fresh);
-  }
-
-  BK_VRETURN(B);
 }

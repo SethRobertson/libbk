@@ -320,6 +320,7 @@ static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myn
 	{
 	  shmmap->sm_userbucket = &(shmmap->sm_addr->sh_client[x]);
 	  shmmap->sm_userbucket->su_state = BK_SHMMAP_USER_STATEINIT;
+	  shmmap->sm_userbucket->su_clienttime = time(NULL);
 	  break;
 	}
       }
@@ -396,12 +397,12 @@ void bk_shmmap_destroy(bk_s B, struct bk_shmmap *shmmap, bk_flags flags)
   else
   {
     bop.bsc_op = bk_shmmap_op_destroy;
+    shmmap->sm_addr->sh_state = BK_SHMMAP_CLOSE;
   }
 
   if (shmmap->sm_addr)
   {
     // Mark as going down
-    shmmap->sm_addr->sh_state = BK_SHMMAP_CLOSE;
     munmap(shmmap->sm_addr, shmmap->sm_addr->sh_size);
   }
 
@@ -501,7 +502,7 @@ void bk_shmmap_manage(bk_s B, struct bk_shmmap *shmmap, bk_flags flags)
     struct timespec tstime;
     gettimeofday(&tvtime, NULL);
 
-    shmmap->sm_addr->sh_creatortime = tstime.tv_sec;
+    shmmap->sm_addr->sh_creatortime = tvtime.tv_sec;
 
     if (BK_FLAG_ISSET(flags, BK_SHMMAP_MANAGE_POLL))
     {
