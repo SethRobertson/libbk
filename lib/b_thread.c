@@ -29,7 +29,6 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * Thread convenience routines
  */
 
-
 /**
  * @name Defines: btl_clc
  * Key-value database CLC definitions
@@ -79,8 +78,9 @@ struct bk_threadlist
   pthread_mutex_t	btl_lock;		///< Lock on thread list
   pthread_cond_t	btl_cv;			///< Condvar for kill_others
   bk_flags		btl_flags;		///< Initialization state flags
-#define BK_THREADLIST_LOCK_INIT	0x1
-#define BK_THREADLIST_CV_INIT	0x2
+#define BK_THREADLIST_LOCK_INIT			0x1
+#define BK_THREADLIST_CV_INIT			0x2
+#define BK_THREADLIST_MAIN_THREAD_DEFINED	0x4
 };
 
 
@@ -347,6 +347,48 @@ void bk_threadlist_destroy(bk_s B, struct bk_threadlist *tlist, bk_flags flags)
 
 
 /**
+ * Get the first entry in the tlist
+ *
+ *	@param B BAKA thread/global state.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return opaque <i>threadnode</i> on success.
+ */
+void *
+bk_threadlist_mininum(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_threadlist *btl = BK_GENERAL_TLIST(B);
+
+  if (!btl)
+    BK_RETURN(B, NULL);
+
+  BK_RETURN(B, btl_minimum(btl->btl_list));
+}
+
+
+
+/**
+ * Get the successor of a thread node in the thread list
+ *
+ *	@param B BAKA thread/global state.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return opaque <i>threadnode</i> on success.
+ */
+void *
+bk_threadlist_successor(bk_s B, struct bk_threadnode *bt)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_threadlist *btl = BK_GENERAL_TLIST(B);
+
+  if (!btl)
+    BK_RETURN(B, NULL);
+
+  BK_RETURN(B, btl_successor(btl->btl_list, bt));
+}
+
+
+
+/**
  * Create a thread tracking node
  *
  * <TODO>replace threadname argument with new_B argument, since threadname
@@ -425,6 +467,39 @@ void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags)
 
 
 
+
+/**
+ * Get a thread name.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bt Flags for future use.
+ *	@return <i>thread name</i> on success.
+ */
+const char *
+bk_threadnode_name(bk_s B, void *btn)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  BK_RETURN(B, ((struct bk_threadnode *)btn)->btn_threadname);
+}
+
+
+
+/**
+ * Get a thread id
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bt Flags for future use.
+ *	@return <i>thread id</i> on success.
+ */
+pthread_t
+bk_threadnode_threadid(bk_s B, void *btn)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  BK_RETURN(B, ((struct bk_threadnode *)btn)->btn_thid);
+}
+
+
+
 #ifdef BK_USING_PTHREADS
 /**
  * Spawn a new thread (internal, you probably want bk_general_thread_create)
@@ -433,6 +508,14 @@ void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags)
  *
  * In ``child'' disable cancellation, disable signals, install
  * tracking list cleanup handler, make detached, start user processing
+ *
+ * Note on the special 'first' thread:
+ * When pthread_create() is called for the first time, the original
+ * "heavyweight" process is divided into *2* threads. In the original libbk
+ * API there was no accounting for the second of these 2 threads -- and,
+ * still today, there remains no way to name it. So this code creates
+ * accounting threadnode for this unnamable thread and hardcodes the name
+ * to the value of BK_THREAD_MAIN_THREAD_NAME.
  *
  * THREADS: MT-SAFE
  *
@@ -449,48 +532,23 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
 {
   BK_ENTRY_VOLATILE(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_threadnode * volatile tnode = NULL;
+  struct bk_threadnode *tbtn;
   struct bk_threadcomm * volatile tcomm = NULL;
   pthread_attr_t attr;
   int joinstate = PTHREAD_CREATE_DETACHED;
   int ret;
+  int attr_initialized = 0;
+  int threadnode_cnt = 0;
 
-  if (!start || !tlist || !threadname)
+  /*
+   * 'start' is required *except* when threadname is
+   * BK_THREAD_MAIN_THREAD_NAME. In that case 'start' must be NULL.
+   */
+  if (!tlist || !threadname || (!start && !BK_STREQ(threadname, BK_THREAD_MAIN_THREAD_NAME)) ||
+      (start && BK_STREQ(threadname, BK_THREAD_MAIN_THREAD_NAME)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_RETURN(B, NULL);
-  }
-
-  // set up thread attributes with PTHREAD_CREATE_DETACHED default
-  if ((ret = pthread_attr_init(&attr)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not init thread attributes: %s\n",
-		    strerror(ret));
-    BK_RETURN(B, NULL);				// *not* goto error
-  }
-  if (BK_FLAG_ISSET(flags, BK_THREAD_CREATE_JOIN))
-  {
-    joinstate = PTHREAD_CREATE_JOINABLE;
-  }
-  if ((ret = pthread_attr_setdetachstate(&attr, joinstate)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not set join/detached attribute: %s\n",
-		    strerror(ret));
-    goto error;
-  }
-
-  if (!BK_CALLOC(tcomm))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create tracking pass node: %s\n",
-		    strerror(errno));
-    goto error;
-  }
-  tcomm->btc_start = start;
-  tcomm->btc_opaque = opaque;
-  getitimer(ITIMER_PROF, &tcomm->btc_itimer);
-  if (!(tcomm->btc_B = bk_general_thread_init(B, threadname)))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not thread BAKA\n");
-    goto error;
   }
 
   if (!(tnode = bk_threadnode_create(B, threadname, 0)))
@@ -498,7 +556,6 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
     bk_error_printf(B, BK_ERR_ERR, "Could not create tracking thread node\n");
     goto error;
   }
-  tnode->btn_B = tcomm->btc_B;
 
   /*
    * <TRICKY>We hold this lock until after pthread_create has completed tnode
@@ -528,14 +585,106 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
     goto error;
   }
 
-  if (pthread_create(&tnode->btn_thid, &attr, bk_thread_continue, tcomm) != 0)
+  if (!BK_STREQ(threadname, BK_THREAD_MAIN_THREAD_NAME))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not create thread: %s\n", strerror(errno));
-    goto error;
+    /*
+     * This tcomm and attr code used to happen before the mutex was locked
+     * (and reasonably so). It has been moved so as to make it clearer what
+     * work needs to happen when threadname is not
+     * BK_THREAD_MAIN_THREAD_NAME (the second and subsequent calls to
+     * bk_thread_create()) and when it is (the first call to
+     * bk_thread_create()). So the assumption is: that this function is
+     * called sufficiently infrequently that spending a few extra moments
+     * locking the btl_list is not going to have any measurable impact on
+     * performance.
+     */
+    if (!BK_CALLOC(tcomm))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create tracking pass node: %s\n",
+		      strerror(errno));
+      goto error;
+    }
+
+    tcomm->btc_start = start;
+    tcomm->btc_opaque = opaque;
+    getitimer(ITIMER_PROF, &tcomm->btc_itimer);
+
+    if (!(tcomm->btc_B = bk_general_thread_init(B, threadname)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not thread BAKA\n");
+      goto error;
+    }
+    tnode->btn_B = tcomm->btc_B;
+
+    // set up thread attributes with PTHREAD_CREATE_DETACHED default
+    if ((ret = pthread_attr_init(&attr)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not init thread attributes: %s\n",
+		      strerror(ret));
+      goto error;
+    }
+    attr_initialized = 1;
+
+    if (BK_FLAG_ISSET(flags, BK_THREAD_CREATE_JOIN))
+    {
+      joinstate = PTHREAD_CREATE_JOINABLE;
+    }
+
+    if ((ret = pthread_attr_setdetachstate(&attr, joinstate)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set join/detached attribute: %s\n",
+		      strerror(ret));
+      goto error;
+    }
+
+    // Normal bk_thread_create() call, so create new thread
+    if (pthread_create(&tnode->btn_thid, &attr, bk_thread_continue, tcomm) != 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create thread: %s\n", strerror(errno));
+      goto error;
+    }
+
+    if (pthread_attr_destroy(&attr) != 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not destroy attr: %s\n", strerror(errno));
+      goto error;
+    }
+    attr_initialized = 0;
+  }
+  else
+  {
+    /*
+     * We are in the midst of defining the special "first" thread, which,
+     * conveniently, is the very thread we're in (you may need to stare at
+     * the code for a bit to convince yourself of this), so we avoid the
+     * call to pthread_create() and populate the new threadnode's threadid
+     * with pthread_self().
+     */
+    tnode->btn_thid = pthread_self();
+    tnode->btn_B = B;
   }
 
   if (pthread_mutex_unlock(&tlist->btl_lock))
     abort();
+
+  /*
+   * If there is only one threadnode in the list than this is the very
+   * first call to bk_thread_create() so we also need to create the special
+   * threadnode for the "MAIN" thread.
+   */
+  for(tbtn = btl_minimum(tlist->btl_list); tbtn; tbtn = btl_successor(tlist->btl_list,tbtn))
+  {
+    threadnode_cnt++;
+  }
+
+  if (threadnode_cnt == 1)
+  {
+    if (!(bk_thread_create(B, tlist, BK_THREAD_MAIN_THREAD_NAME, NULL, NULL, flags)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not create threadnode for the special __MAIN__ thread\n");
+      goto error;
+    }
+  }
 
   BK_RETURN(B, &tnode->btn_thid);
 
@@ -552,7 +701,8 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
   if (tcomm)
     free(tcomm);
 
-  pthread_attr_destroy(&attr);
+  if (attr_initialized)
+    pthread_attr_destroy(&attr);
 
   BK_RETURN(B, NULL);
 }
@@ -598,6 +748,8 @@ static void *bk_thread_continue(void *opaque)
   subopaque = tcomm->btc_opaque;
   start = tcomm->btc_start;
   setitimer(ITIMER_PROF, &tcomm->btc_itimer, NULL);
+
+  pthread_getcpuclockid(pthread_self(), &(BK_BT_CPU_CLOCK(B)));
 
   free(opaque);
 

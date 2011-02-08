@@ -26,6 +26,7 @@ BK_LARGE_LIBSRC=				\
 		b_crc.c				\
 		b_debug.c			\
 		b_dll.c				\
+		b_dyn_stats.c			\
 		b_error.c			\
 		b_exec.c			\
 		b_fileutils.c			\

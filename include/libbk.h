@@ -406,6 +406,7 @@ do {										\
 
 
 
+#define BK_STRFTIME_DEFAULT_FMT "%Y-%m-%dT%H:%M:%SZ"
 /**
  * Manifest constants need to convert values to/from NTP style dates to unix/timeval style
  */
@@ -462,6 +463,7 @@ typedef struct __bk_thread
   const char	       *bt_threadname;		///< Thread name
   struct bk_general    *bt_general;		///< Common program state
   struct bk_stat_list  *bt_funstats;		///< Function performance stats
+  clockid_t		bt_cpu_clock;		///< CPU clock id
   bk_flags		bt_flags;		///< Flags for the future
 } *bk_s;
 #define BK_BT_FUNSTATS(B) (*((B) ? &((B)->bt_funstats):(struct bk_stat_list **)&bk_nullptr)) ///< Access the bk_general function statistics state
@@ -470,6 +472,7 @@ typedef struct __bk_thread
 #define BK_BT_CURFUN(B)		((B)->bt_curfun)     ///< Access the current function
 #define BK_BT_THREADNAME(B)	((B)->bt_threadname) ///< Access the thread name
 #define BK_BT_GENERAL(B)	((B)->bt_general)    ///< Access the global shared info
+#define BK_BT_CPU_CLOCK(B)	((B)->bt_cpu_clock)  ///< Access thread-specific CPU clock
 #define BK_BT_FLAGS(B)		((B)->bt_flags)      ///< Access thread-specific flags
 
 #define BK_B_FLAG_SSL_INITIALIZED	0x1	///< Set if ssl_env_init has already been called.
@@ -576,7 +579,7 @@ struct bk_child_comm
   void (*cc_callback)(bk_s B, void *opaque, int childid, bk_childstate_e state, u_int status); ///< Callback for child state management
   void *cc_opaque;				///< Opaque data for callback
   u_int cc_statuscode;				///< Last wait status
-  bk_flags cc_flags;			        ///< State
+  bk_flags cc_flags;				///< State
 #define CC_WANT_NOTIFYSTOP	0x002		///< Want stop notification
 #define CC_DEAD			0x004		///< Child is dead
 };
@@ -673,7 +676,7 @@ struct bk_bitfield
    * bitstring of > 32 bits.  This should be fixed eventually.</TODO>
    */
   u_int32_t		bf_bits;		///< Bitfield value
-  u_int8_t	        bf_bitlen;		///< Bitfield bit length
+  u_int8_t		bf_bitlen;		///< Bitfield bit length
 };
 
 
@@ -2472,12 +2475,17 @@ extern void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, 
 /* b_thread.c */
 extern struct bk_threadlist *bk_threadlist_create(bk_s B, bk_flags flags);
 extern void bk_threadlist_destroy(bk_s B, struct bk_threadlist *tlist, bk_flags flags);
+extern void *bk_threadlist_mininum(bk_s B);
+extern void *bk_threadlist_successor(bk_s B, struct bk_threadnode *tnode);
+extern const char *bk_threadnode_name(bk_s B, void *bt);
+extern pthread_t bk_threadnode_threadid(bk_s B, void *bt);
 extern struct bk_threadnode *bk_threadnode_create(bk_s B, const char *threadname, bk_flags flags);
 extern void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags flags);
 #define BK_THREADNODE_DESTROY_DESTROYSELF	0x1
 #ifdef BK_USING_PTHREADS
 extern pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *threadname, void *(*start)(bk_s B, void *opaque), void *opaque, bk_flags flags);
-#define BK_THREAD_CREATE_JOIN  1		///< Allow thread to be joinable
+#define BK_THREAD_CREATE_JOIN  		0x1	///< Allow thread to be joinable
+#define BK_THREAD_MAIN_THREAD_NAME	"__MAIN__" ///< Name of the unnamable first thread
 extern void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadnode *tnode, bk_flags flags);
 extern void bk_thread_kill_others(bk_s B, bk_flags flags);
 extern void *bk_monitor_memory_thread(bk_s B, void *opaque);
@@ -2848,7 +2856,7 @@ struct bk_shmmap_header
  */
 struct bk_shmmap
 {
-  char		          *sm_name;			///< Name of shm allocation
+  char			  *sm_name;			///< Name of shm allocation
   struct bk_shmmap_header *sm_addr;			///< Location of shared memory segment (starting with header)
   struct bk_shmmap_client *sm_userbucket;		///< Pointer to client's userbucket (empty for creator)
   mqd_t			   sm_creatorcmds;		///< OOB communication from client to shm creator
@@ -2971,6 +2979,79 @@ extern void bk_procinfo_destroy(bk_s B, dict_h bpi_list);
 // Inverse of erf().
 extern double bk_erfinv(double x);
 #define BK_ERFINV(x) bk_erfinv(x)
+
+/**
+ * Type of dynamic stat values
+ */
+typedef enum
+{
+  DynamicStatsValueTypeInt32,
+  DynamicStatsValueTypeUInt32,
+  DynamicStatsValueTypeInt64,
+  DynamicStatsValueTypeUInt64,
+  DynamicStatsValueTypeFloat,
+  DynamicStatsValueTypeDouble,
+  DynamicStatsValueTypeString,
+} bk_dynamic_stats_value_type_e;
+
+
+/**
+ * Access type of dynamic stat values
+ */
+typedef enum
+{
+  DynamicStatsAccessTypeDirect,
+  DynamicStatsAccessTypeIndirect,
+} bk_dynamic_stats_access_type_e;
+
+
+typedef union
+{
+  int32_t			bdsv_int32;
+  u_int32_t			bdsv_uint32;
+  int64_t			bdsv_int64;
+  u_int64_t			bdsv_uint64;
+  float				bdsv_float;
+  float				bdsv_double;
+  char *			bdsv_string;
+  void *			bdsv_ptr;
+} bk_dynamic_stat_value_u;
+
+typedef void *bk_dynamic_stats_h;
+typedef void *bk_dynamic_stat_h;
+typedef void (*bk_dynamic_stat_destroy_h)(bk_s B, void *data);
+
+#define DynamicStatsAccessTypeNative	DynamicStatsAccessTypeDirect
+#define DynamicStatsAccessTypePointer	DynamicStatsAccessTypeIndirect
+
+/**
+ * Default system dynamic statistic names
+ */
+#define BK_DYNAMIC_STAT_DEFAULT_NAME_PROCESS_ID		"Process ID"
+#define BK_DYNAMIC_STAT_DEFAULT_NAME_PROCESS_START	"Process start time"
+
+
+// bk_dyn_stats.c
+extern bk_dynamic_stats_h bk_dynamic_stats_create(bk_s B, bk_flags flags);
+extern void bk_dynamic_stats_destroy(bk_s B, bk_dynamic_stats_h stats_list);
+extern int bk_dynamic_stat_register(bk_s B, bk_dynamic_stats_h stats_list, const char *name, u_int priority, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_flags flags);
+extern int bk_dynamic_stat_deregister(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_flags flags);
+extern int bk_dynamic_stat_get(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_dynamic_stat_value_u *valuep, bk_dynamic_stats_value_type_e *typep, int *priorityp, void **opaquep, bk_flags flags);
+extern int bk_dynamic_stat_set(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_flags flags, ...);
+extern int bk_dynamic_stat_attr_update(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, int priority, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_flags flags);
+#define BK_DYNAMIC_STAT_UPDATE_FLAG_VALUE_TYPE		0x01
+#define BK_DYNAMIC_STAT_UPDATE_FLAG_ACCESS_TYPE		0x02
+#define BK_DYNAMIC_STAT_UPDATE_FLAG_PRIORITY		0x04
+#define BK_DYNAMIC_STAT_UPDATE_FLAG_OPAQUE		0x10
+#define BK_DYNAMIC_STAT_UPDATE_FLAG_DESTROY_CALLBACK	0x11
+#define BK_DYNAMIC_STAT_UPDATE_FLAG_DESTROY_OPAQUE	0x12
+extern int bk_dynamic_stat_increment(bk_s B, bk_dynamic_stats_h *stats_list, const char *name, bk_flags flags, ...);
+extern int bk_dynamic_stats_getnext(bk_s B, bk_dynamic_stats_h stats_list, bk_dynamic_stat_h *statp, u_int priority, bk_dynamic_stats_value_type_e *typep, bk_dynamic_stat_value_u *valuep, bk_flags flags);
+extern char *bk_dynamic_stats_XML_create(bk_s B, bk_dynamic_stats_h stats_list, u_int priority, const char *prefix, bk_flags flags);
+extern void bk_dynamic_stats_XML_destroy(bk_s B, const char *xml_str, bk_flags flags);
+extern int bk_global_dynamic_stats_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
+extern int bk_dynamic_stat_pid_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
+extern int bk_dynamic_stat_starttime_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
 
 
 #endif /* _BK_h_ */

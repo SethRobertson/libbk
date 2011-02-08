@@ -26,7 +26,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 
 static struct bk_proctitle *bk_general_proctitle_init(bk_s B, int argc, char ***argv, char ***envp, char **program, bk_flags flags);
 static void bk_general_proctitle_destroy(bk_s B, struct bk_proctitle *bkp, bk_flags flags);
-#if 0 /* GCC 4.2.2 dislikes this and we don't using BSD any more anyhow */
+#if 0 /* GCC 4.2.2 dislikes this and we don't use BSD any more anyhow */
 #if #system(bsd) && !defined(HAVE_NSGETENVIRON)
 char **environ __attribute__ ((weak));
 #endif /* #system(bsd) */
@@ -365,7 +365,6 @@ bk_s bk_general_thread_init(bk_s B, const char *name)
   if (B && pthread_mutex_unlock(&BK_GENERAL_WRMUTEX(B)) != 0)
     abort();
 #endif /* BK_USING_PTHREADS */
-
 
   if (!(BK_BT_THREADNAME(B1) = strdup(name)))
     goto error;
