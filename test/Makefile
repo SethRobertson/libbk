@@ -38,6 +38,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		test_mt19937		\
 		test_printbuf		\
 		test_proc		\
+		test_recursive_locks	\
 		test_ringdir		\
 		test_string		\
 		test_string_expand	\

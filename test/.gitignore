@@ -30,3 +30,4 @@ test_string_expand
 test_syscall
 ipctest
 shmmap
+test_recursive_locks

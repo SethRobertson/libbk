@@ -210,8 +210,8 @@ readfile(bk_s B, const char *name, char **bufp, off_t *sizep)
  *
  *	@param B BAKA thread/global state.
  *	@param flags Flags for future use.
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>pid</i> on success.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>stats list</i> on success.
  */
 dict_h
 bk_procinfo_create(bk_s B, bk_flags flags)
@@ -385,7 +385,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
       goto error;
     }
 
-    sscanf(tmpbuf, "%d %s %c %d %d %d %d %d %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld %ld 0 %ld %lu %lu %ld %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %d %d %lu %lu",
+    sscanf(tmpbuf, "%d %s %c %d %d %d %d %d %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld %ld %ld %ld %lu %lu %ld %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %d %d %lu %lu",
 	   &bpi->bpi_pid,
 	   comm,
 	   &bpi->bpi_state,
@@ -405,7 +405,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
 	   &dummy_long,				// cstime
 	   &dummy_long,				// priority
 	   &bpi->bpi_nice,
-	   /* 0 */
+	   &bpi->bpi_num_threads,
 	   &dummy_long,				// itrealvalue
 	   &bpi->bpi_starttime,
 	   &bpi->bpi_vsize,
@@ -498,9 +498,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
  * Destroy a list of procinfo structures
  *
  *	@param B BAKA thread/global state.
- *	@param bpi
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
+ *	@param bpi_list The procinfo list
  */
 void
 bk_procinfo_destroy(bk_s B, dict_h bpi_list)
@@ -535,14 +533,14 @@ bk_procinfo_destroy(bk_s B, dict_h bpi_list)
  *
  *	@param B BAKA thread/global state.
  *	@param flags Flags for future use.
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>pid</i> on success.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return There is no success...
  */
 dict_h
 bk_procinfo_create(bk_s B, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  BK_RETURN(B, -1);
+  BK_RETURN(B, NULL);
 }
 
 
@@ -551,9 +549,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
  * Destroy a list of procinfo structures
  *
  *	@param B BAKA thread/global state.
- *	@param bpi
- *	@return <i>-1</i> on failure.<br>
- *	@return <i>0</i> on success.
+ *	@param bpi_list The procinfo list
  */
 void
 bk_procinfo_destroy(bk_s B, dict_h bpi_list)

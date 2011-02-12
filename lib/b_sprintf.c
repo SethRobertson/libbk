@@ -26,9 +26,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 /*
  * This file exists SOLELY because Insure can't deal with this
  * function. The reasons for this are very much unclear as it seems to deal
- * with other functions very similiar to it just fine. With this one,
- * however, there seems to be trouble with both the function prototype and
- * the function body. At any rate, this function is exerpted because when
+ * with other, very similiar, functions just fine. With this one, however,
+ * there seems to be trouble with both the function prototype and the
+ * function body. At any rate, this function is exerpted because when
  * Insure can't instrument a function, it stops intrumenting the *entire*
  * file. And there are few files where you want Insure's guards *more* than
  * b_string.c. So this file with its one function is not expected to pass

@@ -113,6 +113,9 @@ bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfil
 
   BK_FLAG_SET(BK_GENERAL_FLAGS(B), BK_BGFLAGS_FUNON);
 
+  if (time(&B->bt_general->bg_start_time) == (time_t)-1)
+    goto error;
+
   if (!(B->bt_general->bg_debug = bk_debug_init(B, 0)))
     goto error;
 

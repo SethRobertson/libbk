@@ -22,8 +22,6 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include <pthread_np.h>				// for pthread_set_name_np
 #endif
 
-
-
 /**
  * @file
  * Thread convenience routines
@@ -80,7 +78,6 @@ struct bk_threadlist
   bk_flags		btl_flags;		///< Initialization state flags
 #define BK_THREADLIST_LOCK_INIT			0x1
 #define BK_THREADLIST_CV_INIT			0x2
-#define BK_THREADLIST_MAIN_THREAD_DEFINED	0x4
 };
 
 
@@ -95,6 +92,7 @@ struct bk_threadnode
   pthread_t		btn_thid;		///< Thread identifier
   bk_s			btn_B;			///< Baka environment for thread
   bk_flags		btn_flags;		///< Fun for the future
+#define BK_THREADNODE_FLAG_MAIN_THREAD		0x1
 };
 
 
@@ -118,6 +116,17 @@ static void bk_thread_cleanup(void *opaque);
 static void bk_thread_unlock(void *opaque);
 #endif /* BK_USING_PTHREADS */
 
+
+/**
+ * Support for "recursive" locks. These are locks that protect a single
+ * thread from deadlocking *itself*.
+ */
+struct bk_recursive_lock
+{
+  pthread_key_t		brl_ctr;		///< Key for thread-specific lock counter.
+  pthread_mutex_t	brl_lock;		///< Actual lock
+  bk_flags		brl_flags;		///< Everone needs flags.
+};
 
 
 /**
@@ -347,6 +356,72 @@ void bk_threadlist_destroy(bk_s B, struct bk_threadlist *tlist, bk_flags flags)
 
 
 /**
+ * Obtain the lock on the tlist.
+ *
+ *	@param B BAKA thread/global state.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_threadlist_lock(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_threadlist *btl = BK_GENERAL_TLIST(B);
+
+  if (!btl)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_lock(&(btl->btl_lock)) != 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not obtain thread list lock: %s\n", strerror(errno));
+    BK_RETURN(B, -1);
+  }
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B, 0);
+}
+
+
+
+
+/**
+ * Obtain the lock on the tlist.
+ *
+ *	@param B BAKA thread/global state.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_threadlist_unlock(bk_s B)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_threadlist *btl = BK_GENERAL_TLIST(B);
+
+  if (!btl)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+#ifdef BK_USING_PTHREADS
+  if (pthread_mutex_unlock(&(btl->btl_lock)) != 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not release thread list lock: %s\n", strerror(errno));
+    BK_RETURN(B, -1);
+  }
+#endif /* BK_USING_PTHREADS */
+
+  BK_RETURN(B, 0);
+}
+
+
+
+
+/**
  * Get the first entry in the tlist
  *
  *	@param B BAKA thread/global state.
@@ -354,13 +429,16 @@ void bk_threadlist_destroy(bk_s B, struct bk_threadlist *tlist, bk_flags flags)
  *	@return opaque <i>threadnode</i> on success.
  */
 void *
-bk_threadlist_mininum(bk_s B)
+bk_threadlist_minimum(bk_s B)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_threadlist *btl = BK_GENERAL_TLIST(B);
 
   if (!btl)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
+  }
 
   BK_RETURN(B, btl_minimum(btl->btl_list));
 }
@@ -380,8 +458,11 @@ bk_threadlist_successor(bk_s B, struct bk_threadnode *bt)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_threadlist *btl = BK_GENERAL_TLIST(B);
 
-  if (!btl)
+  if (!btl || !bt)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
+  }
 
   BK_RETURN(B, btl_successor(btl->btl_list, bt));
 }
@@ -509,13 +590,14 @@ bk_threadnode_threadid(bk_s B, void *btn)
  * In ``child'' disable cancellation, disable signals, install
  * tracking list cleanup handler, make detached, start user processing
  *
- * Note on the special 'first' thread:
- * When pthread_create() is called for the first time, the original
- * "heavyweight" process is divided into *2* threads. In the original libbk
- * API there was no accounting for the second of these 2 threads -- and,
- * still today, there remains no way to name it. So this code creates
- * accounting threadnode for this unnamable thread and hardcodes the name
- * to the value of BK_THREAD_MAIN_THREAD_NAME.
+ * Note on the special 'first' thread: When pthread_create() is called for
+ * the first time, the original "heavyweight" process is divided into *2*
+ * threads. In the original libbk API there was no accounting for the
+ * second of these 2 threads -- and, still today, there remains no way to
+ * name it. So this code creates accounting threadnode for this unnamable
+ * thread and sets the name of the thread to either
+ * "argv[0].BK_THREAD_MAIN_THREAD_NAME" or the value set in the
+ * configuration file.
  *
  * THREADS: MT-SAFE
  *
@@ -524,7 +606,7 @@ bk_threadnode_threadid(bk_s B, void *btn)
  * @param threadname Name of thread for tracking purposes
  * @param start Function to call to start user processing
  * @param opaque Opaque data for function
- * @param flags BK_THREAD_CREATE_JOIN
+ * @param flags BK_THREAD_CREATE_FLAG_JOIN
  * @return <i>NULL</i> on error
  * @return <br><i>thread id</i> on success
  */
@@ -539,13 +621,17 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
   int ret;
   int attr_initialized = 0;
   int threadnode_cnt = 0;
+  char *main_thread_name;
+  char *main_thread_name_allocated = NULL;
 
   /*
-   * 'start' is required *except* when threadname is
-   * BK_THREAD_MAIN_THREAD_NAME. In that case 'start' must be NULL.
+   * 'start' is required *except* when BK_THREAD_CREATE_FLAG_MAIN_THREAD is
+   * set. In that case 'start' must be NULL (and the converse is true as
+   * well).
    */
-  if (!tlist || !threadname || (!start && !BK_STREQ(threadname, BK_THREAD_MAIN_THREAD_NAME)) ||
-      (start && BK_STREQ(threadname, BK_THREAD_MAIN_THREAD_NAME)))
+  if (!tlist || !threadname ||
+      (!start && BK_FLAG_ISCLEAR(flags, BK_THREAD_CREATE_FLAG_MAIN_THREAD)) ||
+      (start && BK_FLAG_ISSET(flags, BK_THREAD_CREATE_FLAG_MAIN_THREAD)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_RETURN(B, NULL);
@@ -585,14 +671,15 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
     goto error;
   }
 
-  if (!BK_STREQ(threadname, BK_THREAD_MAIN_THREAD_NAME))
+
+  if (BK_FLAG_ISCLEAR(flags, BK_THREAD_CREATE_FLAG_MAIN_THREAD))
   {
     /*
      * This tcomm and attr code used to happen before the mutex was locked
      * (and reasonably so). It has been moved so as to make it clearer what
-     * work needs to happen when threadname is not
-     * BK_THREAD_MAIN_THREAD_NAME (the second and subsequent calls to
-     * bk_thread_create()) and when it is (the first call to
+     * work needs to happen when the BK_THREAD_CREATE_FLAG_MAIN_THREAD is
+     * not set (as will be the case on the second and all subsequent calls
+     * to bk_thread_create()) and when it is (the first call to
      * bk_thread_create()). So the assumption is: that this function is
      * called sufficiently infrequently that spending a few extra moments
      * locking the btl_list is not going to have any measurable impact on
@@ -625,7 +712,7 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
     }
     attr_initialized = 1;
 
-    if (BK_FLAG_ISSET(flags, BK_THREAD_CREATE_JOIN))
+    if (BK_FLAG_ISSET(flags, BK_THREAD_CREATE_FLAG_JOIN))
     {
       joinstate = PTHREAD_CREATE_JOINABLE;
     }
@@ -660,6 +747,7 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
      * call to pthread_create() and populate the new threadnode's threadid
      * with pthread_self().
      */
+    BK_FLAG_SET(tnode->btn_flags, BK_THREADNODE_FLAG_MAIN_THREAD);
     tnode->btn_thid = pthread_self();
     tnode->btn_B = B;
   }
@@ -679,10 +767,27 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
 
   if (threadnode_cnt == 1)
   {
-    if (!(bk_thread_create(B, tlist, BK_THREAD_MAIN_THREAD_NAME, NULL, NULL, flags)))
+    if (!(main_thread_name = BK_GWD(B, "pthread.main_thread.name", NULL)))
+    {
+      if (!(main_thread_name_allocated = bk_string_alloc_sprintf(B, 0, 0, "%s.%s", BK_GENERAL_PROGRAM(B), BK_THREAD_MAIN_THREAD_NAME)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not create main thread name: %s\n", strerror(errno));
+	goto error;
+      }
+      main_thread_name = main_thread_name_allocated;
+    }
+
+    if (!(bk_thread_create(B, tlist, main_thread_name, NULL, NULL, flags | BK_THREAD_CREATE_FLAG_MAIN_THREAD)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not create threadnode for the special __MAIN__ thread\n");
       goto error;
+    }
+
+    if (main_thread_name_allocated)
+    {
+      free(main_thread_name_allocated);
+      main_thread_name_allocated = NULL;
+      main_thread_name = NULL; // This is pedantic, but some memory checkers might get annoyed otherwise.
     }
   }
 
@@ -703,6 +808,9 @@ pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *thr
 
   if (attr_initialized)
     pthread_attr_destroy(&attr);
+
+  if (main_thread_name_allocated)
+    free(main_thread_name_allocated);
 
   BK_RETURN(B, NULL);
 }
@@ -1035,8 +1143,319 @@ void *bk_monitor_int_thread(bk_s B, void *opaque)
   BK_RETURN(B, NULL);
 }
 
+
+
 #endif /* BK_USING_PTHREADS */
 
+
+#ifdef BK_USING_PTHREADS
+/**
+ * Destructor function for the counter in the recursive lock feature. This is not a BAKA API.
+ *
+ */
+static void
+recursive_lock_ctr_destroy(void *buf)
+{
+  free(buf); // This function is only called if buf is non-NULL, so no need to check
+  return;
+}
+
+
+
+#define BK_BRL_FLAG_KEY_CREATED		0x1
+#define BK_BRL_FLAG_MUTEX_CREATED	0x2
+/**
+ * Create a recursive lock.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+bk_recursive_lock_h
+bk_recursive_lock_create(bk_s B, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_recursive_lock *brl = NULL;
+
+  if (!(BK_CALLOC(brl)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not calloc brl: %s\n", strerror(errno));
+    goto error;
+  }
+
+  bk_debug_printf_and(B,32,"Creating recursive lock: %p\n", brl);
+
+
+  if (pthread_key_create(&(brl->brl_ctr), recursive_lock_ctr_destroy) != 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create the pthread key for the recursive lock counter: %s\n", strerror(errno));
+    goto error;
+  }
+
+  bk_debug_printf_and(B,32,"Created key: %p\n", brl);
+
+  BK_FLAG_SET(brl->brl_flags, BK_BRL_FLAG_KEY_CREATED);
+
+  if (pthread_mutex_init(&(brl->brl_lock), NULL) != 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create the mutex for the recursive lock: %s\n", strerror(errno));
+    goto error;
+  }
+
+  bk_debug_printf_and(B,32,"Created the mutex: %p\n", brl);
+  BK_FLAG_SET(brl->brl_flags, BK_BRL_FLAG_MUTEX_CREATED);
+
+  bk_debug_printf_and(B,32,"Recursive lock created: %p\n", brl);
+  BK_RETURN(B, brl);
+
+ error:
+  if (brl)
+    bk_recursive_lock_destroy(B, brl);
+
+  BK_RETURN(B, NULL);
+}
+
+
+
+/**
+ * Destroy a recursive lock
+ *
+ *	@param B BAKA thread/global state.
+ *	@param recursive_lock The recursive lock to destroy.
+ */
+void
+bk_recursive_lock_destroy(bk_s B, bk_recursive_lock_h recursive_lock)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_recursive_lock *brl = (struct bk_recursive_lock *)recursive_lock;
+
+  if (!brl)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  bk_debug_printf_and(B,32,"Destroying recursive lock: %p\n", brl);
+
+
+  if (BK_FLAG_ISSET(brl->brl_flags, BK_BRL_FLAG_MUTEX_CREATED))
+  {
+    pthread_mutex_destroy(&(brl->brl_lock));
+    bk_debug_printf_and(B,32,"Destroyed mutex: %p\n", brl);
+  }
+
+  if (BK_FLAG_ISSET(brl->brl_flags, BK_BRL_FLAG_KEY_CREATED))
+  {
+    pthread_key_delete(brl->brl_ctr);
+    bk_debug_printf_and(B,32,"Destroyed key: %p\n", brl);
+  }
+
+  free(brl);
+  bk_debug_printf_and(B,32,"Destroyed recursive lock\n");
+
+  BK_VRETURN(B);
+}
+
+
+
+/**
+ * Grab a recusive lock. Yes, the function name is annoying, but
+ * bk_recursive_lock_lock() would be really noisome, no?
+ *
+ *	@param B BAKA thread/global state.
+ *	@param recursive_lock The recursive lock to grab.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_recursive_lock_grab(bk_s B, bk_recursive_lock_h recursive_lock, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_recursive_lock *brl = (struct bk_recursive_lock *)recursive_lock;
+  u_int *ctrp = NULL;
+  int ctrp_needs_free = 0;
+
+  if (!brl)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  bk_debug_printf_and(B,32,"Grabbing recursive lock: %p: %lu\n", brl, (unsigned long)(pthread_self()));
+
+  if (!(ctrp = pthread_getspecific(brl->brl_ctr)))
+  {
+    bk_debug_printf_and(B,32,"Recursive lock uninitialized: %p: %lu\n", brl, (unsigned long)(pthread_self()));
+
+    /*
+     * Sigh I wish this would be an error, but we have to assume that this
+     * is because the current thread has not yet allocated the memory and
+     * called pthread_setspecific() for the first time.
+     */
+    if (!(BK_CALLOC(ctrp)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not calloc ctrp: %s\n", strerror(errno));
+      goto error;
+    }
+
+    ctrp_needs_free = 1;
+
+    if (pthread_setspecific(brl->brl_ctr, ctrp) != 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set the data for the recusive lock counter: %s\n", strerror(errno));
+      goto error;
+    }
+
+    ctrp_needs_free = 0;
+
+    bk_debug_printf_and(B,32,"Recursive lock now initialized: %p: %lu\n", brl, (unsigned long)(pthread_self()));
+  }
+
+  if (!*ctrp)
+  {
+    bk_debug_printf_and(B,32,"Recursive lock not currently held: %p: %lu\n", brl, (unsigned long)(pthread_self()));
+    if (pthread_mutex_lock(&(brl->brl_lock)) != 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not obtain (recursive) lock: %s\n", strerror(errno));
+      goto error;
+    }
+  }
+
+  bk_debug_printf_and(B,32,"Recursive lock cnt: %u->%u, %p: %lu\n", *ctrp, *ctrp+1, brl, (unsigned long)(pthread_self()));
+
+  (*ctrp)++;
+
+  BK_RETURN(B, 0);
+
+ error:
+  if (ctrp_needs_free)
+    recursive_lock_ctr_destroy(ctrp);
+
+  BK_RETURN(B, -1);
+}
+
+/**
+ * Release a recursive lock
+ *
+ *	@param B BAKA thread/global state.
+ *	@param recursive_lock The recursive lock to grab.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_recursive_lock_release(bk_s B, bk_recursive_lock_h recursive_lock, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_recursive_lock *brl = (struct bk_recursive_lock *)recursive_lock;
+  u_int *ctrp = NULL;
+
+  if (!brl)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  bk_debug_printf_and(B,32,"Releasing recursive lock: %p: %lu\n", brl, (unsigned long)(pthread_self()));
+
+  if (!(ctrp = pthread_getspecific(brl->brl_ctr)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not extract counter from recursive lock we claim to hold\n");
+    goto error;
+  }
+
+  if (!*ctrp)
+  {
+    /*
+     * The debug message contains useful developer info not relavent to the
+     * error message, so we need both.
+     */
+    bk_debug_printf_and(B,32,"YIKES attempt to unlock unheld lock: %p: %lu\n", brl, (unsigned long)(pthread_self()));
+    bk_error_printf(B, BK_ERR_ERR, "Attempt to unlock unheld recursive lock\n");
+    goto error;
+  }
+
+  bk_debug_printf_and(B,32,"Recursive lock cnt: %u->%u, %p: %lu\n", *ctrp, *ctrp-1, brl, (unsigned long)(pthread_self()));
+
+  (*ctrp)--;
+
+  if (!*ctrp)
+  {
+    if (pthread_mutex_unlock(&(brl->brl_lock)) != 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not unlock mutex: %s\n", strerror(errno));
+      goto error;
+    }
+    bk_debug_printf_and(B,32,"Lock is now unheld: %p\n", brl);
+  }
+
+  BK_RETURN(B, 0);
+
+ error:
+  BK_RETURN(B, -1);
+}
+
+
+#else /* BK_USING_PTHREADS */
+
+/*
+ * The following are versions of the recursive lock functions for use when
+ * pthreads are not in use. They always "succeed" save for argument
+ * checking because arg checking is a generally useful thing during
+ * development. See the pthread-enabled versions (immediately above) for
+ * details on these functions.
+ *
+ */
+bk_recursive_lock_h
+bk_recursive_lock_create(bk_s B, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  /*
+   * We need to return something here that is both non-NULL and (I hope)
+   * won't be considered "wild" to Insure.
+   */
+  BK_RETURN(B, (bk_recursive_lock_h)bk_recursive_lock_create);
+}
+
+void
+bk_recursive_lock_destroy(bk_s B, bk_recursive_lock_h recursive_lock)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  if (!recursive_lock)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+  BK_VRETURN(B);
+}
+
+int
+bk_recursive_lock_grab(bk_s B, bk_recursive_lock_h recursive_lock, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  if (!recursive_lock)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  BK_RETURN(B, -1);
+}
+
+int
+bk_recursive_lock_release(bk_s B, bk_recursive_lock_h recursive_lock, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  if (!recursive_lock)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+  BK_RETURN(B, -1);
+}
+
+#endif /* BK_USING_PTHREADS */
 
 
 /*

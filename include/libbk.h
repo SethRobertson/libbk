@@ -332,7 +332,8 @@ struct bk_general
   struct bk_proctitle	*bg_proctitle;		///< Process title info
   struct bk_config	*bg_config;		///< Configuration info
   struct bk_child	*bg_child;		///< Tracked child info
-  char			*bg_funstatfile;		///< Filename to output funperfstats
+  time_t		bg_start_time;		///< Time process started
+  char			*bg_funstatfile;	///< Filename to output funperfstats
   char			*bg_program;		///< Name of program
   bk_flags		bg_flags;		///< Flags
 #define BK_BGFLAGS_FUNON	0x01		///< Is function tracing on?
@@ -352,6 +353,7 @@ struct bk_general
 #define BK_GENERAL_TLIST(B)	(*((B) ? &((B)->bt_general->bg_tlist):(struct bk_threadlist **)&bk_nullptr)) ///< Access the bk_general thread list
 #define BK_GENERAL_PROCTITLE(B) (*((B) ? &((B)->bt_general->bg_proctitle):(struct bk_proctitle **)&bk_nullptr)) ///< Access the bk_general process title state
 #define BK_GENERAL_FUNSTATFILE(B) (*((B) ? &((B)->bt_general->bg_funstatfile):(char **)&bk_nullptr)) ///< Access the bk_general function statistics output filename
+#define BK_GENERAL_START_TIME(B) ((B) ? ((B)->bt_general->bg_start_time):(time_t)-1) ///< Access the bk_general start time info
 #define BK_GENERAL_CONFIG(B)	(*((B) ? &((B)->bt_general->bg_config):(struct bk_config **)&bk_nullptr)) ///< Access the bk_general config info
 #define BK_GENERAL_PROGRAM(B)	(*((B) ? &((B)->bt_general->bg_program):(char **)&bk_nullptr)) ///< Access the bk_general program name
 #define BK_GENERAL_FLAGS(B)	(*((B) ? &((B)->bt_general->bg_flags):(unsigned *)&bk_zerouint)) ///< Access the bk_general flags
@@ -2377,8 +2379,15 @@ extern int bk_child_istart(bk_s B, struct bk_child *bchild, void (*cc_callback)(
 extern void bk_child_isigfun(bk_s B, struct bk_run *run, int signum, void *opaque);
 
 /* b_thread.c */
+typedef void *bk_recursive_lock_h;
 extern int bk_atomic_addition(bk_s B, struct bk_atomic_cntr *bac, int delta, int *result, bk_flags flags);
 extern int bk_atomic_add_init(bk_s B, struct bk_atomic_cntr *bac, int start, bk_flags flags);
+extern int bk_threadlist_lock(bk_s B);
+extern int bk_threadlist_unlock(bk_s B);
+extern bk_recursive_lock_h bk_recursive_lock_create(bk_s B, bk_flags flags);
+extern void bk_recursive_lock_destroy(bk_s B, bk_recursive_lock_h recursive_lock);
+extern int bk_recursive_lock_grab(bk_s B, bk_recursive_lock_h recursive_lock, bk_flags flags);
+extern int bk_recursive_lock_release(bk_s B, bk_recursive_lock_h recursive_lock, bk_flags flags);
 #ifdef BK_USING_PTHREADS
 extern int bk_pthread_mutex_lock(bk_s B, struct bk_run *run, pthread_mutex_t *mutex, bk_flags flags);
 #endif /* BK_USING_PTHREADS */
@@ -2475,7 +2484,7 @@ extern void bk_stat_node_add(bk_s B, struct bk_stat_node *bnode, u_quad_t usec, 
 /* b_thread.c */
 extern struct bk_threadlist *bk_threadlist_create(bk_s B, bk_flags flags);
 extern void bk_threadlist_destroy(bk_s B, struct bk_threadlist *tlist, bk_flags flags);
-extern void *bk_threadlist_mininum(bk_s B);
+extern void *bk_threadlist_minimum(bk_s B);
 extern void *bk_threadlist_successor(bk_s B, struct bk_threadnode *tnode);
 extern const char *bk_threadnode_name(bk_s B, void *bt);
 extern pthread_t bk_threadnode_threadid(bk_s B, void *bt);
@@ -2484,7 +2493,8 @@ extern void bk_threadnode_destroy(bk_s B, struct bk_threadnode *tnode, bk_flags 
 #define BK_THREADNODE_DESTROY_DESTROYSELF	0x1
 #ifdef BK_USING_PTHREADS
 extern pthread_t *bk_thread_create(bk_s B, struct bk_threadlist *tlist, const char *threadname, void *(*start)(bk_s B, void *opaque), void *opaque, bk_flags flags);
-#define BK_THREAD_CREATE_JOIN  		0x1	///< Allow thread to be joinable
+#define BK_THREAD_CREATE_FLAG_JOIN  		0x1	///< Allow thread to be joinable
+#define BK_THREAD_CREATE_FLAG_MAIN_THREAD 	0x2	///< This is the special MAIN thread.
 #define BK_THREAD_MAIN_THREAD_NAME	"__MAIN__" ///< Name of the unnamable first thread
 extern void bk_thread_tnode_done(bk_s B, struct bk_threadlist *tlist, struct bk_threadnode *tnode, bk_flags flags);
 extern void bk_thread_kill_others(bk_s B, bk_flags flags);
@@ -2940,6 +2950,7 @@ struct bk_procinfo
   u_long	bpi_utime;			// User mode time (units are arch specific)
   u_long	bpi_stime;			// Kernel mode time (units are arch specific)
   long		bpi_nice;			// Standard nice value ([-19, 19])
+  long		bpi_num_threads;		// Number of threads
   u_long	bpi_starttime;			// Startime (units are arch specific)
   u_long	bpi_vsize;			// Virtual memory size
   long		bpi_rss;			// Resident set size
@@ -2979,6 +2990,51 @@ extern void bk_procinfo_destroy(bk_s B, dict_h bpi_list);
 // Inverse of erf().
 extern double bk_erfinv(double x);
 #define BK_ERFINV(x) bk_erfinv(x)
+
+
+/**
+ * Default system dynamic statistic names
+ */
+#define BK_DYNAMIC_STAT_PREFIX				"statistic"
+#define BK_DYNAMIC_STAT_NAME_PREFIX			BK_DYNAMIC_STAT_PREFIX".name"
+#define BK_DYNAMIC_STAT_PRIORITY_PREFIX			BK_DYNAMIC_STAT_PREFIX".priority"
+
+
+#define BK_DYNAMIC_STAT_NAME_PID			"pid"
+#define BK_DYNAMIC_STAT_KEY_PID				BK_DYNAMIC_STAT_NAME_PREFIX"."BK_DYNAMIC_STAT_NAME_PID
+#define BK_DYNAMIC_STAT_DEFAULT_KEY_PID			"Process ID"
+#define BK_DYNAMIC_STAT_PRIOROTY_PID			BK_DYNAMIC_STAT_PRIORITY_PREFIX"."BK_DYNAMIC_STAT_NAME_PID
+#define BK_DYNAMIC_STAT_DEFAULT_PRIORITY_PID		"0"
+
+#define BK_DYNAMIC_STAT_NAME_PROC_START			"start_time"
+#define BK_DYNAMIC_STAT_KEY_PROC_START			BK_DYNAMIC_STAT_NAME_PREFIX"."BK_DYNAMIC_STAT_NAME_PROC_START
+#define BK_DYNAMIC_STAT_DEFAULT_KEY_PROC_START		"Process start time"
+#define BK_DYNAMIC_STAT_PRIOROTY_PROC_START		BK_DYNAMIC_STAT_PRIORITY_PREFIX"."BK_DYNAMIC_STAT_NAME_PROC_START
+#define BK_DYNAMIC_STAT_DEFAULT_PRIORITY_PROC_START	"0"
+
+#define BK_DYNAMIC_STAT_NAME_ELAPSED_TIME		"elapsed_time"
+#define BK_DYNAMIC_STAT_KEY_ELAPSED_TIME		BK_DYNAMIC_STAT_NAME_PREFIX"."BK_DYNAMIC_STAT_NAME_ELAPSED_TIME
+#define BK_DYNAMIC_STAT_DEFAULT_KEY_ELAPSED_TIME	"Process elapsed time (seconds)"
+#define BK_DYNAMIC_STAT_PRIOROTY_ELAPSED_TIME		BK_DYNAMIC_STAT_PRIORITY_PREFIX"."BK_DYNAMIC_STAT_NAME_ELAPSED_TIME
+#define BK_DYNAMIC_STAT_DEFAULT_PRIORITY_ELAPSED_TIME	"0"
+
+#define BK_DYNAMIC_STAT_NAME_VIRT_MEM			"virtural_memory"
+#define BK_DYNAMIC_STAT_KEY_VIRT_MEM			BK_DYNAMIC_STAT_NAME_PREFIX"."BK_DYNAMIC_STAT_NAME_VIRT_MEM
+#define BK_DYNAMIC_STAT_DEFAULT_KEY_VIRT_MEM		"Total virtual memory"
+#define BK_DYNAMIC_STAT_PRIOROTY_VIRT_MEM		BK_DYNAMIC_STAT_PRIORITY_PREFIX"."BK_DYNAMIC_STAT_NAME_VIRT_MEM
+#define BK_DYNAMIC_STAT_DEFAULT_PRIORITY_VIRT_MEM	"0"
+
+#define BK_DYNAMIC_STAT_NAME_RSS_SZ			"resident_size"
+#define BK_DYNAMIC_STAT_KEY_RSS_SZ			BK_DYNAMIC_STAT_NAME_PREFIX"."BK_DYNAMIC_STAT_NAME_RSS_SZ
+#define BK_DYNAMIC_STAT_DEFAULT_KEY_RSS_SZ		"Resident set size"
+#define BK_DYNAMIC_STAT_PRIOROTY_RSS_SZ			BK_DYNAMIC_STAT_PRIORITY_PREFIX"."BK_DYNAMIC_STAT_NAME_RSS_SZ
+#define BK_DYNAMIC_STAT_DEFAULT_PRIORITY_RSS_SZ		"0"
+
+#define BK_DYNAMIC_STAT_NAME_TOTAL_CPU_TIME		"total_cpu_time"
+#define BK_DYNAMIC_STAT_KEY_TOTAL_CPU_TIME		BK_DYNAMIC_STAT_NAME_PREFIX"."BK_DYNAMIC_STAT_NAME_TOTAL_CPU_TIME
+#define BK_DYNAMIC_STAT_DEFAULT_KEY_TOTAL_CPU_TIME	"Total CPU time"
+#define BK_DYNAMIC_STAT_PRIOROTY_TOTAL_CPU_TIME		BK_DYNAMIC_STAT_PRIORITY_PREFIX"."BK_DYNAMIC_STAT_NAME_TOTAL_CPU_TIME
+#define BK_DYNAMIC_STAT_DEFAULT_PRIORITY_TOTAL_CPU_TIME	"0"
 
 /**
  * Type of dynamic stat values
@@ -3020,25 +3076,19 @@ typedef union
 typedef void *bk_dynamic_stats_h;
 typedef void *bk_dynamic_stat_h;
 typedef void (*bk_dynamic_stat_destroy_h)(bk_s B, void *data);
+typedef int (*bk_dynamic_stat_update_h)(bk_s B, bk_dynamic_stats_h stats_list, bk_dynamic_stat_h dyn_stat, bk_flags flags);
 
 #define DynamicStatsAccessTypeNative	DynamicStatsAccessTypeDirect
 #define DynamicStatsAccessTypePointer	DynamicStatsAccessTypeIndirect
 
-/**
- * Default system dynamic statistic names
- */
-#define BK_DYNAMIC_STAT_DEFAULT_NAME_PROCESS_ID		"Process ID"
-#define BK_DYNAMIC_STAT_DEFAULT_NAME_PROCESS_START	"Process start time"
-
-
-// bk_dyn_stats.c
+// b_dyn_stats.c
 extern bk_dynamic_stats_h bk_dynamic_stats_create(bk_s B, bk_flags flags);
 extern void bk_dynamic_stats_destroy(bk_s B, bk_dynamic_stats_h stats_list);
-extern int bk_dynamic_stat_register(bk_s B, bk_dynamic_stats_h stats_list, const char *name, u_int priority, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_flags flags);
+int bk_dynamic_stat_register(bk_s B, bk_dynamic_stats_h stats_list, const char *name, u_int priority, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, bk_dynamic_stat_update_h update_callback, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_flags flags);
 extern int bk_dynamic_stat_deregister(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_flags flags);
 extern int bk_dynamic_stat_get(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_dynamic_stat_value_u *valuep, bk_dynamic_stats_value_type_e *typep, int *priorityp, void **opaquep, bk_flags flags);
 extern int bk_dynamic_stat_set(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_flags flags, ...);
-extern int bk_dynamic_stat_attr_update(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, int priority, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_flags flags);
+extern int bk_dynamic_stat_attr_update(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, int priority, bk_dynamic_stat_update_h update_callback, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_flags flags);
 #define BK_DYNAMIC_STAT_UPDATE_FLAG_VALUE_TYPE		0x01
 #define BK_DYNAMIC_STAT_UPDATE_FLAG_ACCESS_TYPE		0x02
 #define BK_DYNAMIC_STAT_UPDATE_FLAG_PRIORITY		0x04
@@ -3050,8 +3100,13 @@ extern int bk_dynamic_stats_getnext(bk_s B, bk_dynamic_stats_h stats_list, bk_dy
 extern char *bk_dynamic_stats_XML_create(bk_s B, bk_dynamic_stats_h stats_list, u_int priority, const char *prefix, bk_flags flags);
 extern void bk_dynamic_stats_XML_destroy(bk_s B, const char *xml_str, bk_flags flags);
 extern int bk_global_dynamic_stats_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
+extern int bk_dynamic_stats_demand_update(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
 extern int bk_dynamic_stat_pid_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
-extern int bk_dynamic_stat_starttime_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
+extern int bk_dynamic_stat_start_time_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
+extern int bk_dynamic_stat_elapsed_time_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
+extern int bk_dynamic_stat_virtual_memory_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
+extern int bk_dynamic_stat_resident_memory_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
+extern int bk_dynamic_stat_total_cpu_time_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags flags);
 
 
 #endif /* _BK_h_ */
