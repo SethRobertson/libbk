@@ -31,3 +31,4 @@ test_syscall
 ipctest
 shmmap
 test_recursive_locks
+test_stats

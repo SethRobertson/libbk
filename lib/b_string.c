@@ -1859,12 +1859,15 @@ bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, v
       size = n+1; /* precisely what is needed */
     else           /* glibc 2.0 */
       size *= 2;  /* twice the old size */
+
     if (!(tmpp = realloc (p, size)))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not realloc %d byte string\n", size);
       goto error;
     }
-    else if (!flags && warned < size)
+    p = tmpp;
+
+    if (!flags && warned < size)
     {
       warned = size;
       bk_error_printf(B, BK_ERR_ERR, "Inefficient use of bk_string_alloc_*sprintf - use chunksize > %d, or better yet, bk_vstr_cat\n", size);
@@ -1873,7 +1876,6 @@ bk_string_alloc_vsprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, v
       else
 	bk_fun_trace(B, NULL, BK_ERR_ERR, 0);
     }
-    p = tmpp;
   }
 
   if (BK_FLAG_ISSET(flags, BK_STRING_ALLOC_SPRINTF_FLAG_STINGY_MEMORY))

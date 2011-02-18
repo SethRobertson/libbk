@@ -24,6 +24,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #include "libbk_internal.h"
 
 
+static void nuke_scandir_proclist(bk_s B, int num_procs, struct dirent **proclist, bk_flags flags);
 static struct bk_procinfo *bpi_create(bk_s B);
 static void bpi_destroy(bk_s B, struct bk_procinfo *bpi);
 
@@ -219,7 +220,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   dict_h bpi_list = NULL;
   struct dirent **proclist;
-  int num_procs;
+  int num_procs = 0;
   int proc_index;
   char *procdir_name = NULL;
   char *tmpname = NULL;
@@ -264,13 +265,25 @@ bk_procinfo_create(bk_s B, bk_flags flags)
 
     if (access(tmpname, R_OK) < 0)
     {
-      if (errno == EACCES)
+      /*
+       * <TRICKY>
+       * There is a race condition here where a process which existed when
+       * the /proc was scanned has completed and gone away before its
+       * information can be collected. In this case the environ file won't
+       * exist to be read. Furthermore this race condition is not merely
+       * hypothetical; it's loss has been frequently obvserved. Of course
+       * there is even more serious race condition where a given process id
+       * is *reused* between the time /proc is scanned and when this loop
+       * occurs, but *that* RC *is* (I hope) purely hypothetical.
+       */
+
+      if ((errno == EACCES) || (errno == ENOENT))
 	goto drop_procinfo;
 
       bk_error_printf(B, BK_ERR_ERR, "Could not access %s for reading: %s\n", tmpname, strerror(errno));
       goto error;
 
-    }
+      }
 
     if (readfile(B, tmpname, &tmpbuf, &tmpsz) < 0)
     {
@@ -331,7 +344,7 @@ bk_procinfo_create(bk_s B, bk_flags flags)
       goto error;
     }
 
-    if (!BK_MALLOC_LEN(tmpbuf, PATH_MAX+1))
+    if (!BK_CALLOC_LEN(tmpbuf, PATH_MAX+1))
     {
       bk_error_printf(B, BK_ERR_ERR, "Could not allocate a buffer of size %d: %s\n", PATH_MAX + 1, strerror(errno));
       goto error;
@@ -339,22 +352,17 @@ bk_procinfo_create(bk_s B, bk_flags flags)
 
     if (readlink(tmpname, tmpbuf, PATH_MAX+1) < 0)
     {
-      if (errno != ENOENT)
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not read symlink %s: %s\n", tmpname, strerror(errno));
-	goto error;
-      }
-
-      // NB bpi->bpi_exec_path MAY BE NULL
+      if (errno == ENOENT)
+	goto drop_procinfo;
+      bk_error_printf(B, BK_ERR_ERR, "Could not read symlink %s: %s\n", tmpname, strerror(errno));
+      goto error;
     }
-    else
+
+    // Since tmpbuf is probably way too long, store a shorter copy.
+    if (!(bpi->bpi_exec_path = strdup(tmpbuf)))
     {
-      // Since tmpbuf is probably way too long, store a shorter copy.
-      if (!(bpi->bpi_exec_path = strdup(tmpbuf)))
-      {
-	bk_error_printf(B, BK_ERR_ERR, "Could not copy string \"%s\": %s\n", tmpname, strerror(errno));
-	goto error;
-      }
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy string \"%s\": %s\n", tmpname, strerror(errno));
+      goto error;
     }
 
     free(tmpbuf);
@@ -372,6 +380,8 @@ bk_procinfo_create(bk_s B, bk_flags flags)
 
     if (readfile(B, tmpname, &tmpbuf, &tmpsz) < 0)
     {
+      if (errno == ENOENT)
+	goto drop_procinfo;
       bk_error_printf(B, BK_ERR_ERR, "Could not read %s\n", tmpname);
       goto error;
     }
@@ -447,10 +457,10 @@ bk_procinfo_create(bk_s B, bk_flags flags)
     }
     bpi = NULL;
 
+  drop_procinfo:
     free(procdir_name);
     procdir_name = NULL;
 
-  drop_procinfo:
     if  (tmpname)
       free(tmpname);
     tmpname = NULL;
@@ -459,14 +469,12 @@ bk_procinfo_create(bk_s B, bk_flags flags)
       free(tmpbuf);
     tmpbuf = NULL;
 
-    if (procdir)
-      free(procdir);
-    procdir = NULL;
-
     if (bpi)
       bpi_destroy(B, bpi);
     bpi = NULL;
   }
+
+  nuke_scandir_proclist(B, num_procs, proclist, 0);
 
   BK_RETURN(B, bpi_list);
 
@@ -476,6 +484,9 @@ bk_procinfo_create(bk_s B, bk_flags flags)
 
   if (bpi_list)
     bk_procinfo_destroy(B, bpi_list);
+
+  if ((num_procs > 0) && proclist)
+    nuke_scandir_proclist(B, num_procs, proclist, 0);
 
   if (tmpname)
     free(tmpname);
@@ -490,6 +501,36 @@ bk_procinfo_create(bk_s B, bk_flags flags)
     free(comm);
 
   BK_RETURN(B, NULL);
+}
+
+
+
+/**
+ * Nuke the results from scandir.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static void
+nuke_scandir_proclist(bk_s B, int num_procs, struct dirent **proclist, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int proc_index;
+
+  if (!proclist)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
+    BK_VRETURN(B);
+  }
+
+  for(proc_index = 0; proc_index < num_procs; proc_index++)
+  {
+    free(proclist[proc_index]);
+  }
+  free(proclist);
+  BK_VRETURN(B);
 }
 
 

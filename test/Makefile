@@ -40,6 +40,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		test_proc		\
 		test_recursive_locks	\
 		test_ringdir		\
+		test_stats		\
 		test_string		\
 		test_string_expand	\
 		test_stringconv		\

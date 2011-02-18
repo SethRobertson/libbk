@@ -178,7 +178,7 @@ struct bk_truerandinfo *bk_truerand_init(bk_s B, int reinitbits, bk_flags flags)
   bk_MD5_CTX ctx;
 #endif /* __INSURE__ */
 
-  if (!BK_MALLOC(R))
+  if (!BK_CALLOC(R))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create random structure: %s\n", strerror(errno));
     BK_RETURN(B, NULL);
@@ -453,6 +453,8 @@ static void bk_truerand_generate(bk_s B, bk_MD5_CTX *ctx, int rounds)
     bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
     BK_VRETURN(B);
   }
+
+  memset(ctx, (char)0, sizeof(*ctx));
 
   // Seth specifically wants this variable uninitialized for entropy....
   if (USE_MEM_ENTROPY)

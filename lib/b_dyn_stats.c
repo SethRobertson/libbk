@@ -23,11 +23,17 @@ static const char tcs__contact[] = "TCS Commercial, Inc. <cssupport@TrustedCS.co
 #include <libbk.h>
 #include "libbk_internal.h"
 
-#define jtts stderr
+//#define NO_THREAD_CPU_STAT
+
+struct bk_dynamic_stat_key
+{
+  const char *				bdsk_name;		///< Statistic name
+  long					bdsk_discriminator;	///< Distinguish same-named stats.
+};
 
 struct bk_dynamic_stat
 {
-  char *				bds_name;		///< Statistic name
+  struct bk_dynamic_stat_key		bds_key;  		///< Search key
   bk_dynamic_stats_value_type_e		bds_value_type; 	///< Type of the stat value
   bk_dynamic_stats_access_type_e	bds_access_type;	///< How to access the stat value
   u_int					bds_priority;		///< Stat priority
@@ -35,17 +41,22 @@ struct bk_dynamic_stat
   void *				bds_opaque;		///< User defined private data
   bk_dynamic_stat_destroy_h		bds_destroy_callback;	///< Callback to destroy opaque data.
   bk_dynamic_stat_update_h		bds_update_callback;	///< Callback for on-demand updates
+#ifdef BK_USING_PTHREADS
+  pthread_t				bds_tid; 		///< Used to note thread-specific stats.
+#endif /* BK_USING_PTHREADS */
   bk_flags				bds_flags;		///< Everyone needs flags
 };
 
-#define bds_int32	bds_value.bdsv_int32
-#define bds_uint32	bds_value.bdsv_uint32
-#define bds_int64	bds_value.bdsv_int64
-#define bds_uint64	bds_value.bdsv_uint64
-#define bds_float	bds_value.bdsv_float
-#define bds_double	bds_value.bdsv_double
-#define bds_string	bds_value.bdsv_string
-#define bds_ptr		bds_value.bdsv_ptr
+#define bds_name		bds_key.bdsk_name
+#define bds_discriminator	bds_key.bdsk_discriminator
+#define bds_int32		bds_value.bdsv_int32
+#define bds_uint32		bds_value.bdsv_uint32
+#define bds_int64		bds_value.bdsv_int64
+#define bds_uint64		bds_value.bdsv_uint64
+#define bds_float		bds_value.bdsv_float
+#define bds_double		bds_value.bdsv_double
+#define bds_string		bds_value.bdsv_string
+#define bds_ptr			bds_value.bdsv_ptr
 
 struct bk_dynamic_stats_list
 {
@@ -79,13 +90,7 @@ struct bk_dynamic_stats_list
 #define stats_list_iterate_done(h,i)	bst_iterate_done(h,i)
 #define stats_list_error_reason(h,i)	bst_error_reason((h),(i))
 static int stats_list_oo_cmp(struct bk_dynamic_stat *a, struct bk_dynamic_stat *b);
-static int stats_list_ko_cmp(char *a, struct bk_dynamic_stat *b);
-#ifdef STATS_LIST_IS_HASH
-// Reenable these if the stats list becomes an hash table
-static ht_val stats_list_obj_hash(struct bk_dynamic_stat *a);
-static ht_val stats_list_key_hash(char *a);
-static struct ht_args stats_list_args = { 500, 1, (ht_func)stats_list_obj_hash, (ht_func)stats_list_key_hash };
-#endif /* STATS_LIST_KEY_HASH */
+static int stats_list_ko_cmp(struct bk_dynamic_stat_key *a, struct bk_dynamic_stat *b);
 
 static struct bk_dynamic_stat *bds_create(bk_s B, bk_flags flags);
 static void bds_destroy(bk_s B, struct bk_dynamic_stat *bds);
@@ -99,9 +104,15 @@ static int elapsed_time_update(bk_s B, bk_dynamic_stats_h stats_list, bk_dynamic
 static int virtual_memory_update(bk_s B, bk_dynamic_stats_h stats_list, bk_dynamic_stat_h dyn_stat, bk_flags flags);
 static int resident_memory_update(bk_s B, bk_dynamic_stats_h stats_list, bk_dynamic_stat_h dyn_stat, bk_flags flags);
 static int total_cpu_update(bk_s B, bk_dynamic_stats_h stats_list, bk_dynamic_stat_h dyn_stat, bk_flags flags);
-static int stats_thread_cpu_time_register(bk_s B, bk_dynamic_stats_h stats_list, void *bt, bk_flags flags);
+#ifndef NO_THREAD_CPU_STAT
+#ifdef BK_USING_PTHREADS
+static int stats_thread_cpu_time_register(bk_s B, bk_dynamic_stats_h stats_list, void *bt, bk_dynamic_stat_h *statp, bk_flags flags);
 static void thread_cpu_time_destroy (bk_s B, void *data);
 static int thread_cpu_time_update(bk_s B, bk_dynamic_stats_h stats_list, bk_dynamic_stat_h dyn_stat, bk_flags flags);
+static int manage_thread_stats(bk_s B, struct bk_dynamic_stats_list *bdsl, bk_flags flags);
+#endif /* NO_THREAD_CPU_STAT */
+#endif /* BK_USING_PTHREADS */
+static struct bk_dynamic_stat *stat_search(bk_s B, struct bk_dynamic_stats_list *bdsl, const char *name, long discriminator);
 
 
 /**
@@ -155,7 +166,7 @@ bds_destroy(bk_s B, struct bk_dynamic_stat *bds)
     (*bds->bds_destroy_callback)(B, bds->bds_opaque);
 
   if (bds->bds_name)
-    free(bds->bds_name);
+    free((char *)bds->bds_name);
 
   if ((bds->bds_access_type == DynamicStatsAccessTypeDirect) &&
       (bds->bds_value_type == DynamicStatsValueTypeString) &&
@@ -190,7 +201,7 @@ bdsl_create(bk_s B, bk_flags flags)
     goto error;
   }
 
-  if (!(bdsl->bdsl_list = stats_list_create((dict_function)stats_list_oo_cmp, (dict_function)stats_list_ko_cmp, DICT_UNIQUE_KEYS | DICT_BALANCED_TREE /*, &stats_list_args */)))
+  if (!(bdsl->bdsl_list = stats_list_create((dict_function)stats_list_oo_cmp, (dict_function)stats_list_ko_cmp, DICT_UNIQUE_KEYS /* | DICT_BALANCED_TREE */ /*, &stats_list_args */)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create dynamic statistics list: %s\n", stats_list_error_reason(NULL, NULL));
     goto error;
@@ -344,7 +355,7 @@ do										\
 #define STATS_LIST_UNLOCK(bdsl,locked)						\
 do										\
 {										\
-  if ((locked) && (bk_recursive_lock_grab(B, (bdsl)->bdsl_rlock, 0) < 0))	\
+  if ((locked) && (bk_recursive_lock_release(B, (bdsl)->bdsl_rlock, 0) < 0))	\
   {										\
     bk_error_printf(B, BK_ERR_ERR, "Could not release recursive lock\n");	\
     goto error;									\
@@ -355,26 +366,93 @@ do										\
 
 
 /**
+ * Helper function which basically absorbs a lot of repeated code in the
+ * stat registration functions. This function determines the
+ * name/description of the stat, the priority of the stat, and whether the
+ * stat is even desired.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param ignore_key The bk_conf key indicating whether the stat is desired.
+ *	@param name_key The bk_conf key for the stat name/description
+ *	@param default_name The default stat name/description.
+ *	@param priority_key The bk_conf key for the stat priority
+ *	@param default_priority The default priority value (NB: in string format).
+ *	@param namep C/O of the computed name/description.
+ *	@param priorityp C/O of the computed priority
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> if the stat is not desired.
+ *	@return <i>1</i> if the stat is desired.
+ */
+int
+bk_dynamic_stat_preregistration(bk_s B, const char *ignore_key, const char *name_key, const char *default_name, const char *priority_key, const char *default_priority, const char **namep, u_int *priorityp, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+
+  if ((namep && !default_name) || (!namep && default_name) ||
+      (priorityp && !default_priority) || (!priorityp && default_priority))
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (ignore_key && !BK_STREQ(BK_GWD(B, ignore_key, "false"),"false"))
+  {
+    // If the ignore key exists and is *not* set to "false", the stat is not desired
+    BK_RETURN(B, 0);
+  }
+
+  if (namep)
+  {
+    if (name_key)
+    {
+      *namep = BK_GWD(B, (char *)name_key, (char *)default_name);
+    }
+    else
+    {
+      *namep = default_name;
+    }
+  }
+
+  if (priorityp && (bk_string_atou32(B, BK_GWD(B, priority_key, default_priority), (u_int32_t *)priorityp, 0) != 0))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Failed to convert priority string into a u_int\n");
+    goto error;
+  }
+
+  BK_RETURN(B, 1);
+
+ error:
+  BK_RETURN(B, -1);
+}
+
+
+
+/**
  * Register a stat.
  *
  *	@param B BAKA thread/global state.
  *	@param stats_list The list stats to which to add this new stat
  *	@param name  The name of the stat (for lookup).
+ *	@param discriminator Distinguish same-named stats.
+ *	@param priority The priority of the stat.
  *	@param value_type The storage type of the value.
  *	@param access_type How to access the value (ie directly or indirectly)
  *	@param update_callback Optional callback for demaind updates
  *	@param opaque Optional user defined data
  *	@param destroy_callback Callback used to free @opaque (optional obviously)
+ *	@param statp Optional C/O of newly created stat.
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_dynamic_stat_register(bk_s B, bk_dynamic_stats_h stats_list, const char *name, u_int priority, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, bk_dynamic_stat_update_h update_callback, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_flags flags)
+bk_dynamic_stat_register_simple(bk_s B, bk_dynamic_stats_h stats_list, const char *name, long discriminator, u_int priority, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, bk_dynamic_stat_update_h update_callback, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_dynamic_stat_h *statp, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  struct bk_dynamic_stat *bds = NULL;
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
+  struct bk_dynamic_stat *bds = NULL;
+  struct bk_dynamic_stat *obds = NULL;
   int locked = 0;
 
   if (!bdsl || !name)
@@ -382,6 +460,9 @@ bk_dynamic_stat_register(bk_s B, bk_dynamic_stats_h stats_list, const char *name
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
+
+  if (statp)
+    *statp = NULL;
 
   if ((value_type == DynamicStatsValueTypeString) && (access_type == DynamicStatsAccessTypeIndirect))
   {
@@ -401,6 +482,7 @@ bk_dynamic_stat_register(bk_s B, bk_dynamic_stats_h stats_list, const char *name
     goto error;
   }
 
+  bds->bds_discriminator = discriminator;
   bds->bds_value_type = value_type;
   bds->bds_access_type = access_type;
   bds->bds_priority = priority;
@@ -410,11 +492,34 @@ bk_dynamic_stat_register(bk_s B, bk_dynamic_stats_h stats_list, const char *name
 
   STATS_LIST_LOCK(bdsl, locked);
 
-  if (stats_list_insert(bdsl->bdsl_list, bds) != DICT_OK)
+  /*
+   * Insert stat. If an identical stat already exists and the caller wished
+   * idempotency, then check if the value and access type are identical. If
+   * so, destroy the incoming opaque and return 0.
+   */
+
+  if (stats_list_insert_uniq(bdsl->bdsl_list, bds, (dict_obj *)&obds) != DICT_OK)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not insert bds in bdsl: %s\n", stats_list_error_reason(bdsl->bdsl_list, NULL));
-    goto error;
+    if (BK_FLAG_ISCLEAR(flags, BK_DYNAMIC_STAT_REGISTER_FLAG_IDEMPOTENT))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not insert bds in bdsl: %s\n", stats_list_error_reason(bdsl->bdsl_list, NULL));
+      goto error;
+    }
+
+    if ((bds->bds_value_type == obds->bds_value_type) &&
+	(bds->bds_access_type == obds->bds_access_type))
+    {
+      if (opaque && destroy_callback)
+      {
+	(*destroy_callback)(B, opaque);
+      }
+      BK_RETURN(B, 0);
+    }
   }
+
+  if (statp)
+    *statp = bds;
+
   bds = NULL;
 
   STATS_LIST_UNLOCK(bdsl, locked);
@@ -433,22 +538,367 @@ bk_dynamic_stat_register(bk_s B, bk_dynamic_stats_h stats_list, const char *name
 
 
 /**
- * Deregister a stat
+ * Long version of registration which does handles preregistration and
+ * registration in one call. NB: There is a potential problem with the
+ * @flags argument in this function since it needs to (potentially) supply
+ * flags to two other bk_dynamic_stat functions. But we ignore this problem
+ * for the moment seeing as neither of those two said functions current
+ * take any flags.
+ *
+ * NB: It is entirely possibly for this function to succeed but *statp to
+ * NULL. This is the case where the stat being registered is not wanted, as
+ * determined from the conf file. Therefore it is necessary to test the
+ * value of *statp before using it.
  *
  *	@param B BAKA thread/global state.
+ *	@param stats_list The list stats to which to add this new stat
+ *	@param ignore_key The bk_conf key indicating whether the stat is desired.
+ *	@param name_key The bk_conf key for the stat name/description
+ *	@param default_name The default stat name/description.
+ *	@param namep Optional C/O of the name that is actually in use.
+ *	@param discriminator A value that allows multiple stats with the same name to exist.
+ *	@param priority_key The bk_conf key for the stat priority
+ *	@param default_priority The default priority value (NB: in string format).
+ *	@param priorityp Optional C/O of the priority that is actually in use.
+ *	@param value_type The storage type of the value.
+ *	@param access_type How to access the value (ie directly or indirectly)
+ *	@param update_callback Optional callback for demaind updates
+ *	@param opaque Optional user defined data
+ *	@param destroy_callback Callback used to free @opaque (optional obviously)
+ *	@param statp Optional C/O of newly created stat.
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_dynamic_stat_deregister(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_flags flags)
+bk_dynamic_stat_register(bk_s B, bk_dynamic_stats_h stats_list, const char *ignore_key, const char *name_key, const char *default_name, const char **namep, long discriminator, const char *priority_key, const char *default_priority, u_int *priorityp, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, bk_dynamic_stat_update_h update_callback, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_dynamic_stat_h *statp, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
+  const char *name;
+  u_int priority;
+  int wanted;
+  int locked = 0;
+
+  if (!bdsl)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (namep)
+    *namep = NULL;
+
+  if (priorityp)
+    *priorityp = 0;
+
+  if (statp)
+    *statp = NULL;
+
+  STATS_LIST_LOCK(bdsl, locked);
+
+  if ((wanted = bk_dynamic_stat_preregistration(B, ignore_key, name_key, default_name, priority_key, default_priority, &name, &priority, 0)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not perform stat preregistration tasks\n");
+    goto error;
+  }
+
+  if (namep)
+    *namep = name;
+
+  if (priorityp)
+    *priorityp = priority;
+
+  if (!wanted)
+  {
+    BK_RETURN(B, 0);
+  }
+
+  if (bk_dynamic_stat_register_simple(B, bdsl, name, discriminator, priority, value_type, access_type, update_callback, opaque, destroy_callback, statp, flags) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not register stat with description: %s:%ld\n", name, discriminator);
+    goto error;
+  }
+
+  STATS_LIST_UNLOCK(bdsl, locked);
+  BK_RETURN(B, 0);
+
+ error:
+  STATS_LIST_UNLOCK(bdsl, locked);
+  BK_RETURN(B, -1);
+}
+
+
+
+/**
+ * Register a stat where the first value is known at the time of
+ * registration. This is of course just a convenience function.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param stats_list The list stats to which to add this new stat
+ *	@param name  The name of the stat (for lookup).
+ *	@param discriminator Distinguish same-named stats.
+ *	@param value_type The storage type of the value.
+ *	@param access_type How to access the value (ie directly or indirectly)
+ *	@param update_callback Optional callback for demaind updates
+ *	@param opaque Optional user defined data
+ *	@param destroy_callback Callback used to free @opaque (optional obviously)
+ *	@param flags Flags for future use.
+ *	@param statp Optional C/O of newly created stat.
+ *	@param value The value to set (variable typed argument)
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_dynamic_stat_register_with_value_simple(bk_s B, bk_dynamic_stats_h stats_list, const char *name, long discriminator, u_int priority, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, bk_dynamic_stat_update_h update_callback, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_dynamic_stat_h *statp, bk_flags flags, ...)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
+  bk_dynamic_stat_h bds;
+  int locked = 0;
+  bk_dynamic_stat_value_u bdsv;
+  va_list ap;
+
+  if (!bdsl || !name)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (statp)
+    *statp = NULL;
+
+  STATS_LIST_LOCK(bdsl, locked);
+
+  if (bk_dynamic_stat_register_simple(B, bdsl, name, discriminator, priority, value_type, access_type, update_callback, opaque, destroy_callback, statp, flags) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not register dynamic stat described as: %s:%ld\n", name, discriminator);
+    goto error;
+  }
+
+  va_start(ap, flags);
+
+  if (access_type == DynamicStatsAccessTypeDirect)
+  {
+    switch(value_type)
+    {
+    case DynamicStatsValueTypeInt32:
+      bdsv.bdsv_int32 = va_arg(ap, int32_t);
+      break;
+    case DynamicStatsValueTypeUInt32:
+      bdsv.bdsv_uint32 = va_arg(ap, u_int32_t);
+      break;
+    case DynamicStatsValueTypeInt64:
+      bdsv.bdsv_int64 = va_arg(ap, int64_t);
+      break;
+    case DynamicStatsValueTypeUInt64:
+      bdsv.bdsv_uint64 = va_arg(ap, u_int64_t);
+      break;
+    case DynamicStatsValueTypeFloat:
+      bdsv.bdsv_float = va_arg(ap, double);
+      break;
+    case DynamicStatsValueTypeDouble:
+      bdsv.bdsv_double = va_arg(ap, double);
+      break;
+    case DynamicStatsValueTypeString:
+      bdsv.bdsv_string = va_arg(ap, char *);
+      break;
+    default:
+      bk_error_printf(B, BK_ERR_ERR,"Unknown value type: %d\n", value_type);
+      va_end(ap);
+      goto error;
+      break;
+    }
+  }
+  else
+  {
+    bdsv.bdsv_ptr = va_arg(ap, void *);
+  }
+
+  va_end(ap);
+
+  if (bk_dynamic_stat_get(B, bdsl, name, discriminator, &bds, NULL, NULL, NULL, NULL, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not obtain stat structure that we just created\n");
+    goto error;
+  }
+
+  if (stat_set(B, bds, &bdsv, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not set value\n");
+    goto error;
+  }
+
+  STATS_LIST_UNLOCK(bdsl, locked);
+  BK_RETURN(B, 0);
+
+ error:
+  STATS_LIST_UNLOCK(bdsl, locked);
+  BK_RETURN(B, -1);
+}
+
+
+
+
+/**
+ * Register a stat where the first value is known at the time of
+ * registration. This is of course just a convenience function.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param stats_list The list stats to which to add this new stat
+ *	@param name_key The bk_conf key for the stat name/description
+ *	@param default_name The default stat name/description.
+ *	@param namep C/O of the computed name/description.
+ *	@param discriminator Distinguish same-named stats.
+ *	@param priority_key The bk_conf key for the stat priority
+ *	@param default_priority The default priority value (NB: in string format).
+ *	@param priorityp C/O of the computed priority
+ *	@param value_type The storage type of the value.
+ *	@param access_type How to access the value (ie directly or indirectly)
+ *	@param update_callback Optional callback for demaind updates
+ *	@param opaque Optional user defined data
+ *	@param destroy_callback Callback used to free @opaque (optional obviously)
+ *	@param statp Optional C/O of newly created stat.
+ *	@param flags Flags for future use.
+ *	@param value The value to set (variable typed argument)
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return a new <i>stat</i> on success.
+ */
+int
+bk_dynamic_stat_register_with_value(bk_s B, bk_dynamic_stats_h stats_list, const char *ignore_key, const char *name_key, const char *default_name, const char **namep, long discriminator, const char *priority_key, const char *default_priority, u_int *priorityp, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, bk_dynamic_stat_update_h update_callback, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_dynamic_stat_h *statp, bk_flags flags, ...)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
+  bk_dynamic_stat_h bds;
+  const char *name;
+  u_int priority;
+  int wanted;
+  int locked = 0;
+  bk_dynamic_stat_value_u bdsv;
+  va_list ap;
+
+  if (!bdsl) // bk_dynamic_stat_preregistration checks the rest of the arguments
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (namep)
+    *namep = NULL;
+
+  if (priorityp)
+    *priorityp = 0;
+
+  if (statp)
+    *statp = NULL;
+
+  STATS_LIST_LOCK(bdsl, locked);
+
+  if ((wanted = bk_dynamic_stat_preregistration(B, ignore_key, name_key, default_name, priority_key, default_priority, &name, &priority, 0)) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not perform stat preregistration tasks\n");
+    goto error;
+  }
+
+  if (namep)
+    *namep = name;
+
+  if (priorityp)
+    *priorityp = priority;
+
+ if (!wanted)
+  {
+    BK_RETURN(B, 0);
+  }
+
+ if (bk_dynamic_stat_register_simple(B, bdsl, name, discriminator, priority, value_type, access_type, update_callback, opaque, destroy_callback, statp, flags) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not register stat dscribed as: %s:%ld\n", name, discriminator);
+    goto error;
+  }
+
+  va_start(ap, flags);
+
+  if (access_type == DynamicStatsAccessTypeDirect)
+  {
+    switch(value_type)
+    {
+    case DynamicStatsValueTypeInt32:
+      bdsv.bdsv_int32 = va_arg(ap, int32_t);
+      break;
+    case DynamicStatsValueTypeUInt32:
+      bdsv.bdsv_uint32 = va_arg(ap, u_int32_t);
+      break;
+    case DynamicStatsValueTypeInt64:
+      bdsv.bdsv_int64 = va_arg(ap, int64_t);
+      break;
+    case DynamicStatsValueTypeUInt64:
+      bdsv.bdsv_uint64 = va_arg(ap, u_int64_t);
+      break;
+    case DynamicStatsValueTypeFloat:
+      bdsv.bdsv_float = va_arg(ap, double);
+      break;
+    case DynamicStatsValueTypeDouble:
+      bdsv.bdsv_double = va_arg(ap, double);
+      break;
+    case DynamicStatsValueTypeString:
+      bdsv.bdsv_string = va_arg(ap, char *);
+      break;
+    default:
+      bk_error_printf(B, BK_ERR_ERR,"Unknown value type: %d\n", value_type);
+      va_end(ap);
+      goto error;
+      break;
+    }
+  }
+  else
+  {
+    bdsv.bdsv_ptr = va_arg(ap, void *);
+  }
+
+  va_end(ap);
+
+  if (bk_dynamic_stat_get(B, bdsl, name, discriminator, &bds, NULL, NULL, NULL, NULL, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not obtain stat structure that we just created\n");
+    goto error;
+  }
+
+  if (stat_set(B, bds, &bdsv, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not set value\n");
+    goto error;
+  }
+
+  STATS_LIST_UNLOCK(bdsl, locked);
+  BK_RETURN(B, 0);
+
+ error:
+  STATS_LIST_UNLOCK(bdsl, locked);
+  BK_RETURN(B, -1);
+}
+
+
+/**
+ * Deregister a stat
+ *
+ *	@param B BAKA thread/global state.
+ *	@param stats_list The stats list from which to deregister.
+ *	@param name The name of the stat.
+ *	@param discriminator Distinguish same-named stats.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_dynamic_stat_deregister(bk_s B, bk_dynamic_stats_h stats_list, const char *name, long discriminator, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
   struct bk_dynamic_stat *bds = NULL;
   int locked = 0;
 
-  if (!stats_list || !name)
+  if (!bdsl || !name)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
@@ -456,9 +906,9 @@ bk_dynamic_stat_deregister(bk_s B, bk_dynamic_stats_h stats_list, const char *na
 
   STATS_LIST_LOCK(bdsl, locked);
 
-  if (!(bds = stats_list_search(bdsl->bdsl_list, (char *)name)))
+  if (!(bds = stat_search(B, bdsl, name, discriminator)))
   {
-    bk_error_printf(B, BK_ERR_WARN, "Could not find a stats struct with name: %s\n", name);
+    bk_error_printf(B, BK_ERR_WARN, "Could not find a statistic described as: %s:%ld\n", name, discriminator);
     goto error;
   }
 
@@ -488,10 +938,10 @@ bk_dynamic_stat_deregister(bk_s B, bk_dynamic_stats_h stats_list, const char *na
 
 
 
-#define EXTRACT_BDS_VALUE(bds, buf, len, type, value)					\
+#define EXTRACT_BDS_VALUE(bds, buf, len, value)						\
 do											\
 {											\
-  if ((len) < sizeof(type))								\
+  if ((len) < sizeof(typeof(value)))							\
   {											\
     bk_error_printf(B, BK_ERR_ERR, "Insufficent space to copy variable of type\n");	\
     goto error;										\
@@ -499,11 +949,11 @@ do											\
 											\
   if ((bds)->bds_access_type == DynamicStatsAccessTypeDirect)				\
   {											\
-    *((type *)(buf)) = (value);								\
+    *((typeof(value) *)(buf)) = (value);						\
   }											\
   else											\
   {											\
-    *((type *)(buf)) = *((type *)((bds)->bds_ptr));					\
+    *((typeof(value) *)(buf)) = *((typeof(value) *)((bds)->bds_ptr));			\
   }											\
 }while(0)
 
@@ -534,22 +984,22 @@ extract_value(bk_s B, struct bk_dynamic_stat *bds, void *buf, u_int len, bk_flag
   switch(bds->bds_value_type)
   {
   case DynamicStatsValueTypeInt32:
-    EXTRACT_BDS_VALUE(bds, buf, len, int32_t, bds->bds_int32);
+    EXTRACT_BDS_VALUE(bds, buf, len, bds->bds_int32);
     break;
   case DynamicStatsValueTypeUInt32:
-    EXTRACT_BDS_VALUE(bds, buf, len, u_int32_t, bds->bds_uint32);
+    EXTRACT_BDS_VALUE(bds, buf, len, bds->bds_uint32);
     break;
   case DynamicStatsValueTypeInt64:
-    EXTRACT_BDS_VALUE(bds, buf, len, int64_t, bds->bds_int64);
+    EXTRACT_BDS_VALUE(bds, buf, len, bds->bds_int64);
     break;
   case DynamicStatsValueTypeUInt64:
-    EXTRACT_BDS_VALUE(bds, buf, len, u_int64_t, bds->bds_uint64);
+    EXTRACT_BDS_VALUE(bds, buf, len, bds->bds_uint64);
     break;
   case DynamicStatsValueTypeFloat:
-    EXTRACT_BDS_VALUE(bds, buf, len, float, bds->bds_float);
+    EXTRACT_BDS_VALUE(bds, buf, len, bds->bds_float);
     break;
   case DynamicStatsValueTypeDouble:
-    EXTRACT_BDS_VALUE(bds, buf, len, double, bds->bds_double);
+    EXTRACT_BDS_VALUE(bds, buf, len, bds->bds_double);
     break;
   case DynamicStatsValueTypeString:
     if (((!*(char **)buf) && (len > 0)) ||
@@ -620,7 +1070,7 @@ dynamic_stat_get(bk_s B, struct bk_dynamic_stat *bds, bk_dynamic_stat_value_u *v
   {
     if (extract_value(B, bds, valuep, sizeof(*valuep), 0) < 0)
     {
-      bk_error_printf(B, BK_ERR_ERR, "Could not extract value from statistic described as: %s\n", bds->bds_name);
+      bk_error_printf(B, BK_ERR_ERR, "Could not extract value from statistic described as: %s:%ld\n", bds->bds_name, bds->bds_discriminator);
       goto error;
     }
   }
@@ -637,12 +1087,20 @@ dynamic_stat_get(bk_s B, struct bk_dynamic_stat *bds, bk_dynamic_stat_value_u *v
  * statistic described by @a name.
  *
  *	@param B BAKA thread/global state.
+ *	@param stats_list The stats list.
+ *	@param name The name/description of the stat.
+ *	@param discriminator Distinguish same-named stats.
+ *	@param stat Optional C/O of the bk_dynamic_stat_h object
+ *	@param valuep Optional C/O of the value.
+ *	@param typep Optional C/O of the value type.
+ *	@param priorityp Optional C/O of the priority.
+ *	@param opaquep Optional C/O of the opaque pointer.
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_dynamic_stat_get(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_dynamic_stat_value_u *valuep, bk_dynamic_stats_value_type_e *typep, int *priorityp, void **opaquep, bk_flags flags)
+bk_dynamic_stat_get(bk_s B, bk_dynamic_stats_h stats_list, const char *name, long discriminator, bk_dynamic_stat_h *statp, bk_dynamic_stat_value_u *valuep, bk_dynamic_stats_value_type_e *typep, int *priorityp, void **opaquep, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
@@ -650,13 +1108,22 @@ bk_dynamic_stat_get(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_
   int locked = 0;
   int ret;
 
+  if (!bdsl || !name)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
   STATS_LIST_LOCK(bdsl, locked);
 
-  if (!(bds = stats_list_search(bdsl->bdsl_list, (char *)name)))
+  if (!(bds = stat_search(B, bdsl, name, discriminator)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not locate a statisitic described as: %s\n", name);
+    bk_error_printf(B, BK_ERR_ERR, "Could not locate a statisitic described as: %s:%ld\n", name, discriminator);
     goto error;
   }
+
+  if (statp)
+    *statp = bds;
 
   ret = dynamic_stat_get(B, bds, valuep, typep, priorityp, opaquep, flags);
 
@@ -691,45 +1158,54 @@ stat_set(bk_s B, struct bk_dynamic_stat *bds, void *data, bk_flags flags)
     BK_RETURN(B, -1);
   }
 
-  if (bds->bds_access_type == DynamicStatsAccessTypeIndirect)
+  if (bds->bds_access_type == DynamicStatsAccessTypeDirect)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Attemping to use libbk to set indirect statistic value\n");
-    goto error;
-  }
-
-
-  switch(bds->bds_value_type)
-  {
-  case DynamicStatsValueTypeInt32:
-    bds->bds_int32 = *(int32_t*)data;
-    break;
-  case DynamicStatsValueTypeUInt32:
-    bds->bds_uint32 = *(u_int32_t*)data;
-    break;
-  case DynamicStatsValueTypeInt64:
-    bds->bds_int64 = *(int64_t*)data;
-    break;
-  case DynamicStatsValueTypeUInt64:
-    bds->bds_uint64 = *(u_int64_t*)data;
-    break;
-  case DynamicStatsValueTypeFloat:
-    bds->bds_float = *(float*)data;
-    break;
-  case DynamicStatsValueTypeDouble:
-    bds->bds_double = *(double*)data;
-    break;
-  case DynamicStatsValueTypeString:
+    switch(bds->bds_value_type)
     {
-      if (!(bds->bds_string = strdup(*(char **)data)))
+    case DynamicStatsValueTypeInt32:
+      bds->bds_int32 = *(int32_t*)data;
+      break;
+    case DynamicStatsValueTypeUInt32:
+      bds->bds_uint32 = *(u_int32_t*)data;
+      break;
+    case DynamicStatsValueTypeInt64:
+      bds->bds_int64 = *(int64_t*)data;
+      break;
+    case DynamicStatsValueTypeUInt64:
+      bds->bds_uint64 = *(u_int64_t*)data;
+      break;
+    case DynamicStatsValueTypeFloat:
+      bds->bds_float = *(float*)data;
+      break;
+    case DynamicStatsValueTypeDouble:
+      bds->bds_double = *(double*)data;
+      break;
+    case DynamicStatsValueTypeString:
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not copy string: %s\n", strerror(errno));
-	goto error;
+	if (bds->bds_string)
+	  free(bds->bds_string);
+	if (*(char **)data)
+	{
+	  if (!(bds->bds_string = strdup(*(char **)data)))
+	  {
+	    bk_error_printf(B, BK_ERR_ERR, "Could not copy string: %s\n", strerror(errno));
+	    goto error;
+	  }
+	}
+	else
+	{
+	  bds->bds_string = NULL;
+	}
       }
+      break;
+    default:
+      bk_error_printf(B, BK_ERR_ERR,"Unknown value type: %d\n", bds->bds_value_type);
+      break;
     }
-    break;
-  default:
-    bk_error_printf(B, BK_ERR_ERR,"Unknown value type: %d\n", bds->bds_value_type);
-    break;
+  }
+  else
+  {
+    bds->bds_ptr = *(void **)data;
   }
   BK_RETURN(B, 0);
 
@@ -745,12 +1221,13 @@ stat_set(bk_s B, struct bk_dynamic_stat *bds, void *data, bk_flags flags)
  *	@param B BAKA thread/global state.
  *	@param stats_list The stats list.
  *	@param name The name of the statistic to upate.
+ *	@param discriminator Distinguish same named stats.
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_dynamic_stat_set(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_flags flags, ...)
+bk_dynamic_stat_set(bk_s B, bk_dynamic_stats_h stats_list, const char *name, long discriminator, bk_flags flags, ...)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
@@ -766,9 +1243,9 @@ bk_dynamic_stat_set(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_
 
   STATS_LIST_LOCK(bdsl, locked);
 
-  if (!(bds = stats_list_search(bdsl->bdsl_list, (char *)name)))
+  if (!(bds = stat_search(B, bdsl, name, discriminator)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not locate a statistics: %s\n", name);
+    bk_error_printf(B, BK_ERR_ERR, "Could not locate statistics decribed as: %s:%ld\n", name, discriminator);
     goto error;
   }
 
@@ -780,41 +1257,57 @@ bk_dynamic_stat_set(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_
 
   va_start(ap, flags);
 
-  switch(bds->bds_value_type)
+  if (bds->bds_access_type == DynamicStatsAccessTypeDirect)
   {
-  case DynamicStatsValueTypeInt32:
-    bds->bds_int32 = va_arg(ap, int32_t);
-    break;
-  case DynamicStatsValueTypeUInt32:
-    bds->bds_uint32 = va_arg(ap, u_int32_t);
-    break;
-  case DynamicStatsValueTypeInt64:
-    bds->bds_int64 = va_arg(ap, int64_t);
-    break;
-  case DynamicStatsValueTypeUInt64:
-    bds->bds_uint64 = va_arg(ap, u_int64_t);
-    break;
-  case DynamicStatsValueTypeFloat:
-    // Floats are (apparently) promoted to doubles when passed through stdargs
-    bds->bds_float = va_arg(ap, double);
-    break;
-  case DynamicStatsValueTypeDouble:
-    bds->bds_double = va_arg(ap, double);
-    break;
-  case DynamicStatsValueTypeString:
+    switch(bds->bds_value_type)
     {
-      char *s = va_arg(ap, char *);
-      if (!(bds->bds_string = strdup(s)))
+    case DynamicStatsValueTypeInt32:
+      bds->bds_int32 = va_arg(ap, int32_t);
+      break;
+    case DynamicStatsValueTypeUInt32:
+      bds->bds_uint32 = va_arg(ap, u_int32_t);
+      break;
+    case DynamicStatsValueTypeInt64:
+      bds->bds_int64 = va_arg(ap, int64_t);
+      break;
+    case DynamicStatsValueTypeUInt64:
+      bds->bds_uint64 = va_arg(ap, u_int64_t);
+      break;
+    case DynamicStatsValueTypeFloat:
+      // Floats are (apparently) promoted to doubles when passed through stdargs
+      bds->bds_float = va_arg(ap, double);
+      break;
+    case DynamicStatsValueTypeDouble:
+      bds->bds_double = va_arg(ap, double);
+      break;
+    case DynamicStatsValueTypeString:
       {
-	bk_error_printf(B, BK_ERR_ERR, "Could not copy string: %s\n", strerror(errno));
-	goto error;
+	char *s = va_arg(ap, char *);
+	if (bds->bds_string)
+	  free(bds->bds_string);
+	if (s)
+	{
+	  if (!(bds->bds_string = strdup(s)))
+	  {
+	    bk_error_printf(B, BK_ERR_ERR, "Could not copy string: %s\n", strerror(errno));
+	    goto error;
+	  }
+	}
+	else
+	{
+	  bds->bds_string = NULL;
+	}
       }
+      break;
+    default:
+      bk_error_printf(B, BK_ERR_ERR, "Unknown statistics value type: %d\n", bds->bds_value_type);
+      goto error;
+      break;
     }
-    break;
-  default:
-    bk_error_printf(B, BK_ERR_ERR, "Unknown statistics value type: %d\n", bds->bds_value_type);
-    goto error;
-    break;
+  }
+  else
+  {
+    bds->bds_ptr = va_arg(ap, void *);
   }
 
   va_end(ap);
@@ -841,6 +1334,7 @@ bk_dynamic_stat_set(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_
  *	@param B BAKA thread/global state.
  *	@param stats_list The statistics list.
  *	@param name The name/description of the list
+ *	@param discriminator Distinguish same-named stats.
  *	@param value_type The type of the stat value
  *	@param access-type The access type of the stat
  *	@param priority The priority of the stat
@@ -852,7 +1346,7 @@ bk_dynamic_stat_set(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_
  *	@return <i>0</i> on success.
  */
 int
-bk_dynamic_stat_attr_update(bk_s B, bk_dynamic_stats_h stats_list, const char *name, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, int priority, bk_dynamic_stat_update_h update_callback, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_flags flags)
+bk_dynamic_stat_attr_update(bk_s B, bk_dynamic_stats_h stats_list, const char *name, long discriminator, bk_dynamic_stats_value_type_e value_type, bk_dynamic_stats_access_type_e access_type, int priority, bk_dynamic_stat_update_h update_callback, void *opaque, bk_dynamic_stat_destroy_h destroy_callback, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
@@ -864,9 +1358,9 @@ bk_dynamic_stat_attr_update(bk_s B, bk_dynamic_stats_h stats_list, const char *n
     BK_RETURN(B, -1);
   }
 
-  if (!(bds = stats_list_search(bdsl->bdsl_list, (char *)name)))
+  if (!(bds = stat_search(B, bdsl, name, discriminator)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not find a statistic with the description: %s\n", name);
+    bk_error_printf(B, BK_ERR_ERR, "Could not find a statistic described as: %s:%ld\n", name, discriminator);
     goto error;
   }
 
@@ -907,12 +1401,13 @@ bk_dynamic_stat_attr_update(bk_s B, bk_dynamic_stats_h stats_list, const char *n
  *	@param B BAKA thread/global state.
  *	@param stats_list The stats list.
  *	@param name The name of the statistic to upate.
+ *	@param discriminator Distinguish same-named stats.
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 int
-bk_dynamic_stat_increment(bk_s B, bk_dynamic_stats_h *stats_list, const char *name, bk_flags flags, ...)
+bk_dynamic_stat_increment(bk_s B, bk_dynamic_stats_h *stats_list, const char *name, long discriminator, bk_flags flags, ...)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
@@ -928,9 +1423,9 @@ bk_dynamic_stat_increment(bk_s B, bk_dynamic_stats_h *stats_list, const char *na
 
   STATS_LIST_LOCK(bdsl, locked);
 
-  if (!(bds = stats_list_search(bdsl->bdsl_list, (char *)name)))
+  if (!(bds = stat_search(B, bdsl, name, discriminator)))
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not locate a statistics: %s\n", name);
+    bk_error_printf(B, BK_ERR_ERR, "Could not locate a statistics described as %s:%ld\n", name, discriminator);
     goto error;
   }
 
@@ -1096,12 +1591,68 @@ bk_dynamic_stats_getnext(bk_s B, bk_dynamic_stats_h stats_list, bk_dynamic_stat_
 
 
 
-#define STAT_XML_OUTPUT(fmt, value)								\
+#define STAT_XML_OUTPUT(bds, fmt, value)							\
 do												\
 {												\
-  vptr_ret = bk_vstr_cat(B, 0, &xml_vstr,							\
-			 "%s\t<statistic description=\"%s\" priority=%u>"fmt"</statistic>\n",	\
-			 prefix, bds->bds_name, bds->bds_priority, value);			\
+  typeof(value) __value;									\
+												\
+  if (((bds)->bds_access_type == DynamicStatsAccessTypeIndirect) && !bds->bds_ptr)		\
+  {												\
+    const char *__null_value;									\
+    if ((bds)->bds_value_type == DynamicStatsValueTypeString)					\
+    {												\
+      __null_value = "NULL";									\
+    }												\
+    else if (((bds)->bds_value_type == DynamicStatsValueTypeFloat) ||				\
+	     ((bds)->bds_value_type == DynamicStatsValueTypeDouble))				\
+    {												\
+      __null_value = "0.0";									\
+    }												\
+    else											\
+    {												\
+      __null_value = "0";									\
+    }												\
+												\
+    if ((bds)->bds_discriminator == 0)								\
+    {												\
+      vptr_ret = bk_vstr_cat(B, 0, &xml_vstr,							\
+			     "%s\t<statistic description=\"%s\">%s</statistic>\n",		\
+			     prefix, (bds)->bds_name, __null_value);				\
+    }												\
+    else											\
+    {												\
+      vptr_ret = bk_vstr_cat(B, 0, &xml_vstr,							\
+			     "%s\t<statistic description=\"%s\" discriminator=\"%ld\">%s"	\
+			     "</statistic>\n",							\
+			     prefix, (bds)->bds_name, (bds)->bds_discriminator,			\
+			     __null_value);							\
+    }												\
+  }												\
+  else												\
+  {												\
+    if ((bds)->bds_access_type == DynamicStatsAccessTypeDirect)					\
+    {												\
+      __value = (value);									\
+    }												\
+    else											\
+    {												\
+      __value = *(typeof(value) *)((bds)->bds_ptr);						\
+    }												\
+												\
+    if ((bds)->bds_discriminator == 0)								\
+    {												\
+      vptr_ret = bk_vstr_cat(B, 0, &xml_vstr,							\
+			     "%s\t<statistic description=\"%s\">"fmt"</statistic>\n",		\
+			     prefix, (bds)->bds_name, __value);					\
+    }												\
+    else											\
+    {												\
+      vptr_ret = bk_vstr_cat(B, 0, &xml_vstr,							\
+			     "%s\t<statistic description=\"%s\" discriminator=\"%ld\">"fmt	\
+			     "</statistic>\n",							\
+			     prefix, (bds)->bds_name, (bds)->bds_discriminator, __value);	\
+    }												\
+  }												\
 }while(0);
 
 /**
@@ -1129,14 +1680,22 @@ bk_dynamic_stats_XML_create(bk_s B, bk_dynamic_stats_h stats_list, u_int priorit
   char time_buf[50];
   char stat_buf[1024];
   int locked = 0;
-  void *bt;
-  int threadlist_locked = 0;
 
   if (!bdsl || !prefix)
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
   }
+
+#ifdef BK_USING_PTHREADS
+#ifndef NO_THREAD_CPU_STAT
+  if (manage_thread_stats(B, bdsl, 0) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not manage thread stats\n");
+    goto error;
+  }
+#endif /* NO_THREAD_CPU_STAT */
+#endif /* BK_USING_PTHREADS */
 
   if (!(xml_vstr.ptr = malloc(1)))
   {
@@ -1162,41 +1721,6 @@ bk_dynamic_stats_XML_create(bk_s B, bk_dynamic_stats_h stats_list, u_int priorit
     goto error;
   }
 
-  /*
-   * Read all the thread CPU clocks and print their usage
-   * <TODO> These should really be pure statistics which are updated as per normal</TODO>
-   */
-  if (bk_threadlist_lock(B) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not obtain thread list lock\n");
-    goto error;
-  }
-
-  threadlist_locked = 1;
-
-  for(bt = bk_threadlist_minimum(B); bt; bt = bk_threadlist_successor(B, bt))
-  {
-    // NB: This call only actually registers each thread once.
-    if (stats_thread_cpu_time_register(B, bdsl, bt, 0) < 0)
-    {
-      bk_error_printf(B, BK_ERR_ERR, "Could not register CPU time stat for thread: %s\n", bk_threadnode_name(B, bt));
-      goto error;
-    }
-  }
-
-  /*
-   * Unset threadlist_locked before attempting to unlock the thread list so
-   * that if the unlock fails the error section won't try to unlock it
-   * again.
-   */
-  threadlist_locked = 0;
-
-  if (bk_threadlist_unlock(B))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not release thread list lock\n");
-    goto error;
-  }
-
   STATS_LIST_LOCK(bdsl, locked);
 
   if (bk_dynamic_stats_demand_update(B, bdsl, 0) < 0)
@@ -1211,30 +1735,35 @@ bk_dynamic_stats_XML_create(bk_s B, bk_dynamic_stats_h stats_list, u_int priorit
     switch(bds->bds_value_type)
     {
     case DynamicStatsValueTypeInt32:
-      STAT_XML_OUTPUT("%d", bds->bds_int32);
+      STAT_XML_OUTPUT(bds, "%d", bds->bds_int32);
       break;
     case DynamicStatsValueTypeUInt32:
-      STAT_XML_OUTPUT("%u", bds->bds_uint32);
+      STAT_XML_OUTPUT(bds, "%u", bds->bds_uint32);
       break;
     case DynamicStatsValueTypeInt64:
-      STAT_XML_OUTPUT("%ld", bds->bds_int64);
+      STAT_XML_OUTPUT(bds, "%ld", bds->bds_int64);
       break;
     case DynamicStatsValueTypeUInt64:
-      STAT_XML_OUTPUT("%lu", bds->bds_uint64);
+      STAT_XML_OUTPUT(bds, "%lu", bds->bds_uint64);
       break;
     case DynamicStatsValueTypeFloat:
-      STAT_XML_OUTPUT("%.4f", bds->bds_float);
+      STAT_XML_OUTPUT(bds, "%.4f", bds->bds_float);
       break;
     case DynamicStatsValueTypeDouble:
-      STAT_XML_OUTPUT("%.4lf", bds->bds_double);
+      STAT_XML_OUTPUT(bds, "%.4lf", bds->bds_double);
       break;
     case DynamicStatsValueTypeString:
+      if (!bds->bds_string && !(bds->bds_string = strdup("")))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not strdup emptry string: %s\n", strerror(errno));
+	goto error;
+      }
       if (!(xml_str = bk_string_str2xml(B, bds->bds_string, 0)))
       {
 	bk_error_printf(B, BK_ERR_ERR, "Could not convert string to XML\n");
 	goto error;
       }
-      STAT_XML_OUTPUT("%s", xml_str);
+      STAT_XML_OUTPUT(bds, "%s", xml_str);
       free(xml_str);
       xml_str = NULL;
       break;
@@ -1263,9 +1792,6 @@ bk_dynamic_stats_XML_create(bk_s B, bk_dynamic_stats_h stats_list, u_int priorit
 
  error:
   STATS_LIST_UNLOCK(bdsl, locked);
-
-  if (threadlist_locked)
-    bk_threadlist_unlock(B);
 
   if (xml_vstr.ptr)
     free(xml_vstr.ptr);
@@ -1441,9 +1967,6 @@ bk_dynamic_stat_pid_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags fla
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
-  char *name;
-  char *tmp;
-  u_int priority;
   int locked = 0;
 
   if (!stats_list)
@@ -1454,27 +1977,11 @@ bk_dynamic_stat_pid_register(bk_s B, bk_dynamic_stats_h stats_list, bk_flags fla
 
   STATS_LIST_LOCK(bdsl, locked);
 
-   name = BK_GWD(B, BK_DYNAMIC_STAT_KEY_PID, BK_DYNAMIC_STAT_DEFAULT_KEY_PID);
-   tmp = BK_GWD(B, BK_DYNAMIC_STAT_PRIOROTY_PID, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_PID);
-
-   if (bk_string_atou32(B, tmp, (u_int32_t *)&priority, 0) != 0)
-   {
-     bk_error_printf(B, BK_ERR_ERR, "Failed to convert priority string into a u_int\n");
-     goto error;
-   }
-
-   if (bk_dynamic_stat_register(B, stats_list, name, priority, DynamicStatsValueTypeUInt32, DynamicStatsAccessTypeDirect, NULL, NULL, NULL, 0) < 0)
-   {
-     bk_error_printf(B, BK_ERR_ERR, "Could not reigster PID statistic (official description: %s)\n", name);
-     goto error;
-   }
-
-   // This is a fixed value, so we can just set it here.
-   if (bk_dynamic_stat_set(B, stats_list, name, 0, getpid()) < 0)
-   {
-     bk_error_printf(B, BK_ERR_ERR, "Could not update PID stat\n");
-     goto error;
-   }
+  if (bk_dynamic_stat_register_with_value(B, stats_list, BK_DYNAMIC_STAT_IGNORE_KEY_PID, BK_DYNAMIC_STAT_NAME_KEY_PID, BK_DYNAMIC_STAT_DEFAULT_NAME_PID, NULL, 0, BK_DYNAMIC_STAT_PRIORITY_KEY_PID, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_PID, NULL, DynamicStatsValueTypeUInt32, DynamicStatsAccessTypeDirect, NULL, NULL, NULL, 0, getpid()) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not reigster PID statistic");
+    goto error;
+  }
 
   STATS_LIST_UNLOCK(bdsl, locked);
   BK_RETURN(B, 0);
@@ -1501,9 +2008,6 @@ bk_dynamic_stat_start_time_register(bk_s B, bk_dynamic_stats_h stats_list, bk_fl
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
-  char *name;
-  char *tmp;
-  u_int priority;
   char time_buf[100];
   time_t start_time;
   int locked = 0;
@@ -1515,15 +2019,6 @@ bk_dynamic_stat_start_time_register(bk_s B, bk_dynamic_stats_h stats_list, bk_fl
   }
 
   STATS_LIST_LOCK(bdsl, locked);
-
-  name = BK_GWD(B, BK_DYNAMIC_STAT_KEY_PROC_START, BK_DYNAMIC_STAT_DEFAULT_KEY_PROC_START);
-  tmp = BK_GWD(B, BK_DYNAMIC_STAT_PRIOROTY_PROC_START, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_PROC_START);
-
-  if (bk_string_atou32(B, tmp, (u_int32_t *)&priority, 0) != 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Failed to convert priority string into a u_int\n");
-    goto error;
-  }
 
   if ((start_time = BK_GENERAL_START_TIME(B)) == (time_t)-1)
   {
@@ -1538,15 +2033,9 @@ bk_dynamic_stat_start_time_register(bk_s B, bk_dynamic_stats_h stats_list, bk_fl
     goto error;
   }
 
-  if (bk_dynamic_stat_register(B, stats_list, name, priority, DynamicStatsValueTypeString, DynamicStatsAccessTypeDirect, NULL, NULL, NULL, 0) < 0)
+  if (bk_dynamic_stat_register_with_value(B, stats_list, BK_DYNAMIC_STAT_IGNORE_KEY_START_TIME, BK_DYNAMIC_STAT_NAME_KEY_START_TIME, BK_DYNAMIC_STAT_DEFAULT_NAME_START_TIME, NULL, 0, BK_DYNAMIC_STAT_PRIORITY_KEY_START_TIME, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_START_TIME, NULL, DynamicStatsValueTypeString, DynamicStatsAccessTypeDirect, NULL, NULL, NULL, NULL, 0, time_buf) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not register statistic described: %s\n", name);
-    goto error;
-  }
-
-  if (bk_dynamic_stat_set(B, stats_list, name, 0, time_buf))
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not set the start time in the stat\n");
+    bk_error_printf(B, BK_ERR_ERR, "Could not register start time statistic");
     goto error;
   }
 
@@ -1576,9 +2065,6 @@ bk_dynamic_stat_elapsed_time_register(bk_s B, bk_dynamic_stats_h stats_list, bk_
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
-  char *name;
-  char *tmp;
-  int priority;
   bk_dynamic_stats_value_type_e timet_stats_type;
   int locked = 0;
 
@@ -1586,17 +2072,6 @@ bk_dynamic_stat_elapsed_time_register(bk_s B, bk_dynamic_stats_h stats_list, bk_
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
-  }
-
-  STATS_LIST_LOCK(bdsl, locked);
-
-  name = BK_GWD(B, BK_DYNAMIC_STAT_KEY_ELAPSED_TIME, BK_DYNAMIC_STAT_DEFAULT_KEY_ELAPSED_TIME);
-  tmp = BK_GWD(B, BK_DYNAMIC_STAT_PRIOROTY_ELAPSED_TIME, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_ELAPSED_TIME);
-
-  if (bk_string_atou32(B, tmp, (u_int32_t *)&priority, 0) != 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Failed to convert priority string into a u_int\n");
-    goto error;
   }
 
   if (sizeof(time_t) == sizeof(u_int64_t))
@@ -1608,9 +2083,11 @@ bk_dynamic_stat_elapsed_time_register(bk_s B, bk_dynamic_stats_h stats_list, bk_
     timet_stats_type = DynamicStatsValueTypeUInt32;
   }
 
-  if (bk_dynamic_stat_register(B, stats_list, name, priority, timet_stats_type, DynamicStatsAccessTypeDirect, elapsed_time_update, NULL, NULL, 0) < 0)
+  STATS_LIST_LOCK(bdsl, locked);
+
+  if (bk_dynamic_stat_register(B, stats_list, BK_DYNAMIC_STAT_IGNORE_KEY_ELAPSED_TIME, BK_DYNAMIC_STAT_NAME_KEY_ELAPSED_TIME, BK_DYNAMIC_STAT_DEFAULT_NAME_ELAPSED_TIME, NULL, 0, BK_DYNAMIC_STAT_PRIORITY_KEY_ELAPSED_TIME, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_ELAPSED_TIME, NULL, timet_stats_type, DynamicStatsAccessTypeDirect, elapsed_time_update, NULL, NULL, NULL, 0) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not register statistic described: %s\n", name);
+    bk_error_printf(B, BK_ERR_ERR, "Could not register elapsed time statistic\n");
     goto error;
   }
 
@@ -1692,26 +2169,12 @@ bk_dynamic_stat_virtual_memory_register(bk_s B, bk_dynamic_stats_h stats_list, b
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
   bk_dynamic_stats_value_type_e vsize_type;
   int locked = 0;
-  char *name;
-  char *tmp;
-  int priority;
   struct bk_procinfo *bpi; // This is used only for the sizeof(bpi->vsize) operation
 
   if (!bdsl)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
-  }
-
-  STATS_LIST_LOCK(bdsl, locked);
-
-  name = BK_GWD(B, BK_DYNAMIC_STAT_KEY_VIRT_MEM, BK_DYNAMIC_STAT_DEFAULT_KEY_VIRT_MEM);
-  tmp = BK_GWD(B, BK_DYNAMIC_STAT_PRIOROTY_VIRT_MEM, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_VIRT_MEM);
-
-  if (bk_string_atou32(B, tmp, (u_int32_t *)&priority, 0) != 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Failed to convert priority string into a u_int\n");
-    goto error;
   }
 
   if (sizeof(bpi->bpi_vsize) == sizeof(u_int32_t))
@@ -1723,9 +2186,11 @@ bk_dynamic_stat_virtual_memory_register(bk_s B, bk_dynamic_stats_h stats_list, b
     vsize_type = DynamicStatsValueTypeUInt64;
   }
 
-  if (bk_dynamic_stat_register(B, stats_list, name, priority, vsize_type, DynamicStatsAccessTypeDirect, virtual_memory_update, NULL, NULL, 0) < 0)
+  STATS_LIST_LOCK(bdsl, locked);
+
+  if (bk_dynamic_stat_register(B, stats_list, BK_DYNAMIC_STAT_IGNORE_KEY_VIRT_MEM, BK_DYNAMIC_STAT_NAME_KEY_VIRT_MEM, BK_DYNAMIC_STAT_DEFAULT_NAME_VIRT_MEM, NULL, 0, BK_DYNAMIC_STAT_PRIORITY_KEY_VIRT_MEM, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_VIRT_MEM, NULL, vsize_type, DynamicStatsAccessTypeDirect, virtual_memory_update, NULL, NULL, NULL, 0) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not register statistic described: %s\n", name);
+    bk_error_printf(B, BK_ERR_ERR, "Could not register virtual memory statistic\n");
     goto error;
   }
 
@@ -1819,9 +2284,6 @@ bk_dynamic_stat_resident_memory_register(bk_s B, bk_dynamic_stats_h stats_list, 
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
   int locked = 0;
-  char *name;
-  char *tmp;
-  int priority;
   bk_dynamic_stats_value_type_e vsize_type;
   struct bk_procinfo *bpi; // This is used only for the sizeof(bpi->vsize) operation
 
@@ -1829,17 +2291,6 @@ bk_dynamic_stat_resident_memory_register(bk_s B, bk_dynamic_stats_h stats_list, 
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
-  }
-
-  STATS_LIST_LOCK(bdsl, locked);
-
-  name = BK_GWD(B, BK_DYNAMIC_STAT_KEY_RSS_SZ, BK_DYNAMIC_STAT_DEFAULT_KEY_RSS_SZ);
-  tmp = BK_GWD(B, BK_DYNAMIC_STAT_PRIOROTY_RSS_SZ, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_RSS_SZ);
-
-  if (bk_string_atou32(B, tmp, (u_int32_t *)&priority, 0) != 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Failed to convert priority string into a u_int\n");
-    goto error;
   }
 
   if (sizeof(bpi->bpi_vsize) == sizeof(u_int32_t))
@@ -1851,9 +2302,11 @@ bk_dynamic_stat_resident_memory_register(bk_s B, bk_dynamic_stats_h stats_list, 
     vsize_type = DynamicStatsValueTypeUInt64;
   }
 
-  if (bk_dynamic_stat_register(B, stats_list, name, priority, vsize_type, DynamicStatsAccessTypeDirect, resident_memory_update, NULL, NULL, 0) < 0)
+  STATS_LIST_LOCK(bdsl, locked);
+
+  if (bk_dynamic_stat_register(B, stats_list, BK_DYNAMIC_STAT_IGNORE_KEY_RSS_SZ, BK_DYNAMIC_STAT_NAME_KEY_RSS_SZ, BK_DYNAMIC_STAT_DEFAULT_NAME_RSS_SZ, NULL, 0, BK_DYNAMIC_STAT_PRIORITY_KEY_RSS_SZ, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_RSS_SZ, NULL, vsize_type, DynamicStatsAccessTypeDirect, resident_memory_update, NULL, NULL, NULL, 0) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not register statistic described: %s\n", name);
+    bk_error_printf(B, BK_ERR_ERR, "Could not register RSS statistic\n");
     goto error;
   }
 
@@ -1947,9 +2400,6 @@ bk_dynamic_stat_total_cpu_time_register(bk_s B, bk_dynamic_stats_h stats_list, b
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
   int locked = 0;
-  char *name;
-  char *tmp;
-  int priority;
 
   if (!bdsl)
   {
@@ -1959,18 +2409,9 @@ bk_dynamic_stat_total_cpu_time_register(bk_s B, bk_dynamic_stats_h stats_list, b
 
   STATS_LIST_LOCK(bdsl, locked);
 
-  name = BK_GWD(B, BK_DYNAMIC_STAT_KEY_TOTAL_CPU_TIME, BK_DYNAMIC_STAT_DEFAULT_KEY_TOTAL_CPU_TIME);
-  tmp = BK_GWD(B, BK_DYNAMIC_STAT_PRIOROTY_TOTAL_CPU_TIME, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_TOTAL_CPU_TIME);
-
-  if (bk_string_atou32(B, tmp, (u_int32_t *)&priority, 0) != 0)
+  if (bk_dynamic_stat_register(B, stats_list, BK_DYNAMIC_STAT_IGNORE_KEY_CPU_TIME, BK_DYNAMIC_STAT_NAME_KEY_CPU_TIME, BK_DYNAMIC_STAT_DEFAULT_NAME_CPU_TIME, NULL, 0, BK_DYNAMIC_STAT_PRIORITY_KEY_CPU_TIME, BK_DYNAMIC_STAT_DEFAULT_PRIORITY_CPU_TIME, NULL, DynamicStatsValueTypeFloat, DynamicStatsAccessTypeDirect, total_cpu_update, NULL, NULL, NULL, 0) < 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Failed to convert priority string into a u_int\n");
-    goto error;
-  }
-
-  if (bk_dynamic_stat_register(B, stats_list, name, priority, DynamicStatsValueTypeFloat, DynamicStatsAccessTypeDirect, total_cpu_update, NULL, NULL, 0) < 0)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Could not register statistic described: %s\n", name);
+    bk_error_printf(B, BK_ERR_ERR, "Could not register total CPU statistic\n");
     goto error;
   }
 
@@ -2031,6 +2472,8 @@ total_cpu_update(bk_s B, bk_dynamic_stats_h stats_list, bk_dynamic_stat_h dyn_st
 
 
 
+#ifdef BK_USING_PTHREADS
+#ifndef NO_THREAD_CPU_STAT
 /**
  * Register the per-thread CPU time. Unfortunately these cannot be
  * controlled by the conf file as easily as other stats for many reasons,
@@ -2040,24 +2483,28 @@ total_cpu_update(bk_s B, bk_dynamic_stats_h stats_list, bk_dynamic_stat_h dyn_st
  *
  *	@param B BAKA thread/global state.
  *	@param stats_list The list of stats
- *	@param name The thread name.
+ *	@param bt The thread node.
+ *	@param bdsp C/O of newly created stat (if appropriate).
  *	@param flags Flags for future use.
  *	@return <i>-1</i> on failure.<br>
  *	@return <i>0</i> on success.
  */
 static int
-stats_thread_cpu_time_register(bk_s B, bk_dynamic_stats_h stats_list, void *bt, bk_flags flags)
+stats_thread_cpu_time_register(bk_s B, bk_dynamic_stats_h stats_list, void *bt, bk_dynamic_stat_h *statp, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
-  clockid_t *cpu_clockidp;
+  clockid_t *cpu_clockidp = NULL;
   char *name;
+  int err;
 
-  if (!bdsl || !bt)
+  if (!bdsl || !bt || !statp)
   {
     bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
     BK_RETURN(B, -1);
   }
+
+  *statp = NULL;
 
   if (!(name = bk_string_alloc_sprintf(B, 0, 0, "%s CPU time", bk_threadnode_name(B, bt))))
   {
@@ -2065,7 +2512,10 @@ stats_thread_cpu_time_register(bk_s B, bk_dynamic_stats_h stats_list, void *bt, 
     goto error;
   }
 
-  if (stats_list_search(bdsl->bdsl_list, name))
+  /*
+   * Since there can only be one CPU time stat per thread, the discriminator is superfluous.
+   */
+  if (stat_search(B, bdsl, name, 0))
   {
     // This stat is already registered. No work to be done.
     free(name);
@@ -2078,13 +2528,13 @@ stats_thread_cpu_time_register(bk_s B, bk_dynamic_stats_h stats_list, void *bt, 
     goto error;
   }
 
-  if (pthread_getcpuclockid(bk_threadnode_threadid(B, bt), cpu_clockidp) != 0)
+  if ((err = pthread_getcpuclockid(bk_threadnode_threadid(B, bt), cpu_clockidp)) != 0)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not get CPU clock id for a thread: %s\n", name);
+    bk_error_printf(B, BK_ERR_ERR, "Could not get CPU clock id for a thread: %s: %s\n", name, strerror(err));
     goto error;
   }
 
-  if (bk_dynamic_stat_register(B, stats_list, name, 0, DynamicStatsValueTypeFloat, DynamicStatsAccessTypeDirect, thread_cpu_time_update, cpu_clockidp, thread_cpu_time_destroy, 0) < 0)
+  if (bk_dynamic_stat_register_simple(B, stats_list, name, 0, 0, DynamicStatsValueTypeFloat, DynamicStatsAccessTypeDirect, thread_cpu_time_update, cpu_clockidp, thread_cpu_time_destroy, statp, 0) < 0)
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not register CPU time for thread: %s\n", name);
     goto error;
@@ -2178,24 +2628,291 @@ thread_cpu_time_update(bk_s B, bk_dynamic_stats_h stats_list, bk_dynamic_stat_h 
 
 
 
+/**
+ * Manage thread-specific stats.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bdsl The stats list.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+static int
+manage_thread_stats(bk_s B, struct bk_dynamic_stats_list *bdsl, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int threadlist_locked = 0;
+  pthread_t null_tid;
+  void *bt;
+  struct bk_dynamic_stat *bds;
+
+  if (!bdsl)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  /*
+   * Yes, I know that a pthread_t is currently an unsigned long, but
+   * according the spec that's just an implementation detail that might
+   * change in the future. Although the chance of such a change can
+   * probably be charitably described as "God help them if they try", we
+   * must accept that there is the slightest possibility that "they" will.
+   */
+  memset(&null_tid, (char)0, sizeof(null_tid));
+
+  /*
+   * Read all the thread CPU clocks and print their usage
+   * <TODO> These should really be pure statistics which are updated as per normal</TODO>
+   */
+  if (bk_threadlist_lock(B) < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not obtain thread list lock\n");
+    goto error;
+  }
+
+  threadlist_locked = 1;
+
+  for(bds = stats_list_minimum(bdsl->bdsl_list);
+      bds;
+      bds = stats_list_successor(bdsl->bdsl_list, bds))
+  {
+    int found_tid = 0;
+    if (pthread_equal(bds->bds_tid, null_tid))
+      continue;
+
+    for(bt = bk_threadlist_minimum(B); bt; bt = bk_threadlist_successor(B, bt))
+    {
+      if (pthread_equal(bk_threadnode_threadid(B, bt), bds->bds_tid))
+      {
+	found_tid = 1;
+	break;
+      }
+    }
+    if (!found_tid)
+      bk_dynamic_stat_deregister(B, bdsl, bds->bds_name, bds->bds_discriminator, 0);
+  }
+
+  for(bt = bk_threadlist_minimum(B); bt; bt = bk_threadlist_successor(B, bt))
+  {
+    // NB: This call only actually registers each thread once.
+    if (stats_thread_cpu_time_register(B, bdsl, bt, (bk_dynamic_stat_h *)&bds, 0) < 0)
+    {
+      bk_error_printf(B, BK_ERR_WARN, "Could not register CPU time stat for thread: %s\n", bk_threadnode_name(B, bt));
+      continue;
+    }
+
+    if (bds && (bk_dynamic_stat_set_threadid(B, bds, bk_threadnode_threadid(B, bt), 0) < 0))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not set the threadid in thread CPU stat\n");
+      goto error;
+    }
+  }
+
+  /*
+   * Unset threadlist_locked before attempting to unlock the thread list so
+   * that if the unlock fails the error section won't try to unlock it
+   * again.
+   */
+  threadlist_locked = 0;
+
+  if (bk_threadlist_unlock(B))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not release thread list lock\n");
+    goto error;
+  }
+
+  BK_RETURN(B, 0);
+
+ error:
+  if (threadlist_locked)
+    bk_threadlist_unlock(B);
+
+  BK_RETURN(B, -1);
+}
+#endif /* NO_THREAD_CPU_STAT */
+#endif /* BK_USING_PTHREADS */
+
+
+
+/**
+ * Some processes which use the indirect-update method, also want to
+ * destroy that memory while still maintaining valid statistic memory. In
+ * this case, the process can use this function to convert from indirect to
+ * direct.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param stats_list The statistics list
+ *	@param name The name/description of the stat
+ *	@param discriminator Distinguish same-named stats.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_dynamic_stat_convert(bk_s B, bk_dynamic_stats_h stats_list, const char *name, long discriminator, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
+  struct bk_dynamic_stat *bds;
+  void *tptr;
+
+  if (!bdsl || !name)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (!(bds = stat_search(B, bdsl, name, discriminator)))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not find the stat described as %s:%ld\n", name, discriminator);
+    goto error;
+  }
+
+  if (bds->bds_access_type == DynamicStatsAccessTypeDirect)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Conversion only works for stats using the indirect access method\n");
+    goto error;
+  }
+
+  tptr = bds->bds_ptr;
+  bds->bds_access_type = DynamicStatsAccessTypeDirect;
+
+  switch(bds->bds_value_type)
+  {
+  case DynamicStatsValueTypeInt32:
+    bds->bds_int32 = *(int32_t *)tptr;
+    break;
+  case DynamicStatsValueTypeUInt32:
+    bds->bds_uint32 = *(u_int32_t *)tptr;
+    break;
+  case DynamicStatsValueTypeInt64:
+    bds->bds_int64 = *(int64_t *)tptr;
+    break;
+  case DynamicStatsValueTypeUInt64:
+    bds->bds_uint64 = *(u_int64_t *)tptr;
+    break;
+  case DynamicStatsValueTypeFloat:
+    bds->bds_float = *(float *)tptr;
+    break;
+  case DynamicStatsValueTypeDouble:
+    bds->bds_double = *(double *)tptr;
+    break;
+  case DynamicStatsValueTypeString:
+    bk_error_printf(B, BK_ERR_ERR, "Converting a string value type should never be possible\n");
+    goto error;
+    break;
+  default:
+    bk_error_printf(B, BK_ERR_ERR,"Unknown bds->bds_value_type: %d\n", bds->bds_value_type);
+    break;
+  }
+
+  BK_RETURN(B, 0);
+
+ error:
+  BK_RETURN(B, -1);
+}
+
+
+
+
+/**
+ * Search for stat.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param bdsl The stats list to search
+ *	@param name Stat name
+ *	@param discriminator Distinguish same-named stats.
+ *	@return <i>NULL</i> on failure.<br>
+ *	@return <i>bds</i> on success.
+ */
+static struct bk_dynamic_stat *
+stat_search(bk_s B, struct bk_dynamic_stats_list *bdsl, const char *name, long discriminator)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_dynamic_stat_key bdsk;
+
+  if (!bdsl || !name)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  bdsk.bdsk_name = name;
+  bdsk.bdsk_discriminator = discriminator;
+
+  BK_RETURN(B, stats_list_search(bdsl->bdsl_list, &bdsk));
+
+}
+
 static int stats_list_oo_cmp(struct bk_dynamic_stat *a, struct bk_dynamic_stat *b)
 {
-  return(strcmp(a->bds_name,b->bds_name));
+  return(strcmp(a->bds_name,b->bds_name) || (a->bds_discriminator != b->bds_discriminator));
 }
 
-static int stats_list_ko_cmp(char *a, struct bk_dynamic_stat *b)
+static int stats_list_ko_cmp(struct bk_dynamic_stat_key *a, struct bk_dynamic_stat *b)
 {
-  return(strcmp(a,b->bds_name));
+  return(strcmp(a->bdsk_name,b->bds_name) || (a->bdsk_discriminator != b->bds_discriminator));
 }
 
-#ifdef STATS_LIST_IS_HASH
-static ht_val stats_list_obj_hash(struct bk_dynamic_stat *a)
+
+/**
+ * Print a stat node. Intended for use with bst.c debugging (ergo no
+ * baka'isms and the assumption that stderr is ours to print to).
+ *
+ *	@param B BAKA thread/global state.
+ *	@param flags Flags for future use.
+ */
+void
+bk_dynamic_stat_bst_print(dict_obj dyn_stat)
 {
-  return(bk_strhash(a->bds_name, 0));
+  struct bk_dynamic_stat *bds = (struct bk_dynamic_stat *)dyn_stat;
+
+  if (!bds)
+  {
+    fprintf(stderr, "bk_dynamic_stat_bst_print: Illegal arguments\n");
+    return;
+  }
+
+  fprintf(stderr, "%s:%ld\n", bds->bds_name, bds->bds_discriminator);
+  return;
 }
 
-static ht_val stats_list_key_hash(char *a)
+
+#ifdef  BK_USING_PTHREADS
+/**
+ * Set the thread id. The reason this is a separate function and not just
+ * another argument to the various constructor functions is simply that
+ * this makes it easier to compile *without* BK_USING_PTHREADS
+ *
+ *	@param B BAKA thread/global state.
+ *	@param dstat The statistic to update
+ *	@param tid The thread id.
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_dynamic_stat_set_threadid(bk_s B, bk_dynamic_stat_h dstat, pthread_t tid, bk_flags flags)
 {
-  return(bk_strhash(a,0));
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  struct bk_dynamic_stat *bds = (struct bk_dynamic_stat *)dstat;
+
+  if (!bds)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  bds->bds_tid = tid;
+
+  BK_RETURN(B, 0);
 }
-#endif /* STATS_LIST_KEY_HASH */
+
+#else /* BK_USING_PTHREADS */
+int
+bk_dynamic_stat_set_threadid(bk_s B, bk_dynamic_stat_h dstat, u_long tid, bk_flags flags)
+{
+  return(0);
+}
+#endif /* BK_USING_PTHREADS */
