@@ -641,7 +641,17 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
   case BkAddrGroupStateSocket:
     if (BK_FLAG_ISSET(pc->pc_flags, PC_MULTICAST))
     {
-      if (bk_stdsock_multicast(B, sock, pc->pc_multicast_ttl, bag->bag_remote->bni_addr,
+      struct bk_netaddr *bna;
+
+      if (pc->pc_role == BttcpRoleTransmit)
+      {
+	bna = bag->bag_remote->bni_addr;
+      }
+      else
+      {
+	bna = bag->bag_local->bni_addr;
+      }
+      if (bk_stdsock_multicast(B, sock, pc->pc_multicast_ttl, bna,
 		       BK_FLAG_ISSET(pc->pc_flags, PC_MULTICAST_LOOP)?BK_MULTICAST_WANTLOOP:0 |
 		       BK_FLAG_ISSET(pc->pc_flags, PC_MULTICAST_NOMEMBERSHIP)?BK_MULTICAST_NOJOIN:0) < 0)
       {
