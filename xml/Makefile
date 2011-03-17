@@ -36,3 +36,6 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 -include ./Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
+
+LOCAL_INCS+=$(shell $(XML2CONFIG) --cflags)
+LOCAL_LIBS+=$(shell $(XML2CONFIG) --libs)
