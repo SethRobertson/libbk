@@ -28,7 +28,9 @@ app-timed-replay
 test_proc
 test_string_expand
 test_syscall
-ipctest
-shmmap
 test_recursive_locks
 test_stats
+test_bua
+ipctest
+shmmap
+

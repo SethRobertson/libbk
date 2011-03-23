@@ -2111,10 +2111,10 @@ extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const 
 
 
 /* getbyfoo.c */
-extern int bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **ip, struct bk_netinfo *bni, bk_flags flags);
+extern int bk_getprotobyfoo(bk_s B, const char *protostr, struct protoent **ip, struct bk_netinfo *bni, bk_flags flags);
 #define BK_GETPROTOBYFOO_FORCE_LOOKUP	0x1	///< Do lookup even if argumnet suggests otherwise.
 extern void bk_protoent_destroy(bk_s B, struct protoent *p);
-extern int bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni, bk_flags flags);
+extern int bk_getservbyfoo(bk_s B, char *servstr, const char *iproto, struct servent **is, struct bk_netinfo *bni, bk_flags flags);
 #define BK_GETSERVBYFOO_FORCE_LOOKUP	0x1	///< Do lookup even if argumnet suggests otherwise.
 extern void bk_servent_destroy(bk_s B, struct servent *s);
 void *bk_gethostbyfoo(bk_s B, char *name, int family, struct bk_netinfo *bni, struct bk_run *br, bk_gethostbyfoo_callback_f callback, void *args, bk_flags user_flags);

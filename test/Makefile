@@ -26,6 +26,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		mutex			\
 		shmmap			\
 		sourcesink		\
+		test_bua		\
 		test_clc		\
 		test_closerace		\
 		test_config		\
