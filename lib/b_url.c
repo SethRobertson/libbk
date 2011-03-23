@@ -760,7 +760,7 @@ bk_url_getparam(bk_s B, char **pathp, char * const *tokens, char **valuep)
 
 /**
  * Parse the authority section of a url assuming the
- * format is: [[user[:password]@]server[:port]]
+ * format is: <<user<:password>@><[>server<]><:port>>
  * char* members of bk_url_authority are guaranteed to be non-null.
  * Caller must free the returned value with bk_url_authority_free
  *
@@ -779,6 +779,7 @@ bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags)
   struct bk_url_authority *bua = NULL;
   char *amp = NULL;
   char *col = NULL;
+  char *left_bracket, *right_bracket;
 
   if (!auth_str)
   {
@@ -799,27 +800,74 @@ bk_url_parse_authority(bk_s B, const char *auth_str, bk_flags flags)
     if (col = (char*) memchr(auth_str, ':', userdata_len))
     {
       u_int16_t user_len = col - auth_str;	// don't include :
-      bua->bua_user = bk_strndup(B, auth_str, user_len);
-      bua->bua_pass = bk_strndup(B, col + 1, userdata_len - user_len - 1);
+      if (!(bua->bua_user = bk_strndup(B, auth_str, user_len)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not copy user part of URL authority section\n");
+	goto error;
+      }
+      if (!(bua->bua_pass = bk_strndup(B, col + 1, userdata_len - user_len - 1)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not copy password part of URL authority section\n");
+	goto error;
+      }
     }
     else
     {
       // whole userdata is just the user
-      bua->bua_user = bk_strndup(B, auth_str, userdata_len);
+      if (!(bua->bua_user = bk_strndup(B, auth_str, userdata_len)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not copy user part of URL authority section\n");
+	goto error;
+      }
     }
     auth_str = amp + 1;
   }
 
   // host and port
-  if (col = strchr(auth_str, ':'))
+  if (left_bracket = strchr(auth_str, '['))
   {
-    bua->bua_host = bk_strndup(B, auth_str, col - auth_str);
-    bua->bua_port = strdup(col + 1);
+    if (!(right_bracket = strchr(left_bracket, ']')))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Illegal authority format\n");
+      goto error;
+    }
+
+    if (!(bua->bua_host = bk_strndup(B, left_bracket+1, right_bracket - 1 - left_bracket)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy IPv6 style address name from URL authority section\n");
+      goto error;
+    }
+
+    if (col = strchr(right_bracket, ':'))
+    {
+      if (!(bua->bua_port = strdup(col+1)))
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Could not copy port from URL authority section\n");
+	goto error;
+      }
+    }
+  }
+  else if (col = strchr(auth_str, ':'))
+  {
+    if (!(bua->bua_host = bk_strndup(B, auth_str, col - auth_str)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy hostname/IPV4 address from URL authority section\n");
+      goto error;
+    }
+    if (!(bua->bua_port = strdup(col + 1)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy port from URL authority section\n");
+      goto error;
+    }
   }
   else
   {
     // no port, only host
-    bua->bua_host = strdup(auth_str);
+    if (!(bua->bua_host = strdup(auth_str)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not copy hostname/IPV4 address from URL authority section\n");
+      goto error;
+    }
   }
 
   BK_RETURN(B, bua);

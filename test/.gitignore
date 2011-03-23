@@ -28,3 +28,4 @@ app-timed-replay
 test_proc
 test_string_expand
 test_syscall
+test_bua

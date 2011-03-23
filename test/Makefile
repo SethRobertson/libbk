@@ -24,6 +24,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		diskspeed		\
 		mutex			\
 		sourcesink		\
+		test_bua		\
 		test_clc		\
 		test_closerace		\
 		test_config		\

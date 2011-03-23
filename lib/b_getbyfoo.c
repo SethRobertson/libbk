@@ -71,7 +71,7 @@ static void bgs_destroy(bk_s B, struct bk_gethostbyfoo_state *bgs);
  *	@return <br><i>proto_num</i> on success.
  */
 int
-bk_getprotobyfoo(bk_s B, char *protostr, struct protoent **iproto, struct bk_netinfo *bni, bk_flags flags)
+bk_getprotobyfoo(bk_s B, const char *protostr, struct protoent **iproto, struct bk_netinfo *bni, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct protoent *p, *n = NULL;
@@ -251,7 +251,7 @@ bk_protoent_destroy(bk_s B, struct protoent *p)
  *	@return <br><i>port_num</i> (in <em>network</em> order) on success.
  */
 int
-bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct bk_netinfo *bni, bk_flags flags)
+bk_getservbyfoo(bk_s B, char *servstr, const char *iproto, struct servent **is, struct bk_netinfo *bni, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct servent *s, *n = NULL;
@@ -260,7 +260,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
   int alias_count = 0;
   int num;					///< Port number (*host* order)
   int count;
-  char *proto = NULL;
+  const char *proto = NULL;
   char *bni_proto = NULL;
   struct servent dummy;
   struct protoent *lproto = NULL;
@@ -347,7 +347,7 @@ bk_getservbyfoo(bk_s B, char *servstr, char *iproto, struct servent **is, struct
       s = &dummy;
       memset(s,0,sizeof(*s));
       s->s_port = htons(num);
-      s->s_proto = proto;
+      s->s_proto = (char *)proto;
     }
   }
   else
