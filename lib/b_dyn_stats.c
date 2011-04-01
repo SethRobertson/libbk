@@ -1,11 +1,11 @@
 #if !defined(lint)
-static const char tcs__copyright[] = "Copyright © 2002-2010 TCS Commercial, Inc.";
-static const char tcs__contact[] = "TCS Commercial, Inc. <cssupport@TrustedCS.com>";
+static const char rtcs__copyright[] = "Copyright Â© 2011 Raytheon Trusted Computer Solutions, Inc.";
+static const char rtcs__contact[] = "Raytheon Trusted Computer Solutions, Inc. <cssupport@TrustedCS.com>";
 #endif /* not lint */
 /*
  * ++Copyright BAKA++
  *
- * Copyright © 2002-2010 The Authors. All rights reserved.
+ * Copyright Â© 2011 The Authors. All rights reserved.
  *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
