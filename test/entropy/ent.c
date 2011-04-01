@@ -94,7 +94,7 @@ static int getopt(int argc, char *argv[], char *opts)
 {
     static char *opp = NULL;
     int o;
-   
+
     while (opp == NULL) {
         if ((optind >= argc) || (*argv[optind] != '-')) {
 	   return -1;

@@ -20,7 +20,7 @@ Help options:
   -?, --help            Show this help message
   --usage               Display brief usage message
 ----------------------------------------------------------------------
-startide seth> BAKA_HOME=. LANG=dansk proto  
+startide seth> BAKA_HOME=. LANG=dansk proto
 Guten Wurlden
 ----------------------------------------------------------------------
 

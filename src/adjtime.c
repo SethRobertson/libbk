@@ -40,7 +40,7 @@ int main(int argc, char *argv[], char *envp[])
     forward.tv_sec = INT_MIN / MILLION + 2;
     forward.tv_usec = -999999;
   }
-  else if (forward.tv_sec < 0 && forward.tv_usec > 0) 
+  else if (forward.tv_sec < 0 && forward.tv_usec > 0)
   {
     forward.tv_usec = -forward.tv_usec;
   }

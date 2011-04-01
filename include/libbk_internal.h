@@ -139,7 +139,7 @@ extern struct bk_ioh *bk_ioh_init_std(bk_s B, int fdin, int fdout, bk_iohhandler
  * (see http://developer.apple.com/mac/library/technotes/tn2002/tn2064.html).
  * In compilation environments where there is no weak support you will just end
  * up with the normal extern symbol and linking requirements.
- * 
+ *
 </TRICKY>
  */
 
