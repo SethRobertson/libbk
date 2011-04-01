@@ -1183,20 +1183,20 @@ bk_gethostbyfoo_blocking(bk_s B, char *name, int family, struct bk_netinfo *bni,
     goto error;
   }
 
-  /* 
+  /*
    * <TODO>
    * Sigh...we are ignoring BkGetHostByFooStateNetinfoErr because it's
    * unclear what to do in that case
    * </TODO>
    */
-  
+
   if (hp)
     hp = bgfs.bgfs_hp;
 
   BK_RETURN(B, 0);
-  
+
  error:
-  BK_RETURN(B, -1);  
+  BK_RETURN(B, -1);
 }
 
 
@@ -1214,7 +1214,7 @@ bk_gethostbyfoo_blocking_callback(bk_s B, struct bk_run *run, struct hostent *h,
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct blocking_gethostbyfoo_state *bgfs = (struct blocking_gethostbyfoo_state *)args;
-  
+
 
   if (!(h || bni) || !run || !bgfs) // args not expected
   {
@@ -1223,9 +1223,9 @@ bk_gethostbyfoo_blocking_callback(bk_s B, struct bk_run *run, struct hostent *h,
   }
 
   BK_FLAG_SET(bgfs->bgfs_flags, BGFS_FLAG_HANDLER_RAN);
-  
+
   bgfs->bgfs_state = state;
-  
+
   if (state == BkGetHostByFooStateErr)
   {
     bk_error_printf(B, BK_ERR_ERR, "An error occured attempting to look up hostent\n");
@@ -1235,5 +1235,5 @@ bk_gethostbyfoo_blocking_callback(bk_s B, struct bk_run *run, struct hostent *h,
   if (bgfs->bgfs_hp)
     *bgfs->bgfs_hp = h;
 
-  BK_VRETURN(B);  
+  BK_VRETURN(B);
 }

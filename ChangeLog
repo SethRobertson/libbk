@@ -16,7 +16,7 @@
 
 	* lib/b_netinfo.c (bk_netinfo_from_sockaddr): Break up the
 	from_socket frunction so you that can also create a bni from a
-	sockaddr. 
+	sockaddr.
 
 2009-10-01  James Tanis  <jtt@outpost.tanis.org>
 

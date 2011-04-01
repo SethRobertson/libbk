@@ -1092,10 +1092,10 @@ bk_netinfo_from_socket(bk_s B, int s, int proto, bk_socket_side_e side)
 
   }
 
-  BK_RETURN(B, bk_netinfo_from_sockaddr(B, &bs, proto, 0));  
+  BK_RETURN(B, bk_netinfo_from_sockaddr(B, &bs, proto, 0));
 
  error:
-  BK_RETURN(B, NULL);  
+  BK_RETURN(B, NULL);
 }
 
 
@@ -1352,7 +1352,7 @@ bk_netinfo_addr_type(bk_s B, struct bk_netinfo *bni, bk_flags flags)
 
 
 /**
- * See if a bk_netinfo structure matches a sockaddr 
+ * See if a bk_netinfo structure matches a sockaddr
  *
  *	@param B BAKA thread/global state.
  *	@param bni The bk_netinfo to check
@@ -1394,7 +1394,7 @@ bk_netinfo_match_sockaddr(bk_s B, struct bk_netinfo *bni, bk_sockaddr_t *bs, int
 
   case AF_LOCAL:
     break;
-    
+
   default:
     bk_error_printf(B, BK_ERR_ERR, "Illegal network family: %d\n", bs->bs_sa.sa_family);
     goto error;
@@ -1410,7 +1410,7 @@ bk_netinfo_match_sockaddr(bk_s B, struct bk_netinfo *bni, bk_sockaddr_t *bs, int
   }
 
   for (bna = bk_netinfo_advance_primary_address(B, bni);
-       bna; 
+       bna;
        bna = bk_netinfo_advance_primary_address(B, bni))
   {
     switch(bs->bs_sa.sa_family)
@@ -1454,10 +1454,10 @@ bk_netinfo_match_sockaddr(bk_s B, struct bk_netinfo *bni, bk_sockaddr_t *bs, int
  error:
   if (addr)
     bni->bni_addr = addr;
-  
+
   if (addr2)
     bni->bni_addr2 = addr2;
-  
+
   BK_RETURN(B, -1);
 }
 
