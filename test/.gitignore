@@ -29,3 +29,4 @@ test_proc
 test_string_expand
 test_syscall
 test_bua
+test_xml_comment

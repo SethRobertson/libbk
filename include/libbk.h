@@ -571,7 +571,7 @@ struct bk_child_comm
   void (*cc_callback)(bk_s B, void *opaque, int childid, bk_childstate_e state, u_int status); ///< Callback for child state management
   void *cc_opaque;				///< Opaque data for callback
   u_int cc_statuscode;				///< Last wait status
-  bk_flags cc_flags;			        ///< State
+  bk_flags cc_flags;				///< State
 #define CC_WANT_NOTIFYSTOP	0x002		///< Want stop notification
 #define CC_DEAD			0x004		///< Child is dead
 };
@@ -668,7 +668,7 @@ struct bk_bitfield
    * bitstring of > 32 bits.  This should be fixed eventually.</TODO>
    */
   u_int32_t		bf_bits;		///< Bitfield value
-  u_int8_t	        bf_bitlen;		///< Bitfield bit length
+  u_int8_t		bf_bitlen;		///< Bitfield bit length
 };
 
 
@@ -1972,6 +1972,7 @@ extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
 extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
 #define BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT	0x1 ///< Allow non printable chars in output xml string.
 #define BK_STRING_STR2XML_FLAG_ENCODE_WHITESPACE 0x2 ///< Encode whitespace other than space (\040).
+extern int bk_string_xml_escape_comment(bk_s B, const char *str, char **result, bk_flags flags);
 
 /* b_strconv.c */
 extern int bk_string_atou32(bk_s B, const char *string, u_int32_t *value, bk_flags flags);
