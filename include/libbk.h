@@ -1983,6 +1983,7 @@ extern bk_vptr *bk_decode_base64(bk_s B, const char *str);
 extern char *bk_string_str2xml(bk_s B, const char *str, bk_flags flags);
 #define BK_STRING_STR2XML_FLAG_ALLOW_NON_PRINT	0x1 ///< Allow non printable chars in output xml string.
 #define BK_STRING_STR2XML_FLAG_ENCODE_WHITESPACE 0x2 ///< Encode whitespace other than space (\040).
+extern int bk_string_xml_escape_comment(bk_s B, const char *str, char **result, bk_flags flags);
 
 /* b_strconv.c */
 extern int bk_string_atou32(bk_s B, const char *string, u_int32_t *value, bk_flags flags);

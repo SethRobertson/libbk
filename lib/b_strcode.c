@@ -481,3 +481,110 @@ bk_string_str2xml(bk_s B, const char *str, bk_flags flags)
 
   BK_RETURN(B,NULL);
 }
+
+
+
+#define XML_HYPHEN_CHARCODE "&#45;"
+/**
+ * Escape a string that is to be included inside an XML comment. Currently
+ * this means converting double hyphens into &#45;- pairs. NB: Only the
+ * first hyphen of the pair gets converted. <a>result</a> is CO char *
+ * which is allocated by the function and must be free(3)'ed by the
+ * caller. if *result is not NULL, it is freed and then reallocated. If the
+ * function fails *result will be NULL.
+ *
+ *	@param B BAKA thread/global state.
+ *	@param str The string to escape.
+ *	@param result The escaped string. See comment above
+ *	@param flags Flags for future use.
+ *	@return <i>-1</i> on failure.<br>
+ *	@return <i>0</i> on success.
+ */
+int
+bk_string_xml_escape_comment(bk_s B, const char *str, char **result, bk_flags flags)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  char *estr = NULL;
+  const char *p;
+  char *q;
+  int hyphen_cnt = 0;
+  int last_char_was_hyphen;
+
+  if (!str || !result)
+  {
+    bk_error_printf(B, BK_ERR_ERR,"Illegal arguments\n");
+    BK_RETURN(B, -1);
+  }
+
+  if (*result)
+    free((char *)(*result));
+  *result = NULL;
+
+  p = str;
+  while((q = strchr(p, '-')))
+  {
+    hyphen_cnt++;
+    p = q+1;
+  }
+
+  /*
+   * <STUPID>
+   * Yes, I know that when hyphen_cnt is not 0, this allocates more space
+   * than is necessary, but so what? It's simple.
+   * </STUPID>
+   */
+  if (!BK_CALLOC_LEN(estr, hyphen_cnt * strlen(XML_HYPHEN_CHARCODE) + strlen(str) + 1))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not copy comment string for escaping: %s\n", strerror(errno));
+    goto error;
+  }
+
+  /*
+   * NB: estr was calloc(3)'ed, so this string is NUL terminated even
+   * though the NUL is not copied.
+   */
+  last_char_was_hyphen = 0;
+  q = estr;
+  for(p = str; *p; p++)
+  {
+    if (*p == '-')
+    {
+      if (last_char_was_hyphen)
+      {
+	// q is "one behind" here (just FYI. It's not important yet).
+	strcpy(q, XML_HYPHEN_CHARCODE);
+	q += strlen(XML_HYPHEN_CHARCODE);
+      }
+      else
+      {
+	// NB: q is *NOT* advanced here and q falls "one behind"
+	last_char_was_hyphen = 1;
+      }
+    }
+    else
+    {
+      if (last_char_was_hyphen)
+      {
+	// q is "one behind" here, so catch up by "copying" the hyphen.
+	*q++ = '-';
+      }
+      *q++ = *p;
+      last_char_was_hyphen = 0;
+    }
+  }
+
+  if (last_char_was_hyphen)
+  {
+    // q is "one behind" here, so catch up by "copying" the hyphen.
+    *q = '-';
+  }
+
+  *result = estr;
+
+  BK_RETURN(B, 0);
+
+ error:
+  if (estr)
+    free(estr);
+  BK_RETURN(B, -1);
+}

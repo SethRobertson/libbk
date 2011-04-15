@@ -49,6 +49,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		test_threads		\
 		test_time		\
 		test_url		\
+		test_xml_comment	\
 		testhashspeed		\
 		testrandidea		\
 		writev			\
