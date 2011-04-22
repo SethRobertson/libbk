@@ -72,8 +72,6 @@ else
 #LOCAL_DEFINES+=-DNO_SSL
 endif # BK_USING_SSL
 
-LOCAL_LIBS+=-lpcap
-
 # <TRICKY>Do not assign (even with +=) to LDLIBS here - do it at end</TRICKY>
 
 ifneq ($(BK_WANT_LIBTOOL),false)
@@ -99,6 +97,9 @@ LDLIBS=$(filter-out -lpq -lssl -lcrypt -lcrypto -lbkxml -lbkssl -lxml2 -lm -lz,$
 
 # these are not really baka programs, despite their names, and need only -lc
 adjtime bk_daemon bk_funi: LDLIBS=
+
+# this is the only program that uses this library
+iprewrite: LOCAL_LIBS+=-lpcap
 
 ifneq ($(strip $(BK_USING_SSL)),false)
 # if bkrelay ever uses SSL, it should be added here
