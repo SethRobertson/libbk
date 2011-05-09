@@ -1714,7 +1714,7 @@ listen_activity(bk_s B, struct bk_run *run, int fd, u_int gottype, void *args, c
     int one = 1;
 
     memset(&bs, 0, sizeof(bs));
-    memset(buf, sizeof(buf), 0);
+    memset(buf, 0, sizeof(buf));
     bs_len = sizeof(bs);
 
     if (BK_FLAG_ISSET(as->as_user_flags, BK_NET_FLAG_BAKA_UDP))
