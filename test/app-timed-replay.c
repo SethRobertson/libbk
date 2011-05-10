@@ -642,8 +642,9 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
     int actuallen = fread(buf,len,1,fin);
     if (actuallen > 0)
     {
+      int junk;
       actuallen *= len;
-      write(sock,buf,actuallen);
+      junk = write(sock,buf,actuallen);
     }
     pc->pc_stats.side[0].birs_writebytes += actuallen;
   }
