@@ -300,25 +300,25 @@ static void progrun(bk_s B, struct program_config *pc)
     goto error;
   }
 
-  if (bk_dynamic_stat_register_with_value_simple(B, stats_list, "counter", 0, 0, DynamicStatsValueTypeInt32, DynamicStatsAccessTypeIndirect, NULL, NULL, NULL, 0, &cnt))
+  if (bk_dynamic_stat_register_with_value_simple(B, stats_list, "counter", 0, 0, DynamicStatsValueTypeInt32, DynamicStatsAccessTypeIndirect, NULL, NULL, NULL, NULL, 0, &cnt))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not register the counter stat\n");
     goto error;
   }
 
-  if (bk_dynamic_stat_register_simple(B, stats_list, "increment", 1, 0, DynamicStatsValueTypeInt32, DynamicStatsAccessTypeDirect, NULL, NULL, NULL, 0))
+  if (bk_dynamic_stat_register_simple(B, stats_list, "increment", 1, 0, DynamicStatsValueTypeInt32, DynamicStatsAccessTypeDirect, NULL, NULL, NULL, NULL, 0))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not register the increment 0  stat\n");
     goto error;
   }
 
-  if (bk_dynamic_stat_register_simple(B, stats_list, "increment", 2, 0, DynamicStatsValueTypeInt32, DynamicStatsAccessTypeDirect, NULL, NULL, NULL, 0))
+  if (bk_dynamic_stat_register_simple(B, stats_list, "increment", 2, 0, DynamicStatsValueTypeInt32, DynamicStatsAccessTypeDirect, NULL, NULL, NULL, NULL, 0))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not register the increment 1 stat\n");
     goto error;
   }
 
-  if (bk_dynamic_stat_register_simple(B, stats_list, "increment", 1, 0, DynamicStatsValueTypeInt32, DynamicStatsAccessTypeDirect, NULL, NULL, NULL, BK_DYNAMIC_STAT_REGISTER_FLAG_IDEMPOTENT))
+  if (bk_dynamic_stat_register_simple(B, stats_list, "increment", 1, 0, DynamicStatsValueTypeInt32, DynamicStatsAccessTypeDirect, NULL, NULL, NULL, NULL, BK_DYNAMIC_STAT_REGISTER_FLAG_IDEMPOTENT))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not register the duplicate increment 0 stat\n");
     goto error;
