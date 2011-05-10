@@ -243,7 +243,10 @@ static void progrun(bk_s B, struct program_config *pconfig)
   {
     printf("\ncmd> ");
     fflush(stdout);
-    fgets(line, sizeof(line), stdin);
+    if (!fgets(line, sizeof(line), stdin))
+    {
+      break;
+    }
 
     bk_string_rip(B, line, NULL, 0);
     if (!(args = bk_string_tokenize_split(B, line, 10, NULL, NULL, NULL, NULL, 0)))
