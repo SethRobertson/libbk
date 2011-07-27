@@ -337,7 +337,8 @@ int bk_memx_append(bk_s B, struct bk_memx *bm, const void *data, u_int count, bk
     goto error;
   }
 
-  memcpy(new, data, count * bm->bm_unitsize);
+  if (new != data)
+    memcpy(new, data, count * bm->bm_unitsize);
 
   BK_RETURN(B, 0);
 
