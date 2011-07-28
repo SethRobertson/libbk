@@ -377,6 +377,7 @@ bk_memx_info(bk_s B, struct bk_memx *bm, void **arrayp, size_t *unitesizep, size
 
   if (arrayp) *arrayp = bm->bm_array;
   if (unitesizep) *unitesizep = bm->bm_unitsize;
+  if (curallocp) *curallocp = bm->bm_curalloc;
   if (curusedp) *curusedp = bm->bm_curused;
   if (incrp) *incrp = bm->bm_incr;
   if (flagsp) *flagsp = bm->bm_flags;
