@@ -20,6 +20,7 @@ BK_LARGE_LIBSRC=				\
 		b_addrgroup.c			\
 		b_bigint.c			\
 		b_bits.c			\
+		b_bloomfilter.c			\
 		b_child.c			\
 		b_cksum.c			\
 		b_config.c			\
@@ -40,6 +41,7 @@ BK_LARGE_LIBSRC=				\
 		b_math.c			\
 		b_md5.c				\
 		b_memx.c			\
+		b_murmur.c			\
 		b_netaddr.c			\
 		b_netinfo.c			\
 		b_netutils.c			\

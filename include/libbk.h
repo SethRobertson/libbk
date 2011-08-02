@@ -2106,6 +2106,17 @@ extern char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const 
 #define BK_STRING_EXPAND_FREE 1
 extern int bk_string_csv_quote(bk_s B, const char *in_str, int in_len, char *out_str, int out_len, const char *quote_str, bk_flags flags);
 
+/* b_murmur.c */
+void murmurhash3_x86_32(const void *key, int len, uint32_t seed, void *out);
+void murmurhash3_x86_128(const void *key, const int len, uint32_t seed, void *out);
+void murmurhash3_x64_128(const void *key, const int len, const uint32_t seed, void *out);
+
+/* b_bloomfilter.c */
+struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, uint32_t hashes, uint64_t bits);
+void bk_bloomfilter_destroy(bk_s B, struct bk_bloomfilter *bf);
+int bk_bloomfilter_add(bk_s B, struct bk_bloomfilter *bf, const void *key, const int len);
+int bk_bloomfilter_is_present(bk_s B, struct bk_bloomfilter *bf, const void *key, const int len);
+
 /* b_sprintf.c */
 extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 
