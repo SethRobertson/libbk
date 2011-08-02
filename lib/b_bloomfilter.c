@@ -13,6 +13,10 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * Send e-mail to <projectbaka@baka.org> for further information.
  *
  * - -Copyright BAKA- -
+ *
+ *
+ * This code is derivative of the Cassandra code, which is licensed under
+ * the Apache License version 2.0 (http://www.apache.org/licenses/).
  */
 
 /**
