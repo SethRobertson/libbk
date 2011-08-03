@@ -34,3 +34,4 @@ test_bua
 ipctest
 shmmap
 test_xml_comment
+test_patricia

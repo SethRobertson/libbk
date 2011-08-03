@@ -46,6 +46,7 @@ BK_LARGE_LIBSRC=				\
 		b_netinfo.c			\
 		b_netutils.c			\
 		b_nvmap.c			\
+		b_patricia.c			\
 		b_pollio.c			\
 		b_procinfo.c			\
 		b_protoinfo.c			\

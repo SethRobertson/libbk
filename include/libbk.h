@@ -1650,6 +1650,13 @@ struct bk_symbol
 
 
 
+/**
+ * Duplicate memory (like strdup except vectored length
+ */
+#define bk_memdup(mem, len) ({ void *a = malloc(len); if (a) memcpy(a,mem,len); a; })
+
+
+
 /* b_general.c */
 extern bk_s bk_general_init(int argc, char ***argv, char ***envp, const char *configfile, struct bk_config_user_pref *bcup, int error_queue_length, int log_facility, bk_flags flags);
 #define BK_GENERAL_NOPROCTITLE 1		///< Specify that proctitle is not desired during general baka initialization
@@ -3142,6 +3149,20 @@ extern int bk_dynamic_stat_set_threadid(bk_s B, bk_dynamic_stat_h dstat, pthread
 #else /* BK_USING_PTHREADS */
 extern int bk_dynamic_stat_set_threadid(bk_s B, bk_dynamic_stat_h dstat, u_long tid, bk_flags flags);
 #endif /* BK_USING_PTHREADS */
+
+
+// b_patricia/radix (triesh) which handles bit patters, strings, and ipv4/v6 addresses
+extern struct bk_pnode *bk_patricia_create(bk_s B);
+extern int bk_patricia_insert(bk_s B, struct bk_pnode *tree, u_char *key, u_short keyblen, void *data, void **olddata);
+extern void *bk_patricia_search(bk_s B, struct bk_pnode *tree, u_char *key, u_short keyblen);
+extern void *bk_patricia_minimum(bk_s B, struct bk_pnode *tree);
+extern void *bk_patricia_successor(bk_s B, struct bk_pnode *tree, void *last);
+extern void bk_patricia_delete(bk_s B, struct bk_pnode *tree, u_char *key, u_short keyblen);
+extern void bk_patricia_vdelete(bk_s B, struct bk_pnode *tree, void *value);
+extern void bk_patricia_print(bk_s B, struct bk_pnode *tree, FILE *F, int level);
+extern void bk_patricia_destroy(struct bk_pnode *tree, void (*freefun)(void *));
+
+
 
 
 #endif /* _BK_h_ */

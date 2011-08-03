@@ -37,6 +37,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		test_iospeed		\
 		test_locks		\
 		test_mt19937		\
+		test_patricia		\
 		test_printbuf		\
 		test_proc		\
 		test_recursive_locks	\
