@@ -226,7 +226,7 @@ int bk_bloomfilter_is_present(bk_s B, struct bk_bloomfilter *bf, const void *key
   murmurhash3_x64_128(key, len, 0L, &hash);
   for (i=0; i<bf->bf_hash_count; i++)
   {
-    if (!get_bit(bf->bf_bits, bf->bf_words, (hash[0] + ((uint64_t)i) * hash[1]) % bf->bf_bits))
+    if (!get_bit(bf->bf_bitset, bf->bf_words, (hash[0] + ((uint64_t)i) * hash[1]) % bf->bf_bits))
       BK_RETURN(B, 0);
   }
 
