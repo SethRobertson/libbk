@@ -3155,6 +3155,7 @@ extern int bk_dynamic_stat_set_threadid(bk_s B, bk_dynamic_stat_h dstat, u_long 
 extern struct bk_pnode *bk_patricia_create(bk_s B);
 extern int bk_patricia_insert(bk_s B, struct bk_pnode *tree, u_char *key, u_short keyblen, void *data, void **olddata);
 extern void *bk_patricia_search(bk_s B, struct bk_pnode *tree, u_char *key, u_short keyblen);
+extern void *bk_patricia_rsearch(bk_s B, struct bk_pnode *tree, u_char *key, u_short keyblen);
 extern void *bk_patricia_minimum(bk_s B, struct bk_pnode *tree);
 extern void *bk_patricia_successor(bk_s B, struct bk_pnode *tree, void *last);
 extern void bk_patricia_delete(bk_s B, struct bk_pnode *tree, u_char *key, u_short keyblen);

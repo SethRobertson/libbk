@@ -40,6 +40,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
 #define bp_bitsof_int(k,o,b) ((k)[(o)]>>(7-(b)))
 #define bp_bitsof(k,b) ( bp_bitsof_int((k),(b)/8,(((b)%8))) )
 #define bp_bitof(k,b) (bp_bitsof((k),(b))&1)
+#define bp_rbitof(k,b,l) (bp_bitsof_int((k),(l)/8-(b)/8-1,((b)%8)) & 1)
 
 
 
@@ -68,15 +69,15 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
   u_int i;									\
 										\
   /* Test word-at-a-time for speed when possible */				\
-  while (testbits > INTBITS)							\
+  while (testbits >= INTBITS)							\
   {										\
     if (*(int *)&needle[offset] != *(int *)&key[offset])			\
       break;									\
     offset += sizeof(int);							\
     testbits -= INTBITS;							\
   }										\
-  /* Test byte-at-a-time for speed when possible */				\
-  while (testbits > BYTEBITS)							\
+  /* Test byte-at-a-time for speed and sanity when possible */			\
+  while (testbits >= BYTEBITS)							\
   {										\
     if (needle[offset] != key[offset])						\
       break;									\
@@ -89,6 +90,45 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
   for(i=0;i<testbits;i++)							\
   {										\
     if (bp_bitsof_int(needle,offset,i) != bp_bitsof_int(key,offset,i))		\
+      break;									\
+    (*commonlenp) += 1;								\
+  }										\
+}
+
+
+
+/**
+ * Match the key (in reverse) against the lock and see how many pin (bits) match
+ *
+ * Copy-out the length in common
+ *
+ * Note, we are requiring that keyblen is a multiple of a byte
+ *
+ * TODO: Optimization: track how many bits have been previously
+ * checked and don't recheck them.
+ */
+#define PREFIX_RMATCH(needle, needlelen, key, keylen, commonlenp)		\
+{										\
+  u_int testbits = MIN(needlelen,keylen);					\
+  u_int offset = 0;								\
+  u_int koffset = keylen/8 - 1;							\
+  u_int i;									\
+										\
+  /* Test byte-at-a-time for speed and sanity when possible */			\
+  while (testbits >= BYTEBITS)							\
+  {										\
+    if (needle[offset] != key[koffset])						\
+      break;									\
+    offset++;									\
+    koffset--;									\
+    testbits -= BYTEBITS;							\
+  }										\
+										\
+  /* Test remaining bits (<8 matching left) */					\
+  *commonlenp = offset*BYTEBITS;						\
+  for(i=0;i<testbits;i++)							\
+  {										\
+    if (bp_bitsof_int(needle,offset,i) != bp_bitsof_int(key,koffset,i))		\
       break;									\
     (*commonlenp) += 1;								\
   }										\
@@ -382,6 +422,64 @@ void *bk_patricia_search(bk_s B, struct bk_pnode *tree, u_char *key, u_short key
 
     // Case three: partial match of key, go down the tree
     tree = tree->bp_children[bp_bitof(key,common_len)];
+  }
+  // notreached
+  BK_RETURN(B, NULL);
+}
+
+
+
+/**
+ * Search for a node in the bit-trie (where key is in reverse order)
+ *
+ *
+ * @param B BAKA THread/global state
+ * @param tree Patricia tree
+ * @param key Pointer to key data
+ * @param keyblen Length (in bits) of key data.
+ * @return <i>NULL</i> on failure or missing key
+ * @return <br><i>data</i> if found key
+ */
+void *bk_patricia_rsearch(bk_s B, struct bk_pnode *tree, u_char *key, u_short keyblen)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  u_short common_len = 0;
+
+  if (!tree || !key)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
+    BK_RETURN(B, NULL);
+  }
+
+  if (keyblen % BYTEBITS)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Cannot rsearch key lengths which are not multiples of a byte\n");
+    BK_RETURN(B, NULL);
+  }
+
+  // Linear programming instead of recursion.  We are decending the tree
+  while (1)
+  {
+    // Case zero: null pointers (caused by going down tree to a node which doesn't exist yet)
+    if (!tree)
+      BK_RETURN(B, NULL);
+
+    PREFIX_RMATCH(tree->bp_prefix, tree->bp_bitlen, key, keyblen, &common_len);
+
+    // Case one: exact match
+    if (common_len == keyblen && common_len == tree->bp_bitlen)
+    {
+      BK_RETURN(B, tree->bp_data);
+    }
+
+    // Case two: complete match of key, partial match of tree)
+    if (common_len == keyblen)
+    {
+      BK_RETURN(B, NULL);
+    }
+
+    // Case three: partial match of key, go down the tree
+    tree = tree->bp_children[bp_rbitof(key,common_len,keyblen)];
   }
   // notreached
   BK_RETURN(B, NULL);

@@ -264,7 +264,7 @@ static void progrun(bk_s B, struct program_config *pc)
   }
 
 #define TINSERT(k) { printf("Insert %s\n",k); conflict=NULL; if (bk_patricia_insert(B, pc->pc_pn, (k), (sizeof((k))-1)*8, (void *)++counter, &conflict) < 0) bk_die(B, 1, stderr, _("Could not insert\n"), BK_WARNDIE_WANTDETAILS); if (conflict) printf("Insert conflict: evicted %ld\n",(long)conflict);   /*bk_patricia_print(B,pc->pc_pn,stdout,0);*/ }
-#define SEARCH(k,e) { void *data = bk_patricia_search(B, pc->pc_pn, (k), (sizeof((k))-1)*8); if ((long)data != (long)e) { fprintf(stderr,"Unexpected search result on %s %ld!=%ld\n", k,(long)data,(long)e); exit(1); } }
+#define SEARCH(k,e) { int x=0; int y=0; u_char tmp[8192]; void *data2,*data = bk_patricia_search(B, pc->pc_pn, (k), (sizeof((k))-1)*8); if ((long)data != (long)e) { fprintf(stderr,"Unexpected search result on %s %ld!=%ld\n", k,(long)data,(long)e); exit(1); }  for(y=0,x=(int)sizeof(k)-2;x>=0;y++,x--) { tmp[y] = k[x]; } data2 = bk_patricia_rsearch(B, pc->pc_pn, tmp, (sizeof((k))-1)*8); if (data != data2) { fprintf(stderr,"search/rsearch %p mismatch %s/%.*s\n",data2,k,(int)sizeof(k)-1,tmp); bk_patricia_print(B,pc->pc_pn,stdout,0); exit(2); } }
 
   TINSERT("");
 
