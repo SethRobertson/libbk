@@ -62,7 +62,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * TODO: Optimization: track how many bits have been previously
  * checked and don't recheck them.
  */
-#define PREFIX_MATCH(needle, needlelen, key, keylen, commonlenp)		\
+#define PREFIX_MATCH(needle, needlelen, key, keylen, commonlenp) do		\
 {										\
   u_int testbits = MIN(needlelen,keylen);					\
   u_int offset = 0;								\
@@ -93,7 +93,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
       break;									\
     (*commonlenp) += 1;								\
   }										\
-}
+} while (0)
 
 
 
@@ -107,7 +107,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  * TODO: Optimization: track how many bits have been previously
  * checked and don't recheck them.
  */
-#define PREFIX_RMATCH(needle, needlelen, key, keylen, commonlenp)		\
+#define PREFIX_RMATCH(needle, needlelen, key, keylen, commonlenp) do		\
 {										\
   u_int testbits = MIN(needlelen,keylen);					\
   u_int offset = 0;								\
@@ -132,7 +132,7 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
       break;									\
     (*commonlenp) += 1;								\
   }										\
-}
+} while (0)
 
 
 
@@ -385,13 +385,16 @@ int bk_patricia_insert(bk_s B, struct bk_pnode *tree, u_char *key, u_short keybl
  * @param tree Patricia tree
  * @param key Pointer to key data
  * @param keyblen Length (in bits) of key data.
+ * @param flags BK_PATRICIA_REVERSE (pretend byte-aligned-key is in reverse order)
+ *		BK_PATRICIA_PREFIX (return the longest matching inserted item, <= key length)
  * @return <i>NULL</i> on failure or missing key
  * @return <br><i>data</i> if found key
  */
-void *bk_patricia_search(bk_s B, struct bk_pnode *tree, u_char *key, u_short keyblen)
+void *bk_patricia_search(bk_s B, struct bk_pnode *tree, u_char *key, u_short keyblen, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   u_short common_len = 0;
+  void *lastdata = NULL;
 
   if (!tree || !key)
   {
@@ -399,59 +402,7 @@ void *bk_patricia_search(bk_s B, struct bk_pnode *tree, u_char *key, u_short key
     BK_RETURN(B, NULL);
   }
 
-  // Linear programming instead of recursion.  We are decending the tree
-  while (1)
-  {
-    // Case zero: null pointers (caused by going down tree to a node which doesn't exist yet)
-    if (!tree)
-      BK_RETURN(B, NULL);
-
-    PREFIX_MATCH(tree->bp_prefix, tree->bp_bitlen, key, keyblen, &common_len);
-
-    // Case one: exact match
-    if (common_len == keyblen && common_len == tree->bp_bitlen)
-    {
-      BK_RETURN(B, tree->bp_data);
-    }
-
-    // Case two: complete match of key, partial match of tree)
-    if (common_len == keyblen)
-    {
-      BK_RETURN(B, NULL);
-    }
-
-    // Case three: partial match of key, go down the tree
-    tree = tree->bp_children[bp_bitof(key,common_len)];
-  }
-  // notreached
-  BK_RETURN(B, NULL);
-}
-
-
-
-/**
- * Search for a node in the bit-trie (where key is in reverse order)
- *
- *
- * @param B BAKA THread/global state
- * @param tree Patricia tree
- * @param key Pointer to key data
- * @param keyblen Length (in bits) of key data.
- * @return <i>NULL</i> on failure or missing key
- * @return <br><i>data</i> if found key
- */
-void *bk_patricia_rsearch(bk_s B, struct bk_pnode *tree, u_char *key, u_short keyblen)
-{
-  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
-  u_short common_len = 0;
-
-  if (!tree || !key)
-  {
-    bk_error_printf(B, BK_ERR_ERR, "Invalid arguments\n");
-    BK_RETURN(B, NULL);
-  }
-
-  if (keyblen % BYTEBITS)
+  if (BK_FLAG_ISSET(flags, BK_PATRICIA_REVERSE) && keyblen % BYTEBITS)
   {
     bk_error_printf(B, BK_ERR_ERR, "Cannot rsearch key lengths which are not multiples of a byte\n");
     BK_RETURN(B, NULL);
@@ -461,28 +412,63 @@ void *bk_patricia_rsearch(bk_s B, struct bk_pnode *tree, u_char *key, u_short ke
   while (1)
   {
     // Case zero: null pointers (caused by going down tree to a node which doesn't exist yet)
-    if (!tree)
-      BK_RETURN(B, NULL);
+    if (!tree || !tree->bp_prefix)
+    {
+#ifdef BP_DEBUGS
+      fprintf(stderr,"Search decend ran into NULL pointer (or empty tree)\n");
+#endif /*BP_DEBUGS*/
+      BK_RETURN(B, lastdata);
+    }
 
-    PREFIX_RMATCH(tree->bp_prefix, tree->bp_bitlen, key, keyblen, &common_len);
+#ifdef BP_DEBUGS
+    fprintf(stderr,"Searching node %.*s/%d storing %p\n",BROUNDUP(tree->bp_bitlen), tree->bp_prefix, tree->bp_bitlen, tree->bp_data);
+#endif /*BP_DEBUGS*/
+
+    if (BK_FLAG_ISSET(flags, BK_PATRICIA_REVERSE))
+      PREFIX_RMATCH(tree->bp_prefix, tree->bp_bitlen, key, keyblen, &common_len);
+    else
+      PREFIX_MATCH(tree->bp_prefix, tree->bp_bitlen, key, keyblen, &common_len);
+
+#ifdef BP_DEBUGS
+    fprintf(stderr,"PREFIX MATCH of %.*s/%d v %.*s/%d yielded %d (%d+%d %d+%d)\n", BROUNDUP(tree->bp_bitlen), tree->bp_prefix, tree->bp_bitlen, BROUNDUP(keyblen), key, keyblen, common_len,bp_bitof(tree->bp_prefix,common_len-1),bp_bitof(tree->bp_prefix,common_len),bp_bitof(key,common_len-1),bp_bitof(key,common_len));
+#endif /*BP_DEBUGS*/
 
     // Case one: exact match
     if (common_len == keyblen && common_len == tree->bp_bitlen)
     {
-      BK_RETURN(B, tree->bp_data);
+#ifdef BP_DEBUGS
+      fprintf(stderr,"Search got exact match with %p\n",tree->bp_data);
+#endif /*BP_DEBUGS*/
+      BK_RETURN(B, tree->bp_data?tree->bp_data:lastdata);
     }
 
-    // Case two: complete match of key, partial match of tree)
-    if (common_len == keyblen)
+    // Case two: partial match of tree)
+    if (common_len < tree->bp_bitlen)
     {
-      BK_RETURN(B, NULL);
+#ifdef BP_DEBUGS
+      fprintf(stderr,"Partial tree\n");
+#endif /*BP_DEBUGS*/
+      BK_RETURN(B, lastdata);
     }
 
     // Case three: partial match of key, go down the tree
-    tree = tree->bp_children[bp_rbitof(key,common_len,keyblen)];
+
+    // If this is a prefix search, store the last (longest) data element as we decend to a potentially non-matching/non-terminal node
+    if (BK_FLAG_ISSET(flags, BK_PATRICIA_PREFIX) && tree->bp_data)
+    {
+#ifdef BP_DEBUGS
+      fprintf(stderr,"Updating lastdata with %p\n",tree->bp_data);
+#endif /*BP_DEBUGS*/
+      lastdata = tree->bp_data;
+    }
+
+    tree = tree->bp_children[BK_FLAG_ISSET(flags, BK_PATRICIA_REVERSE)?bp_rbitof(key,common_len,keyblen):bp_bitof(key,common_len)];
   }
   // notreached
-  BK_RETURN(B, NULL);
+#ifdef BP_DEBUGS
+  fprintf(stderr,"Not reached\n");
+#endif /*BP_DEBUGS*/
+  BK_RETURN(B, lastdata);
 }
 
 
