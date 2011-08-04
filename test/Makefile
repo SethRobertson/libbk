@@ -27,6 +27,7 @@ BK_SIMPLE_INTERNALPROGS=		\
 		shmmap			\
 		sourcesink		\
 		test_bua		\
+		test_bloomfilter	\
 		test_clc		\
 		test_closerace		\
 		test_config		\

@@ -33,16 +33,20 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 struct bk_bloomfilter
 {
-  uint32_t	bf_hash_count;			///< Number of hash functions used.
-  uint64_t	bf_words;			///< Number of 64-bit words in bloom filter.
-  uint64_t	bf_bits;			///< Number of bits in bloom filter.
+  int32_t	bf_hash_count;			///< Number of hash functions used.
+  int64_t	bf_words;			///< Number of 64-bit words in bloom filter.
+  int64_t	bf_bits;			///< Number of bits in bloom filter.
   uint64_t     *bf_bitset;			///< The bitfield containing the data.
+  int	        bf_fd;				///< fd of mmapped file
+  bk_flags	bf_flags;			///< Flags
+#define BF_FLAG_ALLOCATED	0x01		///< bitset was allocated (as opposed to mmap'd)
+#define BF_FLAG_MMAPPED		0x02		///< bitset was mmaped
 };
 
 
 
-inline static void set_bit(uint64_t *bits, uint64_t length, uint64_t idx);
-inline static uint8_t get_bit(uint64_t *bits, uint64_t length, uint64_t idx);
+inline static void set_bit(uint64_t *bits, int64_t length, int64_t idx);
+inline static uint8_t get_bit(uint64_t *bits, int64_t length, int64_t idx);
 
 
 
@@ -52,10 +56,11 @@ inline static uint8_t get_bit(uint64_t *bits, uint64_t length, uint64_t idx);
  * @param B BAKA Thread/global state
  * @param hashes number of hash functions to use
  * @param bits length of the filter in bits (may be rounded up)
+ * @param filename If non-null, contains a filename of a file containing the bitset, which will be mmapped
  * @return <i>new bloomfilter</i> on success
  * @return <i>NULL</i> on failure
  */
-struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, uint32_t hashes, uint64_t bits)
+struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, int32_t hashes, int64_t bits, const char *filename)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_bloomfilter *bf = NULL;
@@ -71,15 +76,35 @@ struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, uint32_t hashes, uint64_t b
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory for bloom filter metadata.\n");
     goto error;
   }
+  bf->bf_fd = -1;
 
   bf->bf_hash_count = hashes;
   bf->bf_bits = bits;
   bf->bf_words = ((bits - 1) >> 6) + 1;
 
-  if (!BK_CALLOC_LEN(bf->bf_bitset, bf->bf_words * sizeof(uint64_t)))
+  if (!filename)
   {
-    bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory for bloom filter.\n");
-    goto error;
+    if (!BK_CALLOC_LEN(bf->bf_bitset, bf->bf_words * sizeof(uint64_t)))
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not allocate memory for bloom filter.\n");
+      goto error;
+    }
+    BK_FLAG_SET(bf->bf_flags, BF_FLAG_ALLOCATED);
+  }
+  else
+  {
+    if ((bf->bf_fd = open(filename, O_RDONLY)) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Error opening bloom filter file: %s\n", strerror(errno));
+      goto error;
+    }
+
+    if ((bf->bf_bitset = mmap(0, bf->bf_words * sizeof(uint64_t), PROT_READ, MAP_SHARED, bf->bf_fd, 0)) == MAP_FAILED)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Error mapping bloom filter file: %s\n", strerror(errno));
+      goto error;
+    }
+    BK_FLAG_SET(bf->bf_flags, BF_FLAG_MMAPPED);
   }
 
   BK_RETURN(B, bf);
@@ -106,7 +131,19 @@ void bk_bloomfilter_destroy(bk_s B, struct bk_bloomfilter *bf)
   if (bf)
   {
     if (bf->bf_bitset)
-      free(bf->bf_bitset);
+    {
+      if (BK_FLAG_ISSET(bf->bf_flags, BF_FLAG_ALLOCATED))
+      {
+	free(bf->bf_bitset);
+      }
+      else if (BK_FLAG_ISSET(bf->bf_flags, BF_FLAG_MMAPPED))
+      {
+	munmap(bf->bf_bitset, bf->bf_words * sizeof(int64_t));
+      }
+    }
+
+    if (bf->bf_fd > -1)
+      close(bf->bf_fd);
 
     free(bf);
   }
@@ -123,9 +160,9 @@ void bk_bloomfilter_destroy(bk_s B, struct bk_bloomfilter *bf)
  * @param length length (in 64-bit words) of the bitset
  * @param idx index of the bit to set
  */
-inline static void set_bit(uint64_t *bits, uint64_t length, uint64_t idx)
+inline static void set_bit(uint64_t *bits, int64_t length, int64_t idx)
 {
-  uint64_t word;
+  int64_t word;
   uint8_t bit;
   uint64_t bitmask;
 
@@ -151,9 +188,9 @@ inline static void set_bit(uint64_t *bits, uint64_t length, uint64_t idx)
  * @return <i>1</i> if set
  * @return <i>0</i> if not set
  */
-inline static uint8_t get_bit(uint64_t *bits, uint64_t length, uint64_t idx)
+inline static uint8_t get_bit(uint64_t *bits, int64_t length, int64_t idx)
 {
-  uint64_t word;
+  int64_t word;
   uint8_t bit;
   uint64_t bitmask;
 
@@ -181,7 +218,7 @@ int bk_bloomfilter_add(bk_s B, struct bk_bloomfilter *bf, const void *key, const
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int64_t hash[2];
-  uint32_t i;
+  int32_t i;
 
   if (!bf || !bf->bf_bitset || !key || !len)
   {
@@ -192,7 +229,7 @@ int bk_bloomfilter_add(bk_s B, struct bk_bloomfilter *bf, const void *key, const
   murmurhash3_x64_128(key, len, 0L, &hash);
   for (i=0; i<bf->bf_hash_count; i++)
   {
-    set_bit(bf->bf_bitset, bf->bf_words, (hash[0] + ((uint64_t)i) * hash[1]) % bf->bf_bits);
+    set_bit(bf->bf_bitset, bf->bf_words, llabs((hash[0] + ((int64_t)i) * hash[1]) % bf->bf_bits));
   }
 
   BK_RETURN(B, 0);
@@ -215,7 +252,7 @@ int bk_bloomfilter_is_present(bk_s B, struct bk_bloomfilter *bf, const void *key
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   int64_t hash[2];
-  uint32_t i;
+  int32_t i;
 
   if (!bf || !bf->bf_bitset || !key || !len)
   {
@@ -226,7 +263,7 @@ int bk_bloomfilter_is_present(bk_s B, struct bk_bloomfilter *bf, const void *key
   murmurhash3_x64_128(key, len, 0L, &hash);
   for (i=0; i<bf->bf_hash_count; i++)
   {
-    if (!get_bit(bf->bf_bitset, bf->bf_words, (hash[0] + ((uint64_t)i) * hash[1]) % bf->bf_bits))
+    if (!get_bit(bf->bf_bitset, bf->bf_words, llabs((hash[0] + ((int64_t)i) * hash[1]) % bf->bf_bits)))
       BK_RETURN(B, 0);
   }
 
