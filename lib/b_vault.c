@@ -54,7 +54,7 @@ static ht_val vault_key_hash(void *a);
  *	@param B BAKA thread/global state
  *	@param table_entries Optional number of entries in CLC table (0 for default)
  *	@param bucket_entries Optional number of entries in each bucket (0 for default)
- *	@param flags Fun for the future
+ *	@param flags Additional CLC flags to pass in
  *	@return <i>NULL</i> on call failure, allocation failure, etc
  *	@return <br><i>allocated vault</i> on success.
  */
@@ -70,7 +70,7 @@ bk_vault_t bk_vault_create(bk_s B, int table_entries, int bucket_entries, bk_fla
   if (bucket_entries)
     vault_args.ht_bucket_entries = bucket_entries;
 
-  if (!(vault = vault_create(vault_oo_cmp, vault_ko_cmp, DICT_HT_STRICT_HINTS|DICT_UNIQUE_KEYS, &vault_args)))
+  if (!(vault = vault_create(vault_oo_cmp, vault_ko_cmp, DICT_HT_STRICT_HINTS|DICT_UNIQUE_KEYS|flags, &vault_args)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create vault CLC: %s\n", bk_vault_error_reason(NULL, NULL));
     BK_RETURN(B, NULL);
@@ -88,7 +88,7 @@ bk_vault_t bk_vault_create(bk_s B, int table_entries, int bucket_entries, bk_fla
  * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state
- *	@param flags Fun for the future
+ *	@param flags  Additional CLC creation flags
  *	@return <i>NULL</i> on call failure, allocation failure, etc
  *	@return <br><i>allocated vault</i> on success.
  */
@@ -97,7 +97,7 @@ bk_bstvault_t bk_bstvault_create(bk_s B, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_bstvault_t vault = NULL;
 
-  if (!(vault = bstvault_create(vault_oo_cmp, vault_ko_cmp, DICT_UNIQUE_KEYS|DICT_BALANCED_TREE)))
+  if (!(vault = bstvault_create(vault_oo_cmp, vault_ko_cmp, DICT_UNIQUE_KEYS|DICT_BALANCED_TREE|flags)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create vault CLC: %s\n", bk_bstvault_error_reason(NULL, NULL));
     BK_RETURN(B, NULL);
@@ -115,7 +115,7 @@ bk_bstvault_t bk_bstvault_create(bk_s B, bk_flags flags)
  * THREADS: MT-SAFE
  *
  *	@param B BAKA thread/global state
- *	@param flags Fun for the future
+ *	@param flags Additional CLC creation flags
  *	@return <i>NULL</i> on call failure, allocation failure, etc
  *	@return <br><i>allocated vault</i> on success.
  */
@@ -124,7 +124,7 @@ bk_dllvault_t bk_dllvault_create(bk_s B, bk_flags flags)
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   bk_dllvault_t vault = NULL;
 
-  if (!(vault = dllvault_create(vault_oo_cmp, vault_ko_cmp, DICT_ORDERED|DICT_UNIQUE_KEYS)))
+  if (!(vault = dllvault_create(vault_oo_cmp, vault_ko_cmp, DICT_ORDERED|DICT_UNIQUE_KEYS|flags)))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create vault CLC: %s\n", bk_vault_error_reason(NULL, NULL));
     BK_RETURN(B, NULL);
