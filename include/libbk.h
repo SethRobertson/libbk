@@ -2119,7 +2119,9 @@ extern void murmurhash3_x86_128(const void *key, const int len, uint32_t seed, v
 extern void murmurhash3_x64_128(const void *key, const int len, const uint32_t seed, void *out);
 
 /* b_bloomfilter.c */
-extern struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, int32_t hashes, int64_t bits, const char *filename);
+extern struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, int32_t hashes, int64_t bits, const char *filename, bk_flags flags);
+#define BK_BLOOMFILTER_WRITABLE		0x1
+#define BK_BLOOMFILTER_CREATABLE	0x2	// Implies write
 extern void bk_bloomfilter_destroy(bk_s B, struct bk_bloomfilter *bf);
 extern int bk_bloomfilter_add(bk_s B, struct bk_bloomfilter *bf, const void *key, const int len);
 extern int bk_bloomfilter_is_present(bk_s B, struct bk_bloomfilter *bf, const void *key, const int len);

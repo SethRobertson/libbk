@@ -41,6 +41,7 @@ struct bk_bloomfilter
   bk_flags	bf_flags;			///< Flags
 #define BF_FLAG_ALLOCATED	0x01		///< bitset was allocated (as opposed to mmap'd)
 #define BF_FLAG_MMAPPED		0x02		///< bitset was mmaped
+#define BF_FLAG_WRITABLE	0x04		///< bitset can be written to
 };
 
 
@@ -57,10 +58,12 @@ inline static uint8_t get_bit(uint64_t *bits, int64_t length, int64_t idx);
  * @param hashes number of hash functions to use
  * @param bits length of the filter in bits (may be rounded up)
  * @param filename If non-null, contains a filename of a file containing the bitset, which will be mmapped
+ * @param flags BK_BLOOMFILTER_WRITABLE Allow writability
+ * @param flags BK_BLOOMFILTER_CREATABLE Allow bloom filter creation (implies writable)
  * @return <i>new bloomfilter</i> on success
  * @return <i>NULL</i> on failure
  */
-struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, int32_t hashes, int64_t bits, const char *filename)
+struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, int32_t hashes, int64_t bits, const char *filename, bk_flags flags)
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_bloomfilter *bf = NULL;
@@ -82,6 +85,10 @@ struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, int32_t hashes, int64_t bit
   bf->bf_bits = bits;
   bf->bf_words = ((bits - 1) >> 6) + 1;
 
+  if (BK_FLAG_ISSET(flags, BK_BLOOMFILTER_WRITABLE) ||
+      BK_FLAG_ISSET(flags, BK_BLOOMFILTER_CREATABLE))
+    BK_FLAG_SET(bf->bf_flags, BF_FLAG_WRITABLE);
+
   if (!filename)
   {
     if (!BK_CALLOC_LEN(bf->bf_bitset, bf->bf_words * sizeof(uint64_t)))
@@ -93,13 +100,54 @@ struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, int32_t hashes, int64_t bit
   }
   else
   {
-    if ((bf->bf_fd = open(filename, O_RDONLY)) < 0)
+    int fdflags = O_RDONLY;
+    struct stat buf;
+
+    if (BK_FLAG_ISSET(bf->bf_flags, BF_FLAG_WRITABLE))
+    {
+      fdflags = O_RDWR;
+      if (BK_FLAG_ISSET(flags, BK_BLOOMFILTER_CREATABLE))
+      {
+	fdflags |= O_CREAT;
+      }
+    }
+
+    if ((bf->bf_fd = open(filename, fdflags, 0666)) < 0)
     {
       bk_error_printf(B, BK_ERR_ERR, "Error opening bloom filter file: %s\n", strerror(errno));
       goto error;
     }
 
-    if ((bf->bf_bitset = mmap(0, bf->bf_words * sizeof(uint64_t), PROT_READ, MAP_SHARED, bf->bf_fd, 0)) == MAP_FAILED)
+    if (fstat(bf->bf_fd, &buf) < 0)
+    {
+      bk_error_printf(B, BK_ERR_ERR, "Could not stat bloom filter we just opened: %s\n", strerror(errno));
+      goto error;
+    }
+
+    if (buf.st_size != bf->bf_words*8)
+    {
+      if (buf.st_size == 0 && BK_FLAG_ISSET(flags, BK_BLOOMFILTER_CREATABLE))
+      {
+	lseek(bf->bf_fd, bf->bf_words*8-1, SEEK_SET);
+	if (write(bf->bf_fd, "", 1) != 1)
+	{
+	  bk_error_printf(B, BK_ERR_ERR, "Could not fill out bloomfilter: %s\n", strerror(errno));
+	  goto error;
+	}
+      }
+      else
+      {
+	bk_error_printf(B, BK_ERR_ERR, "Bloom filter size difference (%lld expected, %lld actual)\n", (long long)bf->bf_words*8, (long long)buf.st_size);
+	goto error;
+      }
+    }
+
+
+    fdflags = PROT_READ;
+    if (BK_FLAG_ISSET(bf->bf_flags, BF_FLAG_WRITABLE))
+      fdflags |= PROT_WRITE;
+
+    if ((bf->bf_bitset = mmap(0, bf->bf_words * sizeof(uint64_t), fdflags, MAP_SHARED, bf->bf_fd, 0)) == MAP_FAILED)
     {
       bk_error_printf(B, BK_ERR_ERR, "Error mapping bloom filter file: %s\n", strerror(errno));
       goto error;
@@ -225,6 +273,13 @@ int bk_bloomfilter_add(bk_s B, struct bk_bloomfilter *bf, const void *key, const
     bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments\n");
     BK_RETURN(B, -1);
   }
+
+  if (BK_FLAG_ISCLEAR(bf->bf_flags, BF_FLAG_WRITABLE))
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Bloom filter not configurated for writability\n");
+    BK_RETURN(B, -1);
+  }
+
 
   murmurhash3_x64_128(key, len, 0L, &hash);
   for (i=0; i<bf->bf_hash_count; i++)

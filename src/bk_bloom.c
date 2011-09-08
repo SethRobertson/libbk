@@ -96,6 +96,8 @@ main(int argc, char **argv, char **envp)
 
     {"bloomfile", 'b', POPT_ARG_STRING, NULL, 'b', N_("Filename pointing to bloom filter"), N_("file") },
     {"add", 'a', POPT_ARG_NONE, NULL, 'a', N_("Add object to bloom filter"), NULL },
+    {"numhash", 'h', POPT_ARG_STRING, NULL, 'h', N_("Number of hashes used in bloom filter"), N_("number") },
+    {"size", 'm', POPT_ARG_STRING, NULL, 'm', N_("Size of bloom filter, in bits"), N_("bitsize") },
     POPT_AUTOHELP
     POPT_TABLEEND
   };
@@ -195,8 +197,9 @@ main(int argc, char **argv, char **envp)
       break;
     case 'm':
       bk_string_atoi64(B, poptGetOptArg(optCon), &pc->pc_bloomsize, 0);
+      break;
     case 'a':					// add
-      BK_FLAG_SET(pc->pc_flags, PC_VERBOSE);
+      BK_FLAG_SET(pc->pc_flags, PC_ADD);
       break;
     }
   }
@@ -256,7 +259,7 @@ static int proginit(bk_s B, struct program_config *pc, int argc, char **argv)
     BK_RETURN(B, -1);
   }
 
-  if (!(pc->pc_bloom = bk_bloomfilter_create(B, pc->pc_hashen, pc->pc_bloomsize, pc->pc_bloomfile)))
+  if (!(pc->pc_bloom = bk_bloomfilter_create(B, pc->pc_hashen, pc->pc_bloomsize, pc->pc_bloomfile, BK_BLOOMFILTER_CREATABLE|(BK_FLAG_ISSET(pc->pc_flags, PC_ADD)?BK_BLOOMFILTER_WRITABLE:0))))
     bk_die(B, 254, stderr, _("Could not open bloom filter\n"), 1);
 
   BK_RETURN(B, 0);
@@ -324,6 +327,7 @@ static void progrun(bk_s B, struct program_config *pc, int argc, char **argv)
     {
       fprintf(stderr, "Bits set for key: ");
       bk_bloomfilter_printkey(B, pc->pc_bloom, buf, len, stderr);
+      fprintf(stderr, "\n");
     }
 
     if ((present = bk_bloomfilter_is_present(B, pc->pc_bloom, buf, len)) < 0)
@@ -332,18 +336,19 @@ static void progrun(bk_s B, struct program_config *pc, int argc, char **argv)
     if (present)
     {
       if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-	printf("Key is present");
+	printf("Key is present\n");
       exit(0);
     }
     else
     {
       if (BK_FLAG_ISSET(pc->pc_flags, PC_VERBOSE))
-	printf("Key is missing");
+	printf("Key is missing\n");
       exit(0);
     }
   }
 
-  bk_memx_destroy(B, memx, 0);
+  if (memx)
+    bk_memx_destroy(B, memx, 0);
 
   BK_VRETURN(B);
 }
