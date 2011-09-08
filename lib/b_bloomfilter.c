@@ -269,3 +269,35 @@ int bk_bloomfilter_is_present(bk_s B, struct bk_bloomfilter *bf, const void *key
 
   BK_RETURN(B, 1);
 }
+
+
+
+/**
+ * Print bloom bits set in key
+ *
+ * @param B BAKA Thread/global state
+ * @param bf the bloom filter
+ * @param key string to hash
+ * @param len length of key in bytes
+ * @param fh File Handle to print bits to
+ */
+void bk_bloomfilter_printkey(bk_s B, struct bk_bloomfilter *bf, const void *key, const int len, FILE *fh)
+{
+  BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
+  int64_t hash[2];
+  int32_t i;
+
+  if (!bf || !bf->bf_bitset || !key || !len || !fh)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Internal error: invalid arguments\n");
+    BK_VRETURN(B);
+  }
+
+  murmurhash3_x64_128(key, len, 0L, &hash);
+  for (i=0; i<bf->bf_hash_count; i++)
+  {
+    fprintf(fh, "%lld%s", llabs((hash[0] + ((int64_t)i) * hash[1]) % bf->bf_bits), (i+1 >= bf->bf_hash_count)?".":", ");
+  }
+
+  BK_VRETURN(B);
+}

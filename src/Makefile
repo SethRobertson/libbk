@@ -28,6 +28,7 @@ BK_SIMPLE_PROGS=			\
 	adjtime				\
 	b_chill				\
 	bdtee				\
+	bk_bloom			\
 	bk_daemon			\
 	bk_funi				\
 	bk_pty				\

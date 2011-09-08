@@ -2114,15 +2114,16 @@ extern char *bk_string_expand(bk_s B, char *src, const dict_h kvht_vardb, const 
 extern int bk_string_csv_quote(bk_s B, const char *in_str, int in_len, char *out_str, int out_len, const char *quote_str, bk_flags flags);
 
 /* b_murmur.c */
-void murmurhash3_x86_32(const void *key, int len, uint32_t seed, void *out);
-void murmurhash3_x86_128(const void *key, const int len, uint32_t seed, void *out);
-void murmurhash3_x64_128(const void *key, const int len, const uint32_t seed, void *out);
+extern void murmurhash3_x86_32(const void *key, int len, uint32_t seed, void *out);
+extern void murmurhash3_x86_128(const void *key, const int len, uint32_t seed, void *out);
+extern void murmurhash3_x64_128(const void *key, const int len, const uint32_t seed, void *out);
 
 /* b_bloomfilter.c */
-struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, int32_t hashes, int64_t bits, const char *filename);
-void bk_bloomfilter_destroy(bk_s B, struct bk_bloomfilter *bf);
-int bk_bloomfilter_add(bk_s B, struct bk_bloomfilter *bf, const void *key, const int len);
-int bk_bloomfilter_is_present(bk_s B, struct bk_bloomfilter *bf, const void *key, const int len);
+extern struct bk_bloomfilter *bk_bloomfilter_create(bk_s B, int32_t hashes, int64_t bits, const char *filename);
+extern void bk_bloomfilter_destroy(bk_s B, struct bk_bloomfilter *bf);
+extern int bk_bloomfilter_add(bk_s B, struct bk_bloomfilter *bf, const void *key, const int len);
+extern int bk_bloomfilter_is_present(bk_s B, struct bk_bloomfilter *bf, const void *key, const int len);
+extern void bk_bloomfilter_printkey(bk_s B, struct bk_bloomfilter *bf, const void *key, const int len, FILE *fh);
 
 /* b_sprintf.c */
 extern char *bk_string_alloc_sprintf(bk_s B, u_int chunk, bk_flags flags, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
