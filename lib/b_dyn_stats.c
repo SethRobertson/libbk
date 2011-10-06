@@ -575,7 +575,7 @@ bk_dynamic_stat_register(bk_s B, bk_dynamic_stats_h stats_list, const char *igno
 {
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
-  const char *name;
+  const char *name = NULL;
   u_int priority;
   int wanted;
   int locked = 0;
@@ -770,7 +770,7 @@ bk_dynamic_stat_register_with_value(bk_s B, bk_dynamic_stats_h stats_list, const
   BK_ENTRY(B, __FUNCTION__, __FILE__, "libbk");
   struct bk_dynamic_stats_list *bdsl = (struct bk_dynamic_stats_list *)stats_list;
   bk_dynamic_stat_h bds;
-  const char *name;
+  const char *name = NULL;
   u_int priority;
   int wanted;
   int locked = 0;
