@@ -419,7 +419,7 @@ static int child(int argc, char **argv, int optint)
 	flags = O_RDONLY;
       }
 
-      if((newfd = open (new_outstream, flags)) == -1)
+      if((newfd = open (new_outstream, flags, 0666)) == -1)
       {
 	reopen(tty);
 	perror("open");
