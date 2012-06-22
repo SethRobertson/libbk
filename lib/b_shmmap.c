@@ -121,6 +121,12 @@ static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myn
     BK_RETURN(B, NULL);
   }
 
+  if ((int)fresh < 0)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "fresh argument too large\n");
+    BK_RETURN(B, NULL);
+  }
+
   if (!(shmmap = calloc(1, sizeof(*shmmap))))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not allocate shmmap ref: %s\n", strerror(errno));
@@ -263,7 +269,7 @@ static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myn
     shmmap->sm_addr->sh_size = size;
     shmmap->sm_addr->sh_usersize = size - mgmt_size;
     shmmap->sm_addr->sh_creatortime = time(NULL);
-    shmmap->sm_addr->sh_fresh = fresh?fresh:(u_int)atoi(BK_GWD(B, "bk_shmmap_fresh", BK_SHMMAP_DEFAULT_FRESH));
+    shmmap->sm_addr->sh_fresh = fresh?(int)fresh:atoi(BK_GWD(B, "bk_shmmap_fresh", BK_SHMMAP_DEFAULT_FRESH));
     shmmap->sm_addr->sh_numclients = max_clients;
     shmmap->sm_addr->sh_state = BK_SHMMAP_READY;
   }

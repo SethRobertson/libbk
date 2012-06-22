@@ -2875,7 +2875,7 @@ struct bk_shmmap_header
   off_t		sh_size;				///< Actual segment size
   off_t		sh_usersize;				///< User segment size
   time_t	sh_creatortime;				///< Freshness of creator
-  u_int		sh_fresh;				///< How fresh creator's time must be for liveness
+  int		sh_fresh;				///< How fresh creator's time must be for liveness
   u_short	sh_numclients;				///< Number of clients in array
   u_short	sh_numattach;				///< Number of clients known attached
   u_short	sh_state;				///< State of SHMMAP (non-listed values == un-initialized)

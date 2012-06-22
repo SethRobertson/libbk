@@ -1615,17 +1615,17 @@ do												\
 												\
     if ((bds)->bds_discriminator == 0)								\
     {												\
-      vptr_ret = bk_vstr_cat(B, 0, &xml_vstr,							\
-			     "%s\t<statistic description=\"%s\">%s</statistic>\n",		\
-			     prefix, (bds)->bds_name, __null_value);				\
+      (void)bk_vstr_cat(B, 0, &xml_vstr,							\
+			"%s\t<statistic description=\"%s\">%s</statistic>\n",			\
+			prefix, (bds)->bds_name, __null_value);					\
     }												\
     else											\
     {												\
-      vptr_ret = bk_vstr_cat(B, 0, &xml_vstr,							\
-			     "%s\t<statistic description=\"%s\" discriminator=\"%ld\">%s"	\
-			     "</statistic>\n",							\
-			     prefix, (bds)->bds_name, (bds)->bds_discriminator,			\
-			     __null_value);							\
+      (void)bk_vstr_cat(B, 0, &xml_vstr,							\
+			"%s\t<statistic description=\"%s\" discriminator=\"%ld\">%s"		\
+			"</statistic>\n",							\
+			prefix, (bds)->bds_name, (bds)->bds_discriminator,			\
+			__null_value);								\
     }												\
   }												\
   else												\
@@ -1641,16 +1641,16 @@ do												\
 												\
     if ((bds)->bds_discriminator == 0)								\
     {												\
-      vptr_ret = bk_vstr_cat(B, 0, &xml_vstr,							\
-			     "%s\t<statistic description=\"%s\">"fmt"</statistic>\n",		\
-			     prefix, (bds)->bds_name, __value);					\
+      (void)bk_vstr_cat(B, 0, &xml_vstr,							\
+			"%s\t<statistic description=\"%s\">"fmt"</statistic>\n",		\
+			prefix, (bds)->bds_name, __value);					\
     }												\
     else											\
     {												\
-      vptr_ret = bk_vstr_cat(B, 0, &xml_vstr,							\
-			     "%s\t<statistic description=\"%s\" discriminator=\"%ld\">"fmt	\
-			     "</statistic>\n",							\
-			     prefix, (bds)->bds_name, (bds)->bds_discriminator, __value);	\
+      (void)bk_vstr_cat(B, 0, &xml_vstr,							\
+			"%s\t<statistic description=\"%s\" discriminator=\"%ld\">"fmt		\
+			"</statistic>\n",							\
+			prefix, (bds)->bds_name, (bds)->bds_discriminator, __value);		\
     }												\
   }												\
 }while(0);
@@ -1731,7 +1731,6 @@ bk_dynamic_stats_XML_create(bk_s B, bk_dynamic_stats_h stats_list, u_int priorit
 
   while((ret = bdsl_getnext(B, bdsl, &bds, priority, NULL, NULL, 0)) == 1)
   {
-    int vptr_ret;
     switch(bds->bds_value_type)
     {
     case DynamicStatsValueTypeInt32:
@@ -1741,10 +1740,10 @@ bk_dynamic_stats_XML_create(bk_s B, bk_dynamic_stats_h stats_list, u_int priorit
       STAT_XML_OUTPUT(bds, "%u", bds->bds_uint32);
       break;
     case DynamicStatsValueTypeInt64:
-      STAT_XML_OUTPUT(bds, "%ld", bds->bds_int64);
+      STAT_XML_OUTPUT(bds, "%lld", (long long int)bds->bds_int64);
       break;
     case DynamicStatsValueTypeUInt64:
-      STAT_XML_OUTPUT(bds, "%lu", bds->bds_uint64);
+      STAT_XML_OUTPUT(bds, "%llu", (long long unsigned int)bds->bds_uint64);
       break;
     case DynamicStatsValueTypeFloat:
       STAT_XML_OUTPUT(bds, "%.4f", bds->bds_float);

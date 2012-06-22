@@ -1015,7 +1015,7 @@ int bk_run_once(bk_s B, struct bk_run *run, bk_flags flags)
   int ret;
   int x;
   int haderror = 0;
-  int use_deltapoll, check_idle;
+  int use_deltapoll;
   u_int event_cnt;
   int isinselect = 0;
 #ifdef BK_USING_PTHREADS
@@ -1115,7 +1115,6 @@ do {									\
 
   bk_debug_printf_and(B,4,"Starting bk_run_once\n");
 
-  check_idle = 0;
   use_deltapoll = 0;
 
   BK_RUN_ONCE_ABORT_CHECK();

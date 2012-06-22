@@ -94,7 +94,6 @@ main(int argc, char **argv, char **envp)
   int priority = 15;		/* default priority to set */
   int error = 0;		/* Error on getopt? */
   int c;			/* getopt option */
-  int nice_ret;
 
 
   /* Lets process arguments! */
@@ -172,7 +171,7 @@ main(int argc, char **argv, char **envp)
     exit (2);
   }
 
-  nice_ret = nice(priority);	/* Change priority to priority, if possible. Ignore errors here. */
+  (void)nice(priority);	/* Change priority to priority, if possible. Ignore errors here. */
 
   // <TODO>daemon() function performs fork, add it here (not in child())</TODO>
 

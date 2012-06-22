@@ -400,13 +400,13 @@ int bk_child_istart(bk_s B, struct bk_child *bchild, void (*cc_callback)(bk_s B,
 
   if (0)
   {
-    int i; // keep here to avoid deprecated label usage warnings
+    int i = 0; // keep here to avoid deprecated label usage warnings
   lockerror:
 #ifdef BK_USING_PTHREADS
     if (BK_GENERAL_FLAG_ISTHREADREADY(B) && pthread_mutex_unlock(&bchild->bc_lock) != 0)
       abort();
 #endif /* BK_USING_PTHREADS */
-    i=0; // keep here to avoid deprecated label usage warnings
+    i++; // keep here to avoid deprecated label usage warnings
   }
 
  error:

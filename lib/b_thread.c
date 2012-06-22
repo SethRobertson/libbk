@@ -1057,7 +1057,7 @@ void bk_thread_kill_others(bk_s B, bk_flags flags)
    */
   pthread_kill_other_threads_np();
 #else /* HAVE_PTHREAD_KILL_OTHER_THREADS_NP */
-  struct bk_threadlist *tlist;
+  struct bk_threadlist * volatile tlist;
   struct bk_threadnode *tnode;
   dict_iter iter;
 
@@ -1681,37 +1681,12 @@ bk_recursive_lock_release(bk_s B, bk_recursive_lock_h recursive_lock, bk_flags f
 
 static int btl_oo_cmp(struct bk_threadnode *a, struct bk_threadnode *b)
 {
-  if ((u_int64_t)a->btn_B > (u_int64_t)b->btn_B)
-  {
-    return(1);
-  }
-  if ((u_int64_t)a->btn_B < (u_int64_t)b->btn_B)
-  {
-    return(-1);
-  }
-  return(0);
-
-#if 0
-  if (ret) return(ret);
-  // DICT_UNIQUE_KEYS should prevent this from ever executing, but just in case
-  return (a - b);
-#endif
+  return(a->btn_B - b->btn_B);
 }
 // (note a and b reversed from usual, because 'B' cannot be 'a', only 'b' :-)
 static int btl_ko_cmp(bk_s b, struct bk_threadnode *a)
 {
-  if ((u_int64_t)b > (u_int64_t)a->btn_B)
-  {
-    return(1);
-  }
-  if ((u_int64_t)b < (u_int64_t)a->btn_B)
-  {
-    return(-1);
-  }
-  return(0);
-#if 0
   return(b - a->btn_B);
-#endif
 }
 #ifdef ACTUALLY_USED
 static ht_val btl_obj_hash(struct bk_threadnode *a)

@@ -530,9 +530,7 @@ void bk_truerand_opertunistic(bk_s B, bk_MD5_CTX *ctx)
 
   if (fd >= 0)
   {
-    ssize_t ignored;
-
-    ignored = read(fd, buf, BK_POOLSIZE);		// Yes, I am intentionally ignoring return code
+    (void)read(fd, buf, BK_POOLSIZE);		// Yes, I am intentionally ignoring return code
     close(fd);
     bk_MD5Update(B, ctx, buf, BK_POOLSIZE);
     bk_MD5Update(B, ctx, (void *)&fd, sizeof(fd));	// Probably predictable, but what the hey
