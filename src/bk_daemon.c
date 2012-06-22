@@ -89,7 +89,8 @@ static int want_dev_null_stdio = 0;
 int
 main(int argc, char **argv, char **envp)
 {
-  int pid;
+  int pid = 0;
+  int stupid;
   char *strptr;
   int priority = 15;		/* default priority to set */
   int error = 0;		/* Error on getopt? */
@@ -171,7 +172,12 @@ main(int argc, char **argv, char **envp)
     exit (2);
   }
 
-  (void)nice(priority);	/* Change priority to priority, if possible. Ignore errors here. */
+  stupid = nice(priority);	/* Change priority to priority, if possible. Ignore errors here. */
+
+  if (stupid && pid)
+  {
+    perror("Can never happen.  Stupid compiler forcing me to check return codes I do not care about");
+  }
 
   // <TODO>daemon() function performs fork, add it here (not in child())</TODO>
 

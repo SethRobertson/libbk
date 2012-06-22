@@ -207,7 +207,6 @@ void progrun(bk_s B, struct program_config *pconfig)
   char scratch[1024];
   char inputline[1024];
   struct bk_url *bu;
-  u_int nextstart;
   char *params;
   char *parampath;
   char *frankenurl;
@@ -242,7 +241,6 @@ void progrun(bk_s B, struct program_config *pconfig)
 
 
     memset(scratch,0,sizeof(scratch));
-    nextstart = 0;
     if (!(bu=bk_url_parse(B, inputline, pconfig->pc_parse_mode, BK_URL_FLAG_STRICT_PARSE)))
     {
       fprintf(stderr,"Could not convert url: %s\n", inputline);

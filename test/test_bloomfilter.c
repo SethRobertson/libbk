@@ -228,7 +228,7 @@ static void progrun(bk_s B, struct program_config *pc)
   const char *paypal = "www.papal.com/update_ssn.php";
   const char *google = "www.google.com";
 
-  if (!(bf = bk_bloomfilter_create(B, 10, 500000000, "/tmp/bloom")))
+  if (!(bf = bk_bloomfilter_create(B, 10, 500000000, "/tmp/bloom", BK_BLOOMFILTER_CREATABLE|BK_BLOOMFILTER_WRITABLE)))
   {
     bk_error_printf(B, BK_ERR_ERR, "bloomfilter init failed\n");
     exit(2);

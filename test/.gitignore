@@ -35,3 +35,4 @@ ipctest
 shmmap
 test_xml_comment
 test_patricia
+test_bloomfilter

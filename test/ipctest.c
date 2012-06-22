@@ -396,6 +396,8 @@ static void *recvthread(bk_s B, void *opaque)
       pc->pc_ready = 0;
       pthread_mutex_unlock(&pc->pc_mutex);
       pthread_cond_signal(&pc->pc_cond);
+      if (!mbuf)
+	bk_error_printf(B, BK_ERR_ERR, "Should never happen.  Stupid compiler making me do what I care not about.\n");
     }
     else if (BK_FLAG_ISSET(pc->pc_flags, PC_BK))
     {

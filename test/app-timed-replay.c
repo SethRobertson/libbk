@@ -645,6 +645,10 @@ connect_complete(bk_s B, void *args, int sock, struct bk_addrgroup *bag, void *s
       int junk;
       actuallen *= len;
       junk = write(sock,buf,actuallen);
+      if (junk < actuallen)
+      {
+	fprintf(stderr, "Could not write entire buffer: %d<%d: %s\n", junk,actuallen,strerror(errno));
+      }
     }
     pc->pc_stats.side[0].birs_writebytes += actuallen;
   }

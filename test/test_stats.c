@@ -277,7 +277,9 @@ static void progrun(bk_s B, struct program_config *pc)
   bk_dynamic_stats_h stats_list;
   int cnt = 0;
   char *xml = NULL;
+#ifdef NEED_TRAVERSE
   dict_h stats_dict;
+#endif /*NEED_TRAVERSE*/
 
 
   if (!pc)
@@ -292,7 +294,9 @@ static void progrun(bk_s B, struct program_config *pc)
     goto error;
   }
 
+#ifdef NEED_TRAVERSE
   stats_dict = ((struct bk_dynamic_stats_list *)stats_list)->bdsl_list;
+#endif /*NEED_TRAVERSE*/
 
   if (bk_global_dynamic_stats_register(B, stats_list, 0) < 0)
   {
