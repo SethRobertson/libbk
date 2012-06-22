@@ -16,7 +16,9 @@ static const char libbk__contact[] = "<projectbaka@baka.org>";
  */
 
 #include <libbk.h>
+#ifdef NO_SSL
 #include <libbkssl.h>
+#endif /*NO_SSL*/
 #include "libbk_internal.h"
 
 

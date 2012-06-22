@@ -1975,7 +1975,8 @@ extern void bk_exit(bk_s B, u_char retcode);
 extern void bk_dmalloc_shutdown(bk_s B, void *opaque, u_int other);
 extern int bk_ssl_supported(bk_s B);
 #ifdef NO_SSL
-extern void bk_ssl_destroy(bk_s B, void *ssl, bk_flags flags);
+struct bk_ssl;
+extern void bk_ssl_destroy(bk_s B, struct bk_ssl *ssl, bk_flags flags);
 #endif /* NO_SSL */
 
 
