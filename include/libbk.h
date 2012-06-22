@@ -1974,10 +1974,10 @@ extern void bk_warn(bk_s B, FILE *output, char *reason, bk_flags flags);
 extern void bk_exit(bk_s B, u_char retcode);
 extern void bk_dmalloc_shutdown(bk_s B, void *opaque, u_int other);
 extern int bk_ssl_supported(bk_s B);
-#ifdef NO_SSL
+#if defined(NO_SSL) || defined(__ELF__)
 struct bk_ssl;
 extern void bk_ssl_destroy(bk_s B, struct bk_ssl *ssl, bk_flags flags);
-#endif /* NO_SSL */
+#endif /* NO_SSL || __ELF__ */
 
 
 
