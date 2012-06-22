@@ -36,7 +36,9 @@ BK_SUBDIR=lib
 
 # Suppress libbkxml.so
 ifneq ($(strip $(WANT_BK_XML)),false)
+ifeq ($(strip $(HAVE_LIBXML2)),true)
 BK_SUBDIR+=xml
+endif
 endif
 
 # Suppress libbkssl.so

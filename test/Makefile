@@ -70,3 +70,5 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 -include ./Make.include
 ## END BKSTANDARD MAKEFILE
 ##################################################
+
+LDLIBS=$(filter-out -lpq -lssl -lcrypt -lcrypto -lbkxml -lbkssl -lxml2 -lm -lz,$(BK_ALLLIBS))

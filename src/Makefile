@@ -37,7 +37,6 @@ BK_SIMPLE_PROGS=			\
 	bkrelay				\
 	bttcp				\
 	genrand				\
-	iprewrite			\
 	mmcat				\
 	runsize				\
 	shmadm				\
@@ -45,6 +44,11 @@ BK_SIMPLE_PROGS=			\
 	shmmapadm			\
 	$(BK_TMP_PROG)			\
 #line fodder eater. Do not remove.
+
+ifeq ($(strip $(HAVE_LIBPCAP)),true)
+BK_SIMPLE_PROGS += iprewrite
+endif # HAVE_LIBPCAP
+
 
 GROUPTOP=..
 GROUPSUBDIR=src
