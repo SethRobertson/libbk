@@ -530,10 +530,11 @@ void bk_truerand_opertunistic(bk_s B, bk_MD5_CTX *ctx)
 
   if (fd >= 0)
   {
-    (void)read(fd, buf, BK_POOLSIZE);		// Yes, I am intentionally ignoring return code
+    int stupid = read(fd, buf, BK_POOLSIZE);		// Yes, I am intentionally ignoring return code
     close(fd);
     bk_MD5Update(B, ctx, buf, BK_POOLSIZE);
     bk_MD5Update(B, ctx, (void *)&fd, sizeof(fd));	// Probably predictable, but what the hey
+    bk_MD5Update(B, ctx, (void *)&stupid, sizeof(stupid));	// Entirely predictable, but stupid compilers are forcing me to use the return code
   }
 
   // <TODO>Add other opportunistic data sources</TODO>
