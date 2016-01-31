@@ -72,7 +72,7 @@ include $(GROUPTOP)/$(PKGTOP)/bkmk/Make.include
 ifneq ($(strip $(BK_USING_SSL)),false)
 #LOCAL_LIBS=-lbkssl
 ifeq ($(BK_WANT_LIBTOOL),false)
-LOCAL_LIBS+=-lssl -lcrypto
+LOCAL_LIBS+=-lssl -lcrypto -lpcap
 endif # BK_WANT_LIBTOOL
 else
 #LOCAL_DEFINES+=-DNO_SSL

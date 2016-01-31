@@ -810,7 +810,7 @@ bk_fileutils_is_true_pipe(bk_s B, int fd, bk_flags flags)
 #if (defined makedev && defined NODEV)
   int i = 8 * sizeof(long long);
   unsigned long long major = (unsigned long long) -1;
-  long long minor_mask;
+  dev_t minor_mask;
 #endif // defined mkdev && defined NODEV
 
   if (fstat(fd, &st) < 0)
