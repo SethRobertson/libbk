@@ -30,6 +30,8 @@
 #include <grp.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
+#include <string.h>
 
 int getuidbyargv(char *argv, int *error, int *gid);
 int getgidbyargv(char *argv, int *error);
@@ -149,6 +151,7 @@ int getgidbyargv(char *argv, int *error)
     {
       struct group *EE;
 
+      errno = 0;
       EE = getgrnam(argv);
       if (!EE)
 	{
@@ -159,7 +162,7 @@ int getgidbyargv(char *argv, int *error)
 	    }
 	  else
 	    {
-	      perror("getpwnam");
+	      fprintf(stderr,"Failed getgrnam with %s: %s\n", argv, strerror(errno));
 	      exit(2);
 	    }
 	}
@@ -184,6 +187,7 @@ int getuidbyargv(char *argv, int *error, int *gid)
     {
       struct passwd *pwd;
 
+      errno = 0;
       pwd = getpwnam(argv);
 
       if (!pwd)
@@ -195,7 +199,7 @@ int getuidbyargv(char *argv, int *error, int *gid)
 	    }
 	  else
 	    {
-	      perror("getpwnam");
+	      fprintf(stderr,"Failed getpwnam with %s: %s\n", argv, strerror(errno));
 	      exit(2);
 	    }
 	}
