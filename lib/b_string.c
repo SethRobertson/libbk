@@ -216,16 +216,26 @@ bk_strhash(const char *k, bk_flags flags)
     switch(len)					// all the case statements fall through
     {
     case 11: h+=((u_int32_t)k[10]<<24);
+      __attribute__ ((fallthrough));
     case 10: h+=((u_int32_t)k[9]<<16);
+      __attribute__ ((fallthrough));
     case 9 : h+=((u_int32_t)k[8]<<8);
       // the first byte of h is reserved for the length
+      __attribute__ ((fallthrough));
     case 8 : b+=((u_int32_t)k[7]<<24);
+      __attribute__ ((fallthrough));
     case 7 : b+=((u_int32_t)k[6]<<16);
+      __attribute__ ((fallthrough));
     case 6 : b+=((u_int32_t)k[5]<<8);
+      __attribute__ ((fallthrough));
     case 5 : b+=k[4];
+      __attribute__ ((fallthrough));
     case 4 : a+=((u_int32_t)k[3]<<24);
+      __attribute__ ((fallthrough));
     case 3 : a+=((u_int32_t)k[2]<<16);
+      __attribute__ ((fallthrough));
     case 2 : a+=((u_int32_t)k[1]<<8);
+      __attribute__ ((fallthrough));
     case 1 : a+=k[0];
       // case 0: nothing left to add
     }

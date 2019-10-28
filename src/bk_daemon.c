@@ -139,6 +139,7 @@ main(int argc, char **argv, char **envp)
       break;
     case 'q':
       quiet=1;
+      break;
     case 's':
       outstream = optarg;
       break;

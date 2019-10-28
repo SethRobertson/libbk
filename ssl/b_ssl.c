@@ -106,8 +106,8 @@ static void ssl_shutdown_handler(bk_s B, struct bk_run *run, int fd, u_int gotty
 #ifdef BK_USING_PTHREADS
 static int ssl_threads_init(bk_s B);
 static void ssl_threads_destroy(bk_s B);
-static unsigned long pthreads_thread_id(void);
-static void pthreads_locking_callback(int mode, int type, const char *file, int line);
+static unsigned long pthreads_thread_id(void) __attribute__((unused));
+static void pthreads_locking_callback(int mode, int type, const char *file, int line) __attribute__((unused));
 #endif // BK_USING_PTHREADS
 static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
 static struct start_service_args *ssa_create(bk_s B, bk_flags flags);
@@ -1582,7 +1582,7 @@ void ssl_threads_destroy(bk_s B)
 /**
  * See threads(3).
  */
-void pthreads_locking_callback(int mode, int type, const char *file, int line)
+static void pthreads_locking_callback(int mode, int type, const char *file, int line)
 {
   if (mode & CRYPTO_LOCK)
   {
@@ -1600,7 +1600,7 @@ void pthreads_locking_callback(int mode, int type, const char *file, int line)
 /**
  * See threads(3).
  */
-unsigned long pthreads_thread_id(void)
+static unsigned long pthreads_thread_id(void)
 {
   unsigned long ret;
 

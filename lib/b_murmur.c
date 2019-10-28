@@ -126,7 +126,9 @@ void murmurhash3_x86_32(const void *key, int len, uint32_t seed, void *out)
   switch(len & 3)
   {
   case 3: k1 ^= tail[2] << 16;
+    __attribute__((fallthrough));
   case 2: k1 ^= tail[1] << 8;
+    __attribute__((fallthrough));
   case 1: k1 ^= tail[0];
           k1 *= c1; k1 = ROTL32(k1,15); k1 *= c2; h1 ^= k1;
   };
@@ -201,25 +203,36 @@ void murmurhash3_x86_128(const void *key, const int len, uint32_t seed, void *ou
   switch(len & 15)
   {
   case 15: k4 ^= tail[14] << 16;
+    __attribute__((fallthrough));
   case 14: k4 ^= tail[13] << 8;
+    __attribute__((fallthrough));
   case 13: k4 ^= tail[12] << 0;
            k4 *= c4; k4  = ROTL32(k4,18); k4 *= c1; h4 ^= k4;
-
+    __attribute__((fallthrough));
   case 12: k3 ^= tail[11] << 24;
+    __attribute__((fallthrough));
   case 11: k3 ^= tail[10] << 16;
+    __attribute__((fallthrough));
   case 10: k3 ^= tail[ 9] << 8;
+    __attribute__((fallthrough));
   case  9: k3 ^= tail[ 8] << 0;
            k3 *= c3; k3  = ROTL32(k3,17); k3 *= c4; h3 ^= k3;
-
+    __attribute__((fallthrough));
   case  8: k2 ^= tail[ 7] << 24;
+    __attribute__((fallthrough));
   case  7: k2 ^= tail[ 6] << 16;
+    __attribute__((fallthrough));
   case  6: k2 ^= tail[ 5] << 8;
+    __attribute__((fallthrough));
   case  5: k2 ^= tail[ 4] << 0;
            k2 *= c2; k2  = ROTL32(k2,16); k2 *= c3; h2 ^= k2;
-
+    __attribute__((fallthrough));
   case  4: k1 ^= tail[ 3] << 24;
+    __attribute__((fallthrough));
   case  3: k1 ^= tail[ 2] << 16;
+    __attribute__((fallthrough));
   case  2: k1 ^= tail[ 1] << 8;
+    __attribute__((fallthrough));
   case  1: k1 ^= tail[ 0] << 0;
            k1 *= c1; k1  = ROTL32(k1,15); k1 *= c2; h1 ^= k1;
   };
@@ -290,23 +303,37 @@ void murmurhash3_x64_128(const void *key, const int len, const uint32_t seed, vo
   switch(len & 15)
   {
   case 15: k2 ^= ((uint64_t)tail[14]) << 48;
+    __attribute__((fallthrough));
   case 14: k2 ^= ((uint64_t)tail[13]) << 40;
+    __attribute__((fallthrough));
   case 13: k2 ^= ((uint64_t)tail[12]) << 32;
+    __attribute__((fallthrough));
   case 12: k2 ^= ((uint64_t)tail[11]) << 24;
+    __attribute__((fallthrough));
   case 11: k2 ^= ((uint64_t)tail[10]) << 16;
+    __attribute__((fallthrough));
   case 10: k2 ^= ((uint64_t)tail[ 9]) << 8;
+    __attribute__((fallthrough));
   case  9: k2 ^= ((uint64_t)tail[ 8]) << 0;
            k2 *= c2; k2  = ROTL64(k2,33); k2 *= c1; h2 ^= k2;
-
+    __attribute__((fallthrough));
   case  8: k1 ^= ((uint64_t)tail[ 7]) << 56;
+    __attribute__((fallthrough));
   case  7: k1 ^= ((uint64_t)tail[ 6]) << 48;
+    __attribute__((fallthrough));
   case  6: k1 ^= ((uint64_t)tail[ 5]) << 40;
+    __attribute__((fallthrough));
   case  5: k1 ^= ((uint64_t)tail[ 4]) << 32;
+    __attribute__((fallthrough));
   case  4: k1 ^= ((uint64_t)tail[ 3]) << 24;
+    __attribute__((fallthrough));
   case  3: k1 ^= ((uint64_t)tail[ 2]) << 16;
+    __attribute__((fallthrough));
   case  2: k1 ^= ((uint64_t)tail[ 1]) << 8;
+    __attribute__((fallthrough));
   case  1: k1 ^= ((uint64_t)tail[ 0]) << 0;
            k1 *= c1; k1  = ROTL64(k1,31); k1 *= c2; h1 ^= k1;
+    __attribute__((fallthrough));
   };
 
   //----------

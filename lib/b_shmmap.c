@@ -115,7 +115,7 @@ static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myn
   void *errret = (void *)-1;
   struct mq_attr mqattr;
 
-  if (!name)
+  if (!name || (attach && !myname))
   {
     bk_error_printf(B, BK_ERR_ERR, "Illegal arguments\n");
     BK_RETURN(B, NULL);
@@ -291,7 +291,9 @@ static struct bk_shmmap *bk_shmmap_int(bk_s B, const char *name, const char *myn
     }
 
     bop.bsc_pid = getpid();
-    strncpy(bop.bsc_name, myname,BK_SHMMAP_MAXCLIENTNAME);
+
+    assert(myname != NULL);
+    strncpy(bop.bsc_name, myname, BK_SHMMAP_MAXCLIENTNAME);
 
     // See if there is a stale registration for me (and zap it)
     for(x=0;x<shmmap->sm_addr->sh_numclients;x++)

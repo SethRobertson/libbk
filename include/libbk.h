@@ -1151,7 +1151,9 @@ do {						\
   switch(mmh2al)				\
   {						\
   case 3: mmh2akk ^= mmh2ad[2] << 16;		\
+      __attribute__ ((fallthrough));		\
   case 2: mmh2akk ^= mmh2ad[1] << 8;		\
+      __attribute__ ((fallthrough));		\
   case 1: mmh2akk ^= mmh2ad[0];			\
   }						\
   murmurhash2a_update(h,mmh2akk);		\

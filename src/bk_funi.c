@@ -74,6 +74,7 @@ int main(int argc, char **argv, char **envp)
 
       case 'U':			/* fall through case */
 	uid = getuidbyargv(optarg,NULL,&gid);
+	__attribute__ ((fallthrough));
 
       case 'G':
 	resetXtraGroups = 1;
