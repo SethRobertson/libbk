@@ -442,7 +442,6 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
   char admin[MAXNAMLEN];
   char lock[MAXNAMLEN];
   char tmpname[MAXNAMLEN];
-  int len;
   struct stat sb;
   struct file_lock_admin *fla = NULL;
   int fd = -1;
@@ -474,18 +473,8 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
   admin_ext = (iadmin_ext?iadmin_ext:BK_FILE_LOCK_ADMIN_EXTENSION);
   lock_ext = (ilock_ext?ilock_ext:BK_FILE_LOCK_EXTENSION);
 
-  // I use strlen alot in this function, so compute and chache early.
-  len = strlen(path);
-
   // Generate admin file name.
-  snprintf(admin,sizeof(admin), "%s.%s", path, admin_ext);
-
-  /*
-   * Make sure that file name you have just created is exactly what you
-   * want. Otherwise you might be trashing something (like, for instance,
-   * the file you are trying to lock!)
-   */
-  if (strlen(admin) != len + strlen(admin_ext) + 1)
+  if (snprintf(admin,sizeof(admin), "%s.%s", path, admin_ext) >= (int)sizeof(admin))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create lock admin file name correctly\n");
     goto error;
@@ -500,10 +489,7 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
   fd = -1;
 
   // Generate admin file lock file name.
-  snprintf(lock, sizeof(lock), "%s.%s", path, lock_ext);
-
-  // Again check that we have the name that we want
-  if (strlen(lock) != len + strlen(lock_ext) + 1)
+  if (snprintf(lock, sizeof(lock), "%s.%s", path, lock_ext) >= (int)sizeof(lock))
   {
     bk_error_printf(B, BK_ERR_ERR, "Could not create lock file name correctly\n");
     goto error;
@@ -511,7 +497,11 @@ lock_admin_file(bk_s B, const char *ipath, const char *iadmin_ext, const char *i
 
   // Generate a uniqe string as a "link" name.
   // <TODO> mkstemp(3) is not good for NFS. use bk_mkstemp() when written.</TODO>
-  snprintf(tmpname, MAXNAMLEN, "%s.XXXXXX", path);
+  if (snprintf(tmpname, MAXNAMLEN, "%s.XXXXXX", path) >= MAXNAMLEN)
+  {
+    bk_error_printf(B, BK_ERR_ERR, "Could not create link file name correctly\n");
+    goto error;
+  }
 
   if ((fd = mkstemp(tmpname)) < 0 )
   {
