@@ -10,10 +10,9 @@
  * Seth Robertson
  * seth@baka.org
  *
- * Copyright (c) 1992, 1995, 2004.  Seth Robertson
  * ++Copyright BAKA++
  *
- * Copyright © 2004-2011 The Authors. All rights reserved.
+ * Copyright © 2004-2019 The Authors. All rights reserved.
  *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.

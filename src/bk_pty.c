@@ -1,11 +1,11 @@
 #if !defined(lint)
-static const char libbk__copyright[] = "Copyright © 2005-2011";
-static const char libbk__contact[] = "<projectbaka@baka.org>";
+static const char libbk__copyright[] __attribute__((unused)) = "Copyright © 2005-2019";
+static const char libbk__contact[] __attribute__((unused)) = "<projectbaka@baka.org>";
 #endif /* not lint */
 /*
  * ++Copyright BAKA++
  *
- * Copyright © 2005-2011 The Authors. All rights reserved.
+ * Copyright © 2005-2019 The Authors. All rights reserved.
  *
  * This source code is licensed to you under the terms of the file
  * LICENSE.TXT in this release for further details.
